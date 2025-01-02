@@ -11,8 +11,9 @@ from pandas import DataFrame
 
 
 class Element:
-    def __init__(self, kind:str='multi', name:str='Unnamed',
-                 length:float=0, strength:float=0, calibration:None|float=None,
+    def __init__(self, kind:None|str=None, name:str='Unnamed',
+                 position:float=0, length:float=0,
+                 strength:float=0, calibration:None|float=None,
                  ndim:int=3,
                  label:bool=False, print_fancy:bool=True) -> object:
         """General microscope element class.
@@ -28,12 +29,14 @@ class Element:
 
         Parameters
         ----------
+        kind : stry, optional
+            Type of element, by default None
         name : str, optional
             Name given to the lens, by default ''
-        kind : stry, optional
-            Type of element.
+        position : float, optional
+            The position of the element along the z-axis, by default 0
         length : int, optional
-            Length of the element, by default=0
+            Length of the element, by default 0
         strength : float, optional
             Defined as the The focusing strength (K) of a thin lens, by default 0
         calibration : float, optional
@@ -47,9 +50,18 @@ class Element:
             If the element should be labeled when plotted, by default False
         print_fancy : bool, optional
             If a fancy table should be used when printed, by default True
+
+        To Do
+        -----
+        TODO: Change ndim to take a list or str with dimension names.
+            e.g. 'X', 'XY', 'XYE', 'XE'.
+        TODO: Remove pring_fancy.
+            Revert back to __repr__ returning a str and add a print_fancy function.
+
         """
         self.kind = kind
         self.name = name
+        self.position = position
         self.length = length
         self.strength = strength
         self.calibration = calibration

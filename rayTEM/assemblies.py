@@ -10,6 +10,14 @@ except:
 from pandas import DataFrame
 
 class MicroscopeSection:
+    """ 
+    TODO: Document
+
+    To Do
+    -----
+    TODO: Remove pring_fancy.
+        Revert back to __repr__ returning a str and add a print_fancy function.
+    """
     def __init__(self, name:str='', elements:ArrayLike=None, print_fancy:bool=True) -> object:
         self.name = name
         self.elements = elements
@@ -31,26 +39,6 @@ class MicroscopeSection:
                 return ''
             else:
                 return '\n'.join(['\t'.join([f"{key}: {value}, " for key,value in zip(columns,e)])for e in reps])
-
-    # def get_scaled_z(self, zs, allow_array=False):
-    #     if zs is None: lzs = self.length
-    #     elif isinstance(zs, float): lzs = self.length * zs
-    #     elif allow_array:
-    #         if isinstance(zs, int): lzs = self.length * xp.linspace(0,1,zs)
-    #         elif isinstance(zs, ArrayLike): lzs = self.length * zs
-    #     else: ValueError(f'Transform recieved an incorrect type. Recieved type {type(zs)}.')
-    #     return lzs
-
-        # TODO: need to figure out how we want to handle z in a section or full scope.
-        #       We could have z reference an element or the full section/scope. 
-        if input is None:
-            input = xp.zeros((self.ndim*2,1))
-            input[0] = 1
-        output = [input]
-        for e in self.elements:
-            output.append(e.propogate(output[-1], zs=z))
-        if output_per_layer: return xp.asanyarray(output)
-        else: return output[-1]
 
     def propogate(self, input:ArrayLike, zs:None|float|int|ArrayLike=None,
                    output_structure:str='per layer') -> ArrayLike:
@@ -96,6 +84,9 @@ class MicroscopeSection:
         return output
 
 class MicroscopeSection1D(MicroscopeSection):
+    """ 
+    TODO: Document
+    """
     def __init__(self, name:str='', elements:ArrayLike=None, print_fancy:bool=True) -> object:
         super().__init__(name=name, elements=elements, print_fancy=print_fancy)
 
