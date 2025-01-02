@@ -95,7 +95,65 @@ class Element:
         else: ValueError(f'Transform recieved an incorrect type. Recieved type {type(zs)}.')
         return lzs
    
+    def transfer_matrix(self, z:None|int|float|ArrayLike=None, z0:None|int|float=None) -> ArrayLike:
+        """Transfer matrix for ray propogation.
+        
+        The homogenous equaiton of motion approximation leads to a linear solution of $u"+k(s)u=0$ given as $u(s)=C(s)u_0+S(s)u_0', where s is the distance traveled (~z for small u').
+        For K>0 $C=cos(\sqrt{Ks})$ and $S=\frac{1}{\sqrt{K}} sin(\sqrt{Ks})$ and for K<0 $C=cosh(\sqrt{|K|s})$ and $S=\frac{1}{\sqrt{|K|}} sinh(\sqrt{|K|s})$.
+        The transfer matrix representation is then,
+        $$ 
+        T = \begin{matrix}
+            C & S\\
+            C' & S'
+            \end{matrix}
+        $$
+        """
+        sK = xp.sqrt(xp.abs(self.strength))
+
+        #initialize the initial position
+        if z0 is None: z0=0
+        else: z0 = self.position
+
+        #TODO: make the z in propogate_ray?
+        #initialize the propogation distance(s)
+        if z is None: z = self.length #length
+        elif isinstance(z, int): z = self.length * xp.linspace(0,1,z) #steps
+        elif isinstance(z, float) or isinstance(z, ArrayLike): pass #distance or array of distances
+        else: raise ValueError('Please eneter a vlaid z value.')
+
+        s = z-z0 #propogation distance
+
+        #get trig functions for transfer matrix
+        if self.strength>0: #focusing, trig funcitons
+            C = xp.cos(sK*s)
+            S = xp.sin(sK*s)
+            dC = -sK * S
+            dS = sK * C
+        elif self.strength<0: #defocusing, hyperbolic trig functions
+            C = xp.cosh(sK*s)
+            S = xp.sinh(sK*s)
+            dC = sK * S
+            dS = sK * C
+        else: #drift
+            C = 1
+            S = sK * s
+            dC = 0
+            dS = sK
+
+        #Calculate transfer matrix.
+        m = xp.array([[C , 1/sK* S], 
+                      [dC, 1/sK* dS]])
+        return m
+
+    def propogate_ray(self, r0:ArrayLike, z:None|int|float|ArrayLike=None, z0:None|float=0):
+        if z0 is None: self.position
+        m = self.transfer_matrix(z, z0=z0)
+        return xp.einsum('mnz,in->izm', m, r0)
+        
     def transform(self, input:ArrayLike, zs:None|float) -> ArrayLike:
+        from warnings import warn
+        warn('This method is deprecated.', DeprecationWarning, stacklevel=2)
+        #TODO: remove
         """Transform the input through the microscope section.
 
         Parameters
@@ -122,6 +180,9 @@ class Element:
         return T@input
 
     def propogate(self, input:ArrayLike, zs:None|float|int|ArrayLike=None) -> ArrayLike:
+        from warnings import warn
+        warn('This method is deprecated.', DeprecationWarning, stacklevel=2)
+        #TODO: remove
         """Propogate the input through the element.
 
         Parameters
