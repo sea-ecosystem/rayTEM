@@ -11,11 +11,13 @@ from pandas import DataFrame
 
 
 class Element:
-    def __init__(self, kind:None|str=None, name:str='Unnamed',
+    def __init__(self, name:str='Unnamed',
+                 kind:None|str=None, poles:None|int=None,
                  position:float=0, length:float=0,
                  strength:float=0, calibration:None|float=None,
                  ndim:int=3,
-                 label:bool=False, print_fancy:bool=True) -> object:
+                 label:bool=False, print_fancy:bool=True
+                 ) -> object:
         """General microscope element class.
         $$ 
         T = \begin{matrix}
@@ -29,10 +31,15 @@ class Element:
 
         Parameters
         ----------
-        kind : stry, optional
-            Type of element, by default None
         name : str, optional
             Name given to the lens, by default ''
+        kind : str, optional
+            Type of element, by default None
+        poles : None, int, optional
+            Number of poles in the element.
+            Drift = 0
+            Dipole = 2
+            Quadropole = 4
         position : float, optional
             The position of the element along the z-axis, by default 0
         length : int, optional
@@ -59,8 +66,9 @@ class Element:
             Revert back to __repr__ returning a str and add a print_fancy function.
 
         """
-        self.kind = kind
         self.name = name
+        self.kind = kind
+        self.poles = poles
         self.position = position
         self.length = length
         self.strength = strength
@@ -69,8 +77,6 @@ class Element:
         self.label = label
         self.print_fancy = print_fancy
 
-
-    # Could perhaps look at if is not None...:
     def __repr__(self) -> str:
         rep = {'name':self.name,
                'kind':self.kind,
@@ -95,7 +101,12 @@ class Element:
         else: ValueError(f'Transform recieved an incorrect type. Recieved type {type(zs)}.')
         return lzs
    
-    def transfer_matrix(self, z:None|int|float|ArrayLike=None, z0:None|int|float=None) -> ArrayLike:
+       
+
+    def transfer_matrix(self,
+                         z:None|int|float|ArrayLike=None, z0:None|int|float=None,
+                         #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
+                         ) -> ArrayLike:
         """Transfer matrix for ray propogation.
         
         The homogenous equaiton of motion approximation leads to a linear solution of $u"+k(s)u=0$ given as $u(s)=C(s)u_0+S(s)u_0', where s is the distance traveled (~z for small u').
@@ -107,14 +118,25 @@ class Element:
             C' & S'
             \end{matrix}
         $$
+
+        To Do
+        -----
+        TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
+            Might need to move the bulk of the current function to a hidden function (e.g. __transfer_matrix_hills(...)) then call the hidden transfer matrix options.
+        TODO: make the z initialization in propogate_ray or leave in here?
         """
+        poles = self.poles
+        if poles is None:   raise ValueError('The number of poles is not set.')
+        elif poles%2 != 0:  raise ValueError(f'Only even number poles are allowed. The current element has {poles:d} poles.')
+        elif poles > 4:     raise ValueError('Only multipoles with N<=4 are implemented (i.e. Quadropoles and lower).  The current element has {poles:d} poles.')
+        else:               pass
+        
         sK = xp.sqrt(xp.abs(self.strength))
 
         #initialize the initial position
         if z0 is None: z0=0
         else: z0 = self.position
 
-        #TODO: make the z in propogate_ray?
         #initialize the propogation distance(s)
         if z is None: z = self.length #length
         elif isinstance(z, int): z = self.length * xp.linspace(0,1,z) #steps
@@ -126,23 +148,23 @@ class Element:
         #get trig functions for transfer matrix
         if self.strength>0: #focusing, trig funcitons
             C = xp.cos(sK*s)
-            S = xp.sin(sK*s)
-            dC = -sK * S
-            dS = sK * C
+            S = 1/sK * xp.sin(sK*s)
+            dC = -sK * xp.sin(sK*s)
+            dS = C
         elif self.strength<0: #defocusing, hyperbolic trig functions
             C = xp.cosh(sK*s)
-            S = xp.sinh(sK*s)
-            dC = sK * S
-            dS = sK * C
+            S = 1/sK * xp.sinh(sK*s)
+            dC = sK * xp.sinh(sK*s)
+            dS = C
         else: #drift
             C = 1
-            S = sK * s
+            S = s
             dC = 0
-            dS = sK
+            dS = 1
 
         #Calculate transfer matrix.
-        m = xp.array([[C , 1/sK* S], 
-                      [dC, 1/sK* dS]])
+        m = xp.array([[C , S],
+                      [dC, dS]])
         return m
 
     def propogate_ray(self, r0:ArrayLike, z:None|int|float|ArrayLike=None, z0:None|float=0):
@@ -150,62 +172,6 @@ class Element:
         m = self.transfer_matrix(z, z0=z0)
         return xp.einsum('mnz,in->izm', m, r0)
         
-    def transform(self, input:ArrayLike, zs:None|float) -> ArrayLike:
-        from warnings import warn
-        warn('This method is deprecated.', DeprecationWarning, stacklevel=2)
-        #TODO: remove
-        """Transform the input through the microscope section.
-
-        Parameters
-        ----------
-        input : ArrayLike
-            Initial array to transform.
-        zs : None | int , optional
-            Scaled propogation positions, by default None
-            The positions (or created ones) are scaled from 0-1, with 0 being the start of the lens and 1 the total length.
-            If None,      a signle tranformation at the length of the element is performed.
-            If float,     a scaled position.
-
-        Returns
-        -------
-        ArrayLike
-            Matrix after transformation.
-        """
-        lzs = self.get_scaled_z(zs)
-        
-        T = xp.array([[1, lzs],
-                      [0, 1]
-                      ])
-        
-        return T@input
-
-    def propogate(self, input:ArrayLike, zs:None|float|int|ArrayLike=None) -> ArrayLike:
-        from warnings import warn
-        warn('This method is deprecated.', DeprecationWarning, stacklevel=2)
-        #TODO: remove
-        """Propogate the input through the element.
-
-        Parameters
-        ----------
-        input : ArrayLike
-            Initial array to transform.
-        zs : None | float | int | ArrayLike, optional
-            Scaled propogation positions, by default None
-            The positions (or created ones) are scaled from 0-1, with 0 being the start of the lens and 1 the total length.
-            If None,      a signle tranformation at the length of the element is performed.
-            If float,     a scaled position.
-            If int,       an array of size z from 0-1 is created.
-            If ArrayLike, the input array is used as is.
-
-        Returns
-        -------
-        ArrayLike
-            Matricies during propogation.
-        """
-        lzs = self.get_scaled_z(zs, allow_array=True)
-
-        output = xp.asarray([self.transform(input, zs=s) for s in xp.asarray([lzs]).squeeze()])
-        return output
 
 class Lens1D(Element):
     def __init__(self, name:str='', 
@@ -234,7 +200,7 @@ class Lens1D(Element):
         print_fancy : bool, optional
             If a fancy table should be used when printed, by default True
         """
-        super().__init__(kind='lens',name=name,length=0, strength=strength, calibration=calibration,label=label, print_fancy=print_fancy)
+        super().__init__(kind='lens',name=name, length=0, strength=strength, calibration=calibration,label=label, print_fancy=print_fancy)
     
     def transform(self, input:ArrayLike, zs:None|float) -> ArrayLike:
         """Transform the input through the element.
