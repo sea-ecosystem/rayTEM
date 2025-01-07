@@ -1,11 +1,14 @@
-try:
-    import cupy as xp
-    flag_gpu = True
-    from cupy.typing import ArrayLike
-except:
-    import numpy as xp
-    flag_gpu = False
-    from numpy.typing import ArrayLike
+# try:
+#     import cupy as xp
+#     flag_gpu = True
+#     from cupy.typing import ArrayLike
+# except:
+#     import numpy as xp
+#     flag_gpu = False
+#     from numpy.typing import ArrayLike
+import numpy as xp
+flag_gpu = False
+from numpy.typing import ArrayLike
 
 from pandas import DataFrame
 from warnings import warn
