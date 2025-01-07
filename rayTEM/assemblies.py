@@ -18,14 +18,22 @@ class MicroscopeSection:
     TODO: Remove pring_fancy.
         Revert back to __repr__ returning a str and add a print_fancy function.
     """
-    def __init__(self, name:str='', elements:ArrayLike=None, print_fancy:bool=True) -> object:
+    def __init__(self, name:str='',
+                 elements:ArrayLike=None, 
+                 position:float=0.,
+                 print_fancy:bool=True) -> object:
         self.name = name
         self.elements = elements
+        self.position = position
         self.print_fancy = print_fancy
 
-        self.ndim = 1
+        self.ndim = None
 
-        self.length = xp.sum([e.length for e in self.elements])
+        self.length = 0#xp.sum([e.length for e in self.elements])
+        
+        for ele in elements:
+            ele.position = self.position + self.length
+            self.length += ele.length
     
     def __repr__(self) -> str:
         if self.elements is None:
@@ -39,6 +47,24 @@ class MicroscopeSection:
                 return ''
             else:
                 return '\n'.join(['\t'.join([f"{key}: {value}, " for key,value in zip(columns,e)])for e in reps])
+
+    def propogate_ray(self, r0:ArrayLike,
+                       z:None|int|float=None):
+        """
+        To do
+        -----
+        #TODO: Allow for an array to be passed to z.
+        """
+        ri = self.elements[0].propogate_ray(r0, z=z)
+        for ele in self.elements[1:]:
+            ele_ri = ele.propogate_ray(ri[:,-1], z=z)
+            if ele.length == 0:
+                ri[:,-1] = ele_ri[:,-1]
+            else:
+                ri = xp.append(ri, ele_ri, axis=1)
+        
+        ri = xp.append(r0[:,None,:], ri, axis=1)
+        return ri
 
     def propogate(self, input:ArrayLike, zs:None|float|int|ArrayLike=None,
                    output_structure:str='per layer') -> ArrayLike:
@@ -87,7 +113,10 @@ class MicroscopeSection1D(MicroscopeSection):
     """ 
     TODO: Document
     """
-    def __init__(self, name:str='', elements:ArrayLike=None, print_fancy:bool=True) -> object:
-        super().__init__(name=name, elements=elements, print_fancy=print_fancy)
+    def __init__(self, name:str='', 
+                 elements:ArrayLike=None, 
+                 position:float=0., 
+                 print_fancy:bool=True) -> object:
+        super().__init__(name=name, elements=elements, position=position, print_fancy=print_fancy)
 
         self.ndim = 1

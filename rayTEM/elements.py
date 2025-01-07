@@ -8,6 +8,7 @@ except:
     from numpy.typing import ArrayLike
 
 from pandas import DataFrame
+from warnings import warn
 
 
 class Element:
@@ -19,15 +20,6 @@ class Element:
                  label:bool=False, print_fancy:bool=True
                  ) -> object:
         """General microscope element class.
-        $$ 
-        T = \begin{matrix}
-            C & S\\
-            C' & S'
-            \end{matrix}
-        $$
-        where
-        $$C=cos(\sqrt{Kl}) \therefore C'=-\sqrt{K}sin({\sqrt{Kl}})$$
-        $$S=\frac{1}{\sqrt{K}}sin(\sqrt{Kl}) \therefore S'=sin({\sqrt{Kl}})$$
 
         Parameters
         ----------
@@ -92,16 +84,21 @@ class Element:
     def __copy__(self):
         return type(self)(self.name, self.strength,self.calibration, self.label)
     
-    def get_scaled_z(self, zs, allow_array=False):
-        if zs is None: lzs = self.length
-        elif isinstance(zs, float): lzs = self.length * zs
-        elif allow_array:
-            if isinstance(zs, int): lzs = self.length * xp.linspace(0,1,zs)
-            elif isinstance(zs, ArrayLike): lzs = self.length * zs
-        else: ValueError(f'Transform recieved an incorrect type. Recieved type {type(zs)}.')
-        return lzs
-   
-       
+    def get_s(self, z, z0=None):
+        
+        #initialize the initial position
+        if z0 is None: z0 = self.position
+
+        #initialize the propogation distance(s)
+        if z is None: z = xp.array([self.length]) #length
+        elif isinstance(z, int): z = self.length * xp.linspace(0,1,z) #steps
+        elif isinstance(z, float): z = xp.array([z])
+        elif isinstance(z, ArrayLike): pass #distance or array of distances #TODO: typeerror: Subscripted generics cannot be used with class and instance checks
+        else: raise ValueError('Please eneter a vlaid z value.')
+
+        s = z-z0 #propogation distance
+
+        return s
 
     def transfer_matrix(self,
                          z:None|int|float|ArrayLike=None, z0:None|int|float=None,
@@ -132,63 +129,50 @@ class Element:
         else:               pass
         
         sK = xp.sqrt(xp.abs(self.strength))
-
-        #initialize the initial position
-        if z0 is None: z0=0
-        else: z0 = self.position
-
-        #initialize the propogation distance(s)
-        if z is None: z = self.length #length
-        elif isinstance(z, int): z = self.length * xp.linspace(0,1,z) #steps
-        elif isinstance(z, float) or isinstance(z, ArrayLike): pass #distance or array of distances
-        else: raise ValueError('Please eneter a vlaid z value.')
-
-        s = z-z0 #propogation distance
-
-        #get trig functions for transfer matrix
-        if self.strength>0: #focusing, trig funcitons
-            C = xp.cos(sK*s)
-            S = 1/sK * xp.sin(sK*s)
-            dC = -sK * xp.sin(sK*s)
-            dS = C
-        elif self.strength<0: #defocusing, hyperbolic trig functions
-            C = xp.cosh(sK*s)
-            S = 1/sK * xp.sinh(sK*s)
-            dC = sK * xp.sinh(sK*s)
-            dS = C
-        else: #drift
-            C = 1
-            S = s
-            dC = 0
-            dS = 1
+        s = self.get_s(z, z0)
 
         #Calculate transfer matrix.
-        m = xp.array([[C , S],
-                      [dC, dS]])
+        m = xp.eye(self.ndim*2)
         return m
 
     def propogate_ray(self, r0:ArrayLike, z:None|int|float|ArrayLike=None, z0:None|float=0):
-        if z0 is None: self.position
-        m = self.transfer_matrix(z, z0=z0)
+        if z0 is None: z0 = self.position
+        m = self.transfer_matrix(z=z, z0=z0)
         return xp.einsum('mnz,in->izm', m, r0)
         
+class Element1D(Element):
+    def __init__(self, name:str='Unnamed',
+                 kind:None|str=None, poles:None|int=None,
+                 position:float=0, length:float=0,
+                 strength:float=0, calibration:None|float=None,
+                 label:bool=False, print_fancy:bool=True
+                 ) -> object:
+        """
+        TODO: Docstring
+        """
+        super().__init__(name=name,
+                         kind=kind, poles=poles,
+                         position=position, length=length,
+                         strength=strength, calibration=calibration,
+                         ndim=1,
+                         label=label, print_fancy=print_fancy)
 
-class Lens1D(Element):
+
+class Quadripole1D(Element1D):
     def __init__(self, name:str='', 
+                 position:float=0, length:float=0,
                  strength:float=0, calibration:float=None,
                  label:float=False, print_fancy:float=True) -> object:
-        """Infinitly thin lens.
-        $$ 
-        T = \begin{matrix}
-            1 & 0\\
-            -1/f & 0
-            \end{matrix}
-        $$
+        """1D Quadripole. This effectively acts as a lens in 1D.
 
         Parameters
         ----------
         name : str, optional
             Name given to the lens, by default ''
+        position : float, optional
+            The position of the element along the z-axis, by default 0
+        length : int, optional
+            Length of the element, by default 0
         strength : float, optional
             Defined as the focal length, by default 0
             Note this in not the focusing strength (K) and is simply f.
@@ -200,34 +184,167 @@ class Lens1D(Element):
         print_fancy : bool, optional
             If a fancy table should be used when printed, by default True
         """
-        super().__init__(kind='lens',name=name, length=0, strength=strength, calibration=calibration,label=label, print_fancy=print_fancy)
-    
-    def transform(self, input:ArrayLike, zs:None|float) -> ArrayLike:
-        """Transform the input through the element.
+        
+        if length == 0: kind = 'Thin quad'
+        else:           kind = 'Quad'
+        super().__init__(name=name,
+                         kind=kind, poles=4,
+                         position=position, length=length, 
+                         strength=strength, calibration=calibration,
+                         label=label, print_fancy=print_fancy)
+    def transfer_matrix(self,
+                         z:None|int|float|ArrayLike=None, z0:None|int|float=None,
+                         #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
+                         ) -> ArrayLike:
+        """Transfer matrix for ray propogation.
+        
+        The homogenous equaiton of motion approximation leads to a linear solution of $u"+k(s)u=0$ given as $u(s)=C(s)u_0+S(s)u_0', where s is the distance traveled (~z for small u').
+        For K>0 $C=cos(\sqrt{Ks})$ and $S=\frac{1}{\sqrt{K}} sin(\sqrt{Ks})$ and for K<0 $C=cosh(\sqrt{|K|s})$ and $S=\frac{1}{\sqrt{|K|}} sinh(\sqrt{|K|s})$.
+        The transfer matrix representation is then,
+        $$ 
+        T = \begin{matrix}
+            C & S\\
+            C' & S'
+            \end{matrix}
+        $$
+
+        To Do
+        -----
+        """
+        
+        s = self.get_s(z, z0) #get paraxial path length
+
+        if self.length != 0:
+            sK = xp.sqrt(xp.abs(self.strength))
+            #get trig functions for transfer matrix
+            if self.strength>0: #focusing, trig funcitons
+                C = xp.cos(sK*s)
+                S = 1/sK * xp.sin(sK*s)
+                dC = -sK * xp.sin(sK*s)
+                dS = C
+            elif self.strength<0: #defocusing, hyperbolic trig functions
+                C = xp.cosh(sK*s)
+                S = 1/sK * xp.sinh(sK*s)
+                dC = sK * xp.sinh(sK*s)
+                dS = C
+            else: #drift
+                C = 1
+                S = s
+                dC = 0
+                dS = 1
+        elif self.length == 0:
+            f = self.strength
+            if self.strength != 0: #(de)focusing, trig funcitons
+                C = 1
+                S = 0
+                dC = -1/f
+                dS = 1
+            else: #off, identity matrix
+                C = 1
+                S = 0
+                dC = 0
+                dS = 1
+
+        #Calculate transfer matrix.
+        m = xp.array([[C , S],
+                      [dC, dS]])
+        return m
+
+class Lens1D(Element1D):
+    def __init__(self, name:str='', 
+                 position:float=0, length:float=0,
+                 strength:float=0, calibration:float=None,
+                 label:float=False, print_fancy:float=True) -> object:
+        """1D round lens.
 
         Parameters
         ----------
-        input : ArrayLike
-            Initial array to transform.
-        zs : None | int , optional
-            Scaled propogation positions, by default None
-            Meaningless for this zero lengthed element and will not be used, but the input is retained for consistency.
-
-        Returns
-        -------
-        ArrayLike
-            Matrix after transformation.
+        name : str, optional
+            Name given to the lens, by default ''
+        position : float, optional
+            The position of the element along the z-axis, by default 0
+        length : int, optional
+            Length of the element, by default 0
+        strength : float, optional
+            Defined as the focal length, by default 0
+            Note this in not the focusing strength (K) and is simply f.
+            A thin lens is defind as KL=-1/fas L goes to zero.
+        calibration : float, optional
+            Currnet calibration of the lens in units of ???/A, by default None
+        label : bool, optional
+            If the element should be labeled when plotted, by default False
+        print_fancy : bool, optional
+            If a fancy table should be used when printed, by default True
         """
         
-        T = xp.array([[1, 0],
-                      [-1/self.strength, 1]
-                      ])
+        if length == 0: kind = 'Thin Lens'
+        else:           kind = 'Lens'
+        super().__init__(name=name,
+                         kind=kind, poles=0,
+                         position=position, length=length, 
+                         strength=strength, calibration=calibration,
+                         label=label, print_fancy=print_fancy)
         
-        return T@input
+    def transfer_matrix(self,
+                         z:None|int|float|ArrayLike=None, z0:None|int|float=None,
+                         #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
+                         ) -> ArrayLike:
+        """Transfer matrix for ray propogation.
 
-class Drift1D(Element):
-    def __init__(self, name='', 
-                 length=0,
+        $$ 
+        T = \begin{matrix}
+            1 & 0\\
+            -1/f & 0
+            \end{matrix}
+        $$
+        """
+        
+        sK = xp.sqrt(xp.abs(self.strength))
+
+        #get trig functions for transfer matrix
+        if self.length == 0:
+            if z is not None: warn('z was provided for a zero length element and will not be used.')
+            
+            f = self.strength
+            if self.strength != 0: #(de)focusing, trig funcitons
+                C = 1
+                S = 0
+                dC = -1/f
+                dS = 1
+            else: #off, identity matrix
+                C = 1
+                S = 0
+                dC = 0
+                dS = 1
+        else: 
+            s = self.get_s(z, z0)
+            if self.strength>0: #focusing, trig funcitons
+                C = xp.cos(sK*s)
+                S = 1/sK * xp.sin(sK*s)
+                dC = -sK * xp.sin(sK*s)
+                dS = C
+            elif self.strength<0: #defocusing, hyperbolic trig functions
+                C = xp.cosh(sK*s)
+                S = 1/sK * xp.sinh(sK*s)
+                dC = sK * xp.sinh(sK*s)
+                dS = C
+            else: #drift
+                C = 1
+                S = s
+                dC = 0
+                dS = 1
+
+        #Calculate transfer matrix.
+        m = xp.array([[C , S],
+                      [dC, dS]])
+
+        if self.length == 0: m = m[...,None]
+        return m
+
+
+class Drift1D(Element1D):
+    def __init__(self, name='',
+                 position=0, length=0,
                  label=False, print_fancy=True):
         """General microscope element class.
 
@@ -243,31 +360,34 @@ class Drift1D(Element):
             If the element should be labeled when plotted, by default False
         print_fancy : bool, optional
             If a fancy table should be used when printed, by default True
+
+        To Do
+        -----
+        TODO: generalize the class to any dimensions.
+            The transfer matrix can probably be generalized by expanding dim and making the eye as the n-dim of the ray.
         """
-        super().__init__(kind='drift', name=name, length=length, strength=0, ndim=1, label=label, print_fancy=print_fancy)
+        super().__init__(name=name,
+                         kind='drift', poles=0,
+                         position=position, length=length,
+                         strength=0, calibration=1,
+                         label=label, print_fancy=print_fancy)
 
-    def transform(self, input:ArrayLike, zs:None|float) -> ArrayLike:
-        """Transform the input.
+    def transfer_matrix(self,
+                         z:None|int|float|ArrayLike=None, z0:None|int|float=None,
+                         #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
+                         ) -> ArrayLike:
+        """Transfer matrix for ray propogation.
 
-        Parameters
-        ----------
-        input : ArrayLike
-            Initial array to transform.
-        z : None | int , optional
-            Scaled propogation positions, by default None
-            The positions (or created ones) are scaled from 0-1, with 0 being the start of the lens and 1 the total length.
-            If None,      a signle tranformation at the length of the element is performed.
-            If float,     a scaled position.
-
-        Returns
-        -------
-        ArrayLike
-            Matrix after transformation.
+        $$ 
+        T = \begin{matrix}
+            1 & s\\
+            0 & 0
+            \end{matrix}
+        $$
         """
-        lzs = self.get_scaled_z(zs)
-        
-        T = xp.array([[1, lzs],
-                      [0, 1]
-                      ])
-        
-        return T@input
+
+        s = self.get_s(z, z0)
+        m = xp.eye(2)[...,None]*xp.ones_like(s)[None, None, :]
+        m[0,1] = s
+
+        return m
