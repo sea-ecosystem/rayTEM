@@ -293,7 +293,7 @@ class Lens1D(Element1D):
                          #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
                          ) -> ArrayLike:
         """Transfer matrix for ray propogation.
-
+        
         $$ 
         T = \begin{matrix}
             1 & 0\\
@@ -380,7 +380,7 @@ class Drift1D(Element1D):
                          #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
                          ) -> ArrayLike:
         """Transfer matrix for ray propogation.
-
+        
         $$ 
         T = \begin{matrix}
             1 & s\\
