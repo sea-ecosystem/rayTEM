@@ -87,7 +87,11 @@ class Element:
     def __copy__(self):
         return type(self)(self.name, self.strength,self.calibration, self.label)
     
-    def get_s(self, z, z0=None):
+    def get_s(self, z:None|int|float|ArrayLike=None, z0:None|int|float=None):
+        #check if z is provided to thin lens
+        if self.length == 0 and z is not None:
+            warn('z was provided for a zero length element and will not be used.') 
+            return None #! This may result in no output for transfer matrices. If so need to think about how to handle zero length.
         
         #initialize the initial position
         if z0 is None: z0 = self.position
@@ -104,7 +108,7 @@ class Element:
         return s
 
     def transfer_matrix(self,
-                         z:None|int|float|ArrayLike=None, z0:None|int|float=None,
+                         s:int|float|ArrayLike,
                          #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
                          ) -> ArrayLike:
         """Transfer matrix for ray propogation.
@@ -132,7 +136,6 @@ class Element:
         else:               pass
         
         sK = xp.sqrt(xp.abs(self.strength))
-        s = self.get_s(z, z0)
 
         #Calculate transfer matrix.
         m = xp.eye(self.ndim*2)
@@ -140,7 +143,8 @@ class Element:
 
     def propogate_ray(self, r0:ArrayLike, z:None|int|float|ArrayLike=None, z0:None|float=0):
         if z0 is None: z0 = self.position
-        m = self.transfer_matrix(z=z, z0=z0)
+        s = self.get_s(z=z, z0=z0)
+        m = self.transfer_matrix(s=s)
         return xp.einsum('mnz,in->izm', m, r0)
         
 class Element1D(Element):
@@ -196,7 +200,7 @@ class Quadripole1D(Element1D):
                          strength=strength, calibration=calibration,
                          label=label, print_fancy=print_fancy)
     def transfer_matrix(self,
-                         z:None|int|float|ArrayLike=None, z0:None|int|float=None,
+                         s:int|float|ArrayLike
                          #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
                          ) -> ArrayLike:
         """Transfer matrix for ray propogation.
@@ -215,8 +219,6 @@ class Quadripole1D(Element1D):
         -----
         """
         
-        s = self.get_s(z, z0) #get paraxial path length
-
         if self.length != 0:
             sK = xp.sqrt(xp.abs(self.strength))
             #get trig functions for transfer matrix
@@ -289,7 +291,7 @@ class Lens1D(Element1D):
                          label=label, print_fancy=print_fancy)
         
     def transfer_matrix(self,
-                         z:None|int|float|ArrayLike=None, z0:None|int|float=None,
+                         s:None|int|float|ArrayLike,
                          #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
                          ) -> ArrayLike:
         """Transfer matrix for ray propogation.
@@ -305,9 +307,7 @@ class Lens1D(Element1D):
         sK = xp.sqrt(xp.abs(self.strength))
 
         #get trig functions for transfer matrix
-        if self.length == 0:
-            if z is not None: warn('z was provided for a zero length element and will not be used.')
-            
+        if self.length == 0:            
             f = self.strength
             if self.strength != 0: #(de)focusing, trig funcitons
                 C = 1
@@ -320,7 +320,6 @@ class Lens1D(Element1D):
                 dC = 0
                 dS = 1
         else: 
-            s = self.get_s(z, z0)
             if self.strength>0: #focusing, trig funcitons
                 C = xp.cos(sK*s)
                 S = 1/sK * xp.sin(sK*s)
@@ -376,7 +375,7 @@ class Drift1D(Element1D):
                          label=label, print_fancy=print_fancy)
 
     def transfer_matrix(self,
-                         z:None|int|float|ArrayLike=None, z0:None|int|float=None,
+                         s:int|float|ArrayLike=None,
                          #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
                          ) -> ArrayLike:
         """Transfer matrix for ray propogation.
@@ -389,7 +388,6 @@ class Drift1D(Element1D):
         $$
         """
 
-        s = self.get_s(z, z0)
         m = xp.eye(2)[...,None]*xp.ones_like(s)[None, None, :]
         m[0,1] = s
 
