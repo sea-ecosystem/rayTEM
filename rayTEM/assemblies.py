@@ -52,15 +52,18 @@ class MicroscopeSection:
                 return '\n'.join(['\t'.join([f"{key}: {value}, " for key,value in zip(columns,e)])for e in reps])
 
     def propogate_ray(self, r0:ArrayLike,
-                       z:None|int|float=None):
+                       z:None|int|float=None, 
+                       spectral_included:bool=False):
         """
         To do
         -----
         #TODO: Allow for an array to be passed to z.
         """
-        ri = self.elements[0].propogate_ray(r0, z=z)
+        if not spectral_included: r0 = xp.pad(r0, ((0,0), (0,2)), constant_values=0)
+
+        ri = self.elements[0].propogate_ray(r0, z=z, spectral_included=True)
         for ele in self.elements[1:]:
-            ele_ri = ele.propogate_ray(ri[:,-1], z=z)
+            ele_ri = ele.propogate_ray(ri[:,-1], z=z, spectral_included=True)
             if ele.length == 0:
                 ri[:,-1] = ele_ri[:,-1]
             else:

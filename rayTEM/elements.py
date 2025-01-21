@@ -19,7 +19,7 @@ class Element:
                  kind:None|str=None, poles:None|int=None,
                  position:float=0, length:float=0,
                  strength:float=0, calibration:None|float=None,
-                 ndim:int=3,
+                 ndim:int=2, chroma_dim:bool=False,
                  label:bool=False, print_fancy:bool=True
                  ) -> object:
         """General microscope element class.
@@ -44,10 +44,12 @@ class Element:
         calibration : float, optional
             Currnet calibration of the lens in units of ???/A, by default None
         ndim : int, optional
-            The dimensionality of the ray system. The first-order lens matrix will have axes with size 2*ndim, which acounts for the derivatives.
+            The spatial dimensionality of the ray system perpendicular to propogation.
+            The first-order lens matrix will have axes with size 2*ndim, which acounts for the derivatives.
             A 1D element without chromatic contributions will have `ndim=1`.
             A 2D element without chromatic contributions will have `ndim=2`.
-            A 2D element with chromatic contributions will have `ndim=3`.
+        chroma_dim: bool, optional
+            Is there a chromatic dimension, by default False
         label : bool, optional
             If the element should be labeled when plotted, by default False
         print_fancy : bool, optional
@@ -72,6 +74,8 @@ class Element:
         self.label = label
         self.print_fancy = print_fancy
 
+        self.z = None
+
     def __repr__(self) -> str:
         rep = {'name':self.name,
                'kind':self.kind,
@@ -87,7 +91,9 @@ class Element:
     def __copy__(self):
         return type(self)(self.name, self.strength,self.calibration, self.label)
     
-    def get_s(self, z:None|int|float|ArrayLike=None, z0:None|int|float=None):
+    def get_s(self,
+              z:None|int|float|ArrayLike=None, z0:None|int|float=None,
+              store_z=True):
         #check if z is provided to thin lens
         if self.length == 0 and z is not None:
             warn('z was provided for a zero length element and will not be used.') 
@@ -141,11 +147,19 @@ class Element:
         m = xp.eye(self.ndim*2)
         return m
 
-    def propogate_ray(self, r0:ArrayLike, z:None|int|float|ArrayLike=None, z0:None|float=0):
+    def propogate_ray(self, r0:ArrayLike,
+                      z:None|int|float|ArrayLike=None, z0:None|float=0,
+                      spectral_included:bool=False):
         if z0 is None: z0 = self.position
         s = self.get_s(z=z, z0=z0)
         m = self.transfer_matrix(s=s)
-        return xp.einsum('mnz,in->izm', m, r0)
+
+        if not spectral_included: r0 = xp.pad(r0, ((0,0), (0,2)), constant_values=0)
+
+        rf = xp.einsum('mnz,in->izm', m, r0)
+        rf[...,-2] = s
+
+        return rf
         
 class Element1D(Element):
     def __init__(self, name:str='Unnamed',
@@ -251,8 +265,10 @@ class Quadripole1D(Element1D):
                 dS = 1
 
         #Calculate transfer matrix.
-        m = xp.array([[C , S],
-                      [dC, dS]])
+        m = xp.array([[C ,  S, 0, 0],
+                      [dC, dS, 0, 0],
+                      [ 0,  0, 1, 0],
+                      [ 0,  0, 0, 1]])
         return m
 
 class Lens1D(Element1D):
@@ -337,8 +353,10 @@ class Lens1D(Element1D):
                 dS = 1
 
         #Calculate transfer matrix.
-        m = xp.array([[C , S],
-                      [dC, dS]])
+        m = xp.array([[C ,  S, 0, 0],
+                      [dC, dS, 0, 0],
+                      [ 0,  0, 1, 0],
+                      [ 0,  0, 0, 1]])
 
         if self.length == 0: m = m[...,None]
         return m
@@ -388,7 +406,7 @@ class Drift1D(Element1D):
         $$
         """
 
-        m = xp.eye(2)[...,None]*xp.ones_like(s)[None, None, :]
+        m = xp.eye(2+2)[...,None]*xp.ones_like(s)[None, None, :]
         m[0,1] = s
 
         return m
