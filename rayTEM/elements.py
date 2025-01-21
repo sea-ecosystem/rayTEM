@@ -149,11 +149,32 @@ class Element:
 
     def propogate_ray(self, r0:ArrayLike,
                       z:None|int|float|ArrayLike=None, z0:None|float=0,
-                      spectral_included:bool=False):
+                      spectral_included:bool=False) -> xp.ndarray:
+        """Propogate an array through an element.
+
+        Parameters
+        ----------
+        r0 : ArrayLike
+            List of rays with possible initial conditions (x, θx, y, θy, E).
+            For 1D the (y, θy) coordinates are excluded.
+            E can be provided and `spectral_included` flagged to True.
+        z : None | int | float | ArrayLike, optional
+            Positions in the element to propogate to by default None
+        z0 : None | float, optional
+            Initial position of the element, by default 0
+        spectral_included : bool, optional
+            If the spectral dimension included in r0, by default False
+
+        Returns
+        -------
+        xp.ndarray
+            List of propogated rays with initial condition (x, θx, y, θy, z, E)
+        """
         if z0 is None: z0 = self.position
         s = self.get_s(z=z, z0=z0)
         m = self.transfer_matrix(s=s)
 
+        #expand the ray coordinates to be ndim+2 to include z and E if E is not included.
         if not spectral_included: r0 = xp.pad(r0, ((0,0), (0,2)), constant_values=0)
 
         rf = xp.einsum('mnz,in->izm', m, r0)
