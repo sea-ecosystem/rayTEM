@@ -176,6 +176,12 @@ class Element:
 
         #expand the ray coordinates to be ndim+2 to include z and E if E is not included.
         if not spectral_included: r0 = xp.pad(r0, ((0,0), (0,2)), constant_values=0)
+        # The following does not work as it will add z even if a previous propogate exapnded.
+        # Need to check with ndim. e.g. if dim==2*ndim; elif dim==2*ndim+1 elif dim==2*ndim+2
+        # if spectral_included:
+        #     r0 = xp.insert(r0, [1], xp.zeros(r0.shape[0]))
+        # else:
+        #     r0 = xp.pad(r0, ((0,0), (0,2)), constant_values=0) #expand the 
 
         rf = xp.einsum('mnz,in->izm', m, r0)
         rf[...,-2] = s
