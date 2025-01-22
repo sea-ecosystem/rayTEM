@@ -74,7 +74,6 @@ class Element:
         self.label = label
         self.print_fancy = print_fancy
 
-        self.z = None
 
     def __repr__(self) -> str:
         rep = {'name':self.name,
@@ -106,7 +105,7 @@ class Element:
         if z is None: z = xp.array([self.length]) #length
         elif isinstance(z, int): z = self.length * xp.linspace(0,1,z) #steps
         elif isinstance(z, float): z = xp.array([z])
-        elif isinstance(z, ArrayLike): pass #distance or array of distances #TODO: typeerror: Subscripted generics cannot be used with class and instance checks
+        #elif isinstance(z, ArrayLike): pass #distance or array of distances #! TODO: typeerror: Subscripted generics cannot be used with class and instance checks
         else: raise ValueError('Please eneter a vlaid z value.')
 
         s = z-z0 #propogation distance

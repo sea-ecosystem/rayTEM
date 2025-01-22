@@ -96,7 +96,7 @@ class MicroscopeSection:
         for ele in self.elements[1:]:
             ele_ri = ele.propogate_ray(ri[:,-1], z=z)
             ele_ri[...,-2] += ele.position
-            print(ele.position)
+            
             #for a infinitly thin element asign the last ray as the transofrmed array.
             if ele.length == 0: #TODO: Also check if the last z==z0
                 ri[:,-1] = ele_ri[:,-1]
