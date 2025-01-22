@@ -258,7 +258,7 @@ class Drift(Element):
 
         return m
 
-class Quadripole(Element):
+class Quadrapole(Element):
     def __init__(self, name:str='', 
                  position:float=0., length:float=0.,
                  strength:float=0., calibration:None|float=None,
@@ -541,7 +541,7 @@ class Element1D(Element):
                          label=label, print_fancy=print_fancy)
 
 
-class Quadripole1D(Element1D):
+class Quadrapole1D(Element1D):
     def __init__(self, name:str='', 
                  position:float=0., length:float=0.,
                  strength:float=0., calibration:None|float=None,
