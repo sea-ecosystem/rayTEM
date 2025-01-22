@@ -84,7 +84,6 @@ class MicroscopeSection:
 
     def propogate_ray(self, r0:ArrayLike,
                        z:None|int|float=None, 
-                       #spectral_included:bool=False,
                        ):
         """
         To do
@@ -93,14 +92,18 @@ class MicroscopeSection:
         """
         r0 = self.conform_ray_dim(r0)
 
-        ri = self.elements[0].propogate_ray(r0, z=z)#, spectral_included=True)
+        ri = self.elements[0].propogate_ray(r0, z=z)
         for ele in self.elements[1:]:
-            ele_ri = ele.propogate_ray(ri[:,-1], z=z)#, spectral_included=True)
-            if ele.length == 0:
+            ele_ri = ele.propogate_ray(ri[:,-1], z=z)
+            ele_ri[...,-2] += ele.position
+            print(ele.position)
+            #for a infinitly thin element asign the last ray as the transofrmed array.
+            if ele.length == 0: #TODO: Also check if the last z==z0
                 ri[:,-1] = ele_ri[:,-1]
             else:
                 ri = xp.append(ri, ele_ri, axis=1)
         
+        #Include the initial ray. #TODO: Add conditional if source is included
         ri = xp.append(r0[:,None,:], ri, axis=1)
         return ri
 
