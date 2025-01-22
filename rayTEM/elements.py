@@ -116,7 +116,7 @@ class Element:
                          s:int|float|ArrayLike,
                          #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
                          ) -> ArrayLike:
-        """Transfer matrix for ray propogation.
+        r"""Transfer matrix for ray propogation.
         
         The homogenous equaiton of motion approximation leads to a linear solution of $u"+k(s)u=0$ given as $u(s)=C(s)u_0+S(s)u_0', where s is the distance traveled (~z for small u').
         For K>0 $C=cos(\sqrt{Ks})$ and $S=\frac{1}{\sqrt{K}} sin(\sqrt{Ks})$ and for K<0 $C=cosh(\sqrt{|K|s})$ and $S=\frac{1}{\sqrt{|K|}} sinh(\sqrt{|K|s})$.
@@ -268,7 +268,7 @@ class Quadripole1D(Element1D):
                          s:int|float|ArrayLike
                          #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
                          ) -> ArrayLike:
-        """Transfer matrix for ray propogation.
+        r"""Transfer matrix for ray propogation.
         
         The homogenous equaiton of motion approximation leads to a linear solution of $u"+k(s)u=0$ given as $u(s)=C(s)u_0+S(s)u_0', where s is the distance traveled (~z for small u').
         For K>0 $C=cos(\sqrt{Ks})$ and $S=\frac{1}{\sqrt{K}} sin(\sqrt{Ks})$ and for K<0 $C=cosh(\sqrt{|K|s})$ and $S=\frac{1}{\sqrt{|K|}} sinh(\sqrt{|K|s})$.
@@ -361,7 +361,7 @@ class Lens1D(Element1D):
                          s:None|int|float|ArrayLike,
                          #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
                          ) -> ArrayLike:
-        """Transfer matrix for ray propogation.
+        r"""Transfer matrix for ray propogation.
         
         $$ 
         T = \begin{matrix}
@@ -447,7 +447,7 @@ class Drift1D(Element1D):
                          s:int|float|ArrayLike=None,
                          #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
                          ) -> ArrayLike:
-        """Transfer matrix for ray propogation.
+        r"""Transfer matrix for ray propogation.
         
         $$ 
         T = \begin{matrix}
