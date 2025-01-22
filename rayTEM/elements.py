@@ -19,7 +19,7 @@ class Element:
                  kind:None|str=None, poles:None|int=None,
                  position:float=0, length:float=0,
                  strength:float=0, calibration:None|float=None,
-                 ndim:int=3,
+                 ndim:int=2, chroma_dim:bool=False,
                  label:bool=False, print_fancy:bool=True
                  ) -> object:
         """General microscope element class.
@@ -44,10 +44,12 @@ class Element:
         calibration : float, optional
             Currnet calibration of the lens in units of ???/A, by default None
         ndim : int, optional
-            The dimensionality of the ray system. The first-order lens matrix will have axes with size 2*ndim, which acounts for the derivatives.
+            The spatial dimensionality of the ray system perpendicular to propogation.
+            The first-order lens matrix will have axes with size 2*ndim, which acounts for the derivatives.
             A 1D element without chromatic contributions will have `ndim=1`.
             A 2D element without chromatic contributions will have `ndim=2`.
-            A 2D element with chromatic contributions will have `ndim=3`.
+        chroma_dim: bool, optional
+            Is there a chromatic dimension, by default False
         label : bool, optional
             If the element should be labeled when plotted, by default False
         print_fancy : bool, optional
@@ -72,6 +74,7 @@ class Element:
         self.label = label
         self.print_fancy = print_fancy
 
+
     def __repr__(self) -> str:
         rep = {'name':self.name,
                'kind':self.kind,
@@ -87,7 +90,9 @@ class Element:
     def __copy__(self):
         return type(self)(self.name, self.strength,self.calibration, self.label)
     
-    def get_s(self, z:None|int|float|ArrayLike=None, z0:None|int|float=None):
+    def get_s(self,
+              z:None|int|float|ArrayLike=None, z0:None|int|float=None,
+              store_z=True):
         #check if z is provided to thin lens
         if self.length == 0 and z is not None:
             warn('z was provided for a zero length element and will not be used.') 
@@ -100,7 +105,7 @@ class Element:
         if z is None: z = xp.array([self.length]) #length
         elif isinstance(z, int): z = self.length * xp.linspace(0,1,z) #steps
         elif isinstance(z, float): z = xp.array([z])
-        elif isinstance(z, ArrayLike): pass #distance or array of distances #TODO: typeerror: Subscripted generics cannot be used with class and instance checks
+        #elif isinstance(z, ArrayLike): pass #distance or array of distances #! TODO: typeerror: Subscripted generics cannot be used with class and instance checks
         else: raise ValueError('Please eneter a vlaid z value.')
 
         s = z-z0 #propogation distance
@@ -141,11 +146,71 @@ class Element:
         m = xp.eye(self.ndim*2)
         return m
 
-    def propogate_ray(self, r0:ArrayLike, z:None|int|float|ArrayLike=None, z0:None|float=0):
+    def conform_ray_dim(self, r0:ArrayLike):
+        """Recast the input arrays so they conform to 2*ndim+2.
+
+        Parameters
+        ----------
+        r0 : ArrayLike
+            List of rays with possible initial conditions (x, θx, y, θy, E).
+            For 1D the (y, θy) coordinates are excluded.
+
+        Returns
+        -------
+        ndarray
+            Recast array.
+
+        Raises
+        ------
+        ValueError
+            If the array can not be recase due to an incorrect length of rays.
+
+        To do
+        -----
+        #TODO: Have this as an external function or in a "Ray" class
+        """
+        if r0.shape[-1] == self.ndim*2+2:
+            return r0
+        elif r0.shape[-1] == self.ndim*2+1:
+            return xp.insert(r0, [1], xp.zeros(r0.shape[0]))
+        elif r0.shape[-1] == self.ndim*2:
+            return xp.pad(r0, ((0,0), (0,2)), constant_values=0)
+        else:
+            raise ValueError(f'The last shape of the rays has size {r0.shape[-1]}, which can not be understood as ndim*2+(z, E), ndim*2+(E), or ndim*2')
+
+    def propogate_ray(self, r0:ArrayLike,
+                      z:None|int|float|ArrayLike=None, z0:None|float=0) -> xp.ndarray:
+        """Propogate an array through an element.
+
+        Parameters
+        ----------
+        r0 : ArrayLike
+            List of rays with possible initial conditions (x, θx, y, θy, E).
+            For 1D the (y, θy) coordinates are excluded.
+            E can be provided and `spectral_included` flagged to True.
+        z : None | int | float | ArrayLike, optional
+            Positions in the element to propogate to by default None
+        z0 : None | float, optional
+            Initial position of the element, by default 0
+        spectral_included : bool, optional
+            If the spectral dimension included in r0, by default False
+
+        Returns
+        -------
+        xp.ndarray
+            List of propogated rays with initial condition (x, θx, y, θy, z, E)
+        """
         if z0 is None: z0 = self.position
         s = self.get_s(z=z, z0=z0)
         m = self.transfer_matrix(s=s)
-        return xp.einsum('mnz,in->izm', m, r0)
+
+        #expand the ray coordinates to be ndim+2 to include z and E if not included.
+        r0 = self.conform_ray_dim(r0)
+
+        rf = xp.einsum('mnz,in->izm', m, r0)
+        rf[...,-2] = s
+
+        return rf
         
 class Element1D(Element):
     def __init__(self, name:str='Unnamed',
@@ -251,8 +316,10 @@ class Quadripole1D(Element1D):
                 dS = 1
 
         #Calculate transfer matrix.
-        m = xp.array([[C , S],
-                      [dC, dS]])
+        m = xp.array([[C ,  S, 0, 0],
+                      [dC, dS, 0, 0],
+                      [ 0,  0, 1, 0],
+                      [ 0,  0, 0, 1]])
         return m
 
 class Lens1D(Element1D):
@@ -337,8 +404,10 @@ class Lens1D(Element1D):
                 dS = 1
 
         #Calculate transfer matrix.
-        m = xp.array([[C , S],
-                      [dC, dS]])
+        m = xp.array([[C ,  S, 0, 0],
+                      [dC, dS, 0, 0],
+                      [ 0,  0, 1, 0],
+                      [ 0,  0, 0, 1]])
 
         if self.length == 0: m = m[...,None]
         return m
@@ -388,7 +457,7 @@ class Drift1D(Element1D):
         $$
         """
 
-        m = xp.eye(2)[...,None]*xp.ones_like(s)[None, None, :]
+        m = xp.eye(2+2)[...,None]*xp.ones_like(s)[None, None, :]
         m[0,1] = s
 
         return m
