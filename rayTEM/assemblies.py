@@ -50,20 +50,52 @@ class MicroscopeSection:
                 return ''
             else:
                 return '\n'.join(['\t'.join([f"{key}: {value}, " for key,value in zip(columns,e)])for e in reps])
+    def conform_ray_dim(self, r0:ArrayLike):
+        """Recast the input arrays so they conform to 2*ndim+2.
+
+        Parameters
+        ----------
+        r0 : ArrayLike
+            List of rays with possible initial conditions (x, θx, y, θy, E).
+            For 1D the (y, θy) coordinates are excluded.
+
+        Returns
+        -------
+        ndarray
+            Recast array.
+
+        Raises
+        ------
+        ValueError
+            If the array can not be recase due to an incorrect length of rays.
+
+        To do
+        -----
+        #TODO: Have this as an external function or in a "Ray" class
+        """
+        if r0.shape[-1] == self.ndim*2+2:
+            return r0
+        elif r0.shape[-1] == self.ndim*2+1:
+            return xp.insert(r0, [1], xp.zeros(r0.shape[0]))
+        elif r0.shape[-1] == self.ndim*2:
+            return xp.pad(r0, ((0,0), (0,2)), constant_values=0)
+        else:
+            raise ValueError(f'The last shape of the rays has size {r0.shape[-1]}, which can not be understood as ndim*2+(z, E), ndim*2+(E), or ndim*2')
 
     def propogate_ray(self, r0:ArrayLike,
                        z:None|int|float=None, 
-                       spectral_included:bool=False):
+                       #spectral_included:bool=False,
+                       ):
         """
         To do
         -----
         #TODO: Allow for an array to be passed to z.
         """
-        if not spectral_included: r0 = xp.pad(r0, ((0,0), (0,2)), constant_values=0)
+        r0 = self.conform_ray_dim(r0)
 
-        ri = self.elements[0].propogate_ray(r0, z=z, spectral_included=True)
+        ri = self.elements[0].propogate_ray(r0, z=z)#, spectral_included=True)
         for ele in self.elements[1:]:
-            ele_ri = ele.propogate_ray(ri[:,-1], z=z, spectral_included=True)
+            ele_ri = ele.propogate_ray(ri[:,-1], z=z)#, spectral_included=True)
             if ele.length == 0:
                 ri[:,-1] = ele_ri[:,-1]
             else:

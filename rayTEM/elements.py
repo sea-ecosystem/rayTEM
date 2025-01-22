@@ -147,9 +147,40 @@ class Element:
         m = xp.eye(self.ndim*2)
         return m
 
+    def conform_ray_dim(self, r0:ArrayLike):
+        """Recast the input arrays so they conform to 2*ndim+2.
+
+        Parameters
+        ----------
+        r0 : ArrayLike
+            List of rays with possible initial conditions (x, θx, y, θy, E).
+            For 1D the (y, θy) coordinates are excluded.
+
+        Returns
+        -------
+        ndarray
+            Recast array.
+
+        Raises
+        ------
+        ValueError
+            If the array can not be recase due to an incorrect length of rays.
+
+        To do
+        -----
+        #TODO: Have this as an external function or in a "Ray" class
+        """
+        if r0.shape[-1] == self.ndim*2+2:
+            return r0
+        elif r0.shape[-1] == self.ndim*2+1:
+            return xp.insert(r0, [1], xp.zeros(r0.shape[0]))
+        elif r0.shape[-1] == self.ndim*2:
+            return xp.pad(r0, ((0,0), (0,2)), constant_values=0)
+        else:
+            raise ValueError(f'The last shape of the rays has size {r0.shape[-1]}, which can not be understood as ndim*2+(z, E), ndim*2+(E), or ndim*2')
+
     def propogate_ray(self, r0:ArrayLike,
-                      z:None|int|float|ArrayLike=None, z0:None|float=0,
-                      spectral_included:bool=False) -> xp.ndarray:
+                      z:None|int|float|ArrayLike=None, z0:None|float=0) -> xp.ndarray:
         """Propogate an array through an element.
 
         Parameters
@@ -174,14 +205,8 @@ class Element:
         s = self.get_s(z=z, z0=z0)
         m = self.transfer_matrix(s=s)
 
-        #expand the ray coordinates to be ndim+2 to include z and E if E is not included.
-        if not spectral_included: r0 = xp.pad(r0, ((0,0), (0,2)), constant_values=0)
-        # The following does not work as it will add z even if a previous propogate exapnded.
-        # Need to check with ndim. e.g. if dim==2*ndim; elif dim==2*ndim+1 elif dim==2*ndim+2
-        # if spectral_included:
-        #     r0 = xp.insert(r0, [1], xp.zeros(r0.shape[0]))
-        # else:
-        #     r0 = xp.pad(r0, ((0,0), (0,2)), constant_values=0) #expand the 
+        #expand the ray coordinates to be ndim+2 to include z and E if not included.
+        r0 = self.conform_ray_dim(r0)
 
         rf = xp.einsum('mnz,in->izm', m, r0)
         rf[...,-2] = s
