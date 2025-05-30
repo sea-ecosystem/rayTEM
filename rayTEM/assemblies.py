@@ -42,8 +42,8 @@ class MicroscopeSection:
         if self.elements is None:
             return ''
         else:
-            columns=['name', 'kind', 'length', 'strength', 'calibration']
-            reps = [[e.name, e.kind, e.length, e.strength, e.calibration] for e in self.elements]
+            columns=['name', 'kind', 'length', 'position', 'strength', 'calibration']
+            reps = [[e.name, e.kind, e.length, e.position, e.strength, e.calibration] for e in self.elements]
             
             if  self.print_fancy:
                 display(DataFrame(reps, columns=columns))
@@ -90,17 +90,28 @@ class MicroscopeSection:
         -----
         #TODO: Allow for an array to be passed to z.
         """
+        print(r0, r0[:,None,:].shape)
         r0 = self.conform_ray_dim(r0)
         ri = self.elements[0].propogate_ray(r0, z=z)
-        for ele in self.elements[1:]:
+        print(self.elements[0].name, ri.shape)
+        print(ri)
+        print()
+        ri = xp.append(r0[:,None,:], ri, axis=1)
+        for i, ele in enumerate(self.elements[1:]):
+            i=i+1
             ele_ri = ele.propogate_ray(ri[:,-1], z=z)
             ele_ri[...,-2] += ele.position
-            
+            print(i,ele.name, ele.position)
+            print(ele_ri)
+
             #for a infinitly thin element asign the last ray as the transofrmed array.
-            if ele.length == 0: #TODO: Also check if the last z==z0
-                ri[:,-1] = ele_ri[:,-1]
+            if self.elements[i-1].length == 0: #TODO: Also check if the last z==z0
+                #ri[:,-1] = ele_ri[:,-1]
+                print('    flag - last 0')
+                ri = xp.append(ri[:,:-1], ele_ri, axis=1)
             else:
                 ri = xp.append(ri, ele_ri, axis=1)
+            print()
         
         #Include the initial ray. #TODO: Add conditional if source is included
         ri = xp.append(r0[:,None,:], ri, axis=1)

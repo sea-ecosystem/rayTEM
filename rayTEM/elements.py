@@ -104,7 +104,7 @@ class Element:
 
         #initialize the propogation distance(s)
         if z is None: z = xp.array([self.length]) #length
-        elif isinstance(z, int): z = self.length * xp.linspace(0,1,z) #steps
+        elif isinstance(z, int): z = self.length * xp.linspace(0,1,z+1)[1:] #steps
         elif isinstance(z, float): z = xp.array([z])
         #elif isinstance(z, ArrayLike): pass #distance or array of distances #! TODO: typeerror: Subscripted generics cannot be used with class and instance checks
         else: raise ValueError('Please eneter a vlaid z value.')
@@ -387,7 +387,7 @@ class Lens(Element):
         -----
         #TODO: Figure out cross terms related to rotation. i.e. m[:2,3:4] and m[3:4,:2]
         """
-        
+        print('s lens',s)
         m = xp.eye(6)[...,None]*xp.ones_like(s)
 
         if self.length != 0:
