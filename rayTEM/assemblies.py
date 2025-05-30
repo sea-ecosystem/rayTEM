@@ -24,13 +24,13 @@ class MicroscopeSection:
     def __init__(self, name:str='',
                  elements:ArrayLike=None, 
                  position:float=0.,
+                 ndim:int=2,
                  print_fancy:bool=True) -> object:
         self.name = name
         self.elements = elements
         self.position = position
+        self.ndim = ndim
         self.print_fancy = print_fancy
-
-        self.ndim = None
 
         self.length = 0#xp.sum([e.length for e in self.elements])
         
@@ -91,7 +91,6 @@ class MicroscopeSection:
         #TODO: Allow for an array to be passed to z.
         """
         r0 = self.conform_ray_dim(r0)
-
         ri = self.elements[0].propogate_ray(r0, z=z)
         for ele in self.elements[1:]:
             ele_ri = ele.propogate_ray(ri[:,-1], z=z)
@@ -158,6 +157,5 @@ class MicroscopeSection1D(MicroscopeSection):
                  elements:ArrayLike=None, 
                  position:float=0., 
                  print_fancy:bool=True) -> object:
-        super().__init__(name=name, elements=elements, position=position, print_fancy=print_fancy)
-
-        self.ndim = 1
+        super().__init__(name=name, elements=elements, position=position, print_fancy=print_fancy, 
+                         ndim = 1)

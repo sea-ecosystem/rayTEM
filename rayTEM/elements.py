@@ -96,8 +96,9 @@ class Element:
         #check if z is provided to thin lens
         if self.length == 0 and z is not None:
             warn('z was provided for a zero length element and will not be used.') 
-            return None #! This may result in no output for transfer matrices. If so need to think about how to handle zero length.
-        
+            #return None #! This may result in no output for transfer matrices. If so need to think about how to handle zero length.
+            z = 1
+
         #initialize the initial position
         if z0 is None: z0 = self.position
 
@@ -203,11 +204,8 @@ class Element:
         if z0 is None: z0 = self.position
         s = self.get_s(z=z, z0=z0)
         m = self.transfer_matrix(s=s)
-
         #expand the ray coordinates to be ndim+2 to include z and E if not included.
         r0 = self.conform_ray_dim(r0)
-
-        print('propogate_ray: r0', r0.shape, 'm', m.shape)
 
         rf = xp.einsum('mnz,in->izm', m, r0)
         rf[...,-2] = s
