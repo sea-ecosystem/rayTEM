@@ -207,6 +207,8 @@ class Element:
         #expand the ray coordinates to be ndim+2 to include z and E if not included.
         r0 = self.conform_ray_dim(r0)
 
+        print('propogate_ray: r0', r0.shape, 'm', m.shape)
+
         rf = xp.einsum('mnz,in->izm', m, r0)
         rf[...,-2] = s
 
@@ -248,7 +250,7 @@ class Drift(Element):
         r"""Transfer matrix for ray propogation.
         """
         
-        m = xp.eye(6)
+        m = xp.eye(6)[...,None]*xp.ones_like(s)
 
         if self.length != 0:
             m[0,1] = s
@@ -388,7 +390,7 @@ class Lens(Element):
         #TODO: Figure out cross terms related to rotation. i.e. m[:2,3:4] and m[3:4,:2]
         """
         
-        m = xp.eye(6)
+        m = xp.eye(6)[...,None]*xp.ones_like(s)
 
         if self.length != 0:
             sK = xp.sqrt(xp.abs(self.strength))
@@ -625,12 +627,13 @@ class Quadrapole1D(Element1D):
                 S = 0
                 dC = 0
                 dS = 1
-
+        
         #Calculate transfer matrix.
-        m = xp.array([[C ,  S, 0, 0],
-                      [dC, dS, 0, 0],
-                      [ 0,  0, 1, 0],
-                      [ 0,  0, 0, 1]])
+        m = xp.eye(4)[...,None]*xp.ones_like(s)
+        m[0,0] = C
+        m[0,1] = S
+        m[1,0] = dC
+        m[1,1] = dS
         return m
 
 class Lens1D(Element1D):
@@ -713,14 +716,13 @@ class Lens1D(Element1D):
                 S = s
                 dC = 0
                 dS = 1
-
+        
         #Calculate transfer matrix.
-        m = xp.array([[C ,  S, 0, 0],
-                      [dC, dS, 0, 0],
-                      [ 0,  0, 1, 0],
-                      [ 0,  0, 0, 1]])
-
-        if self.length == 0: m = m[...,None]
+        m = xp.eye(4)[...,None]*xp.ones_like(s)
+        m[0,0] = C
+        m[0,1] = S
+        m[1,0] = dC
+        m[1,1] = dS
         return m
 
 
