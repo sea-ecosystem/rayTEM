@@ -387,7 +387,6 @@ class Lens(Element):
         -----
         #TODO: Figure out cross terms related to rotation. i.e. m[:2,3:4] and m[3:4,:2]
         """
-        print('s lens',s)
         m = xp.eye(6)[...,None]*xp.ones_like(s)
 
         if self.length != 0:
