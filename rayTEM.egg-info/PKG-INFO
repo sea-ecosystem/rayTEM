@@ -1,4 +1,4 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: rayTEM
 Version: 1.0
 Summary: Electron optics simulator for a transmission electron microscope.
@@ -7,3 +7,7 @@ Author-email: hoglunder@ornl.gov
 Requires-Dist: numpy
 Requires-Dist: matplotlib
 Requires-Dist: pandas
+Dynamic: author
+Dynamic: author-email
+Dynamic: requires-dist
+Dynamic: summary
