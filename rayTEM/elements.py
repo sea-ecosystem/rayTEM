@@ -298,7 +298,8 @@ class Element:
 		m = self.transfer_matrix(s=self.length)
 		#expand the ray coordinates to be ndim+2 to include z and E if not included.
 		#r0 = self.conform_ray_dim(r0)
-	   # print(r0.shape,m.shape,self.kind,s.shape,m.shape)
+		# print(r0.shape,m.shape,self.kind,s.shape,m.shape)
+		#print(m.shape,xp.shape(r0))
 		rf = xp.einsum('mn,in->im', m, r0)
 		rf[:,columnByName("z")] = self.position+self.length
 

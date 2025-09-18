@@ -4,10 +4,9 @@ from scipy.optimize import minimize,brute
 import matplotlib.pyplot as plt
 from matplotlib.cm import plasma as cmap
 
-#import sys
-#sys.path.insert(1,"../../../niceplot")
-#from nicecontour import *
-
+import sys
+sys.path.insert(1,"../../../niceplot")
+from nicecontour import *
 
 # Basic 2D plotting (along z, and in whatever axis you have chosen)
 def plot2D(r1,axis="x",filename=""):
@@ -40,7 +39,6 @@ def plot2D(r1,axis="x",filename=""):
 	else:
 		plt.show()
 
-
 # Basic 3D plotting, rays in 3D
 def plot3D(r1,filename="",elev=None,azi=None,roll=None):
 	# add rays to plot, with a range of colors
@@ -58,7 +56,7 @@ def plot3D(r1,filename="",elev=None,azi=None,roll=None):
 	# add all image/diffraction planes
 	planes=findPlanes(r1) ; zs=r1[:,0,k]
 	for imdiff in ["diff","image"]:
-		Z=planes["x"][imdiff]["z"] #; print(len(Z),imdiff,"planes at",Z)
+		Z=planes["x"][imdiff]["z"] ; print(len(Z),imdiff,"planes at",Z)
 		M=planes["x"][imdiff]["M"]
 		xlims = [ np.amin(r1[:,:,i]) , np.amax(r1[:,:,i]) ]
 		ylims = [ np.amin(r1[:,:,j]) , np.amax(r1[:,:,j]) ]
@@ -66,12 +64,13 @@ def plot3D(r1,filename="",elev=None,azi=None,roll=None):
 		for m,z in zip(M,Z):
 			z=zFromFractional(zs,z)
 			zsurf=np.asarray([[z,z],[z,z]])
-			c={"diff":"r","image":"g"}[imdiff]
-			ax.plot_surface(zsurf,xsurf,ysurf,color=c,alpha=.3)
+			ax.plot_surface(zsurf,xsurf,ysurf,color='r',alpha=.1)
+
 
 	ax.view_init(elev, azi, roll)
 
-	# display or save off
+
+
 	if len(filename)>0:
 		plt.savefig(filename)
 	else:
@@ -91,26 +90,29 @@ def findPlanes(rays):
 	diffRayIndex=None ; imageRayIndices=[]
 	x=columnByName("x") ; y=columnByName("y")
 	xt=columnByName("xt") ; yt=columnByName("yt")
-
-	# diffraction ray is the first ray emitted at zero angle (nonzero position!)
 	for r in range(len(rays[0])):
 		if rays[0,r,xt]==0 and rays[0,r,yt]==0 and \
-				rays[0,r,x]!=0 and rays[0,r,y]!=0:
+				rays[0,r,x]!=0 and rays[0,r,y]!=0: # take the first ray emitted at zero angle
 			diffRayIndex=r
 			break
-
-	# image rays emit from the same point (non-zero position) at differing angles
 	for r in range(len(rays[0])):
+		if rays[0,r,x] != rays[0,r,y]:	# ignore rays with x!=y
+			continue
 		if len(imageRayIndices)==1:
 			rr=imageRayIndices[0]		# ignore rays where previously-selected ray...
 			if rays[0,r,xt] == rays[0,rr,xt] or rays[0,r,yt] == rays[0,rr,yt]: # ...has the same angles
 				continue
+		if np.sign(rays[0,r,xt])==np.sign(rays[0,r,x]):
+			continue
+		if np.sign(rays[0,r,yt])==np.sign(rays[0,r,y]):
+			continue
 		imageRayIndices.append(r)
 		if len(imageRayIndices)==2:
 			break
-	#print("using diffRayIndex",diffRayIndex,rays[0,diffRayIndex])
-	#print("using imageRayIndices",diffRayIndex,rays[0,imageRayIndices[0]])
-	#print("and",diffRayIndex,rays[0,imageRayIndices[1]])
+	print("using diffRayIndex",diffRayIndex,rays[0,diffRayIndex])
+	print("using imageRayIndices",diffRayIndex,rays[0,imageRayIndices[0]])
+	print("and",diffRayIndex,rays[0,imageRayIndices[1]])
+
 
 	# loop through elements, get start/end points of each ray, and do some basic "crossing" math		
 	for ij,axis in enumerate(["x","y"]):
@@ -131,7 +133,7 @@ def findPlanes(rays):
 				ma=ya1-ya0 ; mb=yb1-yb0				# "magnification" of the diffraction plane 
 				ya=ya0+ma*dz ; yb=yb0+mb*dz			# comes from the *difference in position* 
 				Md.append((ya-yb)/max(np.absolute(rays[0,:2,ct])))					# of the perpendicular/angular rays
-				#print(axis,"crosses center between",i-1,"and",i,"m",m,"dz",dz)
+				print(axis,"crosses center between",i-1,"and",i,"m",m,"dz",dz)
 	
 			#print(axis,i,ya0,yb0,ya1,yb1)
 			# If rays have crossed in x or y, there is an image plane between i-1 and i. See FultzHowe2013 Fig 2.9
@@ -143,7 +145,7 @@ def findPlanes(rays):
 				dz=(yb0-ya0)/(ma-mb)				# a=ma ; b=mb ; c=xa0 ; d=xb0
 				Zi.append(i-1+dz)					# magnification of image plane is
 				ya=ya0+ma*dz ; Mi.append(ya/rays[0,0,c]) # ratio of original size to current		
-				#print(axis,"rays cross between",i-1,"and",i,"m",m,"dz",dz)
+				print(axis,"rays cross between",i-1,"and",i,"m",m,"dz",dz)
 
 		if axis=="x":
 			Zix=Zi ; Zdx=Zd ; Mix=Mi ; Mdx=Md
