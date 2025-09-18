@@ -157,6 +157,8 @@ class Element:
 
 	def kset(self,arg,val):
 		self.__dict__.update({arg:val})
+	def kget(self,arg):
+		return self.__dict__[arg]
 
 	def __repr__(self) -> str:
 		rep = {'name':self.name,
