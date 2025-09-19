@@ -470,7 +470,7 @@ class Lens(Element):
 	def __init__(self, name:str='', 
 				 position:float=0., length:float=0.,
 				 strength:float=0., calibration:None|float=None,
-				 label:bool=False, print_fancy:bool=True) -> object:
+				 label:bool=False, print_fancy:bool=True, rotation:bool=False) -> object:
 		"""Quadripole.
 
 		Parameters
@@ -500,6 +500,7 @@ class Lens(Element):
 						 position=position, length=length, 
 						 strength=strength, calibration=calibration,
 						 label=label, print_fancy=print_fancy)
+		self.rotation = rotation
 	def transfer_matrix(self,
 						 s:int|float|ArrayLike
 						 #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
@@ -512,13 +513,26 @@ class Lens(Element):
 		"""
 		#m = xp.eye(6) #[ ...,None]*xp.ones_like(s)
 		m = xp.eye(4) # thin lens updates x from xθ and y from yθ
-
-		if self.length != 0:
+		
+		# TWP IMPLEMENTATION: focus > rotate > drift > rotate > focus
+		if False: # self.length !=0:
+			f=self.strength
+			theta=xp.sqrt(f)*s
+			cos=xp.cos(theta) ; sin=xp.sin(theta)
+			R=xp.asarray([[cos,-sin],[sin,cos]])
+			R=fix_mat_dims(R,["x","y"])
+			F=xp.asarray([[1,0],[-1/f/2,1]]) # HALF the focusing because we'll do it twice
+			F=xp.matmul( fix_mat_dims(F,["x","xt"]) , fix_mat_dims(F,["y","yt"]) )
+			D=xp.asarray([[1,self.length],[0,1]])
+			D=xp.matmul( fix_mat_dims(D,["x","xt"]) , fix_mat_dims(D,["y","yt"]) )
+			return xp.matmul(F,xp.matmul(R,xp.matmul(D,xp.matmul(R,F))))
+		# ERH IMPLEMENTATION: rotation dependent on strength (but focal length appears to be off: removed_private_instrument_tree/03_lensRotation.py)
+		if False: #self.length != 0:
 			sK = xp.sqrt(xp.abs(self.strength))
 			#get trig functions for transfer matrix
 			C = xp.cos(sK*s)
-			S = 1/sK * xp.sin(sK*s)
-			dC = -sK * xp.sin(sK*s)
+			S = 1/sK**2 * xp.sin(sK*s)
+			dC = -sK**2 * xp.sin(sK*s)
 			dS = C
 			trig = xp.array([[C ,  S],
 							 [dC, dS]])
@@ -527,6 +541,17 @@ class Lens(Element):
 				m[2:4,2:4] = trig
 			else: #drift
 				m = Drift.transfer_matrix(s)
+		# f=V/(No*I^2) https://faculty.sites.iastate.edu/tec/files/inline-files/L10%20-%20Electron%20Lenses.pdf
+		if self.length != 0:
+			f = self.strength
+			sK = xp.sqrt(xp.abs(self.strength))
+			cos=xp.cos(sK*s) ; sin=xp.sin(sK*s)
+			F=xp.asarray([[1,0],[-1/f,1]])
+			F=xp.matmul( fix_mat_dims(F,["x","xt"]) , fix_mat_dims(F,["y","yt"]) )
+			R=xp.asarray([[cos,-sin],[sin,cos]])
+			Rr=fix_mat_dims(R,["x","y"]) ; Rt=fix_mat_dims(R,["xt","yt"])
+			return xp.matmul(Rt,xp.matmul(Rr,F))
+
 		elif self.length == 0:
 			f = self.strength
 			if self.strength!=0:
@@ -534,6 +559,7 @@ class Lens(Element):
 				m[3,2] = -1/f
 			else: #off
 				pass
+		
 
 		return fix_mat_dims(m,["x","xt","y","yt"])
 

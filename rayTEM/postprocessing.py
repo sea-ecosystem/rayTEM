@@ -100,6 +100,9 @@ def findPlanes(rays):
 				rays[0,r,x]!=0 and rays[0,r,y]!=0:
 			diffRayIndex=r
 			break
+	else:
+		return {"x":{"diff":{"z":[],"M":[]},"image":{"z":[],"M":[]}},
+			"y":{"diff":{"z":[],"M":[]},"image":{"z":[],"M":[]}}}
 
 	# image rays emit from the same point (non-zero position) at differing angles
 	for r in range(len(rays[0])):
@@ -110,6 +113,9 @@ def findPlanes(rays):
 		imageRayIndices.append(r)
 		if len(imageRayIndices)==2:
 			break
+	else:
+		return {"x":{"diff":{"z":[],"M":[]},"image":{"z":[],"M":[]}},
+			"y":{"diff":{"z":[],"M":[]},"image":{"z":[],"M":[]}}}
 	#print("using diffRayIndex",diffRayIndex,rays[0,diffRayIndex])
 	#print("using imageRayIndices",diffRayIndex,rays[0,imageRayIndices[0]])
 	#print("and",diffRayIndex,rays[0,imageRayIndices[1]])
