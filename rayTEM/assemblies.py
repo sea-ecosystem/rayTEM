@@ -96,7 +96,7 @@ class MicroscopeSection:
 			raise ValueError(f'The last shape of the rays has size {r0.shape[-1]}, which can not be understood as ndim*2+(z, E), ndim*2+(E), or ndim*2')
 	"""
 
-	def propagate_ray(self, r0:ArrayLike,
+	def propagate_ray(self, r0:ArrayLike=None,
 					   z:None|int|float|ArrayLike=None, 
 					   ):
 		"""
@@ -122,6 +122,8 @@ class MicroscopeSection:
 			else:
 				ri = xp.append(ri, ele_ri, axis=1)
 		"""
+		if r0 is None:
+			r0 = self.elements[0].rays()
 		ri=[r0]
 		for i,ele in enumerate(self.elements):
 			ele_ri = ele.propagate_ray(ri[-1], z=z)
@@ -137,7 +139,7 @@ class MicroscopeSection:
 		ri = xp.append(r0[:,None,:], ri, axis=1)
 		return ri
 
-	def propagate(self, input:ArrayLike, zs:None|float|int|ArrayLike=None,
+	def propagate(self, input:ArrayLike=None, zs:None|float|int|ArrayLike=None,
 				   output_structure:str='per layer') -> ArrayLike:
 		"""propagate the input through the microscope section.
 

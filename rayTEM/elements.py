@@ -50,55 +50,57 @@ def fix_mat_dims(m,columnNames):
 # What we see on the CCD is the sum of rays' intensity and phase. This means we need to track intensity too? (7x7 instead of 6x6. An aperture “masks out” a region based on position by zeroing the intensity for example). 
 # a sample object also affects the phase of the electron (your “length” term in the matrix). We could a sample “element”.
 
+#class SourceParallel:
+#	def __init__(self, name:str='Unnamed',
+#			size:tuple=(2e-3,2e-3), # size in x and y (square grid)
+#			np_xy:tuple=(3,3),		# number of grid points in x and y
+#			position:float=0.,
+#			ndim:int=2) -> object:
+#		return Source(name=name,size=size,np_xy=np_xy,angle=(0,0),na_xy=(1,1),position=position,ndim=ndim)
+
 class Source:
 	def __init__(self, name:str='Unnamed',
-			dims_r:tuple=(2e-3,2e-3),
-			dims_n:tuple=(11,11),
-			position:float=0.,
-			alpha:float=0.,ndim:int=2) -> object:
-		"""General source class.
-
-		Parameters
-		----------
-		name : str, optional
-			Name given to the source, by default ''
-		dims_r : tuple, optional
-			The "real-space" size of the beam in units of meters, default ( 2mm x 2mm )
-		dims_n : tuple, optional
-			The number of points along each direction, default ( 10 x 10 )
-		position : float, optional
-			The position of the lens along the z-axis, by default 0
-		alpha : float, optional
-			Convergence angle, by default 0
-		ndim : int, optional
-			The spatial dimensionality of the ray system perpendicular to propogation.
-			The first-order lens matrix will have axes with size 2*ndim, which acounts for the derivatives.
-			A 1D element without chromatic contributions will have `ndim=1`.
-			A 2D element without chromatic contributions will have `ndim=2`.
-
-		"""
+			size:tuple=(2e-3,2e-3), # size in x and y (square grid)
+			np_xy:tuple=(3,3),		# number of grid points in x and y
+			angle:tuple=(1,1),		# angles in x,y (ranges of xt yt)
+			na_xy:tuple=(3,3),
+			position:float=0.) -> object:
+		
 		self.name = name
+		self.size = size
+		self.np_xy = np_xy
+		self.angle = angle
+		self.na_xy = na_xy
 		self.position = position
-		self.ndim = ndim
-		self.dims_r = dims_r
-		self.dims_n = dims_n
+		self.length = 0
 
+	# Source term, initialize rays at sweep of angles and positions
 	def rays(self):
-		xs=xp.linspace(-self.dims_r[0],self.dims_r[0],self.dims_n[0])
-		ys=xp.linspace(-self.dims_r[1],self.dims_r[1],self.dims_n[1])
-		xs,ys=xp.meshgrid(xs,ys)
-		array=xp.zeros((self.dims_n[0]*self.dims_n[1],4))
-		array[:,0]=xs.flat
-		array[:,1]=ys.flat
-		array[:,2:]=1
-		array=fix_ray_dims(array,["x","y","E","I"])
+		xs=xp.linspace(-self.size[0],self.size[0],self.np_xy[0])
+		ys=xp.linspace(-self.size[1],self.size[1],self.np_xy[1])
+		xts=xp.zeros(1) ; yts=xp.zeros(1)
+		if self.angle[0]>0 and self.na_xy[0]:
+			xts=xp.linspace(-self.angle[0],self.angle[0],self.na_xy[0])
+		if self.angle[1]>0 and self.na_xy[1]:
+			yts=xp.linspace(-self.angle[1],self.angle[1],self.na_xy[1])
+		shape=(len(xs),len(ys),len(xts),len(yts))
+		array=xp.zeros((len(xs)*len(ys)*len(xts)*len(yts),4))
+		array[:,0]=(xs[:,None,None,None]*xp.ones(shape)).flat
+		array[:,1]=(ys[None,:,None,None]*xp.ones(shape)).flat
+		array[:,2]=(xts[None,None,:,None]*xp.ones(shape)).flat
+		array[:,3]=(yts[None,None,None,:]*xp.ones(shape)).flat
+		array=fix_ray_dims(array,["x","y","xt","yt"])
 		return array
+
+	# dummy propagation in case someone tries to propagate through since this is technically an element
+	def propagate_ray(self, r0:ArrayLike, **kwargs) -> xp.ndarray:
+		return r0
 
 class Element:
 	def __init__(self, name:str='Unnamed',
 				 kind:None|str=None, poles:None|int=None,
 				 position:float=0., length:float=0., radius:float=0,
-				 strength:float=0., calibration:None|float=None,
+				 strength:float=0, calibration:None|float=None,
 				 ndim:int=2, chroma_dim:bool=False,
 				 label:bool=False, print_fancy:bool=True
 				 ) -> object:
@@ -120,7 +122,8 @@ class Element:
 		length : int, optional
 			Length of the element, by default 0
 		strength : float, optional
-			Defined as the The focusing strength (K) of a thin lens, by default 0
+			Defined as the field strength (related to inverse focal length,
+			see equations in brown1983), by default 0
 		calibration : float, optional
 			Currnet calibration of the lens in units of ???/A, by default None
 		ndim : int, optional
@@ -229,7 +232,7 @@ class Element:
 		elif poles > 4:	 raise ValueError('Only multipoles with N<=4 are implemented (i.e. Quadropoles and lower).  The current element has {poles:d} poles.')
 		else:			   pass
 		
-		sK = xp.sqrt(xp.abs(self.strength))
+		#sK = xp.sqrt(xp.abs(self.strength))
 
 		#Calculate transfer matrix.
 		m = xp.eye(self.ndim*2)
@@ -383,7 +386,7 @@ class Drift(Element):
 class Quadrapole(Element):
 	def __init__(self, name:str='', 
 				 position:float=0., length:float=0.,
-				 strength:float=0., calibration:None|float=None,
+				 strength:float=0, calibration:None|float=None,
 				 label:bool=False, print_fancy:bool=True) -> object:
 		"""Quadripole.
 
@@ -396,9 +399,8 @@ class Quadrapole(Element):
 		length : int, optional
 			Length of the element, by default 0
 		strength : float, optional
-			Defined as the focal length, by default 0
-			Note this in not the focusing strength (K) and is simply f.
-			A thin lens is defind as KL=-1/fas L goes to zero.
+			Defined as the field strength (related to inverse focal length,
+			see equations in brown1983), by default 0
 		calibration : float, optional
 			Currnet calibration of the lens in units of ???/A, by default None
 		label : bool, optional
@@ -428,48 +430,59 @@ class Quadrapole(Element):
 		"""
 		
 		#m = xp.eye(6)#[...,None]*xp.ones_like(s) # TWP 2025/08/27 - adding ones_like expression so m is 6x6x1, otherwise eigsum in propagate will fail
-		m = xp.eye(4) # quadrupole updates xθ from x and yθ from y
+		#m = xp.eye(4) # quadrupole updates xθ from x and yθ from y
 
-		if self.length != 0:
-			sK = xp.sqrt(xp.abs(self.strength))
-			#get trig functions for transfer matrix
-			C = xp.cos(sK*s)
-			S = 1/sK * xp.sin(sK*s)
-			dC = -sK * xp.sin(sK*s)
-			dS = C
-			trig = xp.array([[C ,  S],
-							 [dC, dS]])
-			Ch = xp.cosh(sK*s)
-			Sh = 1/sK * xp.sinh(sK*s)
-			dCh =  sK * xp.sinh(sK*s)
-			dSh = Ch
-			trigh = xp.array([[Ch ,  Sh],
-							  [dCh, dSh]])
-			if self.strength>0: #focusing, trig funcitons
-				m[:2, :2] = trig
-				m[2:4,2:4] = trigh
-			elif self.strength<0: #defocusing, hyperbolic trig functions
-				m[:2, :2] = trigh
-				m[2:4,2:4] = trig
-			else: #drift
-				m = Drift.transfer_matrix(s)
-		elif self.length == 0:
-			f = self.strength
-			if self.strength>0:
-				m[1,0] = -1/f
-				m[3,2] = 1/f
-			elif self.strength>0:
-				m[1,0] = 1/f
-				m[3,2] = -1/f
-			else: #off
-				pass
+		K=self.strength ; kL=K*self.length
+		C=xp.cos(kL) ; S=xp.sin(kL)
+		X=xp.asarray([[  C  , 1/K*S ],  # Brown1983 page 46, note the similarity to
+					  [-K*S ,   C   ]]) # https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Example:_Thin_lens if L=0
+		Y=xp.asarray([[  C  , 1/K*S ],  # calculate x,xt and y,yt 2x2s separately, then matmul
+					  [ K*S ,   C   ]])
 
-		return fix_mat_dims(m,["x","xt","y","yt"])
+		m=xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["x","xt"]) )
+
+		return m
+		
+		#if self.length != 0:
+		#	sK = xp.sqrt(xp.abs(self.strength))
+		#	#get trig functions for transfer matrix
+		#	C = xp.cos(sK*s)
+		#	S = 1/sK * xp.sin(sK*s)
+		#	dC = -sK * xp.sin(sK*s)
+		#	dS = C
+		#	trig = xp.array([[C ,  S],
+		#					 [dC, dS]])
+		#	Ch = xp.cosh(sK*s)
+		#	Sh = 1/sK * xp.sinh(sK*s)
+		#	dCh =  sK * xp.sinh(sK*s)
+		#	dSh = Ch
+		#	trigh = xp.array([[Ch ,  Sh],
+		#					  [dCh, dSh]])
+		#	if self.strength>0: #focusing, trig funcitons
+		#		m[:2, :2] = trig
+		#		m[2:4,2:4] = trigh
+		#	elif self.strength<0: #defocusing, hyperbolic trig functions
+		#		m[:2, :2] = trigh
+		#		m[2:4,2:4] = trig
+		#	else: #drift
+		#		m = Drift.transfer_matrix(s)
+		#elif self.length == 0:
+		#	f = self.strength
+		#	if self.strength>0:
+		#		m[1,0] = -1/f
+		#		m[3,2] = 1/f
+		#	elif self.strength>0:
+		#		m[1,0] = 1/f
+		#		m[3,2] = -1/f
+		#	else: #off
+		#		pass
+		#
+		#return fix_mat_dims(m,["x","xt","y","yt"])
 
 class Lens(Element):
 	def __init__(self, name:str='', 
 				 position:float=0., length:float=0.,
-				 strength:float=0., calibration:None|float=None,
+				 strength:float=0, calibration:None|float=None,
 				 label:bool=False, print_fancy:bool=True, rotation:bool=False) -> object:
 		"""Quadripole.
 
@@ -482,9 +495,8 @@ class Lens(Element):
 		length : int, optional
 			Length of the element, by default 0
 		strength : float, optional
-			Defined as the focal length, by default 0
-			Note this in not the focusing strength (K) and is simply f.
-			A thin lens is defind as KL=-1/fas L goes to zero.
+			Defined as the field strength (related to inverse focal length,
+			see equations in brown1983), by default 0
 		calibration : float, optional
 			Currnet calibration of the lens in units of ???/A, by default None
 		label : bool, optional
@@ -512,62 +524,88 @@ class Lens(Element):
 		#TODO: Figure out cross terms related to rotation. i.e. m[:2,3:4] and m[3:4,:2]
 		"""
 		#m = xp.eye(6) #[ ...,None]*xp.ones_like(s)
-		m = xp.eye(4) # thin lens updates x from xθ and y from yθ
+		#m = xp.eye(4) # thin lens updates x from xθ and y from yθ
 		
 		# TWP IMPLEMENTATION: focus > rotate > drift > rotate > focus
-		if False: # self.length !=0:
-			f=self.strength
-			theta=xp.sqrt(f)*s
-			cos=xp.cos(theta) ; sin=xp.sin(theta)
-			R=xp.asarray([[cos,-sin],[sin,cos]])
-			R=fix_mat_dims(R,["x","y"])
-			F=xp.asarray([[1,0],[-1/f/2,1]]) # HALF the focusing because we'll do it twice
-			F=xp.matmul( fix_mat_dims(F,["x","xt"]) , fix_mat_dims(F,["y","yt"]) )
-			D=xp.asarray([[1,self.length],[0,1]])
-			D=xp.matmul( fix_mat_dims(D,["x","xt"]) , fix_mat_dims(D,["y","yt"]) )
-			return xp.matmul(F,xp.matmul(R,xp.matmul(D,xp.matmul(R,F))))
+		#if False: # self.length !=0:
+		#	f=self.strength
+		#	theta=xp.sqrt(f)*s
+		#	cos=xp.cos(theta) ; sin=xp.sin(theta)
+		#	R=xp.asarray([[cos,-sin],[sin,cos]])
+		#	R=fix_mat_dims(R,["x","y"])
+		#	F=xp.asarray([[1,0],[-1/f/2,1]]) # HALF the focusing because we'll do it twice
+		#	F=xp.matmul( fix_mat_dims(F,["x","xt"]) , fix_mat_dims(F,["y","yt"]) )
+		#	D=xp.asarray([[1,self.length],[0,1]])
+		#	D=xp.matmul( fix_mat_dims(D,["x","xt"]) , fix_mat_dims(D,["y","yt"]) )
+		#	return xp.matmul(F,xp.matmul(R,xp.matmul(D,xp.matmul(R,F))))
 		# ERH IMPLEMENTATION: rotation dependent on strength (but focal length appears to be off: removed_private_instrument_tree/03_lensRotation.py)
-		if False: #self.length != 0:
-			sK = xp.sqrt(xp.abs(self.strength))
-			#get trig functions for transfer matrix
-			C = xp.cos(sK*s)
-			S = 1/sK**2 * xp.sin(sK*s)
-			dC = -sK**2 * xp.sin(sK*s)
-			dS = C
-			trig = xp.array([[C ,  S],
-							 [dC, dS]])
-			if self.strength!=0: #focusing, trig funcitons
-				m[:2, :2] = trig
-				m[2:4,2:4] = trig
-			else: #drift
-				m = Drift.transfer_matrix(s)
+		#if False: #self.length != 0:
+		#	sK = xp.sqrt(xp.abs(self.strength))
+		#	#get trig functions for transfer matrix
+		#	C = xp.cos(sK*s)
+		#	S = 1/sK**2 * xp.sin(sK*s)
+		#	dC = -sK**2 * xp.sin(sK*s)
+		#	dS = C
+		#	trig = xp.array([[C ,  S],
+		#					 [dC, dS]])
+		#	if self.strength!=0: #focusing, trig funcitons
+		#		m[:2, :2] = trig
+		#		m[2:4,2:4] = trig
+		#	else: #drift
+		#		m = Drift.transfer_matrix(s)
 		# f=V/(No*I^2) https://faculty.sites.iastate.edu/tec/files/inline-files/L10%20-%20Electron%20Lenses.pdf
-		if self.length != 0:
-			f = self.strength
-			sK = xp.sqrt(xp.abs(self.strength))
-			cos=xp.cos(sK*s) ; sin=xp.sin(sK*s)
-			F=xp.asarray([[1,0],[-1/f,1]])
-			F=xp.matmul( fix_mat_dims(F,["x","xt"]) , fix_mat_dims(F,["y","yt"]) )
-			R=xp.asarray([[cos,-sin],[sin,cos]])
-			Rr=fix_mat_dims(R,["x","y"]) ; Rt=fix_mat_dims(R,["xt","yt"])
-			return xp.matmul(Rt,xp.matmul(Rr,F))
+		#if self.length != 0:
+		#	f = self.strength
+		#	sK = xp.sqrt(xp.abs(self.strength))
+		#	cos=xp.cos(sK*s) ; sin=xp.sin(sK*s)
+		#	F=xp.asarray([[1,0],[-1/f,1]])
+		#	F=xp.matmul( fix_mat_dims(F,["x","xt"]) , fix_mat_dims(F,["y","yt"]) )
+		#	R=xp.asarray([[cos,-sin],[sin,cos]])
+		#	Rr=fix_mat_dims(R,["x","y"]) ; Rt=fix_mat_dims(R,["xt","yt"])
+		#	return xp.matmul(Rt,xp.matmul(Rr,F))
+		#
+		#elif self.length == 0:
+		#	f = self.strength
+		#	if self.strength!=0:
+		#		m[1,0] = -1/f
+		#		m[3,2] = -1/f
+		#	else: #off
+		#		pass
+		#
+		#
+		#return fix_mat_dims(m,["x","xt","y","yt"])
 
-		elif self.length == 0:
-			f = self.strength
-			if self.strength!=0:
-				m[1,0] = -1/f
-				m[3,2] = -1/f
-			else: #off
-				pass
-		
+		if self.strength==0:
+			return fix_mat_dims(xp.eye(4),["x","xt","y","yt"])
 
-		return fix_mat_dims(m,["x","xt","y","yt"])
+		K=self.strength ; kL=K*self.length ; iK=1/K 
+		C=xp.cos(kL) ; S=xp.sin(kL)
+		XY=xp.asarray([[ C**2  , iK*S*C  ,   S*C  , iK*S**2 ], # Brown1983 page 105
+					   [-K*S*C ,  C**2   ,-K*S**2 ,   S*C   ],	# similar to standard
+					   [ -S*C  ,-iK*S**2 ,   C**2 , iK*S*C  ],	#  [  1   0 ] but with
+					   [ K*S**2,  -S*C   , -K*S*C ,  C**2   ]] )# [ -1/f 1 ] rotation
+		if not self.rotation:
+			zeroer=xp.asarray([[1,1,0,0],[1,1,0,0],[0,0,1,1],[0,0,1,1]])
+			XY*=zeroer
+		return fix_mat_dims(XY,["x","xt","y","yt"])
+
+		#X=xp.asarray([[  C  , iK*S ],  # Brown1983 page 105, note the similarity to
+		#			  [-K*S ,  C   ]]) # https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Example:_Thin_lens if L=0
+		#
+		#XY=xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(X,["y","yt"]) )
+		#
+		#R=xp.asarray([[ C , 0 , S , 0 ], # Brown1983 page 108
+		#			  [ 0 , C , 0 , S ],
+		#			  [-S , 0 , C , 0 ],
+		#			  [ 0 ,-S , 0 , C ]])
+		#m=xp.matmul( fix_mat_dims(R,["x","xt","y","yt"]) , XY )
+		#return m
 
 class Prism(Element):
 	def __init__(self, name:str='', 
 				 position:float=0., length:float=0.,
 				 radius:None|float=None, angle:float=45., w:float=1., g:float=1., k1:float=0.,
-				 strength:float=0., calibration:None|float=None,
+				strength:float=0, calibration:None|float=None,
 				 label:bool=False, print_fancy:bool=True) -> object:
 		"""Prism.
 
@@ -580,7 +618,8 @@ class Prism(Element):
 		length : int, optional
 			Length of the element, by default 0
 		strength : float, optional
-			Defined as the focal length, by default 0
+			Defined as the field strength (related to inverse focal length,
+			see equations in brown1983), by default 0
 			Note this in not the focusing strength (K) and is simply f.
 			A thin lens is defind as KL=-1/fas L goes to zero.
 		calibration : float, optional
