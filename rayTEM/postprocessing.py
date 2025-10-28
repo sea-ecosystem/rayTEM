@@ -205,7 +205,7 @@ def findPlanes(rays,axes="xy"):
 		if len(diffRaysX)==2 and len(diffRaysY)==2 and \
 			len(imageRaysX)==2 and len(imageRaysY)==2:
 				break
-	if ( "x" in axes and len(diffRaysX)!=2 and len(imageRaysX)!=2 ) or ( "y" in axes and len(diffRaysY)!=2 and len(imageRaysY)!=2 ):
+	if ( "x" in axes and ( len(diffRaysX)!=2 or len(imageRaysX)!=2 )) or ( "y" in axes and ( len(diffRaysY)!=2 or len(imageRaysY)!=2 )):
 		print("WARNING: diffraction and/or image rays could not be inferred by findPlanes(). no planes found")
 		if len(diffRaysX)<2 and "x" in axes:
 			print("diffraction rays (x2) in X: must be finite x, zero y, zero xt and yt")

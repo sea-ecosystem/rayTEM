@@ -21,8 +21,8 @@ def plot2D(r1,axis="x",filename="",zpts="",xlims=None):
 		plt.plot(xs,ys,linestyle="-",color=c,marker='')
 
 	# add all image/diffraction planes
-	planes=findPlanes(r1) ; ct=0 ; zs=r1[:,0,j]
-	print(planes)
+	planes=findPlanes(r1,axes="x") ; ct=0 ; zs=r1[:,0,j]
+	#print(planes)
 	nplanes=len(planes[axis]["diff"]["z"])+len(planes[axis]["image"]["z"])
 	ylims = [ np.amin(r1[:,:,i]) , np.amax(r1[:,:,i]) ]
 	for imdiff in ["diff","image"]:
@@ -149,7 +149,7 @@ def plotSliceSeries(rays,N,M,filename=""):
 	else:
 		plt.show()
 
-def findPlanes(rays):
+def findPlanes(rays,axes="xy"):
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
 	diffRaysX=[] ; diffRaysY=[]
 	imageRaysX=[] ; imageRaysY=[]
@@ -205,9 +205,16 @@ def findPlanes(rays):
 		if len(diffRaysX)==2 and len(diffRaysY)==2 and \
 			len(imageRaysX)==2 and len(imageRaysY)==2:
 				break
-	else:
+	if ( "x" in axes and len(diffRaysX)!=2 and len(imageRaysX)!=2 ) or ( "y" in axes and len(diffRaysY)!=2 and len(imageRaysY)!=2 ):
 		print("WARNING: diffraction and/or image rays could not be inferred by findPlanes(). no planes found")
-		print(diffRaysX,diffRaysY,imageRaysX,imageRaysY)
+		if len(diffRaysX)<2 and "x" in axes:
+			print("diffraction rays (x2) in X: must be finite x, zero y, zero xt and yt")
+		if len(diffRaysY)<2 and "y" in axes:
+			print("diffraction rays (x2) in Y: must be finite y, zero x, zero xt and yt")
+		if len(imageRaysX)<2 and "x" in axes:
+			print("image rays (x2) in X: must be finite xt, zero yt, zero x and y")
+		if len(imageRaysY)<2 and "y" in axes:
+			print("image rays (x2) in Y: must be finite yt, zero xt, zero x and y")
 		return returnable
 
 	x=columnByName("x") ; y=columnByName("y")
@@ -251,6 +258,7 @@ def findPlanes(rays):
 	def magnification(ya0,ya1,yb0,yb1,dz,ta,tb):
 		ya=positionAtZ(ya0,ya1,dz)
 		yb=positionAtZ(yb0,yb1,dz)
+		#print("magnification where",ya0,"-",ya1,"and",yb0,"-",yb1,"cross",ya-yb,"/",ta-tb)
 		return (ya-yb)/(ta-tb)
 
 	# rays "a" and "b", original positions
@@ -260,21 +268,19 @@ def findPlanes(rays):
 	#yta0,ytb0=rays[0,imageRayIndices,yt]
 
 	for axis,diffRays,imageRays,xy,yx,xyt in zip(["x","y"],[diffRaysX,diffRaysY],[imageRaysX,imageRaysY],[x,y],[y,x],[xt,yt]):
+		if axis not in axes:
+			continue
+		print(axis,diffRays,imageRays)
 		for i in range(1,len(rays)):
 			# CHECK DIFFRACTION: where originally-parallel rays cross
 			(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,diffRays,xy]
-			#(ya1,yb1),(ya2,yb2)=rays[i-1:i+1,diffRaysX,y]
 			dz=whereRaysCross(xa1,xa2,xb1,xb2)
-			print("axis",axis,"i1,i2",i-1,i,"xa1,xa2",xa1,xa2,"xb1,xb2",xb1,xb2,"dz",dz)
 			if dz is not None:
+				xta0,xtb0 = rays[0,imageRays,xyt] # magnification comes from starting angles of two non-parallel rays
 				# Magnification comes from conversion of angle to position
 				(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,imageRays,xy]
 				(ya1,yb1),(ya2,yb2)=rays[i-1:i+1,imageRays,yx]
-				xra=positionAtZ(xa1,xa2,dz)
-				xrb=positionAtZ(xb1,xb2,dz)
-				yra=positionAtZ(ya1,ya2,dz)
-				yrb=positionAtZ(yb1,yb2,dz)
-				M=np.sqrt((xra-xrb)**2+(yra-yrb)**2)/(rays[0,imageRays[0],xyt]-rays[0,imageRaysX[1],xyt])
+				M=magnification(xa1,xa2,xb1,xb2,dz,xta0,xtb0)
 				returnable[axis]["diff"]["z"].append( i-1+dz )
 				returnable[axis]["diff"]["M"].append( M )
 				returnable[axis]["diff"]["p"].append([])
@@ -285,17 +291,12 @@ def findPlanes(rays):
 
 			# CHECK IMAGE PLANE: where rays leaving the same place re-cross
 			(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,imageRays,xy]
-			#(ya1,yb1),(ya2,yb2)=rays[i-1:i+1,diffRaysX,y]
 			dz=whereRaysCross(xa1,xa2,xb1,xb2)
 			if dz is not None:
-				# Magnification comes from original size vs final size
-				(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,imageRays,xy]
-				(ya1,yb1),(ya2,yb2)=rays[i-1:i+1,imageRays,yx]
-				xra=positionAtZ(xa1,xa2,dz)
-				xrb=positionAtZ(xb1,xb2,dz)
-				yra=positionAtZ(ya1,ya2,dz)
-				yrb=positionAtZ(yb1,yb2,dz)
-				M=np.sqrt((xra-xrb)**2+(yra-yrb)**2)/(rays[0,imageRays[0],xy]-rays[0,imageRaysX[1],xy])
+				xa0,xb0 = rays[0,diffRays,xy] # magnification comes from change in scaling (position) of originally-parallel rays
+				(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,diffRays,xy]
+				(ya1,yb1),(ya2,yb2)=rays[i-1:i+1,diffRays,yx]
+				M=magnification(xa1,xa2,xb1,xb2,dz,xa0,xb0)
 				returnable[axis]["image"]["z"].append( i-1+dz )
 				returnable[axis]["image"]["M"].append( M )
 				returnable[axis]["image"]["p"].append([])
@@ -566,14 +567,14 @@ def zFromFractional(zs,z): # e.g. 1.2 is 20% of the distance through element ind
 # section : a microscope section object
 # targets : a list of dicts for what we want, e.g. [{"plane":"image","z":6,"mag":3}] would mean "we want an image plane at z=6 with a magnification of 3"
 # modifiable : dict of element index/parameter pairs. e.g. {1:"strength",3:"strength"} if I wish to allow lens at index 1 and 3 to have their strength varied
-def fitForCrossover(r0,section,targets=[],modifiable=[],axis="x",prefer={},ignoreSigns=True,filename=""):
+def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},ignoreSigns=True,filename=""):
 
 	# propoagateAndCheck below takes a list of values, so we need to "map" these to modifiable elements and the parameters within that element
 	indices,eleKeys,vals=[],[],[]
 	for i in modifiable.keys():
 		k=modifiable[i] ; v=section.elements[i].kget(k)
 		indices.append(i) ; eleKeys.append(k) ; vals.append(v)
-	print("indices",indices,"eleKeys",eleKeys,"vals",vals)
+	#print("indices",indices,"eleKeys",eleKeys,"vals",vals)
 
 	# a function which sets passed values, propagates, finds the crossover location, and returns an "error" term to be minimized
 	def propagateAndCheck(vals,passback="dz",ct_propagateAndCheck=[-1]):
@@ -591,11 +592,11 @@ def fitForCrossover(r0,section,targets=[],modifiable=[],axis="x",prefer={},ignor
 		# propagate the starting array through the (now-updated) section
 		r1=section.propagate_ray(r0)
 
-		print("propagateAndCheck run",ct_propagateAndCheck[0],"trying vals",vals)
-		plot2D( r1 , filename = "tmp/"+str(ct_propagateAndCheck[0])+".png")
+		#print("propagateAndCheck run",ct_propagateAndCheck[0],"trying vals",vals)
+		#plot2D( r1 , filename = "tmp/"+str(ct_propagateAndCheck[0])+".png")
 
 		# inspect the output: find all image and diffraction planes
-		planes = findPlanes(r1)
+		planes = findPlanes(r1,axes=axis)
 		zs=r1[:,0,columnByName("z")]
 
 		# our "error" defined by each metric in each target (e.g. checking if position z is off, or magnification is off)
@@ -655,7 +656,7 @@ def fitForCrossover(r0,section,targets=[],modifiable=[],axis="x",prefer={},ignor
 						#strength=np.mean(strengths)/20
 						strength=min(strengths)**5/10
 						deltas.append(-1*strength)
-		print("found deltas",deltas)
+		#print("found deltas",deltas)
 
 			#print("USING",vals,"CROSSOVER",n," IS AT",Zf[n],"DZ",dz,"DM",dM,"mags",mags) #,"deltas",deltas,"signs",signs)
 		#plotRays(r1)
@@ -681,14 +682,14 @@ def fitForCrossover(r0,section,targets=[],modifiable=[],axis="x",prefer={},ignor
 	#x0=minimize(propagateAndCheck,x0=vals)["x"] #,method='trust-constr',options={"finite_diff_rel_step":[.1]*len(vals),"xtol":1e-12})
 
 	# scipy.optimize.brute: should be better at finding global minima. also convenient for plotting heatmaps of the parameter space
-	ranges=[[v/4,v*3] for v in vals ] # TODO WHAT SHOULD THESE BE? (user should probably be allowed to pass this, or we infer from the actual microscopy itself)
+	ranges=[[v/4,v*2] for v in vals ] # TODO WHAT SHOULD THESE BE? (user should probably be allowed to pass this, or we infer from the actual microscopy itself)
 	print("ranges",ranges)
 	# we will wrap scipy.optimize.minimize to use as brute's "polish" function
 	def mini(*args,**kwargs):	
 		kwargs["bounds"]=ranges
 		return minimize(*args,**kwargs)
 	# run fitting. full_output only required if you want the contour plot. same for Ns
-	x0,r,vals,residuals=brute(propagateAndCheck,ranges=ranges,Ns=30,full_output=True,args=["dz"],finish=mini)
+	x0,r,vals,residuals=brute(propagateAndCheck,ranges=ranges,Ns=100,full_output=True,args=["dz"],finish=mini)
 	# heatmap of parameter space
 	residuals[residuals==10000]=np.nan
 	plt.clf()
