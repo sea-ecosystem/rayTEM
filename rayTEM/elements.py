@@ -59,7 +59,7 @@ def fix_mat_dims(m,columnNames):
 #		return Source(name=name,size=size,np_xy=np_xy,angle=(0,0),na_xy=(1,1),position=position,ndim=ndim)
 
 class Source:
-	def __init__(self, name:str='Unnamed',
+	def __init__(self, name:str=None,
 			size:tuple=(2e-3,2e-3), # size in x and y (square grid)
 			np_xy:tuple=(3,3),		# number of grid points in x and y
 			angle:tuple=(1,1),		# angles in x,y (ranges of xt yt)
@@ -73,6 +73,9 @@ class Source:
 		self.na_xy = na_xy
 		self.position = position
 		self.length = 0
+		self.kind = "Source"
+		self.strength = 0
+		self.calibration = None
 
 	# Source term, initialize rays at sweep of angles and positions
 	def rays(self):
@@ -97,7 +100,7 @@ class Source:
 		return r0
 
 class Element:
-	def __init__(self, name:str='Unnamed',
+	def __init__(self, name:str='',
 				 kind:None|str=None, poles:None|int=None,
 				 position:float=0., length:float=0., radius:float=0,
 				 strength:float=0, calibration:None|float=None,
@@ -579,6 +582,8 @@ class Lens(Element):
 			return fix_mat_dims(xp.eye(4),["x","xt","y","yt"])
 
 		K=self.strength ; kL=K*self.length ; iK=1/K 
+		if self.calibration is not None:
+			c=self.calibration ; K*=c ; kL*=c ; iK/=c
 		C=xp.cos(kL) ; S=xp.sin(kL)
 		XY=xp.asarray([[ C**2  , iK*S*C  ,   S*C  , iK*S**2 ], # Brown1983 page 105
 					   [-K*S*C ,  C**2   ,-K*S**2 ,   S*C   ],	# similar to standard

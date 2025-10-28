@@ -569,11 +569,13 @@ def zFromFractional(zs,z): # e.g. 1.2 is 20% of the distance through element ind
 def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},ignoreSigns=True,filename=""):
 
 	# propoagateAndCheck below takes a list of values, so we need to "map" these to modifiable elements and the parameters within that element
-	indices,eleKeys,vals=[],[],[]
+	indices,eleKeys,ivals=[],[],[]
 	for i in modifiable.keys():
 		k=modifiable[i] ; v=section.elements[i].kget(k)
-		indices.append(i) ; eleKeys.append(k) ; vals.append(v)
-	#print("indices",indices,"eleKeys",eleKeys,"vals",vals)
+		if v is None:
+			v=1
+		indices.append(i) ; eleKeys.append(k) ; ivals.append(v)
+	#print("indices",indices,"eleKeys",eleKeys,"ivals",ivals)
 
 	# a function which sets passed values, propagates, finds the crossover location, and returns an "error" term to be minimized
 	def propagateAndCheck(vals,passback="dz",ct_propagateAndCheck=[-1]):
@@ -596,7 +598,7 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 
 		# inspect the output: find all image and diffraction planes
 		planes = findPlanes(r1,axes=axis)
-		zs=r1[:,0,columnByName("z")]
+		zs=r1[:,0,columnByName("z")] # all positions of 0th ray
 
 		# our "error" defined by each metric in each target (e.g. checking if position z is off, or magnification is off)
 		# NOTE: the default is to minimize the sum (rather than a more-conventional "mean squared error")
@@ -605,6 +607,23 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 
 			# SPECIFIED CROSSOVER LOCATION [ REQUIRED ]
 			z_desired=target["z"]
+
+			if "rays" in target.keys() and target["rays"]=="0x-parallel":
+				_,nRays,_=r1.shape
+				# "zero position rays which are now parallel": select the rays which started (z=0) with zero position (x or y) and non-zero angle (xt or yt). 
+				zeroAngleRays=[ i for i in range(nRays) if r1[0,i,columnByName(axis)]==0 and r1[0,i,columnByName(axis+"t")]!=0 ]
+				zi1=np.argwhere(zs<z_desired)[-1] ; zi2=np.argwhere(zs>=z_desired)[0]
+				dz = zs[zi2]-zs[zi1]
+				slopes = ( r1[zi2,zeroAngleRays,columnByName(axis)] - r1[zi1,zeroAngleRays,columnByName(axis)] ) / dz
+				deltas.append(np.sqrt(np.sum(slopes**2)))
+
+			if "scale-match" in target.keys():
+				scales = np.asarray(vals)/np.asarray(ivals) # compare current vs initial value
+				dz = scales-np.mean(scales)
+				deltas.append(np.sqrt(np.sum(dz**2)))
+
+			if "plane" not in target.keys():
+				continue
 
 			# find closest plane of the correct type
 			Zi=planes[axis][ target["plane"] ]["z"]	# "fractional coordinates" of positions of all correct-type planes: target["plane"] is "image" or "diff"
@@ -681,7 +700,7 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 	#x0=minimize(propagateAndCheck,x0=vals)["x"] #,method='trust-constr',options={"finite_diff_rel_step":[.1]*len(vals),"xtol":1e-12})
 
 	# scipy.optimize.brute: should be better at finding global minima. also convenient for plotting heatmaps of the parameter space
-	ranges=[[v/4,v*2] for v in vals ] # TODO WHAT SHOULD THESE BE? (user should probably be allowed to pass this, or we infer from the actual microscopy itself)
+	ranges=[[v/4,v*2] for v in ivals ] # TODO WHAT SHOULD THESE BE? (user should probably be allowed to pass this, or we infer from the actual microscopy itself)
 	print("ranges",ranges)
 	# we will wrap scipy.optimize.minimize to use as brute's "polish" function
 	def mini(*args,**kwargs):	
@@ -691,15 +710,23 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 	x0,r,vals,residuals=brute(propagateAndCheck,ranges=ranges,Ns=100,full_output=True,args=["dz"],finish=mini)
 	# heatmap of parameter space
 	residuals[residuals==10000]=np.nan
+
+	#return
+
 	plt.clf()
-	plt.imshow(residuals[::-1,:],extent=(np.amin(vals[1]),np.amax(vals[1]),np.amin(vals[0]),np.amax(vals[0])))
-	plt.xlabel(eleKeys[1]+" "+str(indices[1]))
-	plt.ylabel(eleKeys[0]+" "+str(indices[0]))
-	where=np.where(residuals==np.nanmin(residuals)) ; print(where)
-	#if len(where[1])>0:
-	plt.plot(vals[1,0,where[1][0]],vals[0,where[0][0],0],c="r",marker="o")
+	if len(residuals.shape)==2:
+		plt.imshow(residuals[::-1,:],extent=(np.amin(vals[1]),np.amax(vals[1]),np.amin(vals[0]),np.amax(vals[0])))
+		plt.xlabel(eleKeys[1]+" "+str(indices[1]))
+		plt.ylabel(eleKeys[0]+" "+str(indices[0]))
+		where=np.where(residuals==np.nanmin(residuals)) ; print(where)
+		#if len(where[1])>0:
+		plt.plot(vals[1,0,where[1][0]],vals[0,where[0][0],0],c="r",marker="o")
+		plt.cbar=plt.colorbar()
+	elif len(residuals.shape)==1:
+		plt.plot(vals,residuals)
+		plt.xlabel(eleKeys[0]+" "+str(indices[0]))
 	plt.title(str(targets)+"\n residuals, best at "+str(x0))
-	plt.cbar=plt.colorbar()
+
 	if len(filename)>0:
 		plt.savefig(filename+"a.png")
 		plot2D( propagateAndCheck(x0,"r1") , filename=filename+"b.png")
