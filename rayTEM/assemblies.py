@@ -192,6 +192,10 @@ class MicroscopeSection:
 			results.append(rf[-1,:,:]) # indices are: point in scope, which ray, which value (x,xt,y,yt...)
 		return results
 
+	@property
+	def labels(self):
+		return { e.name:e.position for e in self.elements if e.name is not None }
+
 	def save(self,filename):
 		with open(filename+".pkl",'wb') as f:
 			pickle.dump(self,f)
