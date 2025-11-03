@@ -9,6 +9,7 @@
 import numpy as xp
 flag_gpu = False
 from numpy.typing import ArrayLike
+import pickle
 
 from pandas import DataFrame
 
@@ -191,3 +192,12 @@ class MicroscopeSection:
 			results.append(rf[-1,:,:]) # indices are: point in scope, which ray, which value (x,xt,y,yt...)
 		return results
 
+	def save(self,filename):
+		with open(filename+".pkl",'wb') as f:
+			pickle.dump(self,f)
+def load(filename):
+	with open(filename+".pkl",'rb') as f:
+		obj = pickle.load(f)
+	return obj 
+
+		
