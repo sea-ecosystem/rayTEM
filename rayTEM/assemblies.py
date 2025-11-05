@@ -48,7 +48,14 @@ class MicroscopeSection:
 		for ele in elements:
 			ele.position = self.position + self.length
 			self.length += ele.length
-	
+
+	def __getitem__(self, item): # TWP 2025-11-05: allow indexing of the assembly by name: section["PL1"] should return the section by that name! see removed_private_instrument_tree/PRIVATE_INSTRUMENT/fine_PLs.py
+		if isinstance(item,int):
+			return self.elements[item]
+		names = [ e.name for e in self.elements ]
+		i = names.index(item)
+		return self.elements[i]
+
 	def __repr__(self) -> str:
 		if self.elements is None:
 			return ''
@@ -100,29 +107,7 @@ class MicroscopeSection:
 	def propagate_ray(self, r0:ArrayLike=None,
 					   z:None|int|float|ArrayLike=None, 
 					   ):
-		"""
-		To do
-		-----
-		#TODO: Allow for an array to be passed to z.
-		"""
-		#r0 = self.conform_ray_dim(r0)
-		#if isinstance(z,arraylike):
-		#	z_sub=z
-		#ri = self.elements[0].propagate_ray(r0, z=z)
-		"""
-		#ri = xp.append(r0[:,None,:], ri, axis=1)
-		for i, ele in enumerate(self.elements[1:]):
-			i=i+1
-			ele_ri = ele.propagate_ray(ri[:,-1], z=z)
-			ele_ri[...,-2] += ele.position
-
-			#for a infinitly thin element asign the last ray as the transofrmed array.
-			# TWP 2025/08/27 - i think below is an off-by-one error. if MY length is zero (element[i], since we started enumerating at the 1nth element, then incremented i+=1 already). I think criteria for creating a new row is "if i'm the first element, or my thickness is nonzero)?
-			if self.elements[i-1].length == 0: #TODO: Also check if the last z==z0
-				ri = xp.append(ri[:,:-1], ele_ri, axis=1)
-			else:
-				ri = xp.append(ri, ele_ri, axis=1)
-		"""
+	
 		if r0 is None:
 			r0 = self.elements[0].rays()
 		ri=[r0]
