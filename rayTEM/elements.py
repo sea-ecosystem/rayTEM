@@ -313,6 +313,9 @@ class Drift(Element):
 		#m = xp.eye(6)#[...,None]*xp.ones_like(s)
 		m = xp.eye(4) # drift tube updates x from xθ and y from yθ
 
+		if self.calibration is not None:
+			s *= self.calibration
+
 		if self.length != 0:
 			m[0,1] = s
 			m[2,3] = s
