@@ -23,7 +23,7 @@ def plot2D(r1,axis="x",filename="",zpts="",xlims=None):
 	# add all image/diffraction planes
 	planes=findPlanes(r1,axes="x") ; ct=0 ; zs=r1[:,0,j]
 	#print(planes)
-	nplanes=len(planes[axis]["diff"]["z"])+len(planes[axis]["image"]["z"])
+	nplanes=len(planes[axis]["diff"]["z"])+len(planes[axis]["image"]["z"])+len(zpts)
 	ylims = [ np.amin(r1[:,:,i]) , np.amax(r1[:,:,i]) ]
 	for imdiff in ["diff","image"]:
 		Z=planes[axis][imdiff]["z"]
@@ -39,9 +39,9 @@ def plot2D(r1,axis="x",filename="",zpts="",xlims=None):
 	# add arbitrary passed z positions
 	if len(zpts)>0:
 		for label in zpts.keys():
-			z=zpts[label]
+			z=zpts[label] ; ct+=1
 			plt.plot([z,z],ylims,linestyle=":",color="k",marker='')
-			plt.annotate(label,(z,0))
+			plt.annotate(label,(z,ylims[1]*ct/nplanes))
 
 	if xlims is not None:
 		plt.xlim(xlims)
