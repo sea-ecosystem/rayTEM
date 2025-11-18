@@ -1,0 +1,12 @@
+[project]
+name = "sea-eco"
+version = "0.0.1beta"
+description = "Architecture and basic tules for the SEA ecosystem"
+readme = "README.md"
+requires-python = ">=3.8,<3.14"
+
+dependencies = [
+    "matplotlib>=3.10.6",
+    "numpy>=2.3.3",
+    "sea-eco",
+]
