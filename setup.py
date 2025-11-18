@@ -7,6 +7,6 @@ setup(name='rayTEM',
       description='Electron optics simulator for a transmission electron microscope.',
       author='Eric Hoglund, Andy Lupini',
       author_email='hoglunder@ornl.gov',
-      packages=['rayTEM'],
+      packages=['pySEA/rayTEM'],
       install_requires=['numpy', 'matplotlib', 'pandas']
      )
