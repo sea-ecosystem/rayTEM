@@ -1,5 +1,5 @@
 [project]
-name = "sea-eco"
+name = "rayTEM"
 version = "0.0.1beta"
 description = "Architecture and basic tules for the SEA ecosystem"
 readme = "README.md"
