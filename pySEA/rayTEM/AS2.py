@@ -9,7 +9,8 @@ class AS2querier:
 		try:
 			r = requests.get(self.url+element_name)
 			s = r.status_code
-		except:
+		except Exception as e:
+			print(e)
 			s = 0
 		if 0 != 200:
 			if not self.quiet:
