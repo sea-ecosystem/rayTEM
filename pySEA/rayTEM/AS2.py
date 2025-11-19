@@ -12,7 +12,7 @@ class AS2querier:
 		except Exception as e:
 			print(e)
 			s = 0
-		if 0 != 200:
+		if s != 200:
 			if not self.quiet:
 				print("WARNING: failed response from",self.url,"for element",element_name,"(returning random)")
 			return np.random.random()
