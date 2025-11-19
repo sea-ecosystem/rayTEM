@@ -3,7 +3,7 @@ name = "pySEA.rayTEM"
 version = "0.0.1beta"
 description = "Architecture and basic tules for the SEA ecosystem"
 readme = "README.md"
-requires-python = ">=3.8,<3.14"
+requires-python = ">=3.8,<3.18"
 
 dependencies = [
     "matplotlib>=3.10.6",
