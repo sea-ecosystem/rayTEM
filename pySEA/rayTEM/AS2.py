@@ -1,4 +1,4 @@
-import requests
+import requests,time
 import numpy as np
 
 class AS2querier:
@@ -10,7 +10,9 @@ class AS2querier:
 			r = requests.get(self.url+element_name)
 			s = r.status_code
 		except Exception as e:
-			print(e)
+			time.sleep(.05)
+			if not self.quiet:
+				print(e)
 			s = 0
 		if s != 200:
 			if not self.quiet:

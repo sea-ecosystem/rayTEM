@@ -10,7 +10,7 @@ from matplotlib.cm import plasma as cmap
 
 
 # Basic 2D plotting (along z, and in whatever axis you have chosen)
-def plot2D(r1,axis="x",filename="",zpts="",xlims=None):
+def plot2D(r1,axis="x",filename="",zpts="",xlims=None,returnObjectOnly=False):
 	plt.clf()
 	# add rays to plot, with a range of colors
 	linecolors=list( cmap(np.linspace(0,1,len(r1[0]))) )
@@ -45,6 +45,9 @@ def plot2D(r1,axis="x",filename="",zpts="",xlims=None):
 
 	if xlims is not None:
 		plt.xlim(xlims)
+
+	if returnObjectOnly:
+		return plt
 
 	# display or save
 	if len(filename)>0:
