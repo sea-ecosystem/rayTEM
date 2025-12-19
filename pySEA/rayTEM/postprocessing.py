@@ -574,7 +574,7 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 	# propoagateAndCheck below takes a list of values, so we need to "map" these to modifiable elements and the parameters within that element
 	indices,eleKeys,ivals=[],[],[]
 	for i in modifiable.keys():
-		k=modifiable[i] ; v=section.elements[i].kget(k)
+		k=modifiable[i] ; v=section[i].kget(k)
 		if v is None:
 			v=1
 		indices.append(i) ; eleKeys.append(k) ; ivals.append(v)
@@ -591,7 +591,7 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 		# set each element's parameter based on the list of values passed
 		for i,v in enumerate(vals):
 			i,kk=indices[i],eleKeys[i]
-			section.elements[i].kset(kk,v)
+			section[i].kset(kk,v)
 
 		# propagate the starting array through the (now-updated) section
 		r1=section.propagate_ray(r0)
@@ -664,7 +664,8 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 						if ignoreSigns: # + or - is an image flip. we may or may not care
 							Ms[n]=abs(Ms[n]) ; target["mag"]=abs(target["mag"])
 						dM=abs(Ms[n]-target["mag"])
-						deltas.append(dM)				
+						#print("dM",dM,"target",target["mag"],"found",Ms[n])
+						deltas.append(dM*100)				
 
 				# LENS STRENGTH	
 				if k=="strength":
@@ -681,7 +682,7 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 
 			#print("USING",vals,"CROSSOVER",n," IS AT",Zf[n],"DZ",dz,"DM",dM,"mags",mags) #,"deltas",deltas,"signs",signs)
 		#plotRays(r1)
-		
+		#print("FOUND",deltas,"(",vals,")")
 		deltas=np.asarray(deltas)
 		
 		if passback=="r1": # allow passback of the raw propagated rays, which is useful for plotting post-fitting (hijack this same function to simply propagate and plot)
@@ -700,7 +701,9 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 	#plotRays( propagateAndCheck(vals,passback="r1") )
 
 	# scipy.optimize.minimize: may fail to converge because of non-linearities in the parameter space
-	#x0=minimize(propagateAndCheck,x0=vals)["x"] #,method='trust-constr',options={"finite_diff_rel_step":[.1]*len(vals),"xtol":1e-12})
+	ranges=[[v*.75,v*1.25] for v in ivals ]
+	x0=minimize(propagateAndCheck,x0=ivals,bounds=ranges,method='trust-constr')["x"] #,method='trust-constr',options={"finite_diff_rel_step":[.1]*len(vals),"xtol":1e-12})
+	return
 
 	# scipy.optimize.brute: should be better at finding global minima. also convenient for plotting heatmaps of the parameter space
 	ranges=[[v/4,v*2] for v in ivals ] # TODO WHAT SHOULD THESE BE? (user should probably be allowed to pass this, or we infer from the actual microscopy itself)
@@ -714,7 +717,7 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 	# heatmap of parameter space
 	residuals[residuals==10000]=np.nan
 
-	#return
+	return
 
 	plt.clf()
 	if len(residuals.shape)==2:
