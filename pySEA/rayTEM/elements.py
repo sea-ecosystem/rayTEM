@@ -1,14 +1,13 @@
 # try:
 #	 import cupy as xp
 #	 flag_gpu = True
-#	 from cupy.typing import ArrayLike
+#	 from cupy.typing import xp.ndarray
 # except:
 #	 import numpy as xp
 #	 flag_gpu = False
-#	 from numpy.typing import ArrayLike
+#	 from numpy.typing import xp.ndarray
 import numpy as xp
 flag_gpu = False
-from numpy.typing import ArrayLike
 
 from pandas import DataFrame
 from warnings import warn
@@ -74,14 +73,14 @@ class Source:
 		return array
 
 	# dummy propagation in case someone tries to propagate through since this is technically an element
-	def propagate_ray(self, r0:ArrayLike, **kwargs) -> xp.ndarray:
+	def propagate_ray(self, r0:xp.ndarray, **kwargs) -> xp.ndarray:
 		return r0
 
 class Element:
 	def __init__(self, name:str='',
-				 kind:None|str=None, poles:None|int=None,
+				 kind:str=None, poles:int=None,
 				 position:float=0., length:float=0., radius:float=0,
-				 strength:float=0, calibration:None|float=None,
+				 strength:float=0, calibration:float=None,
 				 ndim:int=2, chroma_dim:bool=False,
 				 label:bool=False, print_fancy:bool=True
 				 ) -> object:
@@ -153,9 +152,9 @@ class Element:
 		return type(self)(self.name, self.strength,self.calibration, self.label)
 
 	def transfer_matrix(self,
-						 s:int|float|ArrayLike,
+						 s:float,
 						 #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-						 ) -> ArrayLike:
+						 ) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		
 		The homogenous equaiton of motion approximation leads to a linear solution of $u"+k(s)u=0$ given as $u(s)=C(s)u_0+S(s)u_0', where s is the distance traveled (~z for small u').
@@ -187,12 +186,12 @@ class Element:
 		return m
 
 	"""
-	def conform_ray_dim(self, r0:ArrayLike):
+	def conform_ray_dim(self, r0:xp.ndarray):
 		""Recast the input arrays so they conform to 2*ndim+2.
 
 		Parameters
 		----------
-		r0 : ArrayLike
+		r0 : xp.ndarray
 			List of rays with possible initial conditions (x, θx, y, θy, E).
 			For 1D the (y, θy) coordinates are excluded.
 
@@ -222,15 +221,15 @@ class Element:
 			raise ValueError(f'The last shape of the rays has size {r0.shape[-1]}, which can not be understood as ndim*2+(z, E), ndim*2+(E), or ndim*2')
 	"""
 
-	def propagate_ray(self, r0:ArrayLike,
-					  z:None|int|float|ArrayLike=None, z0:None|float=0) -> xp.ndarray:
+	def propagate_ray(self, r0:xp.ndarray,
+					  z:float=None, z0:float=0) -> xp.ndarray:
 		"""propagate an array through an element.
 
 		Parameters
 		----------
-		r0 : ArrayLike
+		r0 : xp.ndarray
 			List of rays with possible initial conditions (x, θx, y, θy, E).
-		z : None | int | float | ArrayLike, optional
+		z : None | int | float | xp.ndarray, optional
 			Positions in the element to propagate to by default None
 		z0 : None | float, optional
 			Initial position of the element, by default 0
@@ -249,7 +248,7 @@ class Element:
 class Aperture(Element):
 	def __init__(self, name:str='', 
 			 position:float=0., radius:float=0.,
-			 calibration:None|float=None,
+			 calibration:float=None,
 			 label:bool=False, print_fancy:bool=True) -> object:
 
 		super().__init__(name=name,
@@ -258,9 +257,9 @@ class Aperture(Element):
 						 calibration=calibration,
 						 label=label, print_fancy=print_fancy)
 	def transfer_matrix(self,
-						 s:int|float|ArrayLike
+						 s:float
 						 #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-						 ) -> ArrayLike:
+						 ) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		"""
 		
@@ -268,8 +267,8 @@ class Aperture(Element):
 		m = xp.eye(4) # drift tube updates x from xθ and y from yθ
 		return fix_mat_dims(m,["x","xt","y","yt"])
 
-	def propagate_ray(self, r0:ArrayLike,
-					  z:None|int|float|ArrayLike=None, z0:None|float=0) -> xp.ndarray:
+	def propagate_ray(self, r0:xp.ndarray,
+					  z:float=None, z0:float=0) -> xp.ndarray:
 		rf=xp.zeros(r0.shape)+r0
 		radii=xp.sqrt( r0[:,columnByName("x")]**2 + r0[:,columnByName("y")]**2 )
 		rf[radii>self.radius,columnByName("I")]=0
@@ -278,7 +277,7 @@ class Aperture(Element):
 class Drift(Element):
 	def __init__(self, name:str='', 
 				 position:float=0., length:float=0.,
-				 calibration:None|float=None,
+				 calibration:float=None,
 				 label:bool=False, print_fancy:bool=True) -> object:
 		"""Quadripole.
 
@@ -304,9 +303,9 @@ class Drift(Element):
 						 calibration=calibration,
 						 label=label, print_fancy=print_fancy)
 	def transfer_matrix(self,
-						 s:int|float|ArrayLike
+						 s:float
 						 #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-						 ) -> ArrayLike:
+						 ) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		"""
 		
@@ -327,7 +326,7 @@ class Drift(Element):
 class Quadrapole(Element):
 	def __init__(self, name:str='', 
 				 position:float=0., length:float=0.,
-				 strength:float=0, calibration:None|float=None,
+				 strength:float=0, calibration:float=None,
 				 label:bool=False, print_fancy:bool=True) -> object:
 		"""Quadripole.
 
@@ -358,9 +357,9 @@ class Quadrapole(Element):
 						 strength=strength, calibration=calibration,
 						 label=label, print_fancy=print_fancy)
 	def transfer_matrix(self,
-						 s:int|float|ArrayLike
+						 s:float
 						 #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-						 ) -> ArrayLike:
+						 ) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		
 		The homogenous equaiton of motion approximation leads to a linear solution of $u"+k(s)u=0$ given as $u(s)=C(s)u_0+S(s)u_0', where s is the distance traveled (~z for small u').
@@ -423,7 +422,7 @@ class Quadrapole(Element):
 class Lens(Element):
 	def __init__(self, name:str='', 
 				 position:float=0., length:float=0.,
-				 strength:float=0, calibration:None|float=None,
+				 strength:float=0, calibration:float=None,
 				 label:bool=False, print_fancy:bool=True, rotation:bool=False) -> object:
 		"""Quadripole.
 
@@ -455,9 +454,9 @@ class Lens(Element):
 						 label=label, print_fancy=print_fancy)
 		self.rotation = rotation
 	def transfer_matrix(self,
-						 s:int|float|ArrayLike
+						 s:float
 						 #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-						 ) -> ArrayLike:
+						 ) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		"""
 
@@ -488,8 +487,8 @@ class Lens(Element):
 class Prism(Element):
 	def __init__(self, name:str='', 
 				 position:float=0., length:float=0.,
-				 radius:None|float=None, angle:float=45., w:float=1., g:float=1., k1:float=0.,
-				strength:float=0, calibration:None|float=None,
+				 radius:float=None, angle:float=45., w:float=1., g:float=1., k1:float=0.,
+				strength:float=0, calibration:float=None,
 				 label:bool=False, print_fancy:bool=True) -> object:
 		"""Prism.
 
@@ -542,7 +541,7 @@ class Prism(Element):
 
 	def focus_matrix(self,
 					 #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-					 ) -> ArrayLike:
+					 ) -> xp.ndarray:
 		r"""Transfer matrix for the entrance/exit surfaces of the spectrometer used for ray propogation.
 		"""
 		m = xp.eye(6)
@@ -560,9 +559,9 @@ class Prism(Element):
 		return fix_mat_dims(m,["x","xt","y","yt","z","E"])
 	
 	def bending_matrix(self,
-					   s:int|float|ArrayLike,
+					   s:float,
 					   #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-					   ) -> ArrayLike:
+					   ) -> xp.ndarray:
 		r"""Transfer matrix for the bending of the spectrometer used for ray propogation.
 		"""
 		m = xp.eye(6)
@@ -579,9 +578,9 @@ class Prism(Element):
 		return fix_mat_dims(m,["x","xt","y","yt","z","E"])
 		
 	def transfer_matrix(self,
-						 s:int|float|ArrayLike,
+						 s:float,
 						 #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-						 ) -> ArrayLike:
+						 ) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		"""
 		

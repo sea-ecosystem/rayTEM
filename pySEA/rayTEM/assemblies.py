@@ -105,7 +105,7 @@ class MicroscopeSection:
 	"""
 
 	def propagate_ray(self, r0:xp.ndarray=None,
-					   z:int|float|xp.ndarray=None, 
+					   z: float = None, 
 					   ):
 	
 		if r0 is None:
@@ -125,7 +125,7 @@ class MicroscopeSection:
 		ri = xp.append(r0[:,None,:], ri, axis=1)
 		return ri
 
-	def propagate(self, input:xp.ndarray=None, zs:float|int|xp.ndarray=None,
+	def propagate(self, input:xp.ndarray=None, zs:float=None,
 				   output_structure:str='per layer') -> xp.ndarray:
 		"""propagate the input through the microscope section.
 
