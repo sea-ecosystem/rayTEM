@@ -1,14 +1,14 @@
 # try:
 #	 import cupy as xp
 #	 flag_gpu = True
-#	 from cupy.typing import ArrayLike
+#	 from cupy.typing import xp.ndarray
 # except:
 #	 import numpy as xp
 #	 flag_gpu = False
-#	 from numpy.typing import ArrayLike
+#	 from numpy.typing import xp.ndarray
 import numpy as xp
 flag_gpu = False
-from numpy.typing import ArrayLike
+#from numpy.typing import xp.ndarray
 import pickle
 
 from pandas import DataFrame
@@ -33,7 +33,7 @@ class MicroscopeSection:
 		Revert back to __repr__ returning a str and add a print_fancy function.
 	"""
 	def __init__(self, name:str='',
-				 elements:ArrayLike=None, 
+				 elements:xp.ndarray=None, 
 				 position:float=0.,
 				 ndim:int=2,
 				 print_fancy:bool=True) -> object:
@@ -69,12 +69,12 @@ class MicroscopeSection:
 			else:
 				return '\n'.join(['\t'.join([f"{key}: {value}, " for key,value in zip(columns,e)])for e in reps])
 	"""
-	def conform_ray_dim(self, r0:ArrayLike):
+	def conform_ray_dim(self, r0:xp.ndarray):
 		""Recast the input arrays so they conform to 2*ndim+2.
 
 		Parameters
 		----------
-		r0 : ArrayLike
+		r0 : xp.ndarray
 			List of rays with possible initial conditions (x, θx, y, θy, E).
 			For 1D the (y, θy) coordinates are excluded.
 
@@ -104,8 +104,8 @@ class MicroscopeSection:
 			raise ValueError(f'The last shape of the rays has size {r0.shape[-1]}, which can not be understood as ndim*2+(z, E), ndim*2+(E), or ndim*2')
 	"""
 
-	def propagate_ray(self, r0:ArrayLike=None,
-					   z:None|int|float|ArrayLike=None, 
+	def propagate_ray(self, r0:xp.ndarray=None,
+					   z:int|float|xp.ndarray=None, 
 					   ):
 	
 		if r0 is None:
@@ -125,21 +125,21 @@ class MicroscopeSection:
 		ri = xp.append(r0[:,None,:], ri, axis=1)
 		return ri
 
-	def propagate(self, input:ArrayLike=None, zs:None|float|int|ArrayLike=None,
-				   output_structure:str='per layer') -> ArrayLike:
+	def propagate(self, input:xp.ndarray=None, zs:float|int|xp.ndarray=None,
+				   output_structure:str='per layer') -> xp.ndarray:
 		"""propagate the input through the microscope section.
 
 		Parameters
 		----------
-		input : ArrayLike
+		input : xp.ndarray
 			Initial array to transform.
-		zs : None | float | int | ArrayLike, optional
+		zs : None | float | int | xp.ndarray, optional
 			Scaled propogation positions, by default None
 			The positions (or created ones) are scaled from 0-1, with 0 being the start of the lens and 1 the total length.
 			If None,	  a signle tranformation at the length of the element is performed.
 			If float,	 a scaled position.
 			If int,	   an array of size z from 0-1 is created.
-			If ArrayLike, the input array is used as is.
+			If xp.ndarray, the input array is used as is.
 		output_structure : str
 			How to return the output, by default 'per layer'
 			'per layer', list with propogation in each element.
@@ -148,7 +148,7 @@ class MicroscopeSection:
 
 		Returns
 		-------
-		ArrayLike
+		xp.ndarray
 			Matricies during propogation.
 		"""
 		if input is None:
