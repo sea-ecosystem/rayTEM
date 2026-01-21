@@ -10,7 +10,7 @@ from matplotlib.cm import plasma as cmap
 
 
 # Basic 2D plotting (along z, and in whatever axis you have chosen)
-def plot2D(r1,axis="x",filename="",zpts="",xlims=None,returnObjectOnly=False):
+def plot2D(r1,axis="x",filename="",zpts="",xlims=None,returnObjectOnly=False,title=""):
 	plt.clf()
 	# add rays to plot, with a range of colors
 	linecolors=list( cmap(np.linspace(0,1,len(r1[0]))) )
@@ -45,6 +45,8 @@ def plot2D(r1,axis="x",filename="",zpts="",xlims=None,returnObjectOnly=False):
 
 	if xlims is not None:
 		plt.xlim(xlims)
+	if title is not None:
+		plt.title(title)
 
 	if returnObjectOnly:
 		return plt
@@ -701,7 +703,7 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 	#plotRays( propagateAndCheck(vals,passback="r1") )
 
 	# scipy.optimize.minimize: may fail to converge because of non-linearities in the parameter space
-	ranges=[[v*.75,v*1.25] for v in ivals ]
+	ranges=[[v*.5,v*1.5] for v in ivals ]
 	x0=minimize(propagateAndCheck,x0=ivals,bounds=ranges,method='trust-constr')["x"] #,method='trust-constr',options={"finite_diff_rel_step":[.1]*len(vals),"xtol":1e-12})
 	return
 
