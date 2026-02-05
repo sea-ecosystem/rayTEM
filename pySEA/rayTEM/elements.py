@@ -1,11 +1,26 @@
-# try:
-#	 import cupy as xp
-#	 flag_gpu = True
-#	 from cupy.typing import xp.ndarray
-# except:
-#	 import numpy as xp
-#	 flag_gpu = False
-#	 from numpy.typing import xp.ndarray
+# DISCUSSION ON ROTATION: (TWP 2026-02-05)
+# See Brown1983 page 105, C=cos(K*L), S=sin(K*L)
+# [[ C**2  , iK*S*C  ,   S*C  , iK*S**2 ],
+#  [-K*S*C ,  C**2   ,-K*S**2 ,   S*C   ],
+#  [ -S*C  ,-iK*S**2 ,   C**2 , iK*S*C  ],
+#  [ K*S**2,  -S*C   , -K*S*C ,  C**2   ]]
+# which reduces to an identity matrix for L=0, C=1, S=0
+# yet the "thin lens" approximation is:
+#   1   0   0   0
+# -1/f  1   0   0
+#   0   0   1   0
+#   0   0 -1/f  1
+# consider the small angle approximation, S=linear K*L, C=1
+# focusing goes by K*S*C ~=~ K^2*L, and rotation goes by S*C ~=~ K*L
+# increasing K and decreasing L is thus able to maintain rotation while increasing focusing?
+# and there appears to be no way to make the the above "converge" to the thin lens solution
+# So what do we do when we'd like to, for example, fit for the length of a lens based on measured rotation of the image?
+# if we update the length of a lens, we need to update the length of the drift section behind it
+# using thin lenses only won't capture rotation
+# we can also exclude the thickness of the lens during propagation (and therefore, eliminate the need to include it in the subsequent drift)
+# passing "length=0" to Lens or Quadrapole will give rotation-free focusing (but inconsistent vs if a thickness were supplied, annoying)
+# passing "ignoreLensThickness=True" to MicroscopeSection will exclude lense thicknesses from the stack to avoid needing to update the drifts
+
 import numpy as xp
 flag_gpu = False
 
@@ -372,15 +387,45 @@ class Quadrapole(Element):
 		#m = xp.eye(6)#[...,None]*xp.ones_like(s) # TWP 2025/08/27 - adding ones_like expression so m is 6x6x1, otherwise eigsum in propagate will fail
 		#m = xp.eye(4) # quadrupole updates xθ from x and yθ from y
 
-		K=self.strength ; kL=K*self.length
-		C=xp.cos(kL) ; S=xp.sin(kL)
-		X=xp.asarray([[  C  , 1/K*S ],  # Brown1983 page 46, note the similarity to
-					  [-K*S ,   C   ]]) # https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Example:_Thin_lens if L=0
-		Y=xp.asarray([[  C  , 1/K*S ],  # calculate x,xt and y,yt 2x2s separately, then matmul
-					  [ K*S ,   C   ]])
+		if self.strength==0:
+			return fix_mat_dims(xp.eye(4),["x","xt","y","yt"])
 
-		m=xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["x","xt"]) )
+		K=self.strength
+		if self.calibration is not None:
+			# linear scaling from mA (lens current) to lens strength?
+			if isinstance(self.calibration,(int,float)):
+				c = self.calibration
+				K *= c
+			else:
+				c,p = self.calibration
+				K = K**p * c
 
+		if self.length==0:
+			print("using special")
+			X=xp.asarray([[ 1 , 0 ],
+					     [ -(K**2) , 1 ]])
+			Y=xp.asarray([[ 1 , 0 ],
+						 [  (K**2) , 1 ]])
+			if K>0: # testing with REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT_v2/DQCM.py, sign flip is needed for len=0.08,cal=1 vs len=0,cal=sqrt(0.08)
+				X,Y=Y,X
+			#print("X",fix_mat_dims(X,["x","xt"]))
+			#print("Y",fix_mat_dims(X,["y","yt"]))
+		else:
+			kL=K*self.length ; L=self.length
+			C=xp.cos(kL) ; S=xp.sin(kL)
+			#print("K,L,C,S",K,L,C,S)
+			X=xp.asarray([[  C  , 1/K*S ],  # Brown1983 page 46, note the similarity to
+						[-K*S ,   C   ]]) # https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Example:_Thin_lens if L=0
+			Y=xp.asarray([[  C  , 1/K*S ],  # calculate x,xt and y,yt 2x2s separately, then matmul
+						[ K*S ,   C   ]])
+			# Small angle approximation: C=1, S=K*L
+			#X=xp.asarray([[  1 , L ],
+			#			[-K*K*L, 1   ]])
+			#Y=xp.asarray([[  1 , L ],
+			#			[ K*K*L,  1  ]])
+
+		m=xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
+		#print("QUAD",m,self.strength,K,self.calibration,self.length)
 		return m
 		
 		#if self.length != 0:
@@ -473,16 +518,23 @@ class Lens(Element):
 				c,p = self.calibration
 				K = K**p * c
 
-		kL=K*self.length ; iK=1/K 
-		C=xp.cos(kL) ; S=xp.sin(kL)
-		XY=xp.asarray([[ C**2  , iK*S*C  ,   S*C  , iK*S**2 ],	# Brown1983 page 105
-					   [-K*S*C ,  C**2   ,-K*S**2 ,   S*C   ],	# similar to standard
-					   [ -S*C  ,-iK*S**2 ,   C**2 , iK*S*C  ],	# [  1   0 ] but with
-					   [ K*S**2,  -S*C   , -K*S*C ,  C**2   ]] )# [ -1/f 1 ] rotation
-		if not self.rotation:
-			zeroer=xp.asarray([[1,1,0,0],[1,1,0,0],[0,0,1,1],[0,0,1,1]])
-			XY*=zeroer
-		return fix_mat_dims(XY,["x","xt","y","yt"])
+		if self.length==0:
+			X=xp.asarray([[    1   , 0 ],
+					     [ -(K**2) , 1 ]])
+			Y=xp.asarray([[    1   , 0 ],
+						 [ -(K**2) , 1 ]])
+			return xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
+		else:
+			kL=K*self.length ; iK=1/K
+			C=xp.cos(kL) ; S=xp.sin(kL)
+			XY=xp.asarray([[ C**2  , iK*S*C  ,   S*C  , iK*S**2 ],	# Brown1983 page 105
+						   [-K*S*C ,  C**2   ,-K*S**2 ,   S*C   ],	# similar to standard
+						   [ -S*C  ,-iK*S**2 ,   C**2 , iK*S*C  ],	# [  1   0 ] but with
+						   [ K*S**2,  -S*C   , -K*S*C ,  C**2   ]] )# [ -1/f 1 ] rotation
+			if not self.rotation:
+				zeroer=xp.asarray([[1,1,0,0],[1,1,0,0],[0,0,1,1],[0,0,1,1]])
+				XY*=zeroer
+			return fix_mat_dims(XY,["x","xt","y","yt"])
 
 class Prism(Element):
 	def __init__(self, name:str='', 

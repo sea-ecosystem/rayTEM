@@ -12,8 +12,9 @@ flag_gpu = False
 import pickle
 
 from pandas import DataFrame
-
+from .postprocessing import plot2D
 from IPython.display import display # # TWP 2025/08/27 - adding import, required if not running inside IPython (e.g. outside of jupyter)
+from .elements import Drift
 
 # # TWP 2025/08/27 - varying indices for matrices is hectic. 
 # let's settle on a convention for things like: [whichZ,whichRay,[x,xθ,y,yθ,ϕ,E]]
@@ -36,25 +37,66 @@ class MicroscopeSection:
 				 elements:xp.ndarray=None, 
 				 position:float=0.,
 				 ndim:int=2,
-				 print_fancy:bool=True) -> object:
+				 print_fancy:bool=True, ignoreLensThickness=False ) -> object:
 		self.name = name
 		self.elements = elements
 		self.position = position
 		self.ndim = ndim
 		self.print_fancy = print_fancy
+		self.ignoreLensThickness = ignoreLensThickness
 
-		self.length = 0#xp.sum([e.length for e in self.elements])
+		self.length = 0 #xp.sum([e.length for e in self.elements])
 		
 		for ele in elements:
 			ele.position = self.position + self.length
+			if ignoreLensThickness and ele.kind in ['Thin lens','QLens','Thin quad','Quad']:
+				continue
 			self.length += ele.length
 
-	def __getitem__(self, item): # TWP 2025-11-05: allow indexing of the assembly by name: section["PL1"] should return the section by that name! see removed_private_instrument_tree/PRIVATE_INSTRUMENT/fine_PLs.py
-		if isinstance(item,int):
-			return self.elements[item]
+	# given a string for an element name, return the index of that element
+	def index(self,item):
 		names = [ e.name for e in self.elements ]
-		i = names.index(item)
-		return self.elements[i]
+		return names.index(item)
+
+	# TWP 2026-02-05 allow element insertion by index OR coordinate ("add a lens midway through this drift section at z=etc")
+	def insert(self,index,element):
+		if isinstance(index,int):				# basic list insertion: section.insert(0,newsurce) places newsource at the beginning
+			self.elements.insert(index,element)
+		else:									# coordinate-based insertion: section.insert(25.0,newlens) places newlens in drift that spans 25.0
+			for i,ele in enumerate(self.elements): # "looking for element spanning 25.0: 5th element is a Drift which goes from 21.0 to 30.0"
+				if ele.position<=index and ele.position+ele.length>=index and ele.kind=="Drift":
+					elementlength=0 if self.ignoreLensThickness else element.length
+					l1=index-ele.position ; l2=ele.length-elementlength-l1 # "this drift needs to be length 4.0, and we'll need another drift after the insertion"
+					self.elements[i].length=l1			# "shorten" initial drift
+					element.position = index			# update new element's position
+					self.elements.insert(i+1,element)	# add new element
+					if l2>0:							# add following drift
+						self.elements.insert(i+2,Drift(length=l2,position=index+elementlength))
+					if l1==0:							# possible drift1 is length zero, so delete it
+						del self.elements[i]
+					break
+			else:
+				print("WARNING: unable to insert "+str(element)+" at "+str(index)+" (coordinate may be out of bounds, or non-drift element)")
+
+	# TWP 2025-11-05: allow indexing of the assembly by name: section["PL1"] should return the section by that name! see removed_private_instrument_tree/PRIVATE_INSTRUMENT/fine_PLs.py. 2026-02-05: also allow slicing by name: section["sample":] should return a new section with all elements including and after "sample"
+	def __getitem__(self, item):
+		#return item
+		if isinstance(item,str):	# convert "PL1" into an integer index
+			item = self.index(item)
+		if isinstance(item,slice):	# convert "sample:" (which results in "item" being a slice) to an integer-indexed slice, e.g. slice(3,None,None)
+			a,b,n=item.start,item.stop,item.step
+			a,b,n=[ self.index(v) if isinstance(v,str) else v for v in [a,b,n] ]
+			item = slice(a,b,n)
+		ret = self.elements[item]
+		if isinstance(ret,list):
+			return MicroscopeSection(name=self.name,elements=ret,position=self.position,ndim=self.ndim,print_fancy=self.print_fancy)
+		return ret
+
+	def __setitem__(self, item, value): # TWP 2026-02-04: allow setting by assembly name or index. sec1[0]=sec2[0] should work
+		if isinstance(item,str):
+			names = [ e.name for e in self.elements ]
+			item = names.index(item)
+		self.elements[item] = value
 
 	def __repr__(self) -> str:
 		if self.elements is None:
@@ -184,6 +226,11 @@ class MicroscopeSection:
 	def save(self,filename):
 		with open(filename+".pkl",'wb') as f:
 			pickle.dump(self,f)
+
+	def show(self,filename=None,title=None,ylims=None):
+		r1 = self.propagate_ray()
+		plot2D(r1,zpts = self.labels, filename=filename ,title=title, ylims=ylims)
+
 def load(filename):
 	with open(filename+".pkl",'rb') as f:
 		obj = pickle.load(f)

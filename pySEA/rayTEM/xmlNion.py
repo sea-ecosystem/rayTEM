@@ -91,6 +91,34 @@ def rootControlSettingValue(level="R",path="",activeOnly=False,filename="",setti
 			path[1]=active[path[0]]
 		return settings[path[0]][path[1]][path[2]] # list of drive value
 
+# pass "active/active/PL1" and we will search everywhere.
+# pass "S_Condensers/active/OL1" and we won't bother checking S_DQCM and friends
+# pass "S_Condensers/30mrad15iRef/OL1" and we'll return that even if it's not active
+def lookupStrengthsXML(path,filename,settings={},reload=False):
+	control,setting,drive = path.split('/') ; val=0
+	controls = rootControlSettingValue(level="R",filename=filename,reload=reload) # list of controls, at level "R"="root"
+	if control not in ["active","any"]:
+		controls=[control]
+	#print("controls >",controls)
+	for c in controls:
+		settings,s = rootControlSettingValue(level="C",path=c,filename=filename) # list of settings (and active one) within each control
+		#print(c,"> settings >",settings)
+		if s is None:
+			continue
+		if setting != "active":
+			s = setting
+		if s not in settings or s == "global":
+			continue
+		drives = rootControlSettingValue(level="S",path=c+"/"+s,filename=filename) # list of drives for this control / this setting
+		#print(c,">",s,"> drives >",drives)
+		for d in drives:
+			if d == drive:
+				v=rootControlSettingValue(level="D",path=c+"/"+s+"/"+d,filename=filename)
+				print("lookupStrengthsXML",c,">",s,">",d,"=",v)
+				val+=v
+	val+=rootControlSettingValue(level="D",path="global/global/"+drive,filename=filename)
+	return val
+
 # WHEREVER THE DRIVE IS, RETURN IT'S TOTAL VALUE (whichever control, from the active setting, plus the global value)
 def lookupCurrentStrengthsXML(requested_drive,filename,settings={},reload=False): # settings will hold: section (control) > setting > drive = value, and be populated on the first run
 	tree = ET.parse(filename)
@@ -105,11 +133,24 @@ def lookupCurrentStrengthsXML(requested_drive,filename,settings={},reload=False)
 		for d in rootControlSettingValue(level="S",path=c+"/active",filename=filename): # automatically jump to active setting within this control, and loop through drives
 			if d==requested_drive:
 				v=rootControlSettingValue(level="D",path=c+"/active/"+d,filename=filename)
-				print(c,">",s,">",d,"=",v)
+				print("lookupCurrentStrengthsXML",c,">",s,">",d,"=",v)
 				val+=v
 	val+=rootControlSettingValue(level="D",path="global/global/"+d,filename=filename)
 
+	val2=lookupStrengthsXML("active/active/"+requested_drive,filename,reload=reload)
+	if val != val2:
+		raise ValueError("WATCH OUT, lookupCurrentStrengthsXML and lookupStrengthsXML DO NOT AGREE: "+str(val)+" vs "+str(val2))
+
 	return val
+
+def searchForDrive(drivename,filename="",settings={},reload=False):
+	dic,_ = nionSettingsDict(filename=filename,settings=settings,reload=reload)
+	for c in dic.keys():
+		for s in dic[c].keys():
+			for d in dic[c][s].keys():
+				if d == drivename:
+					print(c,">",s,">",d,">",dic[c][s][d])
+
 
 def lookupPositions(requested_drive,filepath,settings={}):
 	if len(settings)==0:

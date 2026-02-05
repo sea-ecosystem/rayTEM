@@ -10,7 +10,7 @@ from matplotlib.cm import plasma as cmap
 
 
 # Basic 2D plotting (along z, and in whatever axis you have chosen)
-def plot2D(r1,axis="x",filename="",zpts="",xlims=None,returnObjectOnly=False,title=""):
+def plot2D(r1,axis="x",filename=None,zpts="",xlims=None,ylims=None,returnObjectOnly=False,title=None):
 	plt.clf()
 	# add rays to plot, with a range of colors
 	linecolors=list( cmap(np.linspace(0,1,len(r1[0]))) )
@@ -24,7 +24,8 @@ def plot2D(r1,axis="x",filename="",zpts="",xlims=None,returnObjectOnly=False,tit
 	planes=findPlanes(r1,axes="x") ; ct=0 ; zs=r1[:,0,j]
 	#print(planes)
 	nplanes=len(planes[axis]["diff"]["z"])+len(planes[axis]["image"]["z"])+len(zpts)
-	ylims = [ np.amin(r1[:,:,i]) , np.amax(r1[:,:,i]) ]
+	if ylims is None:
+		ylims = [ np.amin(r1[:,:,i]) , np.amax(r1[:,:,i]) ]
 	for imdiff in ["diff","image"]:
 		Z=planes[axis][imdiff]["z"]
 		M=planes[axis][imdiff]["M"]
@@ -45,6 +46,8 @@ def plot2D(r1,axis="x",filename="",zpts="",xlims=None,returnObjectOnly=False,tit
 
 	if xlims is not None:
 		plt.xlim(xlims)
+	plt.ylim(ylims)
+
 	if title is not None:
 		plt.title(title)
 
@@ -52,7 +55,7 @@ def plot2D(r1,axis="x",filename="",zpts="",xlims=None,returnObjectOnly=False,tit
 		return plt
 
 	# display or save
-	if len(filename)>0:
+	if filename is not None:
 		plt.savefig(filename)
 	else:
 		plt.show()
