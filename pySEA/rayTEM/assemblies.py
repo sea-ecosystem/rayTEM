@@ -6,6 +6,8 @@
 #	 import numpy as xp
 #	 flag_gpu = False
 #	 from numpy.typing import ArrayLike
+from __future__ import annotations
+
 import numpy as xp
 flag_gpu = False
 from numpy.typing import ArrayLike
@@ -22,6 +24,28 @@ from IPython.display import display # # TWP 2025/08/27 - adding import, required
 # as opposed to "z" which is our distance down the column 
 # AND, I have swapped whichZ and whichRay. Why? feels weird to pass npts x 6 and get the
 # new axis *inserted* as npts x nzs x 6. plus, whichZ out front makes looping easier
+
+class Microscope:
+	"""_summary_
+
+	Returns
+	-------
+	_type_
+		_description_
+
+	Raises
+	------
+	ValueError
+		_description_
+	"""
+	def __init__(self, name:str='',
+				 sections:ArrayLike[MicroscopeSection]=None, 
+				 ndim:int=2,
+				 print_fancy:bool=True) -> object:
+		self.name = name
+		self.sections = sections
+		self.ndim = ndim
+		self.print_fancy = print_fancy
 
 class MicroscopeSection:
 	""" 
