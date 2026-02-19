@@ -23,7 +23,7 @@
 
 import numpy as xp
 flag_gpu = False
-
+import traceback
 from pandas import DataFrame
 from warnings import warn
 
@@ -85,6 +85,7 @@ class Source:
 		array[:,2]=(xts[None,None,:,None]*xp.ones(shape)).flat
 		array[:,3]=(yts[None,None,None,:]*xp.ones(shape)).flat
 		array=fix_ray_dims(array,["x","y","xt","yt"])
+		array[:,columnByName("I")]=xp.ones(shape).flat
 		return array
 
 	# dummy propagation in case someone tries to propagate through since this is technically an element
@@ -263,13 +264,12 @@ class Element:
 class Aperture(Element):
 	def __init__(self, name:str='', 
 			 position:float=0., radius:float=0.,
-			 calibration:float=None,
+			 calibration:float=None,length:float=0,
 			 label:bool=False, print_fancy:bool=True) -> object:
-
 		super().__init__(name=name,
 						 kind='Aperture', poles=0,
 						 position=position, radius=radius,
-						 calibration=calibration,
+						 calibration=calibration, length=length,
 						 label=label, print_fancy=print_fancy)
 	def transfer_matrix(self,
 						 s:float
@@ -277,17 +277,39 @@ class Aperture(Element):
 						 ) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		"""
-		
+		#print("WARNING: APERTURE",self.name,"TRANSFER MATRIX CALLED")
 		#m = xp.eye(6)#[...,None]*xp.ones_like(s)
 		m = xp.eye(4) # drift tube updates x from xθ and y from yθ
 		return fix_mat_dims(m,["x","xt","y","yt"])
 
+	# TWO WAYS TO IMPLEMENT AN APERTURE:
+	# 1) set the intensity of any rays "outside" the aperture to zero. this is fine for plotting but i'm not sure we can use this for fitting. For example, suppose I zero-out intensities, then my least-squares deviation function looks at the largest x,y value for non-zeroed rays to infer the beam diameter post-aperture. as i creep a ray towards the aperture edge, i'll get step-edges in my deviation function when a ray pops into view or pops out of view. we can capture beam current by looking at how many rays are zeroed out
+	# 2) aperture could rescale all rays based on the outer ray at this point. we're thus pretending the originating rays were less divergent or something which is actually what we see IRL; you can't tell the divergence of the beam from the gun because the VOA masks out a bunch of it. This will only work for one aperture in the system though (otherwise second aperture undoes the scaling of the first one? or should we only allow the aperture to scale-down, so if the first aperture scales down, second scales down further (second is smaller), or first scale down, second leaves it alone (second is larger, we'd be able to see our first aperture in the CCD for example). and how do we handle apertures of different shapes?? and how do we calculate beam current? do we reduce intensity based on the scaling factor we needed to apply?
+	#def propagate_ray(self, r0:xp.ndarray,
+	#				  z:float=None, z0:float=0) -> xp.ndarray:
+	#	rf=xp.zeros(r0.shape)+r0
+	#	radii=xp.sqrt( r0[:,columnByName("x")]**2 + r0[:,columnByName("y")]**2 )
+	#	rf[radii>self.radius,columnByName("I")]=0
+	#	return rf
 	def propagate_ray(self, r0:xp.ndarray,
 					  z:float=None, z0:float=0) -> xp.ndarray:
+		xmax = xp.amax(r0[:,columnByName("x")])
+		ymax = xp.amax(r0[:,columnByName("y")])
+		scale_x = 1 if xmax<self.radius else self.radius/xmax
+		scale_y = 1 if ymax<self.radius else self.radius/ymax
+		#print("Aperture",self.name,"radius",self.radius,"scale x,y",scale_x,scale_y,"(",xmax,ymax,")")
 		rf=xp.zeros(r0.shape)+r0
-		radii=xp.sqrt( r0[:,columnByName("x")]**2 + r0[:,columnByName("y")]**2 )
-		rf[radii>self.radius,columnByName("I")]=0
+		rf[:,columnByName("x")]*=scale_x
+		rf[:,columnByName("xt")]*=scale_x
+		rf[:,columnByName("y")]*=scale_y
+		rf[:,columnByName("yt")]*=scale_y
+		rf[:,columnByName("I")]*=scale_x*scale_y
+		#try:
+		#dafgsdg
+		#except Exception as e:
+		#	print(traceback.print_exc())
 		return rf
+
 
 class Drift(Element):
 	def __init__(self, name:str='', 

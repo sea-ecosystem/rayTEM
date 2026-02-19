@@ -14,7 +14,7 @@ import pickle
 from pandas import DataFrame
 from .postprocessing import plot2D
 from IPython.display import display # # TWP 2025/08/27 - adding import, required if not running inside IPython (e.g. outside of jupyter)
-from .elements import Drift
+from .elements import Drift,columnByName
 
 # # TWP 2025/08/27 - varying indices for matrices is hectic. 
 # let's settle on a convention for things like: [whichZ,whichRay,[x,xθ,y,yθ,ϕ,E]]
@@ -44,7 +44,7 @@ class MicroscopeSection:
 		self.ndim = ndim
 		self.print_fancy = print_fancy
 		self.ignoreLensThickness = ignoreLensThickness
-
+		self.rays = None
 		self.length = 0 #xp.sum([e.length for e in self.elements])
 		
 		for ele in elements:
@@ -77,6 +77,14 @@ class MicroscopeSection:
 					break
 			else:
 				print("WARNING: unable to insert "+str(element)+" at "+str(index)+" (coordinate may be out of bounds, or non-drift element)")
+
+	def __delitem__(self,item):
+		if isinstance(item,str):
+			item = self.index(item)
+		if self.elements[item-1].kind != "Drift":
+			print("WARNING: unable to delete "+str(element)+" at "+str(index)+" (preceeding element must be a Drift???)")
+		self.elements[item-1].length+=self.elements[item].length
+		del self.elements[item]
 
 	# TWP 2025-11-05: allow indexing of the assembly by name: section["PL1"] should return the section by that name! see removed_private_instrument_tree/PRIVATE_INSTRUMENT/fine_PLs.py. 2026-02-05: also allow slicing by name: section["sample":] should return a new section with all elements including and after "sample"
 	def __getitem__(self, item):
@@ -146,14 +154,17 @@ class MicroscopeSection:
 			raise ValueError(f'The last shape of the rays has size {r0.shape[-1]}, which can not be understood as ndim*2+(z, E), ndim*2+(E), or ndim*2')
 	"""
 
+	# returns nthElement,nthRay,xythetaetc
 	def propagate_ray(self, r0:xp.ndarray=None,
 					   z: float = None, 
-					   ):
+					   verbose=False):
 	
 		if r0 is None:
 			r0 = self.elements[0].rays()
 		ri=[r0]
 		for i,ele in enumerate(self.elements):
+			if verbose:
+				print(ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
 			ele_ri = ele.propagate_ray(ri[-1], z=z)
 			#ele_ri[...,-2] += ele.position # TWP 2025/08/27 - do not add distance. drift already should update z
 			#print(ele_ri.shape,r0.shape)
@@ -161,54 +172,56 @@ class MicroscopeSection:
 				ri.append(ele_ri[:,:])
 			else:
 				ri[-1]=ele_ri[:,:]
-		return xp.asarray(ri) # xp.swapaxes(xp.asarray(ri),0,1)
+		self.rays = xp.asarray(ri) # xp.swapaxes(xp.asarray(ri),0,1)
+		return self.rays
 
 		#Include the initial ray. #TODO: Add conditional if source is included
-		ri = xp.append(r0[:,None,:], ri, axis=1)
-		return ri
+		#ri = xp.append(r0[:,None,:], ri, axis=1)
+		#return ri
 
-	def propagate(self, input:xp.ndarray=None, zs:float=None,
-				   output_structure:str='per layer') -> xp.ndarray:
-		"""propagate the input through the microscope section.
 
-		Parameters
-		----------
-		input : xp.ndarray
-			Initial array to transform.
-		zs : None | float | int | xp.ndarray, optional
-			Scaled propogation positions, by default None
-			The positions (or created ones) are scaled from 0-1, with 0 being the start of the lens and 1 the total length.
-			If None,	  a signle tranformation at the length of the element is performed.
-			If float,	 a scaled position.
-			If int,	   an array of size z from 0-1 is created.
-			If xp.ndarray, the input array is used as is.
-		output_structure : str
-			How to return the output, by default 'per layer'
-			'per layer', list with propogation in each element.
-			'collapsed', single array.
-			'last',	  the last transformation during propocation.
-
-		Returns
-		-------
-		xp.ndarray
-			Matricies during propogation.
-		"""
-		if input is None:
-			input = xp.zeros((self.ndim*2,1))
-			input[0] = 1
-		output = [xp.asarray([input])]
-		
-		#lzs = self.get_scaled_z(zs, allow_array=True)
-		
-		for e in self.elements:
-			output.append(e.propagate(output[-1][-1], zs=zs))
-
-		if output_structure == 'per layer': return output
-		elif output_structure == 'collapsed': return xp.vstack(output)
-		elif output_structure == 'last': return output[-1]
-		else: ValueError('An improper `output_structure` was requested.')
-
-		return output
+	#def propagate(self, input:xp.ndarray=None, zs:float=None,
+	#			   output_structure:str='per layer') -> xp.ndarray:
+	#	"""propagate the input through the microscope section.
+	#
+	#	Parameters
+	#	----------
+	#	input : xp.ndarray
+	#		Initial array to transform.
+	#	zs : None | float | int | xp.ndarray, optional
+	#		Scaled propogation positions, by default None
+	#		The positions (or created ones) are scaled from 0-1, with 0 being the start of the lens and 1 the total length.
+	#		If None,	  a signle tranformation at the length of the element is performed.
+	#		If float,	 a scaled position.
+	#		If int,	   an array of size z from 0-1 is created.
+	#		If xp.ndarray, the input array is used as is.
+	#	output_structure : str
+	#		How to return the output, by default 'per layer'
+	#		'per layer', list with propogation in each element.
+	#		'collapsed', single array.
+	#		'last',	  the last transformation during propocation.
+	#
+	#	Returns
+	#	-------
+	#	xp.ndarray
+	#		Matricies during propogation.
+	#	"""
+	#	if input is None:
+	#		input = xp.zeros((self.ndim*2,1))
+	#		input[0] = 1
+	#	output = [xp.asarray([input])]
+	#
+	#	#lzs = self.get_scaled_z(zs, allow_array=True)
+	#
+	#	for e in self.elements:
+	#		output.append(e.propagate(output[-1][-1], zs=zs))
+	#
+	#	if output_structure == 'per layer': return output
+	#	elif output_structure == 'collapsed': return xp.vstack(output)
+	#	elif output_structure == 'last': return output[-1]
+	#	else: ValueError('An improper `output_structure` was requested.')
+	#
+	#	return output
 
 	def wobble(self,r0,elementIndex,func,kwargName,valRange,numSteps):
 		vals=xp.linspace(valRange[0],valRange[1],numSteps)
@@ -227,9 +240,10 @@ class MicroscopeSection:
 		with open(filename+".pkl",'wb') as f:
 			pickle.dump(self,f)
 
-	def show(self,filename=None,title=None,ylims=None):
-		r1 = self.propagate_ray()
-		plot2D(r1,zpts = self.labels, filename=filename ,title=title, ylims=ylims)
+	def show(self,filename=None,title=None,ylims=None,zlims=None):
+		if self.rays is None:
+			r1 = self.propagate_ray()
+		plot2D(self.rays,zpts = self.labels, filename=filename ,title=title, ylims=ylims,xlims=zlims)
 
 def load(filename):
 	with open(filename+".pkl",'rb') as f:

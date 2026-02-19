@@ -746,5 +746,23 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 		# plot the final rays
 		plot2D( propagateAndCheck(x0,"r1") )
 
-
+def measureAtZ(z,rays=None,section=None):
+	if rays is None and section.rays is None:
+		section.propagate_ray()
+	if rays is None:
+		rays = section.rays
+	if isinstance(z,str):
+		z=section[z].position
+	zs = rays[:,0,columnByName('z')] # nthElement,nthRay,xythetaetc
+	i=np.where(zs<=z)[0][-1] # closest elemnt before or at z
+	#print(z,zs,i,zs[i])
+	x,y,xt,yt = [ columnByName(v) for v in ["x","y","xt","yt"] ]
+	def interp(z,z1,z2,y1,y2):
+		return y1+(z-z1)/(z2-z1)*(y2-y1)
+	x = np.amax( interp(z,zs[i],zs[i+1],rays[i,:,x],rays[i+1,:,x]) )
+	y = np.amax( interp(z,zs[i],zs[i+1],rays[i,:,y],rays[i+1,:,y]) )
+	xt = np.amax( rays[i,:,xt] )
+	yt = np.amax( rays[i,:,yt] )
+	#print("x,y,xt,yt",x,y,xt,yt)
+	return x,y,xt,yt
 
