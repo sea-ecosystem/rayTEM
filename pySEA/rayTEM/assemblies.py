@@ -7,6 +7,8 @@
 #	 flag_gpu = False
 #	 from numpy.typing import xp.ndarray
 import numpy as xp
+from numpy.typing import ArrayLike
+
 flag_gpu = False
 #from numpy.typing import xp.ndarray
 import pickle
@@ -24,6 +26,9 @@ from .elements import Drift,columnByName
 # AND, I have swapped whichZ and whichRay. Why? feels weird to pass npts x 6 and get the
 # new axis *inserted* as npts x nzs x 6. plus, whichZ out front makes looping easier
 
+# TWP 2026/02/27 - should elements positions in sections (in microscopes) be referenced to the microscope, or to the section? if i have sections CL 0-100, OL 100-150, and PL 150-250, should the positions of PL1 be "160" because that's where it is in the column, OR, should it be "10" because that's where it is within the section, and section PL has position "150"?
+# execute decision: i'm going to say relative to the section. if i want to set up a PL section, and plop it on a "shorter" microscope (e.g PRIVATE_INSTRUMENT vs private_instrument?) then I want everything to stay the same for the PL section. then to calculate the position relative to the microscope, i simply add section.position+element.position
+
 class MicroscopeSection:
 	""" 
 	TODO: Document
@@ -34,21 +39,32 @@ class MicroscopeSection:
 		Revert back to __repr__ returning a str and add a print_fancy function.
 	"""
 	def __init__(self, name:str='',
-				 elements:xp.ndarray=None, 
+				 elements:ArrayLike=None, # list of Elements, or list of dicts
 				 position:float=0.,
 				 ndim:int=2,
 				 print_fancy:bool=True, ignoreLensThickness=False ) -> object:
 		self.name = name
+		#if isinstance(elements[0],dict):
+		#	self.elements = []
+		#else:
 		self.elements = elements
 		self.position = position
 		self.ndim = ndim
 		self.print_fancy = print_fancy
 		self.ignoreLensThickness = ignoreLensThickness
 		self.rays = None
-		self.length = 0 #xp.sum([e.length for e in self.elements])
+		self.length = 0 #= self.position #xp.sum([e.length for e in self.elements])
 		
-		for ele in elements:
-			ele.position = self.position + self.length
+		for n,ele in enumerate(elements):
+			if ele.position is None:						# e.g. pass Lens(l1),Drift(l2),Lens(l3) --> Drift.position=l1, Drift.position=l1+l2
+				ele.position = self.length
+			# SANITY CHECK: if there's a "gap" between this element's position and end of previous, then add a drift
+			if self.length < ele.position:
+				dz = ele.position - self.length
+				elements.insert(n, Drift(length=dz) )
+				self.length += dz
+			if self.length > ele.position:
+				print('WARNING: previous Element ('+str(elements[n-1])+') overlaps with specified Element position '+str(ele))
 			if ignoreLensThickness and ele.kind in ['Thin lens','QLens','Thin quad','Quad']:
 				continue
 			self.length += ele.length
@@ -110,49 +126,14 @@ class MicroscopeSection:
 		if self.elements is None:
 			return ''
 		else:
-			columns=['name', 'kind', 'length', 'position', 'strength', 'calibration']
-			reps = [[e.name, e.kind, e.length, e.position, e.strength, e.calibration] for e in self.elements]
+			columns=['name', 'kind', 'position', 'length', 'strength', 'calibration']
+			reps = [[e.name, e.kind, e.position, e.length, e.strength, e.calibration] for e in self.elements]
 			
 			if  self.print_fancy:
 				display(DataFrame(reps, columns=columns))
 				return ''
 			else:
 				return '\n'.join(['\t'.join([f"{key}: {value}, " for key,value in zip(columns,e)])for e in reps])
-	"""
-	def conform_ray_dim(self, r0:xp.ndarray):
-		""Recast the input arrays so they conform to 2*ndim+2.
-
-		Parameters
-		----------
-		r0 : xp.ndarray
-			List of rays with possible initial conditions (x, θx, y, θy, E).
-			For 1D the (y, θy) coordinates are excluded.
-
-		Returns
-		-------
-		ndarray
-			Recast array.
-
-		Raises
-		------
-		ValueError
-			If the array can not be recase due to an incorrect length of rays.
-
-		To do
-		-----
-		#TODO: Have this as an external function or in a "Ray" class
-		""
-		#print(r0.shape,self.ndim,r0.shape[-1],self.ndim*2+1,r0.shape[-1]==self.ndim*2+1)
-		if r0.shape[-1] == self.ndim*2+2:
-			return r0
-		elif r0.shape[-1] == self.ndim*2+1:
-			# return xp.insert(r0, [1], xp.zeros(r0.shape[0]))
-			return xp.insert(r0,-1,0,axis=1) # TWP 25/08/27 looks like we're trying to add a missing column, but what are the columns supposed to be? based on Lens, clearly 0,1,2,3 are x,angle,y,angle,but what are the last two? comment above says E is the 5th, so what's the 6th?
-#		 elif r0.shape[-1] == self.ndim*2:
-			return xp.pad(r0, ((0,0), (0,2)), constant_values=0)
-		else:
-			raise ValueError(f'The last shape of the rays has size {r0.shape[-1]}, which can not be understood as ndim*2+(z, E), ndim*2+(E), or ndim*2')
-	"""
 
 	# returns nthElement,nthRay,xythetaetc
 	def propagate_ray(self, r0:xp.ndarray=None,
@@ -179,50 +160,6 @@ class MicroscopeSection:
 		#ri = xp.append(r0[:,None,:], ri, axis=1)
 		#return ri
 
-
-	#def propagate(self, input:xp.ndarray=None, zs:float=None,
-	#			   output_structure:str='per layer') -> xp.ndarray:
-	#	"""propagate the input through the microscope section.
-	#
-	#	Parameters
-	#	----------
-	#	input : xp.ndarray
-	#		Initial array to transform.
-	#	zs : None | float | int | xp.ndarray, optional
-	#		Scaled propogation positions, by default None
-	#		The positions (or created ones) are scaled from 0-1, with 0 being the start of the lens and 1 the total length.
-	#		If None,	  a signle tranformation at the length of the element is performed.
-	#		If float,	 a scaled position.
-	#		If int,	   an array of size z from 0-1 is created.
-	#		If xp.ndarray, the input array is used as is.
-	#	output_structure : str
-	#		How to return the output, by default 'per layer'
-	#		'per layer', list with propogation in each element.
-	#		'collapsed', single array.
-	#		'last',	  the last transformation during propocation.
-	#
-	#	Returns
-	#	-------
-	#	xp.ndarray
-	#		Matricies during propogation.
-	#	"""
-	#	if input is None:
-	#		input = xp.zeros((self.ndim*2,1))
-	#		input[0] = 1
-	#	output = [xp.asarray([input])]
-	#
-	#	#lzs = self.get_scaled_z(zs, allow_array=True)
-	#
-	#	for e in self.elements:
-	#		output.append(e.propagate(output[-1][-1], zs=zs))
-	#
-	#	if output_structure == 'per layer': return output
-	#	elif output_structure == 'collapsed': return xp.vstack(output)
-	#	elif output_structure == 'last': return output[-1]
-	#	else: ValueError('An improper `output_structure` was requested.')
-	#
-	#	return output
-
 	def wobble(self,r0,elementIndex,func,kwargName,valRange,numSteps):
 		vals=xp.linspace(valRange[0],valRange[1],numSteps)
 		results=[]
@@ -244,6 +181,57 @@ class MicroscopeSection:
 		if self.rays is None:
 			r1 = self.propagate_ray()
 		plot2D(self.rays,zpts = self.labels, filename=filename ,title=title, ylims=ylims,xlims=zlims)
+
+class Microscope:
+	def __init__(self, name:str='',
+				 sections:ArrayLike=None,
+				 ndim:int=2,
+				 print_fancy:bool=True) -> object:
+		self.name = name
+		self.sections = sections
+		self.ndim = ndim
+		self.print_fancy = print_fancy
+
+	def __repr__(self) -> str:
+		strings = []
+		for s in self.sections:
+			header = "Section: "+s.name+" @ "+str(s.position)+" , length="+str(s.length)
+			if self.print_fancy:
+				print(header)
+			strings.append( header )
+			strings.append( s.__repr__() )
+		if self.print_fancy:
+			return ''
+		return "\n".join(strings)
+
+	def propagate_ray(self, r0:xp.ndarray=None, z: float = None, verbose=False):
+		r=r0 # starting rays (optional) to be fed into section.propagate
+		rs=[]
+		for n,s in enumerate(self.sections):
+			r1 = s.propagate_ray(z=z,r0=r,verbose=verbose) # r1 is shape nthElement,nthRay,xythetaetc
+			print(r1.shape)
+			for r in r1:
+				#r[:,columnByName('z')]#+=s.position
+				rs.append(r)
+			print(r1[-1,0,:])
+			r=r1[-1,:,:] # rays fed into subsequent section are the rays exiting this section
+		self.rays = xp.asarray(rs) # if you want the non-flattened nthSection,nthElement,nthRay,xyzthetaetc, you should access microscope.section.rays which contain the individual nthElement,nthRay,xyzthetaetc
+		print(self.rays.shape)
+		return self.rays
+
+	def show(self,filename=None,title=None,ylims=None,zlims=None):
+		if self.rays is None:
+			r1 = self.propagate_ray()
+		plot2D(self.rays,zpts = self.labels, filename=filename ,title=title, ylims=ylims,xlims=zlims)
+
+	@property
+	def labels(self):
+		l = {}
+		for s in self.sections:
+			ls = s.labels
+			ls = { k:v+s.position for k,v in ls.items() }
+			l = l | ls
+		return l
 
 def load(filename):
 	with open(filename+".pkl",'rb') as f:

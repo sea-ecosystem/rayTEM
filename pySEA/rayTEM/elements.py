@@ -56,7 +56,7 @@ class Source:
 			np_xy:tuple=(3,3),		# number of grid points in x and y
 			angle:tuple=(1,1),		# angles in x,y (ranges of xt yt)
 			na_xy:tuple=(3,3),
-			position:float=0.) -> object:
+			position:float=None) -> object:
 		
 		self.name = name
 		self.size = size
@@ -95,7 +95,7 @@ class Source:
 class Element:
 	def __init__(self, name:str='',
 				 kind:str=None, poles:int=None,
-				 position:float=0., length:float=0., radius:float=0,
+				 position:float=None, length:float=0., radius:float=0,
 				 strength:float=0, calibration:float=None,
 				 ndim:int=2, chroma_dim:bool=False,
 				 label:bool=False, print_fancy:bool=True
@@ -257,13 +257,13 @@ class Element:
 		"""
 		m = self.transfer_matrix(s=self.length)
 		rf = xp.einsum('mn,in->im', m, r0) # matrix multiplication for a "list of vectors"
-		rf[:,columnByName("z")] = self.position+self.length
+		rf[:,columnByName("z")] = r0[:,columnByName("z")]+self.length
 
 		return rf
 
 class Aperture(Element):
 	def __init__(self, name:str='', 
-			 position:float=0., radius:float=0.,
+			 position:float=None, radius:float=0.,
 			 calibration:float=None,length:float=0,
 			 label:bool=False, print_fancy:bool=True) -> object:
 		super().__init__(name=name,
@@ -313,7 +313,7 @@ class Aperture(Element):
 
 class Drift(Element):
 	def __init__(self, name:str='', 
-				 position:float=0., length:float=0.,
+				 position:float=None, length:float=0.,
 				 calibration:float=None,
 				 label:bool=False, print_fancy:bool=True) -> object:
 		"""Quadripole.
@@ -362,7 +362,7 @@ class Drift(Element):
 
 class Quadrapole(Element):
 	def __init__(self, name:str='', 
-				 position:float=0., length:float=0.,
+				 position:float=None, length:float=0.,
 				 strength:float=0, calibration:float=None,
 				 label:bool=False, print_fancy:bool=True) -> object:
 		"""Quadripole.
@@ -488,7 +488,7 @@ class Quadrapole(Element):
 
 class Lens(Element):
 	def __init__(self, name:str='', 
-				 position:float=0., length:float=0.,
+				 position:float=None, length:float=0.,
 				 strength:float=0, calibration:float=None,
 				 label:bool=False, print_fancy:bool=True, rotation:bool=False) -> object:
 		"""Quadripole.
@@ -560,7 +560,7 @@ class Lens(Element):
 
 class Prism(Element):
 	def __init__(self, name:str='', 
-				 position:float=0., length:float=0.,
+				 position:float=None, length:float=0.,
 				 radius:float=None, angle:float=45., w:float=1., g:float=1., k1:float=0.,
 				strength:float=0, calibration:float=None,
 				 label:bool=False, print_fancy:bool=True) -> object:
