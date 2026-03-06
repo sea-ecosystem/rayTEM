@@ -10,7 +10,7 @@ from matplotlib.cm import plasma as cmap
 
 
 # Basic 2D plotting (along z, and in whatever axis you have chosen)
-def plot2D(r1,axis="x",filename=None,zpts="",xlims=None,ylims=None,returnObjectOnly=False,title=None):
+def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,returnObjectOnly=False,title=None):
 	plt.clf()
 	# add rays to plot, with a range of colors
 	linecolors=list( cmap(np.linspace(0,1,len(r1[0]))) )
@@ -43,6 +43,14 @@ def plot2D(r1,axis="x",filename=None,zpts="",xlims=None,ylims=None,returnObjectO
 			z=zpts[label] ; ct+=1
 			plt.plot([z,z],ylims,linestyle=":",color="k",marker='')
 			plt.annotate(label,(z,ylims[1]*ct/nplanes))
+
+	# add shading for sections, if passed
+	if sections is not None:
+		colors = 'gbrcym'*10
+		for i,k in enumerate(sections.keys()):
+			z1,z2 = sections[k]
+			#print("FILL",z1,z2)
+			plt.fill_between([z1,z2],[ylims[0],ylims[0]],[ylims[1],ylims[1]],color=colors[i],alpha=.1)
 
 	if xlims is not None:
 		plt.xlim(xlims)

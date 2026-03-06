@@ -16,7 +16,7 @@ import pickle
 from pandas import DataFrame
 from .postprocessing import plot2D
 from IPython.display import display # # TWP 2025/08/27 - adding import, required if not running inside IPython (e.g. outside of jupyter)
-from .elements import Drift,columnByName
+from .elements import Source,Drift,Lens,columnByName
 
 # # TWP 2025/08/27 - varying indices for matrices is hectic. 
 # let's settle on a convention for things like: [whichZ,whichRay,[x,xθ,y,yθ,ϕ,E]]
@@ -55,19 +55,25 @@ class MicroscopeSection:
 		self.rays = None
 		self.length = 0 #= self.position #xp.sum([e.length for e in self.elements])
 		
+		new = []
 		for n,ele in enumerate(elements):
+			print("self.length",self.length,"adding ele",ele.kind,ele.name,ele.position,ele.length)
 			if ele.position is None:						# e.g. pass Lens(l1),Drift(l2),Lens(l3) --> Drift.position=l1, Drift.position=l1+l2
+				print("(no position, add to end)")
 				ele.position = self.length
 			# SANITY CHECK: if there's a "gap" between this element's position and end of previous, then add a drift
 			if self.length < ele.position:
-				dz = ele.position - self.length
-				elements.insert(n, Drift(length=dz) )
+				print("(gap before this element)")
+				dz = ele.position - self.length ; print("dz",dz,"position",ele.position-dz)
+				new.append( Drift(length=dz,position=ele.position-dz) )
 				self.length += dz
+			new.append(ele)
 			if self.length > ele.position:
 				print('WARNING: previous Element ('+str(elements[n-1])+') overlaps with specified Element position '+str(ele))
 			if ignoreLensThickness and ele.kind in ['Thin lens','QLens','Thin quad','Quad']:
 				continue
 			self.length += ele.length
+		self.elements = new
 
 	# given a string for an element name, return the index of that element
 	def index(self,item):
@@ -75,8 +81,10 @@ class MicroscopeSection:
 		return names.index(item)
 
 	# TWP 2026-02-05 allow element insertion by index OR coordinate ("add a lens midway through this drift section at z=etc")
-	def insert(self,index,element):
+	def insert(self,index,element): # TODO bug: if we insert a huge drift ("big enough to fill the space") it's just a huge drift. we should update the length based on the space it'll fit. either here, or in Section.insert.
 		if isinstance(index,int):				# basic list insertion: section.insert(0,newsurce) places newsource at the beginning
+			if index == len(self.elements):
+				self.length+=element.length
 			self.elements.insert(index,element)
 		else:									# coordinate-based insertion: section.insert(25.0,newlens) places newlens in drift that spans 25.0
 			for i,ele in enumerate(self.elements): # "looking for element spanning 25.0: 5th element is a Drift which goes from 21.0 to 30.0"
@@ -191,6 +199,12 @@ class Microscope:
 		self.sections = sections
 		self.ndim = ndim
 		self.print_fancy = print_fancy
+		self.rays = None
+		if len(self.sections)>1: # check if consecutive sections are correct length. if not, insert drift at tail of first one
+			for s,s2 in zip(self.sections[:-1],self.sections[1:]):
+				if s.position+s.length<s2.position:
+					dz = s2.position-(s.position+s.length)
+					s.insert( len(s.elements) , Drift(position = s.length, length = dz ) )
 
 	def __repr__(self) -> str:
 		strings = []
@@ -219,10 +233,57 @@ class Microscope:
 		print(self.rays.shape)
 		return self.rays
 
+	# TWP 2026-03-05 allow element insertion by coordinate ("add a lens midway through this drift section at z=etc"
+	def insert(self,index,element):
+		print("microscope insertion",index,element)
+		for s in self.sections:
+			if s.position <= index < s.position+s.length:
+				print("INSERT ELEMENT",element.name,"AT",index-s.position,"IN SECTION",s.name)
+				s.insert(index-s.position,element)
+				break
+		else: # TODO bug: if we insert a huge drift ("big enough to fill the space") it's just a huge drift. we should update the length based on the space it'll fit. either here, or in Section.insert.
+			s = self.sections[-1]
+			dz = index-(s.position+s.length)
+			s.insert( len(s.elements), Drift(length=dz,position=s.length) )
+			print("APPENDING ELEMENT",element.name,"AT END OF",index-s.position,"IN SECTION",s.name)
+			element.position = index-s.position
+			s.insert( len(s.elements), element )
+
+	# Basically just json dumps all attributes, with some special considerations to make the json more human-readable: "Microscope name","Section name","Element name" instead of just "name" for each, specified ordering of attributes (name always first), and nesting lists to go down from Microscope -> Section -> Element
+	def save(self,filename):
+		jdict = {"Microscope name":self.name,"Sections":[]} | self.__dict__
+		del jdict["sections"],jdict["rays"]
+		for s in self.sections:
+			s_attrs = {"Section name":s.name,"position":s.position,"length":s.length,"Elements":[]} | s.__dict__
+			del s_attrs["elements"],s_attrs["rays"],s_attrs["name"]
+			for e in s.elements:
+				e_attrs = {"Element name":e.name,"kind":e.kind,"position":e.position,"length":e.length} | e.__dict__
+				del e_attrs["name"]
+				s_attrs["Elements"].append(e_attrs)
+			jdict["Sections"].append(s_attrs)
+		import json
+		with open(filename+'.json', 'w') as f:
+			json.dump(jdict, f,indent=4)
+
+		#with open(filename,"w") as fo:
+		#	for s in self.sections:
+		#		name = s.name if len(s.name)>1 else "[unnamed]" ; name = "'"+name+"'"
+		#		attrs = {"position":s.position,"length":s.length} | s.__dict__
+		#		del attrs["elements"],attrs["rays"],attrs["name"]
+		#		fo.write("Section: "+name+" "+" ".join([ k+"="+str(v) for k,v in attrs.items() ])+"\n")
+		#		for e in s.elements:
+		#			name = e.name if e.name is not None and len(e.name)>1 else "[unnamed]" ; name = "'"+name+"'"
+		#			attrs = {"kind":e.kind,"position":e.position,"length":e.length} | e.__dict__
+		#			del attrs["name"]
+		#			fo.write("  Element: "+name+" "+" ".join([ k+"="+str(v) for k,v in attrs.items() ])+"\n")
+
+
 	def show(self,filename=None,title=None,ylims=None,zlims=None):
 		if self.rays is None:
 			r1 = self.propagate_ray()
-		plot2D(self.rays,zpts = self.labels, filename=filename ,title=title, ylims=ylims,xlims=zlims)
+		sections = { s.name:[s.position,s.position+s.length] for s in self.sections if s.name is not None }
+		print("SECTIONS",sections)
+		plot2D(self.rays, zpts=self.labels, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims)
 
 	@property
 	def labels(self):
@@ -233,9 +294,51 @@ class Microscope:
 			l = l | ls
 		return l
 
-def load(filename):
+def load_section(filename):
 	with open(filename+".pkl",'rb') as f:
 		obj = pickle.load(f)
 	return obj 
 
-		
+def load_microscope(filename):
+	import json,inspect
+	mapping = { "Drift":Drift, "QLens":Lens, "Source":Source } # TODO Eventually need to support all Element types from elements.py. and is there a way to map these automatically instead of explicitly?
+	jdict = json.loads("".join(open(filename+".json").readlines()))
+	sections = []
+	for section in jdict["Sections"]: # list of dicts, "section" is a dict
+		elements = []
+		for element in section["Elements"]: # list of dicts, "element" is a dict
+			kind = element["kind"]
+			func = mapping[kind]
+			element["name"] = element["Element name"] # undo the custom mapping we did inside MicroscopeSection.save
+			del element["Element name"]
+			allowed_kwargs = inspect.signature(func).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
+			element = { k:v for k,v in element.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it technically has one
+			element = func(**element) # convert dict to Element object of correct type (see elements.py)
+			elements.append(element)
+		section["name"] = section["Section name"] # custom mappings at section level too
+		del section["Section name"],section["Elements"]
+		allowed_kwargs = inspect.signature(MicroscopeSection).parameters.keys()
+		section = { k:v for k,v in section.items() if k in allowed_kwargs } # e.g., MicroscopeSection doesn't accept "length", it builds it itself
+		section = MicroscopeSection(elements = elements, **section)
+		sections.append(section)
+	jdict["name"] = jdict["Microscope name"]
+	del jdict["Microscope name"],jdict["Sections"]
+	return Microscope(sections = sections, **jdict)
+
+	#
+	#			jdict = {"Microscope name":self.name,"Sections":[]} | self.__dict__
+	#	del jdict["sections"],jdict["rays"]
+	#	for s in self.sections:
+	#		s_attrs = {"Section name":s.name,"position":s.position,"length":s.length,"Elements":[]} | s.__dict__
+	#		del s_attrs["elements"],s_attrs["rays"],s_attrs["name"]
+	#		for e in s.elements:
+	#			e_attrs = {"Element name":e.name,"kind":e.kind,"position":e.position,"length":e.length} | e.__dict__
+	#			del e_attrs["name"]
+	#			s_attrs["Elements"].append(e_attrs)
+	#		jdict["Sections"].append(s_attrs)
+	#	import json
+	#	with open(filename+'.json', 'w') as f:
+	#		json.dump(jdict, f,indent=4)
+	#
+	#	#with open(filename,"w") as fo:
+
