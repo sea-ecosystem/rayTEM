@@ -17,7 +17,7 @@ import sys
 from pandas import DataFrame
 from .postprocessing import plot2D
 from IPython.display import display # # TWP 2025/08/27 - adding import, required if not running inside IPython (e.g. outside of jupyter)
-from .elements import Source,Drift,Lens,columnByName
+from .elements import Element,Source,Drift,Lens,columnByName
 
 # # TWP 2025/08/27 - varying indices for matrices is hectic. 
 # let's settle on a convention for things like: [whichZ,whichRay,[x,xθ,y,yθ,ϕ,E]]
@@ -267,13 +267,12 @@ class Microscope:
 			json.dump(jdict, f,indent=4)
 
 	def to_sea(self,filename):
-		sys.path.insert(1,"../../")
-		try:
-			from pySEA.sea_eco.architecture.base_structure_numpy import Signal, Dimensions, Dimension, Metadata, safe_decode
-		except:
-			print("WARNING: sea_eco does not appear to be installed")
-			return
-
+		if Microscope_SEAS is None:
+			print("WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead")
+		else:
+			ms = Microscope_SEAS(self)
+			print(ms.to_dict())
+			ms.to_sea(filename)
 
 	def show(self,filename=None,title=None,ylims=None,zlims=None):
 		if self.rays is None:
@@ -291,35 +290,100 @@ class Microscope:
 			l = l | ls
 		return l
 
+sea_available = False
+try:
+	sys.path.insert(1,"../../")
+	from pySEA.sea_eco.architecture.base_structure import SEASerializable
+	sea_available = True
+except:
+	pass
+
+if sea_available:
+	class Microscope_SEAS(SEASerializable):
+		def __init__(self,microscope=None):
+			if microscope is None:
+				return
+			for k,v in microscope.__dict__.items():
+				print("setattr(self,k,v)",k,v)
+				setattr(self,k,v)
+			# In order for SEASerializable.to_sea to work (and friends: to_dict, to_hdf5_group...), all lists must be either lists of values, or lists of SEASerializable objects too (not generic other objects like Section or Element). Names must also be unique since the names are used for hdf5 group names.
+			# Loop through Sections, converting each Section to a SEASerializable Section (Section_SEAS), and ensure each name is set.
+			sections = self.sections ; self.sections = []
+			for i,s in enumerate(sections):
+				if s.name is None or len(s.name)==0:
+					s.name = "None_"+str(i)
+				self.sections.append( Section_SEAS(s))
+			# also make sure this Microscope object's name is set
+			if self.name is None or len(self.name)==0:
+				self.name="None"
+		#def propagate_ray(self,*args,**kwargs):
+		#	return super().propagate_ray(*args,**kwargs)
+	class Section_SEAS(SEASerializable):
+		def __init__(self,section):
+			for k,v in section.__dict__.items():
+				setattr(self,k,v)
+			# Loop through Elements, converting each Element to a SEASerializable Element (Element_SEAS), and ensure each name is set.
+			elements = self.elements ; self.elements = []
+			for i,e in enumerate(elements):
+				if e.name is None or len(e.name)==0:
+					e.name = "None_"+str(i)
+				self.elements.append( Element_SEAS(e))
+	class Element_SEAS(SEASerializable):
+		def __init__(self,element):
+			for k,v in element.__dict__.items():
+				setattr(self,k,v)
+else:
+	Microscope_SEAS = None ; Section_SEAS = None; Element_SEAS = None
+
 def load_section(filename):
 	with open(filename+".pkl",'rb') as f:
 		obj = pickle.load(f)
 	return obj 
 
 def load_microscope(filename):
-	import json,inspect
+	# RELOAD USING SEA INFRASTRUCTURE
+	if ".sea" in filename and sea_available:
+		loaded = Microscope_SEAS() # dummy object, of correct type (or SEASerializable.to_sea will flag it)
+		loaded.from_sea(filename) # load file into dummy object
+		jdict = loaded.__dict__ # so far I can't figure out correct inheritance (so this Microscope_SEAS functions like a Microscope with all the appropriate functions, so instead we'll just assemble the jdict used below, which correctly casts things into the appropriate object types (Microscope > MicroscopeSection > Element)
+		jdict["Sections"] = []
+		for s in loaded.sections:
+			jdict["Sections"].append(s.__dict__)
+			jdict["Sections"][-1]["Elements"] = []
+			for e in s.elements:
+				jdict["Sections"][-1]["Elements"].append(e.__dict__)
+	else:
+		import json
+		jdict = json.loads("".join(open(filename+".json").readlines()))
+
+	import inspect
 	mapping = { "Drift":Drift, "QLens":Lens, "Source":Source } # TODO Eventually need to support all Element types from elements.py. and is there a way to map these automatically instead of explicitly?
-	jdict = json.loads("".join(open(filename+".json").readlines()))
+
 	sections = []
 	for section in jdict["Sections"]: # list of dicts, "section" is a dict
 		elements = []
 		for element in section["Elements"]: # list of dicts, "element" is a dict
 			kind = element["kind"]
 			func = mapping[kind]
-			element["name"] = element["Element name"] # undo the custom mapping we did inside MicroscopeSection.save
-			del element["Element name"]
+			element["name"] = element.get("Element name",element.get("name")) # undo the custom mapping we did inside MicroscopeSection.save
+			if isinstance(element["name"],str) and "None" in element["name"]: element["name"]=''
+			element.pop("Element name",None) # delete "Element name" entry, if it exists (pop avoids KeyError with del)
 			allowed_kwargs = inspect.signature(func).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
 			element = { k:v for k,v in element.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it technically has one
 			element = func(**element) # convert dict to Element object of correct type (see elements.py)
 			elements.append(element)
-		section["name"] = section["Section name"] # custom mappings at section level too
-		del section["Section name"],section["Elements"]
+		section["name"] = section.get("Section name",section.get("name")) # custom mappings at section level too
+		if isinstance(section["name"],str) and "None" in section["name"]: section["name"]=''
+		section.pop("Section name",None) ; section.pop("Elements",None) ; section.pop("elements",None)
 		allowed_kwargs = inspect.signature(MicroscopeSection).parameters.keys()
 		section = { k:v for k,v in section.items() if k in allowed_kwargs } # e.g., MicroscopeSection doesn't accept "length", it builds it itself
 		section = MicroscopeSection(elements = elements, **section)
 		sections.append(section)
-	jdict["name"] = jdict["Microscope name"]
-	del jdict["Microscope name"],jdict["Sections"]
+	jdict["name"] = jdict.get("Microscope name",jdict["name"])
+	if isinstance(jdict["name"],str) and "None" in jdict["name"]: jdict["name"]=''
+	jdict.pop("Microscope name",None) ; jdict.pop("Sections",None) ; jdict.pop("sections",None)
+	allowed_kwargs = inspect.signature(Microscope).parameters.keys()
+	jdict = { k:v for k,v in jdict.items() if k in allowed_kwargs }
 	return Microscope(sections = sections, **jdict)
 
 	#
