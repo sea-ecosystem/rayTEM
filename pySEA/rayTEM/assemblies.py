@@ -12,6 +12,7 @@ from numpy.typing import ArrayLike
 flag_gpu = False
 #from numpy.typing import xp.ndarray
 import pickle
+import sys
 
 from pandas import DataFrame
 from .postprocessing import plot2D
@@ -265,17 +266,13 @@ class Microscope:
 		with open(filename+'.json', 'w') as f:
 			json.dump(jdict, f,indent=4)
 
-		#with open(filename,"w") as fo:
-		#	for s in self.sections:
-		#		name = s.name if len(s.name)>1 else "[unnamed]" ; name = "'"+name+"'"
-		#		attrs = {"position":s.position,"length":s.length} | s.__dict__
-		#		del attrs["elements"],attrs["rays"],attrs["name"]
-		#		fo.write("Section: "+name+" "+" ".join([ k+"="+str(v) for k,v in attrs.items() ])+"\n")
-		#		for e in s.elements:
-		#			name = e.name if e.name is not None and len(e.name)>1 else "[unnamed]" ; name = "'"+name+"'"
-		#			attrs = {"kind":e.kind,"position":e.position,"length":e.length} | e.__dict__
-		#			del attrs["name"]
-		#			fo.write("  Element: "+name+" "+" ".join([ k+"="+str(v) for k,v in attrs.items() ])+"\n")
+	def to_sea(self,filename):
+		sys.path.insert(1,"../../")
+		try:
+			from pySEA.sea_eco.architecture.base_structure_numpy import Signal, Dimensions, Dimension, Metadata, safe_decode
+		except:
+			print("WARNING: sea_eco does not appear to be installed")
+			return
 
 
 	def show(self,filename=None,title=None,ylims=None,zlims=None):
