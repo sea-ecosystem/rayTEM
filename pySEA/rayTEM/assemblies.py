@@ -18,6 +18,7 @@ from pandas import DataFrame
 from .postprocessing import plot2D
 from IPython.display import display # # TWP 2025/08/27 - adding import, required if not running inside IPython (e.g. outside of jupyter)
 from .elements import Element,Source,Drift,Lens,columnByName
+from .seashells import SEASerializable
 
 # # TWP 2025/08/27 - varying indices for matrices is hectic. 
 # let's settle on a convention for things like: [whichZ,whichRay,[x,xθ,y,yθ,ϕ,E]]
@@ -30,7 +31,7 @@ from .elements import Element,Source,Drift,Lens,columnByName
 # TWP 2026/02/27 - should elements positions in sections (in microscopes) be referenced to the microscope, or to the section? if i have sections CL 0-100, OL 100-150, and PL 150-250, should the positions of PL1 be "160" because that's where it is in the column, OR, should it be "10" because that's where it is within the section, and section PL has position "150"?
 # execute decision: i'm going to say relative to the section. if i want to set up a PL section, and plop it on a "shorter" microscope (e.g PRIVATE_INSTRUMENT vs private_instrument?) then I want everything to stay the same for the PL section. then to calculate the position relative to the microscope, i simply add section.position+element.position
 
-class MicroscopeSection:
+class MicroscopeSection(SEASerializable):
 	""" 
 	TODO: Document
 
@@ -56,16 +57,19 @@ class MicroscopeSection:
 		self.rays = None
 		self.length = 0 #= self.position #xp.sum([e.length for e in self.elements])
 		
+		if self.elements is None or (self.elements)==0:
+			return
+
 		new = []
 		for n,ele in enumerate(elements):
-			print("self.length",self.length,"adding ele",ele.kind,ele.name,ele.position,ele.length)
+			#print("self.length",self.length,"adding ele",ele.kind,ele.name,ele.position,ele.length)
 			if ele.position is None:						# e.g. pass Lens(l1),Drift(l2),Lens(l3) --> Drift.position=l1, Drift.position=l1+l2
-				print("(no position, add to end)")
+				#print("(no position, add to end)")
 				ele.position = self.length
 			# SANITY CHECK: if there's a "gap" between this element's position and end of previous, then add a drift
 			if self.length < ele.position:
-				print("(gap before this element)")
-				dz = ele.position - self.length ; print("dz",dz,"position",ele.position-dz)
+				#print("(gap before this element)")
+				dz = ele.position - self.length #; print("dz",dz,"position",ele.position-dz)
 				new.append( Drift(length=dz,position=ele.position-dz) )
 				self.length += dz
 			new.append(ele)
@@ -148,7 +152,7 @@ class MicroscopeSection:
 	def propagate_ray(self, r0:xp.ndarray=None,
 					   z: float = None, 
 					   verbose=False):
-	
+		#print("Section r0",r0)
 		if r0 is None:
 			r0 = self.elements[0].rays()
 		ri=[r0]
@@ -191,7 +195,15 @@ class MicroscopeSection:
 			r1 = self.propagate_ray()
 		plot2D(self.rays,zpts = self.labels, filename=filename ,title=title, ylims=ylims,xlims=zlims)
 
-class Microscope:
+	#def copy(self):
+	#	elements = [ e.copy() for e in self.elements ]
+	#	dic = self.__dict__ ; dic["elements"]=elements
+	#	allowed_kwargs = inspect.signature(Microscope).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
+	#	dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it technically has one
+	#	return MicroscopeSection(**dic)
+
+
+class Microscope(SEASerializable):
 	def __init__(self, name:str='',
 				 sections:ArrayLike=None,
 				 ndim:int=2,
@@ -201,11 +213,31 @@ class Microscope:
 		self.ndim = ndim
 		self.print_fancy = print_fancy
 		self.rays = None
-		if len(self.sections)>1: # check if consecutive sections are correct length. if not, insert drift at tail of first one
+		if self.sections is not None and len(self.sections)>1: # check if consecutive sections are correct length. if not, insert drift at tail of first one
 			for s,s2 in zip(self.sections[:-1],self.sections[1:]):
 				if s.position+s.length<s2.position:
 					dz = s2.position-(s.position+s.length)
 					s.insert( len(s.elements) , Drift(position = s.length, length = dz ) )
+				if s2.position==0:
+					s2.position = s.position+s.length
+
+	# given a string for an element name, return the index of that element
+	def index(self,item):
+		names = [ s.name for s in self.sections ]
+		return names.index(item)
+
+	def __getitem__(self, item):
+		#return item
+		if isinstance(item,str):	# convert "PL1" into an integer index
+			item = self.index(item)
+		if isinstance(item,slice):	# convert "sample:" (which results in "item" being a slice) to an integer-indexed slice, e.g. slice(3,None,None)
+			a,b,n=item.start,item.stop,item.step
+			a,b,n=[ self.index(v) if isinstance(v,str) else v for v in [a,b,n] ]
+			item = slice(a,b,n)
+		ret = self.sections[item]
+		if isinstance(ret,list):
+			return Microscope(name=self.name,elements=ret,position=self.position,ndim=self.ndim,print_fancy=self.print_fancy)
+		return ret
 
 	def __repr__(self) -> str:
 		strings = []
@@ -220,35 +252,52 @@ class Microscope:
 		return "\n".join(strings)
 
 	def propagate_ray(self, r0:xp.ndarray=None, z: float = None, verbose=False):
-		r=r0 # starting rays (optional) to be fed into section.propagate
+		r=r0 #; print("Microscope r0",r0)# starting rays (optional) to be fed into section.propagate
 		rs=[]
 		for n,s in enumerate(self.sections):
+			#print("section",s)
 			r1 = s.propagate_ray(z=z,r0=r,verbose=verbose) # r1 is shape nthElement,nthRay,xythetaetc
-			print(r1.shape)
+			#print(r1.shape)
 			for r in r1:
 				#r[:,columnByName('z')]#+=s.position
 				rs.append(r)
-			print(r1[-1,0,:])
+			#print(r1[-1,0,:])
 			r=r1[-1,:,:] # rays fed into subsequent section are the rays exiting this section
 		self.rays = xp.asarray(rs) # if you want the non-flattened nthSection,nthElement,nthRay,xyzthetaetc, you should access microscope.section.rays which contain the individual nthElement,nthRay,xyzthetaetc
-		print(self.rays.shape)
+		#print(self.rays.shape)
 		return self.rays
 
 	# TWP 2026-03-05 allow element insertion by coordinate ("add a lens midway through this drift section at z=etc"
 	def insert(self,index,element):
-		print("microscope insertion",index,element)
+		#print("microscope insertion",index,element)
 		for s in self.sections:
 			if s.position <= index < s.position+s.length:
-				print("INSERT ELEMENT",element.name,"AT",index-s.position,"IN SECTION",s.name)
+				#print("INSERT ELEMENT",element.name,"AT",index-s.position,"IN SECTION",s.name)
 				s.insert(index-s.position,element)
 				break
 		else: # TODO bug: if we insert a huge drift ("big enough to fill the space") it's just a huge drift. we should update the length based on the space it'll fit. either here, or in Section.insert.
 			s = self.sections[-1]
 			dz = index-(s.position+s.length)
 			s.insert( len(s.elements), Drift(length=dz,position=s.length) )
-			print("APPENDING ELEMENT",element.name,"AT END OF",index-s.position,"IN SECTION",s.name)
+			#print("APPENDING ELEMENT",element.name,"AT END OF",index-s.position,"IN SECTION",s.name)
 			element.position = index-s.position
 			s.insert( len(s.elements), element )
+
+	def show(self,filename=None,title=None,ylims=None,zlims=None):
+		if self.rays is None:
+			r1 = self.propagate_ray()
+		sections = { s.name+" ("+str(i)+")":[s.position,s.position+s.length] for i,s in enumerate(self.sections) }# if s.name is not None }
+		#print("SECTIONS",sections)
+		plot2D(self.rays, zpts=self.labels, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims)
+
+	@property
+	def labels(self):
+		l = {}
+		for s in self.sections:
+			ls = s.labels
+			ls = { k:v+s.position for k,v in ls.items() }
+			l = l | ls
+		return l
 
 	# Basically just json dumps all attributes, with some special considerations to make the json more human-readable: "Microscope name","Section name","Element name" instead of just "name" for each, specified ordering of attributes (name always first), and nesting lists to go down from Microscope -> Section -> Element
 	def save(self,filename):
@@ -266,30 +315,30 @@ class Microscope:
 		with open(filename+'.json', 'w') as f:
 			json.dump(jdict, f,indent=4)
 
+	#def copy(self):
+	#	sections = [ MicroscopeSection() for s in self.sections ]
+	#	sections = [ s.copy() for s in self.sections ]
+	#	dic = self.__dict__ ; dic["sections"]=sections
+	#	allowed_kwargs = inspect.signature(Microscope).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
+	#	dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it technically has one
+	#	return Microscope(**dic)
+
+	"""
 	def to_sea(self,filename):
 		if Microscope_SEAS is None:
 			print("WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead")
 		else:
-			ms = Microscope_SEAS(self)
-			print(ms.to_dict())
+			ms = self.as_seatype()
+			#print(ms.to_dict())
 			ms.to_sea(filename)
 
-	def show(self,filename=None,title=None,ylims=None,zlims=None):
-		if self.rays is None:
-			r1 = self.propagate_ray()
-		sections = { s.name:[s.position,s.position+s.length] for s in self.sections if s.name is not None }
-		print("SECTIONS",sections)
-		plot2D(self.rays, zpts=self.labels, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims)
+	def as_seatype(self):
+		if Microscope_SEAS is None:
+			return self
+		return Microscope_SEAS(self)
+	"""
 
-	@property
-	def labels(self):
-		l = {}
-		for s in self.sections:
-			ls = s.labels
-			ls = { k:v+s.position for k,v in ls.items() }
-			l = l | ls
-		return l
-
+"""
 sea_available = False
 try:
 	sys.path.insert(1,"../../")
@@ -299,7 +348,7 @@ except:
 	pass
 
 if sea_available:
-	class Microscope_SEAS(SEASerializable):
+	class Microscope_SEAS(SEASerializable,Microscope):
 		def __init__(self,microscope=None):
 			if microscope is None:
 				return
@@ -312,13 +361,13 @@ if sea_available:
 			for i,s in enumerate(sections):
 				if s.name is None or len(s.name)==0:
 					s.name = "None_"+str(i)
-				self.sections.append( Section_SEAS(s))
+				self.sections.append( Section_SEAS(s) )
 			# also make sure this Microscope object's name is set
 			if self.name is None or len(self.name)==0:
 				self.name="None"
 		#def propagate_ray(self,*args,**kwargs):
 		#	return super().propagate_ray(*args,**kwargs)
-	class Section_SEAS(SEASerializable):
+	class Section_SEAS(SEASerializable,MicroscopeSection):
 		def __init__(self,section):
 			for k,v in section.__dict__.items():
 				setattr(self,k,v)
@@ -327,24 +376,41 @@ if sea_available:
 			for i,e in enumerate(elements):
 				if e.name is None or len(e.name)==0:
 					e.name = "None_"+str(i)
-				self.elements.append( Element_SEAS(e))
-	class Element_SEAS(SEASerializable):
+				self.elements.append( Element_SEAS(e) )
+	class Element_SEAS(SEASerializable,Element):
 		def __init__(self,element):
 			for k,v in element.__dict__.items():
 				setattr(self,k,v)
 else:
 	Microscope_SEAS = None ; Section_SEAS = None; Element_SEAS = None
+"""
 
 def load_section(filename):
+	if ".sea" in filename:
+		loaded = MicroscopeSection()
+		loaded.from_sea(filename)
+		return loaded
+
 	with open(filename+".pkl",'rb') as f:
 		obj = pickle.load(f)
 	return obj 
 
 def load_microscope(filename):
 	# RELOAD USING SEA INFRASTRUCTURE
-	if ".sea" in filename and sea_available:
-		loaded = Microscope_SEAS() # dummy object, of correct type (or SEASerializable.to_sea will flag it)
+	if ".sea" in filename:# and sea_available:
+		loaded = Microscope() # dummy object, of correct type (or SEASerializable.to_sea will flag it)
 		loaded.from_sea(filename) # load file into dummy object
+		return loaded
+		#loaded.sections = [ Section_SEAS(s) for s in loaded.sections ] # not sure why we need this, but seems like we only get the SEASerializable half of the inheritance on reload
+		#sections = []
+		#for s in loaded.sections:
+		#	elements = [ e.copy() for e in s.elements ]
+		#	s
+
+		#= loaded.sections
+		#for
+		#return cloneAsObj(loaded,Microscope,childRecursion={"sections":(MicroscopeSection,{"elements":[Element]})})
+		#return loaded.copy() # passing BACK into Microscope_SEAS means all sections and elements cascade back through the looping to ensure they are re-initialized as Section_SEAS and Element_SEAS which have double-inheritance from SEASerializable and MicroscopeSection or Element
 		jdict = loaded.__dict__ # so far I can't figure out correct inheritance (so this Microscope_SEAS functions like a Microscope with all the appropriate functions, so instead we'll just assemble the jdict used below, which correctly casts things into the appropriate object types (Microscope > MicroscopeSection > Element)
 		jdict["Sections"] = []
 		for s in loaded.sections:

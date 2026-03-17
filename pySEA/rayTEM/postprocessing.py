@@ -21,7 +21,7 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 		plt.plot(xs,ys,linestyle="-",color=c,marker='')
 
 	# add all image/diffraction planes
-	planes=findPlanes(r1,axes="x") ; ct=0 ; zs=r1[:,0,j]
+	planes=findPlanes(r1,axes=axis) ; ct=0 ; zs=r1[:,0,j]
 	#print(planes)
 	nplanes=len(planes[axis]["diff"]["z"])+len(planes[axis]["image"]["z"])+len(zpts)
 	if ylims is None:
@@ -165,6 +165,7 @@ def plotSliceSeries(rays,N,M,filename=""):
 	else:
 		plt.show()
 
+# Returns a dict for each axis, image vs diffraction planes, and the magnification and z position (NOTE: Z IS IN FRACTIONAL COORDINATES: 4.2 = 20% of the way through the 4th element)
 def findPlanes(rays,axes="xy"):
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
 	diffRaysX=[] ; diffRaysY=[]
@@ -181,15 +182,19 @@ def findPlanes(rays,axes="xy"):
 				returnable[xy][imdiff][p]=[]
 
 	# diffraction ray is the first ray emitted at zero angle (nonzero position!)
-	for r in range(len(rays[0])):
+	n_rays = len(rays[0])
+	for r in range(n_rays):
 		# diff X first ray is: zero angle x and y, nonzero x, zero y
-		if len(diffRaysX)==0 and rays[0,r,x]!=0 and rays[0,r,y]==0 and \
-			rays[0,r,xt]==0 and rays[0,r,yt]==0:
+		if len(diffRaysX)==0 and rays[0,r,x]!=0 and rays[0,r,y]==0 and rays[0,r,xt]==0 and rays[0,r,yt]==0:
 				diffRaysX.append(r)
-		# second is same, but opposite x position
+				for rr in range(n_rays):
+					if np.all(rays[0,r]==-rays[0,rr]):
+						diffRaysX.append(rr)
+						break
+		# second is same, but opposite x position. TWP 20260317 edit: or, just a different x position?? changing all "==-" to "!="
 		if len(diffRaysX)==1 and rays[0,r,x]!=0 and rays[0,r,y]==0 and \
 			rays[0,r,xt]==0 and rays[0,r,yt]==0 and \
-				rays[0,r,x]==-rays[0,diffRaysX[0],x]:
+				rays[0,r,x]!=rays[0,diffRaysX[0],x]: # TWP 20260317 edit: or, just a different x position?? changing all "==-" to "!="
 					diffRaysX.append(r)
 		# diff Y first ray is: zero angle x and y, nonzero y, zero x
 		if len(diffRaysY)==0 and rays[0,r,y]!=0 and rays[0,r,x]==0 and \
@@ -198,7 +203,7 @@ def findPlanes(rays,axes="xy"):
 		# second is same, but opposite x position
 		if len(diffRaysY)==1 and rays[0,r,y]!=0 and rays[0,r,x]==0 and \
 			rays[0,r,xt]==0 and rays[0,r,yt]==0 and \
-				rays[0,r,y]==-rays[0,diffRaysY[0],y]:
+				rays[0,r,y]!=rays[0,diffRaysY[0],y]:
 					diffRaysY.append(r)
 		# image X first ray is: nonzero angle x, zero angle y, zero x, zero y
 		if len(imageRaysX)==0 and rays[0,r,xt]!=0 and rays[0,r,yt]==0 and \
@@ -207,7 +212,7 @@ def findPlanes(rays,axes="xy"):
 		# second is same, but opposite x angle
 		if len(imageRaysX)==1 and rays[0,r,xt]!=0 and rays[0,r,yt]==0 and \
 			rays[0,r,x]==0 and rays[0,r,y]==0 and \
-				rays[0,r,xt]==-rays[0,imageRaysX[0],xt]:
+				rays[0,r,xt]!=rays[0,imageRaysX[0],xt]:
 					imageRaysX.append(r)
 		# image Y first ray is: nonzero angle y, zero angle x, zero x, zero y
 		if len(imageRaysY)==0 and rays[0,r,yt]!=0 and rays[0,r,xt]==0 and \
@@ -216,7 +221,7 @@ def findPlanes(rays,axes="xy"):
 		# second is same, but opposite x angle
 		if len(imageRaysY)==1 and rays[0,r,yt]!=0 and rays[0,r,xt]==0 and \
 			rays[0,r,x]==0 and rays[0,r,y]==0 and \
-				rays[0,r,yt]==-rays[0,imageRaysY[0],yt]:
+				rays[0,r,yt]!=rays[0,imageRaysY[0],yt]:
 					imageRaysY.append(r)
 		if len(diffRaysX)==2 and len(diffRaysY)==2 and \
 			len(imageRaysX)==2 and len(imageRaysY)==2:
@@ -232,6 +237,8 @@ def findPlanes(rays,axes="xy"):
 		if len(imageRaysY)<2 and "y" in axes:
 			print("image rays (x2) in Y: must be finite yt, zero xt, zero x and y")
 		return returnable
+
+	#print(diffRaysX,rays[0,diffRaysX[0],[x,xt]],rays[0,diffRaysX[1],[x,xt]])
 
 	x=columnByName("x") ; y=columnByName("y")
 	xt=columnByName("xt") ; yt=columnByName("yt")
