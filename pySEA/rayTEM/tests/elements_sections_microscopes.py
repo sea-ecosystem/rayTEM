@@ -1,3 +1,9 @@
+# TESTS BELOW INCLUDE: (please run: "pytest elements_sections_microscopes.py")
+# basic building of MicroscopeSections (comprised of multiple elements), Microscopes (comprised of multiple sections)
+# building from stacked elements (Lens/Drift/Lens/...) and building from specified positions (Lens1 at z1, Lens2 at 2,...)
+# image and diffraction plane determination (findPlanes function)
+# microscope saving and reloading via both json and sea (see https://github.com/sea-ecosystem/sea-eco/)
+
 import sys,os
 sys.path.insert(1,"../../../")
 from pySEA.rayTEM import Source,Lens,Drift,MicroscopeSection,Microscope,fix_ray_dims,plot2D,findPlanes,columnByName,load_microscope
