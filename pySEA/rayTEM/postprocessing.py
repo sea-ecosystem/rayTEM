@@ -33,7 +33,7 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 			ct+=1
 			z=zFromFractional(zs,z)
 			label=imdiff+" @ z="+str(np.round(z,3))+"\n M="+str(np.round(m,3))
-			ls={"diff":"--","image":":"}[imdiff]
+			ls={"diff":"--","image":"-."}[imdiff]
 			plt.plot([z,z],ylims,linestyle=ls,color="k",marker='')
 			plt.annotate(label,(z,ylims[1]*ct/nplanes))
 

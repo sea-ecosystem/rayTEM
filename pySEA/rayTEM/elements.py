@@ -55,7 +55,7 @@ class Element(SEASerializable):
 	def __init__(self, name:str='',
 				 kind:str=None, poles:int=None,
 				 position:float=None, length:float=0., radius:float=0,
-				 strength:float=0, calibration:float=None,
+				 strength:float=0, calibration:float=None, # TODO maybe calibration should be a taylor series: C1+C2*strength+C3*strength**2+..., supply as many terms as you want (since microscope has scale and offset too)
 				 ndim:int=2, chroma_dim:bool=False,
 				 label:bool=False, print_fancy:bool=True
 				 ) -> object:

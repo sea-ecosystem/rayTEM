@@ -1,3 +1,10 @@
+# seashells serves as a wrapper around the sea_eco SEASerializable object, enabling easy integration with sea_eco.
+# to install sea_eco and rayTEM side-by-side, this module should be installed as a plugin inside the pySEA folder, as a sibling to sea_eco, also in the pySEA folder
+# if sea_eco IS installed, the SEASerializable object is wrapped, enabling direct access to, or wrapping of, all SEASerializable functions
+# to wrap a function, we simply define it, do our custom stuff, then call super().funcname to call up to SEASerializable's version, and do more custom stuff after
+# if sea_eco is NOT installed, we create a dummy SEASerializable object, with dummy functions (which raise warnings) for the functions we expect to use
+# All objects we then expect to integrate with sea_eco then inherit the SEASerializable class from here (whether it is wrapping sea_eco's SEASerializable, or using the dummy version)
+
 import sys,inspect
 
 sea_available = False
@@ -65,9 +72,9 @@ else:
 
 #SEASerializable.from_sea will create a purely-SEASerializable object. rayTEM objects (Element, MicroscopeSection, Microscope, etc) will have inherited from SEASerializable, so we may need to reinstantiate rayTEM objects to ensure they have the rayTEM-specific functionality (e.g. "scope=Microscope(); scope.from_sea" will find scope.sections is a list of purely-SEASerializable objects without functions like "propagate_ray").
 def safeReinstantiate(source,cls):
-	from .elements import Drift,Lens,Source
+	from .elements import Drift,Lens,Source,Quadrapole
 	from .assemblies import Microscope,MicroscopeSection
-	cls = {"Drift":Drift, "QLens":Lens, "Source":Source, "Microscope":Microscope,"Section":MicroscopeSection }[cls]
+	cls = {"Drift":Drift, "QLens":Lens, "Source":Source, "Microscope":Microscope, "Section":MicroscopeSection, "Quad":Quadrapole }[cls]
 	dic = source.__dict__
 	allowed_kwargs = inspect.signature(cls).parameters.keys()	# infer allowed kwargs from the class itself
 	dic = { k:v for k,v in dic.items() if k in allowed_kwargs }	# and filter kwargs to those accepted

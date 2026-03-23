@@ -72,6 +72,9 @@ def nionSettingsDict(filename="",settings={},active={},reload=False):
 # level="D" for "drive" and a path (e.g. "S_Projectors/_Diffn 20mm  (ref)/PV2_1Da" and we will return a value
 # setting key "active" is also allowed: level="D" and path="S_Projectors/active/PV2_1Da" should automatically select "_Diffn 20mm  (ref)"
 # this function is used by lookupCurrentStrengthsXML with the "active" setting key to find the *current value* for the named drive
+# WARNING: THIS DOES NOT CAPTURE GLOBAL OFFSET UNLESS YOU ASK FOR IT:
+# >>> rootControlSettingValue(level="D",path="S_Projectors/_Diffn 20mm  (ref)",filename=xml)
+# WILL ONLY RETURN THE REFERENCE SETTINGS'S VALUE. IF GLOBAL HAS A VALUE, WHICH REF IS AN OFFSET FROM, LENS = SETTING + GLO, YOU WILL NOT FIND THE CORRECT VALUE.
 def rootControlSettingValue(level="R",path="",activeOnly=False,filename="",settings={},active={},reload=False):
 
 	settings,active = nionSettingsDict(filename,reload=reload)
@@ -95,6 +98,7 @@ def rootControlSettingValue(level="R",path="",activeOnly=False,filename="",setti
 # pass "S_Condensers/active/OL1" and we won't bother checking S_DQCM and friends
 # pass "S_Condensers/30mrad15iRef/OL1" and we'll return that even if it's not active
 def lookupStrengthsXML(path,filename,settings={},reload=False):
+	print(path)
 	control,setting,drive = path.split('/') ; val=0
 	controls = rootControlSettingValue(level="R",filename=filename,reload=reload) # list of controls, at level "R"="root"
 	if control not in ["active","any"]:
@@ -116,7 +120,9 @@ def lookupStrengthsXML(path,filename,settings={},reload=False):
 				v=rootControlSettingValue(level="D",path=c+"/"+s+"/"+d,filename=filename)
 				print("lookupStrengthsXML",c,">",s,">",d,"=",v)
 				val+=v
-	val+=rootControlSettingValue(level="D",path="global/global/"+drive,filename=filename)
+	v2 = rootControlSettingValue(level="D",path="global/global/"+drive,filename=filename)
+	print("lookupStrengthsXML","global",">","global",">",drive,"=",v2)
+	val+=v2
 	return val
 
 # WHEREVER THE DRIVE IS, RETURN IT'S TOTAL VALUE (whichever control, from the active setting, plus the global value)

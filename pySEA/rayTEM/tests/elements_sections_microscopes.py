@@ -6,7 +6,7 @@
 
 import sys,os
 sys.path.insert(1,"../../../")
-from pySEA.rayTEM import Source,Lens,Drift,MicroscopeSection,Microscope,fix_ray_dims,plot2D,findPlanes,columnByName,load_microscope
+from pySEA.rayTEM import Source,Lens,Drift,MicroscopeSection,Microscope,fix_ray_dims,plot2D,findPlanes,columnByName,load_microscope,load_section
 import numpy as np
 
 # basic Drift/Lens/Drift/Lens/Drift configuration. Manually-defined input rays (one pair of axial and one pair of field rays)
@@ -37,6 +37,7 @@ def test_basic_section_r0():
 def test_basic_section_wsource():
 	elements = [ Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)), Drift(length=1), Lens(strength=3,length=.1), Drift(length=.4), Lens(strength=5,length=.1), Drift(length=1)  ]
 	section = MicroscopeSection(elements=elements)
+	section.to_sea("elements_sections_microscopes_basic_section_wsource.sea")
 	r1 = section.propagate_ray()
 	#plot2D(r1)
 	filename = "elements_sections_microscopes_basic_section_wsource_rays.npy"
@@ -125,4 +126,32 @@ def test_basic_microscope_reload_sea():
 	r1_old = np.load(filename)
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 #test_basic_microscope_reload_sea()
+
+#def test_insertion_section():
+#	section = load_section("elements_sections_microscopes_basic_section_wsource.sea")
+#	section.insert(1,Lens(name="inserted by index at 1",strength=0))
+#	section.insert(1.25,Lens(name="inserted by position at 1.25",strength=0))
+#	r1 = microscope.propagate_ray()
+#	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths_rays.npy"
+#	if not os.path.exists(filename):
+#		print("ERROR: test_insertion_section requires test_basic_section_wsource to run first")
+#		assert 1==0
+#	r1_old = np.load(filename)
+#	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+
+def test_insertion_microscope():
+	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths.sea"
+	if not os.path.exists(filename):
+		print("ERROR: test_insertion_microscope requires test_basic_microscope_defined_by_lengths to run first")
+		assert 1==0
+	microscope = load_microscope(filename)
+	#section.insert(1,Lens(name="inserted by index at 1",strength=0))
+	microscope.insert(1.25,Lens(name="inserted by position at 1.25",strength=0))
+	r1 = microscope.propagate_ray()[-1,:,:]
+	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths_rays.npy"
+	if not os.path.exists(filename):
+		print("ERROR: test_insertion_microscope requires test_basic_microscope_defined_by_lengths to run first")
+		assert 1==0
+	r1_old = np.load(filename)[-1,:,:]
+	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 

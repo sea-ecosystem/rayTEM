@@ -94,8 +94,10 @@ class MicroscopeSection(SEASerializable):
 		else:									# coordinate-based insertion: section.insert(25.0,newlens) places newlens in drift that spans 25.0
 			for i,ele in enumerate(self.elements): # "looking for element spanning 25.0: 5th element is a Drift which goes from 21.0 to 30.0"
 				if ele.position<=index and ele.position+ele.length>=index and ele.kind=="Drift":
+					#print("INSERTING ELEMENT",element.name,"AT",index,"(",ele.position,ele.length,")","AT POSITION",i)
 					elementlength=0 if self.ignoreLensThickness else element.length
 					l1=index-ele.position ; l2=ele.length-elementlength-l1 # "this drift needs to be length 4.0, and we'll need another drift after the insertion"
+					#print("PRE DRIFT",l1,"+ ELEMENT",element.length,"+ POST DRIFT",l2,"=",ele.length)
 					self.elements[i].length=l1			# "shorten" initial drift
 					element.position = index			# update new element's position
 					self.elements.insert(i+1,element)	# add new element
@@ -143,10 +145,14 @@ class MicroscopeSection(SEASerializable):
 			reps = [[e.name, e.kind, e.position, e.length, e.strength, e.calibration] for e in self.elements]
 			
 			if  self.print_fancy:
+				#print('Section: '+self.name+" @ "+str(self.position)+", length="+str(self.length))
 				display(DataFrame(reps, columns=columns))
 				return ''
 			else:
 				return '\n'.join(['\t'.join([f"{key}: {value}, " for key,value in zip(columns,e)])for e in reps])
+
+	def __len__(self):
+		return len(self.elements)
 
 	# returns nthElement,nthRay,xythetaetc
 	def propagate_ray(self, r0:xp.ndarray=None,
@@ -190,8 +196,8 @@ class MicroscopeSection(SEASerializable):
 		with open(filename+".pkl",'wb') as f:
 			pickle.dump(self,f)
 
-	def show(self,filename=None,title=None,ylims=None,zlims=None):
-		if self.rays is None:
+	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True):
+		if self.rays is None or regenerate:
 			r1 = self.propagate_ray()
 		plot2D(self.rays,zpts = self.labels, filename=filename ,title=title, ylims=ylims,xlims=zlims)
 
@@ -224,20 +230,63 @@ class Microscope(SEASerializable):
 	# given a string for an element name, return the index of that element
 	def index(self,item):
 		names = [ s.name for s in self.sections ]
-		return names.index(item)
+		if item in names:
+			return names.index(item)
+		subnames = [ [ getattr(e,"name","") for e in s.elements ] for s in self.sections ]
+		if item not in sum(subnames,[]):
+			print("ERROR: name",item,"not found in Microscope or Microscope's sections' elements")
+			return None
+		for i,names in enumerate(subnames):
+			if item in names:
+				return (i,names.index(item))
 
 	def __getitem__(self, item):
-		#return item
-		if isinstance(item,str):	# convert "PL1" into an integer index
+		# string passed (e.g., name of section or element), "PL1" or "PLs", convert to indices
+		if isinstance(item,str):
 			item = self.index(item)
+		# single item specified: "PL1" or "PLs"
+		if isinstance(item,int): # microscope["PLs"] will find index of section, and return that section
+			return self.sections[item]
+		if isinstance(item,tuple): # microscope["PL1"] finds the element inside a section (indexOfPLss,indexOfPL1WithinPLs)
+			return self.sections[item[0]].elements[item[1]]
+		# multiple items specified: '"OLs":', or '"sample":' or '3:'
 		if isinstance(item,slice):	# convert "sample:" (which results in "item" being a slice) to an integer-indexed slice, e.g. slice(3,None,None)
 			a,b,n=item.start,item.stop,item.step
 			a,b,n=[ self.index(v) if isinstance(v,str) else v for v in [a,b,n] ]
-			item = slice(a,b,n)
-		ret = self.sections[item]
-		if isinstance(ret,list):
-			return Microscope(name=self.name,elements=ret,position=self.position,ndim=self.ndim,print_fancy=self.print_fancy)
-		return ret
+			if False not in [ v is None or isinstance(v,int) for v in [a,b,n] ]:
+				item = slice(a,b,n)
+				ret = self.sections[item]
+				if isinstance(ret,int):			# microscope["PLs"] will find index of section, and return that section
+					return ret
+				if isinstance(ret,list):		# microscope["OLs":] will return list of sections OLs,DQCM,PLs, etc, so form into a new Microscope
+					return Microscope(name=self.name,sections=ret,ndim=self.ndim,print_fancy=self.print_fancy)
+			# microscope["sample":] should return a Microscope containing the sections/elements starting at "sample". if section "OLs" contains "sample", the returned Microscope should contain OLs, plus subsequent sections (e.g. DQCM and PLs), and the OLs section should only contain elements from "sample" and beyond
+			a1,b1,n1 = [ v[0] if isinstance(v,tuple) else v for v in [a,b,n] ]
+			ret = self.sections[slice(a1,b1,n1)]	# trimmed list of sections
+
+			#for i,s in enumerate(ret):
+			#	print("SECTION",i)
+			#	print(s)
+
+			if isinstance(a,tuple) and a[1]>0:		# trim first section
+				ret[0].elements = ret[0].elements[a[1]:] # TODO what if we do: "PL1:PL3", these are inside the same section, we ought to check if a1==b1
+				p0 = ret[0].elements[0].position
+				for i,e in enumerate(ret[0].elements):
+					ret[0].elements[i].position -= p0
+				ret[0].length -= p0
+			#if isinstance(b,tuple) and b[1]<len(new.sections[-1]): TODO FINISH IMPLEMENTING
+			#	new.sections[-1]=new.sections[-1][:b[1]]
+			p1 = ret[0].position
+			for i,s in enumerate(ret):				# shift so first section starts at 0
+				ret[i].position -= p1
+				if i>0:
+					ret[i].position -= p0			# subsequent sections ALSO need to be brought forwards by the the shortening of sec0
+
+			#for i,s in enumerate(ret):
+			#	print("SECTION",i)
+			#	print(s)
+
+			return Microscope(name=self.name,sections=ret,ndim=self.ndim,print_fancy=self.print_fancy)
 
 	def __repr__(self) -> str:
 		strings = []
@@ -283,8 +332,8 @@ class Microscope(SEASerializable):
 			element.position = index-s.position
 			s.insert( len(s.elements), element )
 
-	def show(self,filename=None,title=None,ylims=None,zlims=None):
-		if self.rays is None:
+	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True):
+		if self.rays is None or regenerate:
 			r1 = self.propagate_ray()
 		sections = { s.name+" ("+str(i)+")":[s.position,s.position+s.length] for i,s in enumerate(self.sections) }# if s.name is not None }
 		#print("SECTIONS",sections)
