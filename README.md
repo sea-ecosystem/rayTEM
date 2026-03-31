@@ -37,7 +37,7 @@ microscope.show()
 ```
 
 # Advanced usage:
-advanced building: Elements can be referenced by name, in both the Microscope or MicroscopeSection, Elements can be deleted or inserted. See the examples in the "microscopes" folder for usage, e.g. REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/fine_PLs.py or DQCM.py
-fitting: lens strengths can be fit based on desired image/diffraction plane magnification and position. see REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/course_PLs.py includes an example of this
-sea-eco integration: if sea-eco (https://code.ornl.gov/sea-ecosystem/sea-eco) is installed, the sea file infrastructure can be used, allowing tight integration between data acquisition, analysis, and microscope simulation. rayTEM serves as a plugin for sea-eco in this context. 
+- advanced building: Elements can be referenced by name, in both the Microscope or MicroscopeSection, Elements can be deleted or inserted. See the examples in the "microscopes" folder for usage, e.g. REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/fine_PLs.py or DQCM.py
+- fitting: lens strengths can be fit based on desired image/diffraction plane magnification and position. see REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/course_PLs.py includes an example of this
+- sea-eco integration: if sea-eco (https://code.ornl.gov/sea-ecosystem/sea-eco) is installed, the sea file infrastructure can be used, allowing tight integration between data acquisition, analysis, and microscope simulation. rayTEM serves as a plugin for sea-eco in this context. 
 
