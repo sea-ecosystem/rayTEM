@@ -10,7 +10,7 @@ from matplotlib.cm import plasma as cmap
 
 
 # Basic 2D plotting (along z, and in whatever axis you have chosen)
-def plot2D(r1,axis="x",filename="",zpts="",xlims=None,returnObjectOnly=False):
+def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,returnObjectOnly=False,title=None):
 	plt.clf()
 	# add rays to plot, with a range of colors
 	linecolors=list( cmap(np.linspace(0,1,len(r1[0]))) )
@@ -18,13 +18,14 @@ def plot2D(r1,axis="x",filename="",zpts="",xlims=None,returnObjectOnly=False):
 	# loop through rays
 	i,j=columnByName(axis),columnByName("z")
 	for ys,xs,c in zip( r1[:,:,i].T , r1[:,:,j].T , linecolors ):
-		plt.plot(xs,ys,linestyle="-",color=c,marker='')
+		plt.plot(xs,ys,linestyle="-",color=c,marker='',linewidth=3)
 
 	# add all image/diffraction planes
-	planes=findPlanes(r1,axes="x") ; ct=0 ; zs=r1[:,0,j]
+	planes=findPlanes(r1,axes=axis) ; ct=0 ; zs=r1[:,0,j]
 	#print(planes)
 	nplanes=len(planes[axis]["diff"]["z"])+len(planes[axis]["image"]["z"])+len(zpts)
-	ylims = [ np.amin(r1[:,:,i]) , np.amax(r1[:,:,i]) ]
+	if ylims is None:
+		ylims = [ np.amin(r1[:,:,i]) , np.amax(r1[:,:,i]) ]
 	for imdiff in ["diff","image"]:
 		Z=planes[axis][imdiff]["z"]
 		M=planes[axis][imdiff]["M"]
@@ -32,9 +33,9 @@ def plot2D(r1,axis="x",filename="",zpts="",xlims=None,returnObjectOnly=False):
 			ct+=1
 			z=zFromFractional(zs,z)
 			label=imdiff+" @ z="+str(np.round(z,3))+"\n M="+str(np.round(m,3))
-			ls={"diff":"--","image":":"}[imdiff]
-			plt.plot([z,z],ylims,linestyle=ls,color="k",marker='')
-			plt.annotate(label,(z,ylims[1]*ct/nplanes))
+			ls={"diff":"--","image":"-."}[imdiff]
+			plt.plot([z,z],ylims,linestyle=ls,color="w",marker='',linewidth=3)
+			#plt.annotate(label,(z,ylims[1]*ct/nplanes))
 
 	# add arbitrary passed z positions
 	if len(zpts)>0:
@@ -43,15 +44,47 @@ def plot2D(r1,axis="x",filename="",zpts="",xlims=None,returnObjectOnly=False):
 			plt.plot([z,z],ylims,linestyle=":",color="k",marker='')
 			plt.annotate(label,(z,ylims[1]*ct/nplanes))
 
+	# add shading for sections, if passed
+	if sections is not None:
+		colors = 'gbrcym'*10
+		for i,k in enumerate(sections.keys()):
+			z1,z2 = sections[k]
+			#print("FILL",z1,z2)
+			plt.fill_between([z1,z2],[ylims[0],ylims[0]],[ylims[1],ylims[1]],color=colors[i],alpha=.1)
+
 	if xlims is not None:
 		plt.xlim(xlims)
+	plt.ylim(ylims)
+
+	if title is not None:
+		plt.title(title)
 
 	if returnObjectOnly:
 		return plt
 
+	#ax = plt.gca() ; axs=[ax]
+	#fig = plt.gcf()
+	#axs[0].set_facecolor("black")  # inside area of plot --> black
+	#fig.set_facecolor("black")  # outside area of plot --> black
+	#for s in ["bottom", "top", "left", "right"]:  # border lines around plot --> white
+	#	axs[0].spines[s].set_color("white")
+	#axs[0].xaxis.label.set_color("white")  # x axis label text --> white
+	#axs[0].tick_params(axis="x", colors="white")  # x axis tick marks --> white
+	#axs[0].yaxis.label.set_color("white")
+	#axs[0].tick_params(axis="y", colors="white")
+	#axs[0].title.set_color("white")
+	#leg = axs[0].legend()  # retreive legend from the axes
+	#for text in leg.get_texts():
+	#	text.set_color("white")  # each line of text on the legend --> white
+	#frame = leg.get_frame()
+	#frame.set_facecolor("black")  # inside area of legend --> black
+	#frame.set_edgecolor("white")  # legend border lines --> white
+	#fig.set_size_inches((32,8))
+
+
 	# display or save
-	if len(filename)>0:
-		plt.savefig(filename)
+	if filename is not None:
+		plt.savefig(filename,transparent=True)
 	else:
 		plt.show()
 
@@ -152,6 +185,7 @@ def plotSliceSeries(rays,N,M,filename=""):
 	else:
 		plt.show()
 
+# Returns a dict for each axis, image vs diffraction planes, and the magnification and z position (NOTE: Z IS IN FRACTIONAL COORDINATES: 4.2 = 20% of the way through the 4th element)
 def findPlanes(rays,axes="xy"):
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
 	diffRaysX=[] ; diffRaysY=[]
@@ -168,15 +202,19 @@ def findPlanes(rays,axes="xy"):
 				returnable[xy][imdiff][p]=[]
 
 	# diffraction ray is the first ray emitted at zero angle (nonzero position!)
-	for r in range(len(rays[0])):
+	n_rays = len(rays[0])
+	for r in range(n_rays):
 		# diff X first ray is: zero angle x and y, nonzero x, zero y
-		if len(diffRaysX)==0 and rays[0,r,x]!=0 and rays[0,r,y]==0 and \
-			rays[0,r,xt]==0 and rays[0,r,yt]==0:
+		if len(diffRaysX)==0 and rays[0,r,x]!=0 and rays[0,r,y]==0 and rays[0,r,xt]==0 and rays[0,r,yt]==0:
 				diffRaysX.append(r)
-		# second is same, but opposite x position
+				for rr in range(n_rays):
+					if np.all(rays[0,r]==-rays[0,rr]):
+						diffRaysX.append(rr)
+						break
+		# second is same, but opposite x position. TWP 20260317 edit: or, just a different x position?? changing all "==-" to "!="
 		if len(diffRaysX)==1 and rays[0,r,x]!=0 and rays[0,r,y]==0 and \
 			rays[0,r,xt]==0 and rays[0,r,yt]==0 and \
-				rays[0,r,x]==-rays[0,diffRaysX[0],x]:
+				rays[0,r,x]!=rays[0,diffRaysX[0],x]: # TWP 20260317 edit: or, just a different x position?? changing all "==-" to "!="
 					diffRaysX.append(r)
 		# diff Y first ray is: zero angle x and y, nonzero y, zero x
 		if len(diffRaysY)==0 and rays[0,r,y]!=0 and rays[0,r,x]==0 and \
@@ -185,7 +223,7 @@ def findPlanes(rays,axes="xy"):
 		# second is same, but opposite x position
 		if len(diffRaysY)==1 and rays[0,r,y]!=0 and rays[0,r,x]==0 and \
 			rays[0,r,xt]==0 and rays[0,r,yt]==0 and \
-				rays[0,r,y]==-rays[0,diffRaysY[0],y]:
+				rays[0,r,y]!=rays[0,diffRaysY[0],y]:
 					diffRaysY.append(r)
 		# image X first ray is: nonzero angle x, zero angle y, zero x, zero y
 		if len(imageRaysX)==0 and rays[0,r,xt]!=0 and rays[0,r,yt]==0 and \
@@ -194,7 +232,7 @@ def findPlanes(rays,axes="xy"):
 		# second is same, but opposite x angle
 		if len(imageRaysX)==1 and rays[0,r,xt]!=0 and rays[0,r,yt]==0 and \
 			rays[0,r,x]==0 and rays[0,r,y]==0 and \
-				rays[0,r,xt]==-rays[0,imageRaysX[0],xt]:
+				rays[0,r,xt]!=rays[0,imageRaysX[0],xt]:
 					imageRaysX.append(r)
 		# image Y first ray is: nonzero angle y, zero angle x, zero x, zero y
 		if len(imageRaysY)==0 and rays[0,r,yt]!=0 and rays[0,r,xt]==0 and \
@@ -203,7 +241,7 @@ def findPlanes(rays,axes="xy"):
 		# second is same, but opposite x angle
 		if len(imageRaysY)==1 and rays[0,r,yt]!=0 and rays[0,r,xt]==0 and \
 			rays[0,r,x]==0 and rays[0,r,y]==0 and \
-				rays[0,r,yt]==-rays[0,imageRaysY[0],yt]:
+				rays[0,r,yt]!=rays[0,imageRaysY[0],yt]:
 					imageRaysY.append(r)
 		if len(diffRaysX)==2 and len(diffRaysY)==2 and \
 			len(imageRaysX)==2 and len(imageRaysY)==2:
@@ -219,6 +257,8 @@ def findPlanes(rays,axes="xy"):
 		if len(imageRaysY)<2 and "y" in axes:
 			print("image rays (x2) in Y: must be finite yt, zero xt, zero x and y")
 		return returnable
+
+	#print(diffRaysX,rays[0,diffRaysX[0],[x,xt]],rays[0,diffRaysX[1],[x,xt]])
 
 	x=columnByName("x") ; y=columnByName("y")
 	xt=columnByName("xt") ; yt=columnByName("yt")
@@ -701,12 +741,15 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 	#plotRays( propagateAndCheck(vals,passback="r1") )
 
 	# scipy.optimize.minimize: may fail to converge because of non-linearities in the parameter space
-	ranges=[[v*.75,v*1.25] for v in ivals ]
+	ranges=[[v*.5,v*1.5] for v in ivals ]
+	#ranges=[[v*.1,v*3] for v in ivals ]
+
 	x0=minimize(propagateAndCheck,x0=ivals,bounds=ranges,method='trust-constr')["x"] #,method='trust-constr',options={"finite_diff_rel_step":[.1]*len(vals),"xtol":1e-12})
 	return
 
 	# scipy.optimize.brute: should be better at finding global minima. also convenient for plotting heatmaps of the parameter space
 	ranges=[[v/4,v*2] for v in ivals ] # TODO WHAT SHOULD THESE BE? (user should probably be allowed to pass this, or we infer from the actual microscopy itself)
+	ranges=[[v*.1,v*5] for v in ivals ]
 	print("ranges",ranges)
 	# we will wrap scipy.optimize.minimize to use as brute's "polish" function
 	def mini(*args,**kwargs):	
@@ -741,5 +784,23 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 		# plot the final rays
 		plot2D( propagateAndCheck(x0,"r1") )
 
-
+def measureAtZ(z,rays=None,section=None):
+	if rays is None and section.rays is None:
+		section.propagate_ray()
+	if rays is None:
+		rays = section.rays
+	if isinstance(z,str):
+		z=section[z].position
+	zs = rays[:,0,columnByName('z')] # nthElement,nthRay,xythetaetc
+	i=np.where(zs<=z)[0][-1] # closest elemnt before or at z
+	#print(z,zs,i,zs[i])
+	x,y,xt,yt = [ columnByName(v) for v in ["x","y","xt","yt"] ]
+	def interp(z,z1,z2,y1,y2):
+		return y1+(z-z1)/(z2-z1)*(y2-y1)
+	x = np.amax( interp(z,zs[i],zs[i+1],rays[i,:,x],rays[i+1,:,x]) )
+	y = np.amax( interp(z,zs[i],zs[i+1],rays[i,:,y],rays[i+1,:,y]) )
+	xt = np.amax( rays[i,:,xt] )
+	yt = np.amax( rays[i,:,yt] )
+	#print("x,y,xt,yt",x,y,xt,yt)
+	return x,y,xt,yt
 
