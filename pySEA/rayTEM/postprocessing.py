@@ -13,7 +13,7 @@ from matplotlib.cm import plasma as cmap
 def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,returnObjectOnly=False,title=None):
 	plt.clf()
 	# add rays to plot, with a range of colors
-	linecolors=list( cmap(np.linspace(.2,.8,len(r1[0]))) )
+	linecolors=list( cmap(np.linspace(0,1,len(r1[0]))) )
 
 	# loop through rays
 	i,j=columnByName(axis),columnByName("z")
@@ -38,19 +38,19 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 			#plt.annotate(label,(z,ylims[1]*ct/nplanes))
 
 	# add arbitrary passed z positions
-	#if len(zpts)>0:
-	#	for label in zpts.keys():
-	#		z=zpts[label] ; ct+=1
-	#		plt.plot([z,z],ylims,linestyle=":",color="k",marker='')
-	#		plt.annotate(label,(z,ylims[1]*ct/nplanes))
+	if len(zpts)>0:
+		for label in zpts.keys():
+			z=zpts[label] ; ct+=1
+			plt.plot([z,z],ylims,linestyle=":",color="k",marker='')
+			plt.annotate(label,(z,ylims[1]*ct/nplanes))
 
 	# add shading for sections, if passed
-	#if sections is not None:
-	#	colors = 'gbrcym'*10
-	#	for i,k in enumerate(sections.keys()):
-	#		z1,z2 = sections[k]
-	#		#print("FILL",z1,z2)
-	#		plt.fill_between([z1,z2],[ylims[0],ylims[0]],[ylims[1],ylims[1]],color=colors[i],alpha=.1)
+	if sections is not None:
+		colors = 'gbrcym'*10
+		for i,k in enumerate(sections.keys()):
+			z1,z2 = sections[k]
+			#print("FILL",z1,z2)
+			plt.fill_between([z1,z2],[ylims[0],ylims[0]],[ylims[1],ylims[1]],color=colors[i],alpha=.1)
 
 	if xlims is not None:
 		plt.xlim(xlims)
@@ -63,7 +63,7 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 		return plt
 
 	#ax = plt.gca() ; axs=[ax]
-	fig = plt.gcf()
+	#fig = plt.gcf()
 	#axs[0].set_facecolor("black")  # inside area of plot --> black
 	#fig.set_facecolor("black")  # outside area of plot --> black
 	#for s in ["bottom", "top", "left", "right"]:  # border lines around plot --> white
@@ -79,7 +79,7 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 	#frame = leg.get_frame()
 	#frame.set_facecolor("black")  # inside area of legend --> black
 	#frame.set_edgecolor("white")  # legend border lines --> white
-	fig.set_size_inches((32,8))
+	#fig.set_size_inches((32,8))
 
 
 	# display or save
