@@ -412,8 +412,6 @@ class Quadrapole(Element):
 		#m = xp.eye(6)#[...,None]*xp.ones_like(s) # TWP 2025/08/27 - adding ones_like expression so m is 6x6x1, otherwise eigsum in propagate will fail
 		#m = xp.eye(4) # quadrupole updates xθ from x and yθ from y
 
-		if self.strength==0:
-			return fix_mat_dims(xp.eye(4),["x","xt","y","yt"])
 
 		K=self.strength
 		if self.calibration is not None:
@@ -424,6 +422,9 @@ class Quadrapole(Element):
 			else:
 				c,p = self.calibration
 				K = K**p * c
+
+		if K==0:
+			return fix_mat_dims(xp.eye(4),["x","xt","y","yt"])
 
 		if self.length==0:
 			print("using special")
@@ -436,7 +437,7 @@ class Quadrapole(Element):
 			#print("X",fix_mat_dims(X,["x","xt"]))
 			#print("Y",fix_mat_dims(X,["y","yt"]))
 		else:
-			kL=K*self.length ; L=self.length
+			kL=abs(K*self.length) ; L=self.length
 			C=xp.cos(kL) ; S=xp.sin(kL)
 			#print("K,L,C,S",K,L,C,S)
 			X=xp.asarray([[  C  , 1/K*S ],  # Brown1983 page 46, note the similarity to

@@ -13,12 +13,12 @@ from matplotlib.cm import plasma as cmap
 def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,returnObjectOnly=False,title=None):
 	plt.clf()
 	# add rays to plot, with a range of colors
-	linecolors=list( cmap(np.linspace(0,1,len(r1[0]))) )
+	linecolors=list( cmap(np.linspace(.2,.8,len(r1[0]))) )
 
 	# loop through rays
 	i,j=columnByName(axis),columnByName("z")
 	for ys,xs,c in zip( r1[:,:,i].T , r1[:,:,j].T , linecolors ):
-		plt.plot(xs,ys,linestyle="-",color=c,marker='')
+		plt.plot(xs,ys,linestyle="-",color=c,marker='',linewidth=3)
 
 	# add all image/diffraction planes
 	planes=findPlanes(r1,axes=axis) ; ct=0 ; zs=r1[:,0,j]
@@ -34,23 +34,23 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 			z=zFromFractional(zs,z)
 			label=imdiff+" @ z="+str(np.round(z,3))+"\n M="+str(np.round(m,3))
 			ls={"diff":"--","image":"-."}[imdiff]
-			plt.plot([z,z],ylims,linestyle=ls,color="k",marker='')
-			plt.annotate(label,(z,ylims[1]*ct/nplanes))
+			plt.plot([z,z],ylims,linestyle=ls,color="w",marker='',linewidth=3)
+			#plt.annotate(label,(z,ylims[1]*ct/nplanes))
 
 	# add arbitrary passed z positions
-	if len(zpts)>0:
-		for label in zpts.keys():
-			z=zpts[label] ; ct+=1
-			plt.plot([z,z],ylims,linestyle=":",color="k",marker='')
-			plt.annotate(label,(z,ylims[1]*ct/nplanes))
+	#if len(zpts)>0:
+	#	for label in zpts.keys():
+	#		z=zpts[label] ; ct+=1
+	#		plt.plot([z,z],ylims,linestyle=":",color="k",marker='')
+	#		plt.annotate(label,(z,ylims[1]*ct/nplanes))
 
 	# add shading for sections, if passed
-	if sections is not None:
-		colors = 'gbrcym'*10
-		for i,k in enumerate(sections.keys()):
-			z1,z2 = sections[k]
-			#print("FILL",z1,z2)
-			plt.fill_between([z1,z2],[ylims[0],ylims[0]],[ylims[1],ylims[1]],color=colors[i],alpha=.1)
+	#if sections is not None:
+	#	colors = 'gbrcym'*10
+	#	for i,k in enumerate(sections.keys()):
+	#		z1,z2 = sections[k]
+	#		#print("FILL",z1,z2)
+	#		plt.fill_between([z1,z2],[ylims[0],ylims[0]],[ylims[1],ylims[1]],color=colors[i],alpha=.1)
 
 	if xlims is not None:
 		plt.xlim(xlims)
@@ -62,9 +62,29 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 	if returnObjectOnly:
 		return plt
 
+	#ax = plt.gca() ; axs=[ax]
+	fig = plt.gcf()
+	#axs[0].set_facecolor("black")  # inside area of plot --> black
+	#fig.set_facecolor("black")  # outside area of plot --> black
+	#for s in ["bottom", "top", "left", "right"]:  # border lines around plot --> white
+	#	axs[0].spines[s].set_color("white")
+	#axs[0].xaxis.label.set_color("white")  # x axis label text --> white
+	#axs[0].tick_params(axis="x", colors="white")  # x axis tick marks --> white
+	#axs[0].yaxis.label.set_color("white")
+	#axs[0].tick_params(axis="y", colors="white")
+	#axs[0].title.set_color("white")
+	#leg = axs[0].legend()  # retreive legend from the axes
+	#for text in leg.get_texts():
+	#	text.set_color("white")  # each line of text on the legend --> white
+	#frame = leg.get_frame()
+	#frame.set_facecolor("black")  # inside area of legend --> black
+	#frame.set_edgecolor("white")  # legend border lines --> white
+	fig.set_size_inches((32,8))
+
+
 	# display or save
 	if filename is not None:
-		plt.savefig(filename)
+		plt.savefig(filename,transparent=True)
 	else:
 		plt.show()
 
@@ -722,11 +742,14 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 
 	# scipy.optimize.minimize: may fail to converge because of non-linearities in the parameter space
 	ranges=[[v*.5,v*1.5] for v in ivals ]
+	#ranges=[[v*.1,v*3] for v in ivals ]
+
 	x0=minimize(propagateAndCheck,x0=ivals,bounds=ranges,method='trust-constr')["x"] #,method='trust-constr',options={"finite_diff_rel_step":[.1]*len(vals),"xtol":1e-12})
 	return
 
 	# scipy.optimize.brute: should be better at finding global minima. also convenient for plotting heatmaps of the parameter space
 	ranges=[[v/4,v*2] for v in ivals ] # TODO WHAT SHOULD THESE BE? (user should probably be allowed to pass this, or we infer from the actual microscopy itself)
+	ranges=[[v*.1,v*5] for v in ivals ]
 	print("ranges",ranges)
 	# we will wrap scipy.optimize.minimize to use as brute's "polish" function
 	def mini(*args,**kwargs):	

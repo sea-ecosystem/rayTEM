@@ -109,6 +109,9 @@ class MicroscopeSection(SEASerializable):
 			else:
 				print("WARNING: unable to insert "+str(element)+" at "+str(index)+" (coordinate may be out of bounds, or non-drift element)")
 
+	def append(self,element):
+		self.insert(len(self.elements),element)
+
 	def __delitem__(self,item):
 		if isinstance(item,str):
 			item = self.index(item)
