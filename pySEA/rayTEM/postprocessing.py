@@ -18,7 +18,7 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 	# loop through rays
 	i,j=columnByName(axis),columnByName("z")
 	for ys,xs,c in zip( r1[:,:,i].T , r1[:,:,j].T , linecolors ):
-		plt.plot(xs,ys,linestyle="-",color=c,marker='',linewidth=3)
+		plt.plot(xs,ys,linestyle="-",color=c,marker='',linewidth=1)
 
 	# add all image/diffraction planes
 	planes=findPlanes(r1,axes=axis) ; ct=0 ; zs=r1[:,0,j]
@@ -34,8 +34,8 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 			z=zFromFractional(zs,z)
 			label=imdiff+" @ z="+str(np.round(z,3))+"\n M="+str(np.round(m,3))
 			ls={"diff":"--","image":"-."}[imdiff]
-			plt.plot([z,z],ylims,linestyle=ls,color="w",marker='',linewidth=3)
-			#plt.annotate(label,(z,ylims[1]*ct/nplanes))
+			plt.plot([z,z],ylims,linestyle=ls,color="k",marker='',linewidth=1)
+			plt.annotate(label,(z,ylims[1]*ct/nplanes))
 
 	# add arbitrary passed z positions
 	if len(zpts)>0:
@@ -46,11 +46,13 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 
 	# add shading for sections, if passed
 	if sections is not None:
-		colors = 'gbrcym'*10
+		colors = 'gbr'*10
 		for i,k in enumerate(sections.keys()):
 			z1,z2 = sections[k]
 			#print("FILL",z1,z2)
 			plt.fill_between([z1,z2],[ylims[0],ylims[0]],[ylims[1],ylims[1]],color=colors[i],alpha=.1)
+			plt.annotate(k,(z1,ylims[0]))
+
 
 	if xlims is not None:
 		plt.xlim(xlims)

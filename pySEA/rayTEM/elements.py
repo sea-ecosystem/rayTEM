@@ -24,12 +24,10 @@
 import numpy as xp
 flag_gpu = False
 import traceback
-from pandas import DataFrame
+#from pandas import DataFrame
 from warnings import warn
 
 from .seashells import SEASerializable
-
-from IPython.display import display # # TWP 2025/08/27 - adding import, required if not running inside IPython (e.g. outside of jupyter)
 
 # CONVENTION: TWP 2025/09/08 - adding a columnByName function. if we use this universally, we can easily add or remove elements to the matrix
 # [x,xθ,y,yθ,I,ϕ,E]
@@ -118,11 +116,21 @@ class Element(SEASerializable):
 			   'strength':self.strength,
 			   'calibration':self.calibration,
 			   }
-		if  self.print_fancy:
+		try:
+			from IPython.display import display # import required if running outside of jupyter
 			display(DataFrame({key:[value] for key, value in rep.items()}))
 			return ''
-		else:
-			return '\t'.join([f"{key}: {value}, " for key, value in rep.items()])
+		except:
+			h = [] ; s = []
+			for k,v in rep.items():
+				h.append(k)
+				if v is None:
+					v="[None]"
+				if isinstance(v,float):
+					v = xp.round(v,4)
+				s.append(str(v))
+			return "\t".join(h)+"\n"+"\t".join(s)
+			#return '\t'.join([f"{key}: {value}, " for key, value in rep.items()])
 	def __copy__(self):
 		return type(self)(self.name, self.strength,self.calibration, self.label)
 
@@ -531,9 +539,7 @@ class Lens(Element):
 		r"""Transfer matrix for ray propogation.
 		"""
 
-		if self.strength==0:
-			return fix_mat_dims(xp.eye(4),["x","xt","y","yt"])
-
+		# HANDLE CALIBRATION SCALING
 		K=self.strength
 		if self.calibration is not None:
 			# linear scaling from mA (lens current) to lens strength?
@@ -544,23 +550,32 @@ class Lens(Element):
 				c,p = self.calibration
 				K = K**p * c
 
+		# FINITE LENGTH LENS, ZERO STRENGTH = DRIFT (try inserting a zero-strength lens and seeing if the result changes)
+		if K==0:
+			m = xp.eye(4)
+			m[0,1]=self.length
+			m[2,3]=self.length
+			return fix_mat_dims(m,["x","xt","y","yt"])
+
+		# THIN LENS, NO ROTATION (thick lens math will have sine term going to zero)
 		if self.length==0:
 			X=xp.asarray([[    1   , 0 ],
 					     [ -(K**2) , 1 ]])
 			Y=xp.asarray([[    1   , 0 ],
 						 [ -(K**2) , 1 ]])
 			return xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
-		else:
-			kL=K*self.length ; iK=1/K
-			C=xp.cos(kL) ; S=xp.sin(kL)
-			XY=xp.asarray([[ C**2  , iK*S*C  ,   S*C  , iK*S**2 ],	# Brown1983 page 105
-						   [-K*S*C ,  C**2   ,-K*S**2 ,   S*C   ],	# similar to standard
-						   [ -S*C  ,-iK*S**2 ,   C**2 , iK*S*C  ],	# [  1   0 ] but with
-						   [ K*S**2,  -S*C   , -K*S*C ,  C**2   ]] )# [ -1/f 1 ] rotation
-			if not self.rotation:
-				zeroer=xp.asarray([[1,1,0,0],[1,1,0,0],[0,0,1,1],[0,0,1,1]])
-				XY*=zeroer
-			return fix_mat_dims(XY,["x","xt","y","yt"])
+
+		# THICK LENS, FINITE K (zero K will have iK going to infinite)
+		kL=K*self.length ; iK=1/K
+		C=xp.cos(kL) ; S=xp.sin(kL)
+		XY=xp.asarray([[ C**2  , iK*S*C  ,   S*C  , iK*S**2 ],	# Brown1983 page 105
+						[-K*S*C ,  C**2   ,-K*S**2 ,   S*C   ],	# similar to standard
+						[ -S*C  ,-iK*S**2 ,   C**2 , iK*S*C  ],	# [  1   0 ] but with
+						[ K*S**2,  -S*C   , -K*S*C ,  C**2   ]] )# [ -1/f 1 ] rotation
+		if not self.rotation:
+			zeroer=xp.asarray([[1,1,0,0],[1,1,0,0],[0,0,1,1],[0,0,1,1]])
+			XY*=zeroer
+		return fix_mat_dims(XY,["x","xt","y","yt"])
 
 class Prism(Element):
 	def __init__(self, name:str='', 

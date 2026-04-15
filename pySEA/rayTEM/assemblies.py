@@ -14,9 +14,8 @@ flag_gpu = False
 import pickle
 import sys
 
-from pandas import DataFrame
+#from pandas import DataFrame
 from .postprocessing import plot2D
-from IPython.display import display # # TWP 2025/08/27 - adding import, required if not running inside IPython (e.g. outside of jupyter)
 from .elements import Element,Source,Drift,Lens,columnByName
 from .seashells import SEASerializable
 
@@ -144,15 +143,23 @@ class MicroscopeSection(SEASerializable):
 		if self.elements is None:
 			return ''
 		else:
-			columns=['name', 'kind', 'position', 'length', 'strength', 'calibration']
-			reps = [[e.name, e.kind, e.position, e.length, e.strength, e.calibration] for e in self.elements]
-			
-			if  self.print_fancy:
+			columns=['kind', 'name', 'posit.', 'length', 'streng.', 'calibr.']
+			#reps = [ [e.kind, e.name, e.position, e.length, e.strength, e.calibration] for e in self.elements]
+			reps = []	# TWP 20260415 using loop instead of list comprehension, for sane conditional rounding of floats
+			for e in self.elements:
+				reps.append([])
+				for v in [e.kind, e.name, e.position, e.length, e.strength, e.calibration]:
+					if isinstance(v,float):
+						v=xp.round(v,5)
+					reps[-1].append(v)
+			try:
+				from IPython.display import display # import required if running outside of jupyter
 				#print('Section: '+self.name+" @ "+str(self.position)+", length="+str(self.length))
 				display(DataFrame(reps, columns=columns))
 				return ''
-			else:
-				return '\n'.join(['\t'.join([f"{key}: {value}, " for key,value in zip(columns,e)])for e in reps])
+			except:
+				rows = [ "\t".join(columns) ] + [ "\t".join([str(v) for v in rep ]) for rep in reps ]
+				return "\n".join(rows)
 
 	def __len__(self):
 		return len(self.elements)
@@ -292,15 +299,16 @@ class Microscope(SEASerializable):
 			return Microscope(name=self.name,sections=ret,ndim=self.ndim,print_fancy=self.print_fancy)
 
 	def __repr__(self) -> str:
+
 		strings = []
 		for s in self.sections:
 			header = "Section: "+s.name+" @ "+str(s.position)+" , length="+str(s.length)
-			if self.print_fancy:
-				print(header)
+			#if self.print_fancy:
+			#	print(header)
 			strings.append( header )
 			strings.append( s.__repr__() )
-		if self.print_fancy:
-			return ''
+		#if self.print_fancy:
+		#	return ''
 		return "\n".join(strings)
 
 	def propagate_ray(self, r0:xp.ndarray=None, z: float = None, verbose=False):
@@ -320,20 +328,37 @@ class Microscope(SEASerializable):
 		return self.rays
 
 	# TWP 2026-03-05 allow element insertion by coordinate ("add a lens midway through this drift section at z=etc"
-	def insert(self,index,element):
+	def insert(self,index,elementOrSection):
 		#print("microscope insertion",index,element)
-		for s in self.sections:
+		for i,s in enumerate(self.sections):
 			if s.position <= index < s.position+s.length:
-				#print("INSERT ELEMENT",element.name,"AT",index-s.position,"IN SECTION",s.name)
-				s.insert(index-s.position,element)
+				#print("INSERT ELEMENT",elementOrSection.name,"AT",index-s.position,"IN SECTION",s.name)
+				if isinstance(elementOrSection,MicroscopeSection):
+					elements = s.elements
+					l = s.length ; l1 = index-s.position				# | lens1 driiiiiift1 lens2 driiiiiift2 lens3 |
+					l2 = elementOrSection.length ; l3 = l-l1-l2			# | lens1 dr|l2l3|ft1 lens2 driiiiiift2 lens3 |
+					ele1 = [ e for e in elements if e.position < l1 ]	# s1 needs elements trimmed, new total len / last drift len
+					sec1 = s ; sec1.elements=ele1 ; sec1.length = l1 ; sec1[-1].length = l1-sec1[-1].position
+					sec2 = elementOrSection ; sec2.position = sec1.position+l1 # s2 needs position set
+					ele3 = [ e for e in elements if e.position > l1 ]	# s3 needs
+					for e in ele3:
+						e.position -= (l1+l2)
+					#print(ele3)
+					sec3 = MicroscopeSection(name="added",position=sec1.position+l1+l2,elements=ele3)
+					#sec3.insert(0,Drift(length=l3-sec3.length)) ; print(ele3,sec3.length)
+					self.sections[i]=sec1 ; self.sections.insert(i+1,sec2) ; self.sections.insert(i+2,sec3)
+					#print("original length",l,"split into",l1,l2,l3)
+					#print("new section lengths:",[ s.length for s in self.sections ])
+					break
+				s.insert(index-s.position,elementOrSection)
 				break
 		else: # TODO bug: if we insert a huge drift ("big enough to fill the space") it's just a huge drift. we should update the length based on the space it'll fit. either here, or in Section.insert.
 			s = self.sections[-1]
 			dz = index-(s.position+s.length)
 			s.insert( len(s.elements), Drift(length=dz,position=s.length) )
 			#print("APPENDING ELEMENT",element.name,"AT END OF",index-s.position,"IN SECTION",s.name)
-			element.position = index-s.position
-			s.insert( len(s.elements), element )
+			elementOrSection.position = index-s.position
+			s.insert( len(s.elements), elementOrSection )
 
 	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True):
 		if self.rays is None or regenerate:
