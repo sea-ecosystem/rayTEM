@@ -6,7 +6,9 @@
 
 import sys,os
 sys.path.insert(1,"../../../")
-from pySEA.rayTEM import Source,Lens,Drift,MicroscopeSection,Microscope,fix_ray_dims,plot2D,findPlanes,columnByName,load_microscope,load_section
+from pySEA.rayTEM import Source,Lens,Drift,Aperture,Quadrapole
+from pySEA.rayTEM import MicroscopeSection,Microscope
+from pySEA.rayTEM import fix_ray_dims,plot2D,findPlanes,columnByName,load_microscope,load_section
 import numpy as np
 
 # basic Drift/Lens/Drift/Lens/Drift configuration. Manually-defined input rays (one pair of axial and one pair of field rays)
@@ -29,6 +31,8 @@ def test_basic_section_r0():
 	Zi=ret['x']['image']['z'][0] ; Mi=ret['x']['image']['M'][0]
 	planes = np.asarray([Zd,Md,Zi,Mi])
 	planes_old = np.asarray([ 4.1993524879728845, 0.3779897737285624, 4.377429840313133, -0.33114434377184565 ])
+	print(section[1])
+	print(section)
 	assert np.sqrt(np.sum((planes-planes_old)**2)) < .0001
 #test_basic_section_r0()
 
@@ -46,6 +50,20 @@ def test_basic_section_wsource():
 	r1_old = np.load(filename)
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 #test_basic_section_wsource()
+
+# basic stack including Source, Drift, Lens, Aperture (TODO add additional elements as support is added)
+# test: resulting rays should always be identical (compare to numpy saved rays), plotting should work
+def test_every_element():
+	elements = [ Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)), Drift(length=1), Lens(strength=3,length=.1), Aperture(radius=2,position=5,name="VOA"),Quadrapole(strength=5,length=.1,position=6), Drift(length=1,name="detector",position=7)  ]
+	section = MicroscopeSection(elements=elements)
+	section.show(filename="elements_sections_microscopes_every_element.png")
+	r1 = section.propagate_ray()
+	filename = "elements_sections_microscopes_every_element.npy"
+	if not os.path.exists(filename):
+		np.save(filename,r1)
+	r1_old = np.load(filename)
+	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+#test_every_element()
 
 # basic two-section assembly: Drift/Lens/Drift/Lens/Drift + Lens/Drift. lens/drift lengths define element positions, section lengths, etc
 # test: resulting rays should always be identical (compare to numpy saved rays)
