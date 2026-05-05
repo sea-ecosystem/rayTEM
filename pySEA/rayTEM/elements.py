@@ -30,7 +30,7 @@ def fix_ray_dims(rays,columnNames):
 	return new
 
 class Element(SEASerializable):
-	def __init__(self, name:str='', kind:str=None ) -> object:
+	def __init__(self, name:str='', kind:str=None ) -> SEASerializable:
 		"""General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional attributed can be defined at the inheriting class level. e.g. a Lens has a "strength", but a Drift section does not.
 		Inheriting classes are required to define a transfer_matrix (enforced via abstractmethod), and *may* define a custom propagate_ray function if the standard "[ x₂ xθ₂ y₂ yθ₂ ....] = [7x7] @ [ x₁ xθ₁ y₁ yθ₁....]" is not applicable
 
@@ -135,7 +135,7 @@ class Source(Element):
 			np_xy:tuple=(3,3),		# number of grid points in x and y
 			angle:tuple=(1,1),		# angles in x,y (ranges of xt yt)
 			na_xy:tuple=(3,3),
-			position:float=None) -> object:
+			position:float=None) -> SEASerializable:
 		super().__init__(name=name, kind='Source')
 
 		self.size = size
@@ -185,7 +185,7 @@ class Aperture(Element):
 			The position of the element along the z-axis, by default 0
 		"""
 
-	def __init__(self, name:str='', radius:float=0., calibration:float=None, position:float=None) -> object:
+	def __init__(self, name:str='', radius:float=0., calibration:float=None, position:float=None) -> SEASerializable:
 		super().__init__(name=name, kind='Aperture')
 		self.position = position
 		self.radius = radius
@@ -242,7 +242,7 @@ class Drift(Element):
 		https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Free_space_example
 		"""
 
-	def __init__(self, name:str='', length:float=0., calibration:float=None, position:float=None) -> object:
+	def __init__(self, name:str='', length:float=0., calibration:float=None, position:float=None) -> SEASerializable:
 
 		super().__init__(name=name,kind='Drift')
 		self.position = position
@@ -269,7 +269,7 @@ class Drift(Element):
 class Quadrapole(Element):
 	def __init__(self, name:str='', 
 				 position:float=None, length:float=0.,
-				 strength:float=0, calibration:float=None) -> object:
+				 strength:float=0, calibration:float=None) -> SEASerializable:
 
 		"""Quadripole.
 
@@ -377,7 +377,7 @@ class Lens(Element):
 		"""
 	def __init__(self, name:str='', length:float=0.,
 				 strength:float=0, calibration:float=None,
-				 position:float=None, rotation:bool=False) -> object:
+				 position:float=None, rotation:bool=False) -> SEASerializable:
 		
 		if length == 0: kind = 'Thin lens'
 		else:		   kind = 'QLens'
@@ -447,7 +447,7 @@ class Prism(Element):
 	def __init__(self, name:str='', 
 				 position:float=None, length:float=0.,
 				 radius:float=None, angle:float=45., w:float=1., g:float=1., k1:float=0.,
-				strength:float=0, calibration:float=None) -> object:
+				strength:float=0, calibration:float=None) -> SEASerializable:
 		"""Prism.
 
 		Parameters

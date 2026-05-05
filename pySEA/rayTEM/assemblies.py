@@ -27,7 +27,7 @@ class MicroscopeSection(SEASerializable):
 
 	def __init__(self, name:str='',
 				 elements:ArrayLike=None, # list of Elements, or list of dicts
-				 position:float=0., ignoreLensThickness=False ) -> object:
+				 position:float=0., ignoreLensThickness=False ) -> SEASerializable:
 		self.name = name
 		#if isinstance(elements[0],dict):
 		#	self.elements = []
@@ -239,7 +239,7 @@ class Microscope(SEASerializable):
 		"""
 
 	def __init__(self, name:str='',
-				 sections:ArrayLike=None ) -> object:
+				 sections:ArrayLike=None ) -> SEASerializable:
 		self.name = name
 		self.sections = sections
 		self.rays = None
