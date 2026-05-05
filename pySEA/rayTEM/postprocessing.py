@@ -10,15 +10,18 @@ from matplotlib.cm import plasma as cmap
 
 
 # Basic 2D plotting (along z, and in whatever axis you have chosen)
-def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,returnObjectOnly=False,title=None):
-	plt.clf()
+def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,title=None,plt_ax=None):
+	if plt_ax is None:
+		fig,ax = plt.subplots()
+	else:
+		ax = plt_ax
 	# add rays to plot, with a range of colors
 	linecolors=list( cmap(np.linspace(0,1,len(r1[0]))) )
 
 	# loop through rays
 	i,j=columnByName(axis),columnByName("z")
 	for ys,xs,c in zip( r1[:,:,i].T , r1[:,:,j].T , linecolors ):
-		plt.plot(xs,ys,linestyle="-",color=c,marker='',linewidth=3)
+		ax.plot(xs,ys,linestyle="-",color=c,marker='',linewidth=1)
 
 	# add all image/diffraction planes
 	planes=findPlanes(r1,axes=axis) ; ct=0 ; zs=r1[:,0,j]
@@ -34,33 +37,36 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 			z=zFromFractional(zs,z)
 			label=imdiff+" @ z="+str(np.round(z,3))+"\n M="+str(np.round(m,3))
 			ls={"diff":"--","image":"-."}[imdiff]
-			plt.plot([z,z],ylims,linestyle=ls,color="w",marker='',linewidth=3)
-			#plt.annotate(label,(z,ylims[1]*ct/nplanes))
+			ax.plot([z,z],ylims,linestyle=ls,color="k",marker='',linewidth=1)
+			ax.annotate(label,(z,ylims[1]*ct/nplanes))
 
 	# add arbitrary passed z positions
 	if len(zpts)>0:
 		for label in zpts.keys():
 			z=zpts[label] ; ct+=1
-			plt.plot([z,z],ylims,linestyle=":",color="k",marker='')
-			plt.annotate(label,(z,ylims[1]*ct/nplanes))
+			ax.plot([z,z],ylims,linestyle=":",color="k",marker='')
+			ax.annotate(label,(z,ylims[1]*ct/nplanes))
 
 	# add shading for sections, if passed
 	if sections is not None:
-		colors = 'gbrcym'*10
+		colors = 'gbr'*10
 		for i,k in enumerate(sections.keys()):
 			z1,z2 = sections[k]
 			#print("FILL",z1,z2)
-			plt.fill_between([z1,z2],[ylims[0],ylims[0]],[ylims[1],ylims[1]],color=colors[i],alpha=.1)
+			ax.fill_between([z1,z2],[ylims[0],ylims[0]],[ylims[1],ylims[1]],color=colors[i],alpha=.1)
+			ax.annotate(k,(z1,ylims[0]))
 
 	if xlims is not None:
-		plt.xlim(xlims)
-	plt.ylim(ylims)
+		ax.set_xlim(xlims)
+	ax.set_ylim(ylims)
 
 	if title is not None:
-		plt.title(title)
+		ax.set_title(title)
 
-	if returnObjectOnly:
-		return plt
+	#if returnObjectOnly:
+	#	return ax
+	if plt_ax is not None:
+		return
 
 	#ax = plt.gca() ; axs=[ax]
 	#fig = plt.gcf()
@@ -84,7 +90,7 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 
 	# display or save
 	if filename is not None:
-		plt.savefig(filename,transparent=True)
+		ax.savefig(filename,transparent=True)
 	else:
 		plt.show()
 
@@ -599,6 +605,90 @@ def zFromFractional(zs,z): # e.g. 1.2 is 20% of the distance through element ind
 	i,di=int(z),z-int(z) # 1.2 --> i=1, and di=0.2
 	z0=zs[i] ; z1=zs[i+1]
 	return z0+(z1-z0)*di
+
+# TODO what's the "right" way to chain together a whole bunch of different criteria? sometimes i want to fit "multiple settings" (PL1=a1,PL2=b1,PL3=c1,PL4=d1, with a diffraction plane here, and a magnification of M1, and PL1=a2,PL2=b2,PL3=c2,PL4=d2 and magnification of M2, and so on, what are the calibrations for PL1 PL2 PL3 PL4?). sometimes i want to fit "multiple planes" (what values of PL1 and PL2 give me a diffraction plane here and an image plane there?) or "multiple criteria for a single plane" (what values of PL1 and PL2 give me a diffraction plane here with this magnification?).
+# I Think the answer is: a bunch of sub-functions for each criteria, then custom error functions for the chaining.
+# EXAMPLE 1: consider the case where I want "a crossover at the PL2 plane when PL1 is v2, a crossover at the PL3 plane when PL1 is v3, and a crossover at the PL4 plane when PL1 is v4, what is the calibration for PL1?", this can be done as follows, given the input dict PL1vals={"PL2":v2,"PL3":v3,"PL4":v4}
+# def dz(vals):
+#	microscope["PL1"].calibration = vals
+#	deltas = []
+#	for PL,v in PL1vals.items():
+#		settings = {"PL1":{"stregth":v},"PL2":{"stregth":0},"PL3":{"stregth":0},"PL4":{"stregth":0}}
+#		x = microscope["projector"].position+microscope[PL].position
+#		targets = {"image":x}
+#		deltas += error_dz( microscope, settings, targets )
+#	return np.sqrt( np.sum(np.asarray(deltas)**2))
+# then i simply call minimize(dz,guesses) etc
+# EXAMPLE 2: TODO
+
+def update_microscope_with_settings(microscope,settings):
+	for element in settings.keys():
+		for attribute,value in settings[element].items():
+			if not hasattr(microscope[element],attribute):
+				raise AttributeError("Attribute \""+attribute+"\" not found on "+str(type(microscope[element]))+" Element")
+			setattr(microscope[element],attribute,value)
+
+# given a Microscope object, a dict of lens parameters, and a dict of planes, detects nearest plane of the correct type, and return the delta in positions.
+def error_dz(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":5,"image":7}
+	# UPDATE ALL ELEMENTS SPECIFIED
+	update_microscope_with_settings(microscope,settings)
+	#microscope.show()
+	# PROPAGATE, DETECT PLANES
+	r1=microscope.propagate_ray()
+	planes = findPlanes(r1,"x")
+	# FOR EACH TARGET PLANE, FIND CLOSEST OF SAME TYPE, ERROR IS DELTA IN POSITION
+	deltas = []
+	for plane_type,z in targets.items():
+		zs = r1[:,0,columnByName("z")] 								# all positions of 0th ray
+		zps_fractional = planes["x"][ plane_type ]["z"]				# coordinates are nth-element, % distance between
+		if len(zps_fractional)==0:
+			deltas.append(1000) ; continue
+		zps_real = [ zFromFractional(zs,z) for z in zps_fractional ]
+		n=np.argmin( np.absolute(np.asarray(zps_real)-z) )	# find the index of the closest plane
+		deltas.append( zps_real[n]-z )
+	return deltas
+
+# given a Microscope object, a dict of lens parameters, and a dict of planes, detects nearest plane of the correct type, and return the delta in magnifications
+def error_magnification(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":{"z":5,"mag":10}}
+	# UPDATE ALL ELEMENTS SPECIFIED
+	update_microscope_with_settings(microscope,settings)
+	#microscope.show()
+	# PROPAGATE, DETECT PLANES
+	r1=microscope.propagate_ray()
+	planes = findPlanes(r1,"x")
+	# FOR EACH TARGET PLANE, FIND CLOSEST OF SAME TYPE, ERROR IS DELTA IN POSITION
+	deltas = []
+	for plane_type,zm in targets.items():
+		z=zm["z"] ; mag=zm["mag"]
+		zs = r1[:,0,columnByName("z")] 								# all positions of 0th ray
+		zps_fractional = planes["x"][ plane_type ]["z"]				# coordinates are nth-element, % distance between
+		zps_real = [ zFromFractional(zs,z) for z in zps_fractional ]
+		n=np.argmin( np.absolute(np.asarray(zps_real)-z) )	# find the index of the closest plane
+		deltas.append( planes['x'][ plane_type ]['M']-mag )
+	return deltas
+
+# given a Microscope object, a dict of lens parameters, and a list of positions, simply returns the beam diameter at each position
+def error_diameter(microscope,settings,targets,absolute=False): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a list of positions [5,7]
+	# UPDATE ALL ELEMENTS SPECIFIED
+	update_microscope_with_settings(microscope,settings)
+	# PROPAGATE, MEASURE BEAM
+	r1=microscope.propagate_ray()
+	diameters = []
+	for z in targets:
+		x,y,xt,yt = measureAtZ(z,rays=r1)
+		if absolute:
+			x=np.absolute(x)
+		diameters.append(x)
+	return diameters
+
+# given a Microscope object, a dict of lens parameters, and a list of positions, simply returns the outermost ray's angles at each position???
+#def error_angles(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a list of positions [5,7]
+
+
+# error function (passable to scipy.minimize et al). modifiable is a dict of keywords, {"PL1":"calibration"}, settings is a list of dicts of settings: {"PL1":{"strength":.475}}
+#def error_multisetting(microscope,modifiable=[],settings=[]):
+
+
 
 # Given the ability to 1) generate a section 2) propagate rays and 3) measure attributes of the propagated rays (e.g. location of planes and magnifications), we should be able to fit for variables (like lens strength) to achieve a desired result
 # Desired result may be: position of an image/diffraction plane, magnification at that plane, angles coming in, or unbounded desirables like "maximize the magnitude" or "minimize the lens currents"

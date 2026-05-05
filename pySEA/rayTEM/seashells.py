@@ -14,7 +14,8 @@ try:
 	sys.path.insert(1,"../../")
 	from pySEA.sea_eco.architecture.base_structure import SEASerializable as _SEASerializable
 	sea_available = True
-except:
+except Exception as e:
+	print(e)
 	pass
 
 if sea_available:

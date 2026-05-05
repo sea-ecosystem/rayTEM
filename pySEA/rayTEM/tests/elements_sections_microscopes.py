@@ -139,7 +139,7 @@ def test_basic_microscope_reload_sea():
 #	r1_old = np.load(filename)
 #	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 
-def test_insertion_microscope():
+def test_element_insertion_microscope():
 	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths.sea"
 	if not os.path.exists(filename):
 		print("ERROR: test_insertion_microscope requires test_basic_microscope_defined_by_lengths to run first")
@@ -154,4 +154,39 @@ def test_insertion_microscope():
 		assert 1==0
 	r1_old = np.load(filename)[-1,:,:]
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+
+def test_section_insertion_microscope():
+	ele1 = [ Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)),
+			 Lens(strength=1,length=.1,position=1), Lens(strength=1,length=.1,position=3) ] # lens at 1 and 3
+	ele2 = [ Lens(strength=1,length=.1,position=1) , Drift(name="CCD",length=1,position=3) ] # when placed at 4, yields a lens at 5 7
+	sec1 = MicroscopeSection( elements = ele1, name="sec1" )
+	sec2 = MicroscopeSection( elements = ele2, position=4, name="sec2" )
+	microscope = Microscope(sections = [ sec1, sec2 ])
+	#microscope.show()
+	print("OLD") ; print(microscope)
+	r1 = microscope.propagate_ray()
+	filename = "elements_sections_microscopes_section_insertion_microscope_rays.npy"
+	if not os.path.exists(filename):
+		np.save(filename,r1)
+
+	inserted_strength = 0
+	ele3 = [ Lens(strength=inserted_strength,length=.1,position=0,name="added 1") ,
+				Lens(strength=inserted_strength,length=.1,position=.25,name="added 2") ,
+					Lens(strength=inserted_strength,length=.1,position=0.5,name="added 3") ]
+	sec3 = MicroscopeSection( elements = ele3, name="newsec" )
+	microscope.insert(2.0,sec3)
+
+	print("NEW") ; print(microscope)
+	#microscope.show()
+	r1 = microscope.propagate_ray()
+
+	r1_old = np.load(filename)
+	#print(np.sqrt(np.sum((r1[-1]-r1_old[-1])**2)))
+	assert np.sqrt(np.sum((r1[-1]-r1_old[-1])**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+
+#test_section_insertion_microscope()
+
+
+
+
 
