@@ -1,53 +1,32 @@
-# DISCUSSION ON ROTATION: (TWP 2026-02-05)
-# See Brown1983 page 105, C=cos(K*L), S=sin(K*L)
-# [[ C**2  , iK*S*C  ,   S*C  , iK*S**2 ],
-#  [-K*S*C ,  C**2   ,-K*S**2 ,   S*C   ],
-#  [ -S*C  ,-iK*S**2 ,   C**2 , iK*S*C  ],
-#  [ K*S**2,  -S*C   , -K*S*C ,  C**2   ]]
-# which reduces to an identity matrix for L=0, C=1, S=0
-# yet the "thin lens" approximation is:
-#   1   0   0   0
-# -1/f  1   0   0
-#   0   0   1   0
-#   0   0 -1/f  1
-# consider the small angle approximation, S=linear K*L, C=1
-# focusing goes by K*S*C ~=~ K^2*L, and rotation goes by S*C ~=~ K*L
-# increasing K and decreasing L is thus able to maintain rotation while increasing focusing?
-# and there appears to be no way to make the the above "converge" to the thin lens solution
-# So what do we do when we'd like to, for example, fit for the length of a lens based on measured rotation of the image?
-# if we update the length of a lens, we need to update the length of the drift section behind it
-# using thin lenses only won't capture rotation
-# we can also exclude the thickness of the lens during propagation (and therefore, eliminate the need to include it in the subsequent drift)
-# passing "length=0" to Lens or Quadrapole will give rotation-free focusing (but inconsistent vs if a thickness were supplied, annoying)
-# passing "ignoreLensThickness=True" to MicroscopeSection will exclude lense thicknesses from the stack to avoid needing to update the drifts
-
 import numpy as xp
 flag_gpu = False
 import traceback
-#from pandas import DataFrame
 from warnings import warn
 from abc import abstractmethod
 
 from .seashells import SEASerializable
 
-# CONVENTION: TWP 2025/09/08 - adding a columnByName function. if we use this universally, we can easily add or remove elements to the matrix
-# [x,xθ,y,yθ,I,ϕ,E]
-def columnByName(name): # function 
+# CONVENTION: Rays are defined by positions laterally (x,y), angles (xt,yt, "t" for theta θ or tilt), position down column (z), intensities (I, e.g. when an aperture masks the beam and the overall intensity is reduced), and energy E
+# rays at a given position are 2D: a list up septuplets (grab the 'x' column to grab each ray's x position for example).
+# rays throughout the microscope are 3D: a list of the above.
+# currently, the columns are ordered: [x,xθ,y,yθ,I,ϕ,E]
+# but with the columnByName function used universally, additional columns can be added without every Element needing to be updated, and columns can be reordered arbitrarily.
+
+# given a keyword, return the column associated. r0[:,columnByName('x')] should return every ray's x position
+def columnByName(name):
 	return ["x","xt","y","yt","z","I","E"].index(name)
-
-# TWP 2025/09/08 - this also means we should have *one* fixer function instead of each element having a conform_ray_dims function?
-def fix_ray_dims(rays,columnNames):
-	new=xp.zeros((len(rays),7))
-	for i,name in enumerate(columnNames):
-		new[:,columnByName(name)]=rays[:,i]
-	return new
-
-# TWP 2025/09/08 - we can also have a fixer function for the matrices
+# given a transfer_matrix defined by a subset of columns (e.g. a 2x2 lens for focusing in x only) "inflate" out to 7x7 based on convention set by columnByName. [ x₂ θ₂ ] = [2x2] @ [ x₁ θ₁ ] (https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis) would become [ x₂ xθ₂ y₂ yθ₂ ....] = [7x7] @ [ x₁ xθ₁ y₁ yθ₁....]
 def fix_mat_dims(m,columnNames):
 	new=xp.eye(7)
 	for i,n1 in enumerate(columnNames):
 		for j,n2 in enumerate(columnNames):
 			new[columnByName(n1),columnByName(n2)]=m[i,j]
+	return new
+# similar to fix_mat_dims, but for rays
+def fix_ray_dims(rays,columnNames):
+	new=xp.zeros((len(rays),7))
+	for i,name in enumerate(columnNames):
+		new[:,columnByName(name)]=rays[:,i]
 	return new
 
 class Element(SEASerializable):

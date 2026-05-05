@@ -1,34 +1,13 @@
-# try:
-#	 import cupy as xp
-#	 flag_gpu = True
-#	 from cupy.typing import xp.ndarray
-# except:
-#	 import numpy as xp
-#	 flag_gpu = False
-#	 from numpy.typing import xp.ndarray
 import numpy as xp
 from numpy.typing import ArrayLike
 
 flag_gpu = False
-#from numpy.typing import xp.ndarray
 import pickle
 import sys
 
-#from pandas import DataFrame
 from .postprocessing import plot2D
 from .elements import Element,Source,Drift,Lens,columnByName
 from .seashells import SEASerializable
-
-# # TWP 2025/08/27 - varying indices for matrices is hectic. 
-# let's settle on a convention for things like: [whichZ,whichRay,[x,xθ,y,yθ,ϕ,E]]
-# here I have modified the "z" convention to "ϕ", since this is primary interest 
-# (what is the phase of the electron as a function of its distance travelled)
-# as opposed to "z" which is our distance down the column 
-# AND, I have swapped whichZ and whichRay. Why? feels weird to pass npts x 6 and get the
-# new axis *inserted* as npts x nzs x 6. plus, whichZ out front makes looping easier
-
-# TWP 2026/02/27 - should elements positions in sections (in microscopes) be referenced to the microscope, or to the section? if i have sections CL 0-100, OL 100-150, and PL 150-250, should the positions of PL1 be "160" because that's where it is in the column, OR, should it be "10" because that's where it is within the section, and section PL has position "150"?
-# execute decision: i'm going to say relative to the section. if i want to set up a PL section, and plop it on a "shorter" microscope (e.g PRIVATE_INSTRUMENT vs private_instrument?) then I want everything to stay the same for the PL section. then to calculate the position relative to the microscope, i simply add section.position+element.position
 
 class MicroscopeSection(SEASerializable):
 	""" 
@@ -126,7 +105,7 @@ class MicroscopeSection(SEASerializable):
 			item = slice(a,b,n)
 		ret = self.elements[item]
 		if isinstance(ret,list):
-			return MicroscopeSection(name=self.name,elements=ret,position=self.position,ndim=self.ndim,print_fancy=self.print_fancy)
+			return MicroscopeSection(name=self.name,elements=ret,position=self.position)
 		return ret
 
 	def __setitem__(self, item, value): # TWP 2026-02-04: allow setting by assembly name or index. sec1[0]=sec2[0] should work
@@ -215,13 +194,9 @@ class MicroscopeSection(SEASerializable):
 
 class Microscope(SEASerializable):
 	def __init__(self, name:str='',
-				 sections:ArrayLike=None,
-				 ndim:int=2,
-				 print_fancy:bool=True) -> object:
+				 sections:ArrayLike=None ) -> object:
 		self.name = name
 		self.sections = sections
-		self.ndim = ndim
-		self.print_fancy = print_fancy
 		self.rays = None
 		if self.sections is not None and len(self.sections)>1: # check if consecutive sections are correct length. if not, insert drift at tail of first one
 			for s,s2 in zip(self.sections[:-1],self.sections[1:]):
@@ -263,7 +238,7 @@ class Microscope(SEASerializable):
 				if isinstance(ret,int):			# microscope["PLs"] will find index of section, and return that section
 					return ret
 				if isinstance(ret,list):		# microscope["OLs":] will return list of sections OLs,DQCM,PLs, etc, so form into a new Microscope
-					return Microscope(name=self.name,sections=ret,ndim=self.ndim,print_fancy=self.print_fancy)
+					return Microscope(name=self.name,sections=ret)
 			# microscope["sample":] should return a Microscope containing the sections/elements starting at "sample". if section "OLs" contains "sample", the returned Microscope should contain OLs, plus subsequent sections (e.g. DQCM and PLs), and the OLs section should only contain elements from "sample" and beyond
 			a1,b1,n1 = [ v[0] if isinstance(v,tuple) else v for v in [a,b,n] ]
 			ret = self.sections[slice(a1,b1,n1)]	# trimmed list of sections
@@ -290,7 +265,7 @@ class Microscope(SEASerializable):
 			#	print("SECTION",i)
 			#	print(s)
 
-			return Microscope(name=self.name,sections=ret,ndim=self.ndim,print_fancy=self.print_fancy)
+			return Microscope(name=self.name,sections=ret)
 
 	def __repr__(self) -> str:
 
@@ -397,68 +372,6 @@ class Microscope(SEASerializable):
 	#	dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it technically has one
 	#	return Microscope(**dic)
 
-	"""
-	def to_sea(self,filename):
-		if Microscope_SEAS is None:
-			print("WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead")
-		else:
-			ms = self.as_seatype()
-			#print(ms.to_dict())
-			ms.to_sea(filename)
-
-	def as_seatype(self):
-		if Microscope_SEAS is None:
-			return self
-		return Microscope_SEAS(self)
-	"""
-
-"""
-sea_available = False
-try:
-	sys.path.insert(1,"../../")
-	from pySEA.sea_eco.architecture.base_structure import SEASerializable
-	sea_available = True
-except:
-	pass
-
-if sea_available:
-	class Microscope_SEAS(SEASerializable,Microscope):
-		def __init__(self,microscope=None):
-			if microscope is None:
-				return
-			for k,v in microscope.__dict__.items():
-				print("setattr(self,k,v)",k,v)
-				setattr(self,k,v)
-			# In order for SEASerializable.to_sea to work (and friends: to_dict, to_hdf5_group...), all lists must be either lists of values, or lists of SEASerializable objects too (not generic other objects like Section or Element). Names must also be unique since the names are used for hdf5 group names.
-			# Loop through Sections, converting each Section to a SEASerializable Section (Section_SEAS), and ensure each name is set.
-			sections = self.sections ; self.sections = []
-			for i,s in enumerate(sections):
-				if s.name is None or len(s.name)==0:
-					s.name = "None_"+str(i)
-				self.sections.append( Section_SEAS(s) )
-			# also make sure this Microscope object's name is set
-			if self.name is None or len(self.name)==0:
-				self.name="None"
-		#def propagate_ray(self,*args,**kwargs):
-		#	return super().propagate_ray(*args,**kwargs)
-	class Section_SEAS(SEASerializable,MicroscopeSection):
-		def __init__(self,section):
-			for k,v in section.__dict__.items():
-				setattr(self,k,v)
-			# Loop through Elements, converting each Element to a SEASerializable Element (Element_SEAS), and ensure each name is set.
-			elements = self.elements ; self.elements = []
-			for i,e in enumerate(elements):
-				if e.name is None or len(e.name)==0:
-					e.name = "None_"+str(i)
-				self.elements.append( Element_SEAS(e) )
-	class Element_SEAS(SEASerializable,Element):
-		def __init__(self,element):
-			for k,v in element.__dict__.items():
-				setattr(self,k,v)
-else:
-	Microscope_SEAS = None ; Section_SEAS = None; Element_SEAS = None
-"""
-
 def load_section(filename):
 	if ".sea" in filename:
 		loaded = MicroscopeSection()
@@ -525,21 +438,4 @@ def load_microscope(filename):
 	allowed_kwargs = inspect.signature(Microscope).parameters.keys()
 	jdict = { k:v for k,v in jdict.items() if k in allowed_kwargs }
 	return Microscope(sections = sections, **jdict)
-
-	#
-	#			jdict = {"Microscope name":self.name,"Sections":[]} | self.__dict__
-	#	del jdict["sections"],jdict["rays"]
-	#	for s in self.sections:
-	#		s_attrs = {"Section name":s.name,"position":s.position,"length":s.length,"Elements":[]} | s.__dict__
-	#		del s_attrs["elements"],s_attrs["rays"],s_attrs["name"]
-	#		for e in s.elements:
-	#			e_attrs = {"Element name":e.name,"kind":e.kind,"position":e.position,"length":e.length} | e.__dict__
-	#			del e_attrs["name"]
-	#			s_attrs["Elements"].append(e_attrs)
-	#		jdict["Sections"].append(s_attrs)
-	#	import json
-	#	with open(filename+'.json', 'w') as f:
-	#		json.dump(jdict, f,indent=4)
-	#
-	#	#with open(filename,"w") as fo:
 
