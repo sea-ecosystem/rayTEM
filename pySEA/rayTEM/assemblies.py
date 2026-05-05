@@ -10,14 +10,20 @@ from .elements import Element,Source,Drift,Lens,columnByName
 from .seashells import SEASerializable
 
 class MicroscopeSection(SEASerializable):
-	""" 
-	TODO: Document
+	"""MicroscopeSection class represents a portion of a microscope, and contains multiple Elements. propagation through a Section results in propagation through individual Elements.
 
-	To Do
-	-----
-	TODO: Remove pring_fancy.
-		Revert back to __repr__ returning a str and add a print_fancy function.
-	"""
+		Parameters
+		----------
+		name : str, optional
+			Name of the Section, by default ''
+		elements : list
+			ordered list of Element objects (or inheriting classes: Source, Drift, Lens, etc). each Element's "position" attribute is used to determine the position of the Element within the Section *OR* Drift Elements can be inserted to define the spacing. elements=[Source,Lens,Lens] (with each lens position defined) will insert Drifts as appropriate. elements=[Source,Drift,Lens,Drift,Lens] (without lens positions defined) will simply stack elements in order, with positions determined by all previous elements' thicknesses.
+		position : float, optional
+			The position of the Section along the z-axis, by default None
+		ignoreLensThickness : bool, optional
+			if set to True, all lenses are set to zero thickness??
+		"""
+
 	def __init__(self, name:str='',
 				 elements:ArrayLike=None, # list of Elements, or list of dicts
 				 position:float=0., ignoreLensThickness=False ) -> object:
@@ -119,8 +125,7 @@ class MicroscopeSection(SEASerializable):
 			return ''
 		else:
 			columns=['name', 'kind', 'position', 'length', 'strength', 'calibration']
-			#reps = [ [e.kind, e.name, e.position, e.length, e.strength, e.calibration] for e in self.elements]
-			reps = []	# TWP 20260415 using loop instead of list comprehension, for sane conditional rounding of floats
+			reps = []
 			for e in self.elements:
 				reps.append([])
 				values = [ getattr(e,c,"") for c in columns]
@@ -193,6 +198,16 @@ class MicroscopeSection(SEASerializable):
 
 
 class Microscope(SEASerializable):
+	"""Microscope class represents a whole microscope, and is comprised of multiple MicroscopeSections. propagation through a Microscope results in propagation through individual MicroscopeSections
+
+		Parameters
+		----------
+		name : str, optional
+			Name of the Section, by default ''
+		sections : list
+			ordered list of MicroscopeSection objects. each Sections "position" attribute is used to determine the position of the Section within the Microscope. sections=[Section1,Section2] will append Drifts to Sections appropriate to ensure spacing is correct.
+		"""
+
 	def __init__(self, name:str='',
 				 sections:ArrayLike=None ) -> object:
 		self.name = name
