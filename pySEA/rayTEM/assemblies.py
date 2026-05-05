@@ -41,17 +41,13 @@ class MicroscopeSection(SEASerializable):
 	"""
 	def __init__(self, name:str='',
 				 elements:ArrayLike=None, # list of Elements, or list of dicts
-				 position:float=0.,
-				 ndim:int=2,
-				 print_fancy:bool=True, ignoreLensThickness=False ) -> object:
+				 position:float=0., ignoreLensThickness=False ) -> object:
 		self.name = name
 		#if isinstance(elements[0],dict):
 		#	self.elements = []
 		#else:
 		self.elements = elements
 		self.position = position
-		self.ndim = ndim
-		self.print_fancy = print_fancy
 		self.ignoreLensThickness = ignoreLensThickness
 		self.rays = None
 		self.length = 0 #= self.position #xp.sum([e.length for e in self.elements])
@@ -143,23 +139,21 @@ class MicroscopeSection(SEASerializable):
 		if self.elements is None:
 			return ''
 		else:
-			columns=['kind', 'name', 'posit.', 'length', 'streng.', 'calibr.']
+			columns=['name', 'kind', 'position', 'length', 'strength', 'calibration']
 			#reps = [ [e.kind, e.name, e.position, e.length, e.strength, e.calibration] for e in self.elements]
 			reps = []	# TWP 20260415 using loop instead of list comprehension, for sane conditional rounding of floats
 			for e in self.elements:
 				reps.append([])
-				for v in [e.kind, e.name, e.position, e.length, e.strength, e.calibration]:
+				values = [ getattr(e,c,"") for c in columns]
+				for v in values:
 					if isinstance(v,float):
-						v=xp.round(v,5)
+						v=xp.round(v,7)
+					v=str(v) ; v=v+" "*(8-len(v)) ; v=v[:8]
 					reps[-1].append(v)
-			try:
-				from IPython.display import display # import required if running outside of jupyter
-				#print('Section: '+self.name+" @ "+str(self.position)+", length="+str(self.length))
-				display(DataFrame(reps, columns=columns))
-				return ''
-			except:
-				rows = [ "\t".join(columns) ] + [ "\t".join([str(v) for v in rep ]) for rep in reps ]
-				return "\n".join(rows)
+			columns = [c+" "*(8-len(c)) for c in columns ]
+			columns = [ c[:8] for c in columns ]
+			rows = [ " ".join(columns) ] + [ " ".join([str(v) for v in rep ]) for rep in reps ]
+			return "\n".join(rows)
 
 	def __len__(self):
 		return len(self.elements)

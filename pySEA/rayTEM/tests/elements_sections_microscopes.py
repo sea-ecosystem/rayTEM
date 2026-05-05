@@ -29,6 +29,8 @@ def test_basic_section_r0():
 	Zi=ret['x']['image']['z'][0] ; Mi=ret['x']['image']['M'][0]
 	planes = np.asarray([Zd,Md,Zi,Mi])
 	planes_old = np.asarray([ 4.1993524879728845, 0.3779897737285624, 4.377429840313133, -0.33114434377184565 ])
+	print(section[1])
+	print(section)
 	assert np.sqrt(np.sum((planes-planes_old)**2)) < .0001
 #test_basic_section_r0()
 

@@ -65,18 +65,21 @@ class Element(SEASerializable):
 		self.kind = kind
 
 	def __repr__(self) -> str:
-		rep = {'name':self.name,
-			   'kind':self.kind,
-			   }
+		whitelist = [ "name", "kind", "position", "length", "strength", "calibration" ]
+		rep = { k:getattr(self,k) for k in self.__dict__ if k in whitelist }
+		#rep = {'name':self.name,
+		#	   'kind':self.kind,
+		#	   }
 		h = [] ; s = []
 		for k,v in rep.items():
-			h.append(k)
+			h.append(k+" "*(8-len(k)))
 			if v is None:
 				v="[None]"
 			if isinstance(v,float):
-				v = xp.round(v,4)
-			s.append(str(v))
-		return "\t".join(h)+"\n"+"\t".join(s)
+				v = xp.round(v,7)
+			v=str(v) ; v=v+" "*(8-len(v)) ; v=v[:8]
+			s.append(v)
+		return " ".join(h)+"\n"+" ".join(s)
 
 	def __copy__(self):
 		return type(self)(self.name, self.kind)
@@ -128,7 +131,6 @@ class Source(Element):
 		self.na_xy = na_xy
 		self.position = position
 		self.length = 0
-		self.strength = 0
 		self.calibration = None
 
 	# Source term, initialize rays at sweep of angles and positions
