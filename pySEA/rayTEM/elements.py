@@ -26,6 +26,7 @@ flag_gpu = False
 import traceback
 #from pandas import DataFrame
 from warnings import warn
+from abc import abstractmethod
 
 from .seashells import SEASerializable
 
@@ -50,13 +51,7 @@ def fix_mat_dims(m,columnNames):
 	return new
 
 class Element(SEASerializable):
-	def __init__(self, name:str='',
-				 kind:str=None, poles:int=None,
-				 position:float=None, length:float=0., radius:float=0,
-				 strength:float=0, calibration:float=None, # TODO maybe calibration should be a taylor series: C1+C2*strength+C3*strength**2+..., supply as many terms as you want (since microscope has scale and offset too)
-				 ndim:int=2, chroma_dim:bool=False,
-				 label:bool=False, print_fancy:bool=True
-				 ) -> object:
+	def __init__(self, name:str='', kind:str=None ) -> object:
 		"""General microscope element class.
 
 		Parameters
@@ -65,144 +60,34 @@ class Element(SEASerializable):
 			Name given to the lens, by default ''
 		kind : str, optional
 			Type of element, by default None
-		poles : None, int, optional
-			Number of poles in the element.
-			Drift = 0
-			Dipole = 2
-			Quadropole = 4
-		position : float, optional
-			The position of the element along the z-axis, by default 0
-		length : int, optional
-			Length of the element, by default 0
-		strength : float, optional
-			Defined as the field strength (related to inverse focal length,
-			see equations in brown1983), by default 0
-		calibration : float, optional
-			Currnet calibration of the lens in units of ???/A, by default None
-		ndim : int, optional
-			The spatial dimensionality of the ray system perpendicular to propogation.
-			The first-order lens matrix will have axes with size 2*ndim, which acounts for the derivatives.
-			A 1D element without chromatic contributions will have `ndim=1`.
-			A 2D element without chromatic contributions will have `ndim=2`.
-		chroma_dim: bool, optional
-			Is there a chromatic dimension, by default False
-		label : bool, optional
-			If the element should be labeled when plotted, by default False
-		print_fancy : bool, optional
-			If a fancy table should be used when printed, by default True
-
 		"""
 		self.name = name
 		self.kind = kind
-		self.poles = poles
-		self.position = position
-		self.length = length
-		self.radius = radius
-		self.strength = strength
-		self.calibration = calibration
-		self.ndim = ndim
-		self.label = label
-		self.print_fancy = print_fancy
-
-	def kset(self,arg,val):
-		self.__dict__.update({arg:val})
-	def kget(self,arg):
-		return self.__dict__[arg]
 
 	def __repr__(self) -> str:
 		rep = {'name':self.name,
 			   'kind':self.kind,
-			   'length':self.length,
-			   'strength':self.strength,
-			   'calibration':self.calibration,
 			   }
-		try:
-			from IPython.display import display # import required if running outside of jupyter
-			display(DataFrame({key:[value] for key, value in rep.items()}))
-			return ''
-		except:
-			h = [] ; s = []
-			for k,v in rep.items():
-				h.append(k)
-				if v is None:
-					v="[None]"
-				if isinstance(v,float):
-					v = xp.round(v,4)
-				s.append(str(v))
-			return "\t".join(h)+"\n"+"\t".join(s)
-			#return '\t'.join([f"{key}: {value}, " for key, value in rep.items()])
+		h = [] ; s = []
+		for k,v in rep.items():
+			h.append(k)
+			if v is None:
+				v="[None]"
+			if isinstance(v,float):
+				v = xp.round(v,4)
+			s.append(str(v))
+		return "\t".join(h)+"\n"+"\t".join(s)
+
 	def __copy__(self):
-		return type(self)(self.name, self.strength,self.calibration, self.label)
+		return type(self)(self.name, self.kind)
 
-	def transfer_matrix(self,
-						 s:float,
-						 #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-						 ) -> xp.ndarray:
-		r"""Transfer matrix for ray propogation.
-		
-		The homogenous equaiton of motion approximation leads to a linear solution of $u"+k(s)u=0$ given as $u(s)=C(s)u_0+S(s)u_0', where s is the distance traveled (~z for small u').
-		For K>0 $C=cos(\sqrt{Ks})$ and $S=\frac{1}{\sqrt{K}} sin(\sqrt{Ks})$ and for K<0 $C=cosh(\sqrt{|K|s})$ and $S=\frac{1}{\sqrt{|K|}} sinh(\sqrt{|K|s})$.
-		The transfer matrix representation is then,
-		$$ 
-		T = \begin{matrix}
-			C & S\\
-			C' & S'
-			\end{matrix}
-		$$
-
-		To Do
-		-----
-		TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-			Might need to move the bulk of the current function to a hidden function (e.g. __transfer_matrix_hills(...)) then call the hidden transfer matrix options.
-		TODO: make the z initialization in propagate_ray or leave in here?
+	@abstractmethod # abstractmethod means a class which inherits Element will be required to define this function
+	def transfer_matrix(self) -> xp.ndarray:
+		r"""Transfer matrix for ray propogation: https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis
+		This will typically be defined in terms of ray position x,y, and ray angles xt,yt.
+		inheriting class only needs to define with the relevant parameters, then inflate using fix_mat_dims
 		"""
-		poles = self.poles
-		if poles is None:   raise ValueError('The number of poles is not set.')
-		elif poles%2 != 0:  raise ValueError(f'Only even number poles are allowed. The current element has {poles:d} poles.')
-		elif poles > 4:	 raise ValueError('Only multipoles with N<=4 are implemented (i.e. Quadropoles and lower).  The current element has {poles:d} poles.')
-		else:			   pass
-		
-		#sK = xp.sqrt(xp.abs(self.strength))
-
-		#Calculate transfer matrix.
-		m = xp.eye(self.ndim*2)
-		return m
-
-	"""
-	def conform_ray_dim(self, r0:xp.ndarray):
-		""Recast the input arrays so they conform to 2*ndim+2.
-
-		Parameters
-		----------
-		r0 : xp.ndarray
-			List of rays with possible initial conditions (x, θx, y, θy, E).
-			For 1D the (y, θy) coordinates are excluded.
-
-		Returns
-		-------
-		ndarray
-			Recast array.
-
-		Raises
-		------
-		ValueError
-			If the array can not be recase due to an incorrect length of rays.
-
-		To do
-		-----
-		#TODO: Have this as an external function or in a "Ray" class
-		""
-		print(r0.shape,self.ndim,r0.shape[-1],self.ndim*2+1,r0.shape[-1]==self.ndim*2+1)
-		if r0.shape[-1] == self.ndim*2+2:
-			return r0
-		elif r0.shape[-1] == self.ndim*2+1:
-			#return xp.insert(r0, [1], xp.zeros(r0.shape[0]))
-			return xp.insert(r0,-1,0,axis=1) # TWP 2025/08/27 - looks like we're trying to add a missing column, but what are the columns supposed to be? based on Lens, clearly 0,1,2,3 are x,angle,y,angle,but what are the last two?
-		elif r0.shape[-1] == self.ndim*2:
-			return xp.pad(r0, ((0,0), (0,2)), constant_values=0)
-		else:
-			raise ValueError(f'The last shape of the rays has size {r0.shape[-1]}, which can not be understood as ndim*2+(z, E), ndim*2+(E), or ndim*2')
-	"""
+		pass
 
 	def propagate_ray(self, r0:xp.ndarray,
 					  z:float=None, z0:float=0) -> xp.ndarray:
@@ -222,12 +107,10 @@ class Element(SEASerializable):
 		xp.ndarray
 			List of propagated rays with initial condition (x, θx, y, θy, z, E)
 		"""
-		m = self.transfer_matrix(s=self.length)
+		m = self.transfer_matrix()
 		rf = xp.einsum('mn,in->im', m, r0) # matrix multiplication for a "list of vectors"
 		rf[:,columnByName("z")] = r0[:,columnByName("z")]+self.length
-
 		return rf
-
 
 # Source element can be put in a MicroscopeSection and then propagating "through" the section will mean the starting rays r0 are generated by the Source (instead of requiring the user pass in starting rays)
 class Source(Element):
@@ -238,14 +121,13 @@ class Source(Element):
 			na_xy:tuple=(3,3),
 			position:float=None) -> object:
 
-		self.name = name
+		super().__init__(name=name, kind='Source')
 		self.size = size
 		self.np_xy = np_xy
 		self.angle = angle
 		self.na_xy = na_xy
 		self.position = position
 		self.length = 0
-		self.kind = "Source"
 		self.strength = 0
 		self.calibration = None
 
@@ -275,17 +157,14 @@ class Source(Element):
 class Aperture(Element):
 	def __init__(self, name:str='', 
 			 position:float=None, radius:float=0.,
-			 calibration:float=None,length:float=0,
-			 label:bool=False, print_fancy:bool=True) -> object:
-		super().__init__(name=name,
-						 kind='Aperture', poles=0,
-						 position=position, radius=radius,
-						 calibration=calibration, length=length,
-						 label=label, print_fancy=print_fancy)
-	def transfer_matrix(self,
-						 s:float
-						 #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-						 ) -> xp.ndarray:
+			 calibration:float=None,length:float=0) -> object:
+
+		super().__init__(name=name, kind='Aperture')
+		self.position = position
+		self.radius = radius
+		self.calibration = calibration
+
+	def transfer_matrix(self) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		"""
 		#print("WARNING: APERTURE",self.name,"TRANSFER MATRIX CALLED")
@@ -315,55 +194,29 @@ class Aperture(Element):
 		rf[:,columnByName("y")]*=scale_y
 		rf[:,columnByName("yt")]*=scale_y
 		rf[:,columnByName("I")]*=scale_x*scale_y
-		#try:
-		#dafgsdg
-		#except Exception as e:
-		#	print(traceback.print_exc())
 		return rf
 
 
 class Drift(Element):
 	def __init__(self, name:str='', 
 				 position:float=None, length:float=0.,
-				 calibration:float=None,
-				 label:bool=False, print_fancy:bool=True) -> object:
-		"""Quadripole.
+				 calibration:float=None) -> object:
 
-		Parameters
-		----------
-		name : str, optional
-			Name given to the lens, by default ''
-		position : float, optional
-			The position of the element along the z-axis, by default 0
-		length : int, optional
-			Length of the element, by default 0
-		calibration : float, optional
-			Currnet calibration of the lens in units of ???/A, by default None
-		label : bool, optional
-			If the element should be labeled when plotted, by default False
-		print_fancy : bool, optional
-			If a fancy table should be used when printed, by default True
-		"""
-		
-		super().__init__(name=name,
-						 kind='Drift', poles=0,
-						 position=position, length=length,
-						 calibration=calibration,
-						 label=label, print_fancy=print_fancy)
-	def transfer_matrix(self,
-						 s:float
-						 #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-						 ) -> xp.ndarray:
-		r"""Transfer matrix for ray propogation.
-		"""
-		
-		#m = xp.eye(6)#[...,None]*xp.ones_like(s)
+		super().__init__(name=name,kind='Drift')
+		self.position = position
+		self.length = length
+		self.calibration = calibration
+
+	def transfer_matrix(self) -> xp.ndarray:
+
 		m = xp.eye(4) # drift tube updates x from xθ and y from yθ
+
+		s = self.length
 
 		if self.calibration is not None:
 			s *= self.calibration
 
-		if self.length != 0:
+		if s != 0:
 			m[0,1] = s
 			m[2,3] = s
 		elif self.length == 0:
@@ -374,8 +227,8 @@ class Drift(Element):
 class Quadrapole(Element):
 	def __init__(self, name:str='', 
 				 position:float=None, length:float=0.,
-				 strength:float=0, calibration:float=None,
-				 label:bool=False, print_fancy:bool=True) -> object:
+				 strength:float=0, calibration:float=None) -> object:
+
 		"""Quadripole.
 
 		Parameters
@@ -399,15 +252,14 @@ class Quadrapole(Element):
 		
 		if length == 0: kind = 'Thin quad'
 		else:		   kind = 'Quad'
-		super().__init__(name=name,
-						 kind=kind, poles=4,
-						 position=position, length=length, 
-						 strength=strength, calibration=calibration,
-						 label=label, print_fancy=print_fancy)
-	def transfer_matrix(self,
-						 s:float
-						 #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-						 ) -> xp.ndarray:
+
+		super().__init__(name=name,kind=kind)
+		self.position = position
+		self.length = length
+		self.strength = strength
+		self.calibration = calibration
+
+	def transfer_matrix(self) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		
 		The homogenous equaiton of motion approximation leads to a linear solution of $u"+k(s)u=0$ given as $u(s)=C(s)u_0+S(s)u_0', where s is the distance traveled (~z for small u').
@@ -419,7 +271,6 @@ class Quadrapole(Element):
 		
 		#m = xp.eye(6)#[...,None]*xp.ones_like(s) # TWP 2025/08/27 - adding ones_like expression so m is 6x6x1, otherwise eigsum in propagate will fail
 		#m = xp.eye(4) # quadrupole updates xθ from x and yθ from y
-
 
 		K=self.strength
 		if self.calibration is not None:
@@ -462,80 +313,23 @@ class Quadrapole(Element):
 		#print("QUAD",m,self.strength,K,self.calibration,self.length)
 		return m
 		
-		#if self.length != 0:
-		#	sK = xp.sqrt(xp.abs(self.strength))
-		#	#get trig functions for transfer matrix
-		#	C = xp.cos(sK*s)
-		#	S = 1/sK * xp.sin(sK*s)
-		#	dC = -sK * xp.sin(sK*s)
-		#	dS = C
-		#	trig = xp.array([[C ,  S],
-		#					 [dC, dS]])
-		#	Ch = xp.cosh(sK*s)
-		#	Sh = 1/sK * xp.sinh(sK*s)
-		#	dCh =  sK * xp.sinh(sK*s)
-		#	dSh = Ch
-		#	trigh = xp.array([[Ch ,  Sh],
-		#					  [dCh, dSh]])
-		#	if self.strength>0: #focusing, trig funcitons
-		#		m[:2, :2] = trig
-		#		m[2:4,2:4] = trigh
-		#	elif self.strength<0: #defocusing, hyperbolic trig functions
-		#		m[:2, :2] = trigh
-		#		m[2:4,2:4] = trig
-		#	else: #drift
-		#		m = Drift.transfer_matrix(s)
-		#elif self.length == 0:
-		#	f = self.strength
-		#	if self.strength>0:
-		#		m[1,0] = -1/f
-		#		m[3,2] = 1/f
-		#	elif self.strength>0:
-		#		m[1,0] = 1/f
-		#		m[3,2] = -1/f
-		#	else: #off
-		#		pass
-		#
-		#return fix_mat_dims(m,["x","xt","y","yt"])
 
 class Lens(Element):
 	def __init__(self, name:str='', 
 				 position:float=None, length:float=0.,
-				 strength:float=0, calibration:float=None,
-				 label:bool=False, print_fancy:bool=True, rotation:bool=False) -> object:
-		"""Quadripole.
-
-		Parameters
-		----------
-		name : str, optional
-			Name given to the lens, by default ''
-		position : float, optional
-			The position of the element along the z-axis, by default 0
-		length : int, optional
-			Length of the element, by default 0
-		strength : float, optional
-			Defined as the field strength (related to inverse focal length,
-			see equations in brown1983), by default 0
-		calibration : float, optional
-			Currnet calibration of the lens in units of ???/A, by default None
-		label : bool, optional
-			If the element should be labeled when plotted, by default False
-		print_fancy : bool, optional
-			If a fancy table should be used when printed, by default True
-		"""
+				 strength:float=0, calibration:float=None, rotation:bool=False) -> object:
 		
 		if length == 0: kind = 'Thin lens'
 		else:		   kind = 'QLens'
-		super().__init__(name=name,
-						 kind=kind, poles=None,
-						 position=position, length=length, 
-						 strength=strength, calibration=calibration,
-						 label=label, print_fancy=print_fancy)
+
+		super().__init__(name=name,kind=kind)
+		self.position = position
+		self.length = length
+		self.strength = strength
+		self.calibration = calibration
 		self.rotation = rotation
-	def transfer_matrix(self,
-						 s:float
-						 #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-						 ) -> xp.ndarray:
+
+	def transfer_matrix(self) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		"""
 
@@ -553,7 +347,6 @@ class Lens(Element):
 				# A + B*x^(1/1) + C*x^(1/2) + D*x^(1/3) + ....
 				Kvals = [self.calibration[0]] + [ v*K**(1/(i+1)) for i,v in enumerate(self.calibration[1:]) ]
 				K = sum( Kvals ) ; print(self.calibration,self.strength,Kvals)
-
 				#K = sum( [self.calibration[0]] + [ v*K**(1/(i+1)) for i,v in enumerate(self.calibration[1:]) ] )
 				#c,p = self.calibration
 				# A + B*x**C + D*x**E + ...
@@ -594,8 +387,7 @@ class Prism(Element):
 	def __init__(self, name:str='', 
 				 position:float=None, length:float=0.,
 				 radius:float=None, angle:float=45., w:float=1., g:float=1., k1:float=0.,
-				strength:float=0, calibration:float=None,
-				 label:bool=False, print_fancy:bool=True) -> object:
+				strength:float=0, calibration:float=None) -> object:
 		"""Prism.
 
 		Parameters
@@ -635,11 +427,11 @@ class Prism(Element):
 		else:
 			raise ValueError('Either radius or length need to be specified.')
 
-		super().__init__(name=name,
-						 kind='Prism', poles=2,
-						 position=position, length=length,
-						 strength=strength, calibration=calibration,
-						 label=label, print_fancy=print_fancy)
+		super().__init__(name=name,kind='Prism')
+		self.position = position
+		self.length = length
+		self.strength = strength
+		self.calibration = calibration
 		self.radius = radius
 		self.w = w
 		self.g = g
@@ -683,18 +475,14 @@ class Prism(Element):
 
 		return fix_mat_dims(m,["x","xt","y","yt","z","E"])
 		
-	def transfer_matrix(self,
-						 s:float,
-						 #type='Hills' TODO: Add `type` in paramaters to describe the type of transfer matrix. Hill's, Twiss, etc.
-						 ) -> xp.ndarray:
+	def transfer_matrix(self) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		"""
 		
 		m_focus1 = self.focus_matrix()
-		m_bend   = self.bending_matrix(s)
+		m_bend   = self.bending_matrix(self.strength)
 		m_focus2 = self.focus_matrix()
 
 		m = m_focus2 @ m_bend @ m_focus1
 
 		return fix_mat_dims(m,["x","xt","y","yt","z","E"])
-
