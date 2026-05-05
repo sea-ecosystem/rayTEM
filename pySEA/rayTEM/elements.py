@@ -117,20 +117,23 @@ class Source(Element):
 			The position of the element along the z-axis, by default 0
 		"""
 
-	def __init__(self, name:str='',
+	def __init__(self, name:str=None,
 			size:tuple=(2e-3,2e-3), # size in x and y (square grid)
 			np_xy:tuple=(3,3),		# number of grid points in x and y
 			angle:tuple=(1,1),		# angles in x,y (ranges of xt yt)
 			na_xy:tuple=(3,3),
-			position:float=0) -> object:
+			position:float=None) -> object:
 
-		super().__init__(name=name, kind='Source')
+		self.name = name
 		self.size = size
 		self.np_xy = np_xy
 		self.angle = angle
 		self.na_xy = na_xy
 		self.position = position
 		self.length = 0
+		self.kind = "Source"
+		self.strength = 0
+		self.calibration = None
 
 	# Source term, initialize rays at sweep of angles and positions
 	def rays(self):

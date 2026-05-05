@@ -1,5 +1,6 @@
 import numpy as xp
 from numpy.typing import ArrayLike
+from typing import List
 
 flag_gpu = False
 import pickle
@@ -92,6 +93,9 @@ class MicroscopeSection(SEASerializable):
 	def append(self,element):
 		self.insert(len(self.elements),element)
 
+	#####################################
+    # region: Dunders
+	
 	def __delitem__(self,item):
 		if isinstance(item,str):
 			item = self.index(item)
@@ -142,13 +146,71 @@ class MicroscopeSection(SEASerializable):
 	def __len__(self):
 		return len(self.elements)
 
+
+	# endregion
+    #####################################
+
+	#####################################
+    # region: SEASerializable integration
+
+	def _get_tree_html(self, recursive_level: List[str] = 0, 
+					   exclude_keys: List[str] = ['rays'], 
+                       exclude_hidden: bool = True,
+                       exclude_properties:bool = False,
+                       promote_itterable_keys: List[str] = ['elements']
+                       ) -> str:
+		return super()._get_tree_html(recursive_level, 
+                                     exclude_keys=exclude_keys, 
+                                     exclude_hidden=exclude_hidden,
+                                     exclude_properties=exclude_properties,
+                                     promote_itterable_keys=promote_itterable_keys
+                                     )
+
+    # endregion
+    #####################################
+
+	# given a string for an element name, return the index of that element
+	def index(self,item):
+		names = [ e.name for e in self.elements ]
+		return names.index(item)
+
+	# TWP 2026-02-05 allow element insertion by index OR coordinate ("add a lens midway through this drift section at z=etc")
+	def insert(self,index,element): # TODO bug: if we insert a huge drift ("big enough to fill the space") it's just a huge drift. we should update the length based on the space it'll fit. either here, or in Section.insert.
+		if isinstance(index,int):				# basic list insertion: section.insert(0,newsurce) places newsource at the beginning
+			if index == len(self.elements):
+				self.length+=element.length
+			self.elements.insert(index,element)
+		else:									# coordinate-based insertion: section.insert(25.0,newlens) places newlens in drift that spans 25.0
+			for i,ele in enumerate(self.elements): # "looking for element spanning 25.0: 5th element is a Drift which goes from 21.0 to 30.0"
+				if ele.position<=index and ele.position+ele.length>=index and ele.kind=="Drift":
+					#print("INSERTING ELEMENT",element.name,"AT",index,"(",ele.position,ele.length,")","AT POSITION",i)
+					elementlength=0 if self.ignoreLensThickness else element.length
+					l1=index-ele.position ; l2=ele.length-elementlength-l1 # "this drift needs to be length 4.0, and we'll need another drift after the insertion"
+					#print("PRE DRIFT",l1,"+ ELEMENT",element.length,"+ POST DRIFT",l2,"=",ele.length)
+					self.elements[i].length=l1			# "shorten" initial drift
+					element.position = index			# update new element's position
+					self.elements.insert(i+1,element)	# add new element
+					if l2>0:							# add following drift
+						self.elements.insert(i+2,Drift(length=l2,position=index+elementlength))
+					if l1==0:							# possible drift1 is length zero, so delete it
+						del self.elements[i]
+					break
+			else:
+				print("WARNING: unable to insert "+str(element)+" at "+str(index)+" (coordinate may be out of bounds, or non-drift element)")
+
+	def append(self,element):
+		self.insert(len(self.elements),element)
+
 	# returns nthElement,nthRay,xythetaetc
 	def propagate_ray(self, r0:xp.ndarray=None,
 					   z: float = None, 
 					   verbose=False):
 		#print("Section r0",r0)
 		if r0 is None:
-			r0 = self.elements[0].rays()
+			if isinstance(self.elements[0], Source):
+				r0 = self.elements[0].rays_from_grid()
+			else:
+				raise UserWarning("First element is not a Source, and no r0 provided to propagate_ray. Please provide initial rays or ensure first element is a Source.")
 		ri=[r0]
 		for i,ele in enumerate(self.elements):
 			if verbose:
@@ -178,7 +240,7 @@ class MicroscopeSection(SEASerializable):
 
 	@property
 	def labels(self):
-		return { e.name:e.position for e in self.elements if e.name is not None }
+		return { e.name:f'{e.position:.2f}' for e in self.elements if e.name is not None }
 
 	def save(self,filename):
 		with open(filename+".pkl",'wb') as f:
@@ -234,6 +296,9 @@ class Microscope(SEASerializable):
 			if item in names:
 				return (i,names.index(item))
 
+	################
+    # region: Dunder
+	
 	def __getitem__(self, item):
 		# string passed (e.g., name of section or element), "PL1" or "PLs", convert to indices
 		if isinstance(item,str):
@@ -294,6 +359,28 @@ class Microscope(SEASerializable):
 		#if self.print_fancy:
 		#	return ''
 		return "\n".join(strings)
+
+	# endregion
+    ################
+
+	#####################################
+    # region: SEASerializable integration
+
+	def _get_tree_html(self, recursive_level: List[str] = 0, 
+					   exclude_keys: List[str] = ['rays', 'labels'], 
+                       exclude_hidden: bool = True,
+                       exclude_properties:bool = False,
+                       promote_itterable_keys: List[str] = ['sections']
+                       ) -> str:
+		return super()._get_tree_html(recursive_level, 
+                                     exclude_keys=exclude_keys, 
+                                     exclude_hidden=exclude_hidden,
+                                     exclude_properties=exclude_properties,
+                                     promote_itterable_keys=promote_itterable_keys
+                                     )
+
+    # endregion
+    #####################################
 
 	def propagate_ray(self, r0:xp.ndarray=None, z: float = None, verbose=False):
 		r=r0 #; print("Microscope r0",r0)# starting rays (optional) to be fed into section.propagate
