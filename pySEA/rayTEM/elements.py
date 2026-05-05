@@ -44,6 +44,9 @@ class Element(SEASerializable):
 		self.name = name
 		self.kind = kind
 
+	#####################################
+    # region: Dunders
+
 	# print function: look for specific attributes on inheriting class object, and display as columns
 	def __repr__(self,header=True) -> str:
 		whitelist = [ "name", "kind", "position", "length", "strength", "calibration" ]
@@ -63,9 +66,19 @@ class Element(SEASerializable):
 		if header:
 			return " ".join(h)+"\n"+" ".join(s)
 		return " ".join(s)
+	
+	def __str__(self):
+		if self.name is None or self.name=='': name = 'Unnamed'
+		else: name = self.name
+		if self.kind is None: kind = 'Unkown'
+		else: kind = self.kind
+		return f'{name} ({kind} Element)'
 
 	def __copy__(self):
 		return type(self)(self.name, self.kind)
+
+	# endregion
+	#####################################
 
 	@abstractmethod # abstractmethod means a class which inherits Element will be required to define this function
 	def transfer_matrix(self) -> xp.ndarray:
@@ -123,15 +136,14 @@ class Source(Element):
 			angle:tuple=(1,1),		# angles in x,y (ranges of xt yt)
 			na_xy:tuple=(3,3),
 			position:float=None) -> object:
+		super().__init__(name=name, kind='Source')
 
-		self.name = name
 		self.size = size
 		self.np_xy = np_xy
 		self.angle = angle
 		self.na_xy = na_xy
 		self.position = position
 		self.length = 0
-		self.kind = "Source"
 		self.strength = 0
 		self.calibration = None
 

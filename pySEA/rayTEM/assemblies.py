@@ -61,38 +61,6 @@ class MicroscopeSection(SEASerializable):
 			self.length += getattr(ele,"length",0)
 		self.elements = new
 
-	# given a string for an element name, return the index of that element
-	def index(self,item):
-		names = [ e.name for e in self.elements ]
-		return names.index(item)
-
-	# TWP 2026-02-05 allow element insertion by index OR coordinate ("add a lens midway through this drift section at z=etc")
-	def insert(self,index,element): # TODO bug: if we insert a huge drift ("big enough to fill the space") it's just a huge drift. we should update the length based on the space it'll fit. either here, or in Section.insert.
-		if isinstance(index,int):				# basic list insertion: section.insert(0,newsurce) places newsource at the beginning
-			if index == len(self.elements):
-				self.length += getattr(element,"length",0)
-			self.elements.insert(index,element)
-		else:									# coordinate-based insertion: section.insert(25.0,newlens) places newlens in drift that spans 25.0
-			for i,ele in enumerate(self.elements): # "looking for element spanning 25.0: 5th element is a Drift which goes from 21.0 to 30.0"
-				if ele.position<=index and ele.position+getattr(ele,"length",0)>=index and ele.kind=="Drift":
-					#print("INSERTING ELEMENT",element.name,"AT",index,"(",ele.position,ele.length,")","AT POSITION",i)
-					elementlength=0 if self.ignoreLensThickness else getattr(element,"length",0)
-					l1=index-ele.position ; l2=ele.length-elementlength-l1 # "this drift needs to be length 4.0, and we'll need another drift after the insertion"
-					#print("PRE DRIFT",l1,"+ ELEMENT",element.length,"+ POST DRIFT",l2,"=",ele.length)
-					self.elements[i].length=l1			# "shorten" initial drift
-					element.position = index			# update new element's position
-					self.elements.insert(i+1,element)	# add new element
-					if l2>0:							# add following drift
-						self.elements.insert(i+2,Drift(length=l2,position=index+elementlength))
-					if l1==0:							# possible drift1 is length zero, so delete it
-						del self.elements[i]
-					break
-			else:
-				print("WARNING: unable to insert "+str(element)+" at "+str(index)+" (coordinate may be out of bounds, or non-drift element)")
-
-	def append(self,element):
-		self.insert(len(self.elements),element)
-
 	#####################################
     # region: Dunders
 	
@@ -201,6 +169,19 @@ class MicroscopeSection(SEASerializable):
 	def append(self,element):
 		self.insert(len(self.elements),element)
 
+	def wobble(self,r0,elementIndex,func,kwargName,valRange,numSteps):
+		vals=xp.linspace(valRange[0],valRange[1],numSteps)
+		results=[]
+		for v in vals:
+			self.elements[elementIndex]=func(**{kwargName:v})
+			rf=self.propagate_ray(r0)
+			results.append(rf[-1,:,:]) # indices are: point in scope, which ray, which value (x,xt,y,yt...)
+		return results
+
+	@property
+	def labels(self):
+		return { e.name:f'{e.position}' for e in self.elements if e.name is not None }
+
 	# returns nthElement,nthRay,xythetaetc
 	def propagate_ray(self, r0:xp.ndarray=None,
 					   z: float = None, 
@@ -208,7 +189,7 @@ class MicroscopeSection(SEASerializable):
 		#print("Section r0",r0)
 		if r0 is None:
 			if isinstance(self.elements[0], Source):
-				r0 = self.elements[0].rays_from_grid()
+				r0 = self.elements[0].rays()
 			else:
 				raise UserWarning("First element is not a Source, and no r0 provided to propagate_ray. Please provide initial rays or ensure first element is a Source.")
 		ri=[r0]
@@ -229,27 +210,14 @@ class MicroscopeSection(SEASerializable):
 		#ri = xp.append(r0[:,None,:], ri, axis=1)
 		#return ri
 
-	def wobble(self,r0,elementIndex,func,kwargName,valRange,numSteps):
-		vals=xp.linspace(valRange[0],valRange[1],numSteps)
-		results=[]
-		for v in vals:
-			self.elements[elementIndex]=func(**{kwargName:v})
-			rf=self.propagate_ray(r0)
-			results.append(rf[-1,:,:]) # indices are: point in scope, which ray, which value (x,xt,y,yt...)
-		return results
-
-	@property
-	def labels(self):
-		return { e.name:f'{e.position:.2f}' for e in self.elements if e.name is not None }
-
-	def save(self,filename):
-		with open(filename+".pkl",'wb') as f:
-			pickle.dump(self,f)
-
 	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True):
 		if self.rays is None or regenerate:
 			r1 = self.propagate_ray()
 		plot2D(self.rays,zpts = self.labels, filename=filename ,title=title, ylims=ylims,xlims=zlims)
+
+	def save(self,filename):
+		with open(filename+".pkl",'wb') as f:
+			pickle.dump(self,f)
 
 	#def copy(self):
 	#	elements = [ e.copy() for e in self.elements ]
@@ -282,19 +250,6 @@ class Microscope(SEASerializable):
 					s.insert( len(s.elements) , Drift(position = s.length, length = dz ) )
 				if s2.position==0:
 					s2.position = s.position+s.length
-
-	# given a string for an element name, return the index of that element
-	def index(self,item):
-		names = [ s.name for s in self.sections ]
-		if item in names:
-			return names.index(item)
-		subnames = [ [ getattr(e,"name","") for e in s.elements ] for s in self.sections ]
-		if item not in sum(subnames,[]):
-			print("ERROR: name",item,"not found in Microscope or Microscope's sections' elements")
-			return None
-		for i,names in enumerate(subnames):
-			if item in names:
-				return (i,names.index(item))
 
 	################
     # region: Dunder
@@ -382,21 +337,18 @@ class Microscope(SEASerializable):
     # endregion
     #####################################
 
-	def propagate_ray(self, r0:xp.ndarray=None, z: float = None, verbose=False):
-		r=r0 #; print("Microscope r0",r0)# starting rays (optional) to be fed into section.propagate
-		rs=[]
-		for n,s in enumerate(self.sections):
-			#print("section",s)
-			r1 = s.propagate_ray(z=z,r0=r,verbose=verbose) # r1 is shape nthElement,nthRay,xythetaetc
-			#print(r1.shape)
-			for r in r1:
-				#r[:,columnByName('z')]#+=s.position
-				rs.append(r)
-			#print(r1[-1,0,:])
-			r=r1[-1,:,:] # rays fed into subsequent section are the rays exiting this section
-		self.rays = xp.asarray(rs) # if you want the non-flattened nthSection,nthElement,nthRay,xyzthetaetc, you should access microscope.section.rays which contain the individual nthElement,nthRay,xyzthetaetc
-		#print(self.rays.shape)
-		return self.rays
+	# given a string for an element name, return the index of that element
+	def index(self,item):
+		names = [ s.name for s in self.sections ]
+		if item in names:
+			return names.index(item)
+		subnames = [ [ getattr(e,"name","") for e in s.elements ] for s in self.sections ]
+		if item not in sum(subnames,[]):
+			print("ERROR: name",item,"not found in Microscope or Microscope's sections' elements")
+			return None
+		for i,names in enumerate(subnames):
+			if item in names:
+				return (i,names.index(item))
 
 	# TWP 2026-03-05 allow element insertion by coordinate ("add a lens midway through this drift section at z=etc"
 	def insert(self,index,elementOrSection):
@@ -431,6 +383,31 @@ class Microscope(SEASerializable):
 			elementOrSection.position = index-s.position
 			s.insert( len(s.elements), elementOrSection )
 
+	@property
+	def labels(self):
+		l = {}
+		for s in self.sections:
+			ls = s.labels
+			ls = { k:v+s.position for k,v in ls.items() }
+			l = l | ls
+		return l
+
+	def propagate_ray(self, r0:xp.ndarray=None, z: float = None, verbose=False):
+		r=r0 #; print("Microscope r0",r0)# starting rays (optional) to be fed into section.propagate
+		rs=[]
+		for n,s in enumerate(self.sections):
+			#print("section",s)
+			r1 = s.propagate_ray(z=z,r0=r,verbose=verbose) # r1 is shape nthElement,nthRay,xythetaetc
+			#print(r1.shape)
+			for r in r1:
+				#r[:,columnByName('z')]#+=s.position
+				rs.append(r)
+			#print(r1[-1,0,:])
+			r=r1[-1,:,:] # rays fed into subsequent section are the rays exiting this section
+		self.rays = xp.asarray(rs) # if you want the non-flattened nthSection,nthElement,nthRay,xyzthetaetc, you should access microscope.section.rays which contain the individual nthElement,nthRay,xyzthetaetc
+		#print(self.rays.shape)
+		return self.rays
+
 	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True,plt_ax=None):
 		if self.rays is None or regenerate:
 			r1 = self.propagate_ray()
@@ -440,15 +417,6 @@ class Microscope(SEASerializable):
 			zs = self.rays[:,0,columnByName("z")]
 			zlims = [ xp.amin(zs),xp.amax(zs) ]
 		plot2D(self.rays, zpts=self.labels, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims,plt_ax=plt_ax)
-
-	@property
-	def labels(self):
-		l = {}
-		for s in self.sections:
-			ls = s.labels
-			ls = { k:v+s.position for k,v in ls.items() }
-			l = l | ls
-		return l
 
 	# Basically just json dumps all attributes, with some special considerations to make the json more human-readable: "Microscope name","Section name","Element name" instead of just "name" for each, specified ordering of attributes (name always first), and nesting lists to go down from Microscope -> Section -> Element
 	def save(self,filename):
