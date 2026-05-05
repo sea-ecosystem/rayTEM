@@ -90,7 +90,7 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 
 	# display or save
 	if filename is not None:
-		ax.savefig(filename,transparent=True)
+		fig.savefig(filename,transparent=True)
 	else:
 		plt.show()
 

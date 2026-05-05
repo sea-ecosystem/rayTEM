@@ -57,7 +57,7 @@ class MicroscopeSection(SEASerializable):
 				print('WARNING: previous Element ('+str(elements[n-1])+') overlaps with specified Element position '+str(ele))
 			if ignoreLensThickness and ele.kind in ['Thin lens','QLens','Thin quad','Quad']:
 				continue
-			self.length += ele.length
+			self.length += getattr(ele,"length",0)
 		self.elements = new
 
 	# given a string for an element name, return the index of that element
@@ -69,13 +69,13 @@ class MicroscopeSection(SEASerializable):
 	def insert(self,index,element): # TODO bug: if we insert a huge drift ("big enough to fill the space") it's just a huge drift. we should update the length based on the space it'll fit. either here, or in Section.insert.
 		if isinstance(index,int):				# basic list insertion: section.insert(0,newsurce) places newsource at the beginning
 			if index == len(self.elements):
-				self.length+=element.length
+				self.length += getattr(element,"length",0)
 			self.elements.insert(index,element)
 		else:									# coordinate-based insertion: section.insert(25.0,newlens) places newlens in drift that spans 25.0
 			for i,ele in enumerate(self.elements): # "looking for element spanning 25.0: 5th element is a Drift which goes from 21.0 to 30.0"
-				if ele.position<=index and ele.position+ele.length>=index and ele.kind=="Drift":
+				if ele.position<=index and ele.position+getattr(ele,"length",0)>=index and ele.kind=="Drift":
 					#print("INSERTING ELEMENT",element.name,"AT",index,"(",ele.position,ele.length,")","AT POSITION",i)
-					elementlength=0 if self.ignoreLensThickness else element.length
+					elementlength=0 if self.ignoreLensThickness else getattr(element,"length",0)
 					l1=index-ele.position ; l2=ele.length-elementlength-l1 # "this drift needs to be length 4.0, and we'll need another drift after the insertion"
 					#print("PRE DRIFT",l1,"+ ELEMENT",element.length,"+ POST DRIFT",l2,"=",ele.length)
 					self.elements[i].length=l1			# "shorten" initial drift
@@ -97,7 +97,7 @@ class MicroscopeSection(SEASerializable):
 			item = self.index(item)
 		if self.elements[item-1].kind != "Drift":
 			print("WARNING: unable to delete "+str(element)+" at "+str(index)+" (preceeding element must be a Drift???)")
-		self.elements[item-1].length+=self.elements[item].length
+		self.elements[item-1].length += getattr(self.elements[item],"length",0)
 		del self.elements[item]
 
 	# TWP 2025-11-05: allow indexing of the assembly by name: section["PL1"] should return the section by that name! see removed_private_instrument_tree/PRIVATE_INSTRUMENT/fine_PLs.py. 2026-02-05: also allow slicing by name: section["sample":] should return a new section with all elements including and after "sample"
@@ -156,7 +156,7 @@ class MicroscopeSection(SEASerializable):
 			ele_ri = ele.propagate_ray(ri[-1], z=z)
 			#ele_ri[...,-2] += ele.position # TWP 2025/08/27 - do not add distance. drift already should update z
 			#print(ele_ri.shape,r0.shape)
-			if ele.length != 0:
+			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
 				ri.append(ele_ri[:,:])
 			else:
 				ri[-1]=ele_ri[:,:]
