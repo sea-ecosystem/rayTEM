@@ -209,7 +209,7 @@ class Aperture(Element):
 		return rf
 
 class Drift(Element):
-	"""Drift element class for free-space propagation. https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Free_space_example
+	"""Drift element class for free-space propagation.
 
 		Parameters
 		----------
@@ -221,6 +221,10 @@ class Drift(Element):
 			linear scaling applied to length. e.g. nominally we believe the next lens is at 10 mm, but maybe fitting says 9.9
 		position : float, optional
 			The position of the element along the z-axis, by default None
+
+		References
+		----------
+		https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Free_space_example
 		"""
 
 	def __init__(self, name:str='', length:float=0., calibration:float=None, position:float=None) -> object:
