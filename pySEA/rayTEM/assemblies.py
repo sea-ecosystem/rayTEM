@@ -360,12 +360,15 @@ class Microscope(SEASerializable):
 			elementOrSection.position = index-s.position
 			s.insert( len(s.elements), elementOrSection )
 
-	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True):
+	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True,plt_ax=None):
 		if self.rays is None or regenerate:
 			r1 = self.propagate_ray()
 		sections = { s.name+" ("+str(i)+")":[s.position,s.position+s.length] for i,s in enumerate(self.sections) }# if s.name is not None }
 		#print("SECTIONS",sections)
-		plot2D(self.rays, zpts=self.labels, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims)
+		if zlims is None:
+			zs = self.rays[:,0,columnByName("z")]
+			zlims = [ xp.amin(zs),xp.amax(zs) ]
+		plot2D(self.rays, zpts=self.labels, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims,plt_ax=plt_ax)
 
 	@property
 	def labels(self):

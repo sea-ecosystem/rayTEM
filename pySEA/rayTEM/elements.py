@@ -254,9 +254,9 @@ class Source(Element):
 		xs=xp.linspace(-self.size[0],self.size[0],self.np_xy[0])
 		ys=xp.linspace(-self.size[1],self.size[1],self.np_xy[1])
 		xts=xp.zeros(1) ; yts=xp.zeros(1)
-		if self.angle[0]>0 and self.na_xy[0]:
+		if abs(self.angle[0])>0 and self.na_xy[0]:
 			xts=xp.linspace(-self.angle[0],self.angle[0],self.na_xy[0])
-		if self.angle[1]>0 and self.na_xy[1]:
+		if abs(self.angle[1])>0 and self.na_xy[1]:
 			yts=xp.linspace(-self.angle[1],self.angle[1],self.na_xy[1])
 		shape=(len(xs),len(ys),len(xts),len(yts))
 		array=xp.zeros((len(xs)*len(ys)*len(xts)*len(yts),4))
@@ -547,8 +547,21 @@ class Lens(Element):
 				c = self.calibration
 				K *= c
 			else:
-				c,p = self.calibration
-				K = K**p * c
+				# A + B*x + C*x^2 + ...(as many terms as you want)
+				#Kvals = [ v*K**i for i,v in enumerate(self.calibration) ]
+				#K = sum( Kvals ) ; print(self.calibration,self.strength,Kvals)
+				# A + B*x^(1/1) + C*x^(1/2) + D*x^(1/3) + ....
+				Kvals = [self.calibration[0]] + [ v*K**(1/(i+1)) for i,v in enumerate(self.calibration[1:]) ]
+				K = sum( Kvals ) ; print(self.calibration,self.strength,Kvals)
+
+				#K = sum( [self.calibration[0]] + [ v*K**(1/(i+1)) for i,v in enumerate(self.calibration[1:]) ] )
+				#c,p = self.calibration
+				# A + B*x**C + D*x**E + ...
+				#K = self.calibration[0]
+				#for a,b in zip(self.calibration[1::2],self.calibration[2::2]):
+				#	print(a,b)
+				#	K += a*self.strength**b
+				#K = K**p * c
 
 		# FINITE LENGTH LENS, ZERO STRENGTH = DRIFT (try inserting a zero-strength lens and seeing if the result changes)
 		if K==0:
