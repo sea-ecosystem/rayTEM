@@ -179,8 +179,8 @@ class MicroscopeSection(SEASerializable):
 		return results
 
 	@property
-	def labels(self):
-		return { e.name:f'{e.position}' for e in self.elements if e.name is not None }
+	def named_positions(self):
+		return { e.name:e.position for e in self.elements if e.name is not None }
 
 	# returns nthElement,nthRay,xythetaetc
 	def propagate_ray(self, r0:xp.ndarray=None,
@@ -213,7 +213,7 @@ class MicroscopeSection(SEASerializable):
 	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True):
 		if self.rays is None or regenerate:
 			r1 = self.propagate_ray()
-		plot2D(self.rays,zpts = self.labels, filename=filename ,title=title, ylims=ylims,xlims=zlims)
+		plot2D(self.rays,zpts = self.named_positions, filename=filename ,title=title, ylims=ylims,xlims=zlims)
 
 	def save(self,filename):
 		with open(filename+".pkl",'wb') as f:
@@ -384,10 +384,10 @@ class Microscope(SEASerializable):
 			s.insert( len(s.elements), elementOrSection )
 
 	@property
-	def labels(self):
+	def named_positions(self):
 		l = {}
 		for s in self.sections:
-			ls = s.labels
+			ls = s.named_positions
 			ls = { k:v+s.position for k,v in ls.items() }
 			l = l | ls
 		return l
@@ -416,7 +416,7 @@ class Microscope(SEASerializable):
 		if zlims is None:
 			zs = self.rays[:,0,columnByName("z")]
 			zlims = [ xp.amin(zs),xp.amax(zs) ]
-		plot2D(self.rays, zpts=self.labels, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims,plt_ax=plt_ax)
+		plot2D(self.rays, zpts=self.named_positions, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims,plt_ax=plt_ax)
 
 	# Basically just json dumps all attributes, with some special considerations to make the json more human-readable: "Microscope name","Section name","Element name" instead of just "name" for each, specified ordering of attributes (name always first), and nesting lists to go down from Microscope -> Section -> Element
 	def save(self,filename):
