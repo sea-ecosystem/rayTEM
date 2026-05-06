@@ -682,7 +682,18 @@ def error_diameter(microscope,settings,targets,absolute=False): # settings is a 
 	return diameters
 
 # given a Microscope object, a dict of lens parameters, and a list of positions, simply returns the outermost ray's angles at each position???
-#def error_angles(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a list of positions [5,7]
+def error_angles(microscope,settings,targets,absolute=False): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a list of positions [5,7]
+	# UPDATE ALL ELEMENTS SPECIFIED
+	update_microscope_with_settings(microscope,settings)
+	# PROPAGATE, MEASURE BEAM
+	r1=microscope.propagate_ray()
+	angles = []
+	for z in targets:
+		x,y,xt,yt = measureAtZ(z,rays=r1)
+		if absolute:
+			xt=np.absolute(xt)
+		angles.append(xt)
+	return angles
 
 
 # error function (passable to scipy.minimize et al). modifiable is a dict of keywords, {"PL1":"calibration"}, settings is a list of dicts of settings: {"PL1":{"strength":.475}}

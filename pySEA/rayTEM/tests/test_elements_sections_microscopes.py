@@ -70,7 +70,7 @@ def test_dipole_transfer_matrix():
 	r0 = fix_ray_dims(r0,["x","xt","y","yt"])
 	r0[:,columnByName("I")] = 1
 
-	r1 = Dipole(strength=.2,axis="x").propagate_ray(r0)
+	r1 = Dipole(strength=.2,axis="x").propagate_ray(r0) ; print(r1)
 	assert r1[0,columnByName("x")] == 0
 	assert r1[0,columnByName("xt")] == .2
 
@@ -78,6 +78,7 @@ def test_dipole_transfer_matrix():
 	assert r1[0,columnByName("y")] == .2
 	assert r1[0,columnByName("yt")] == .2
 	assert r1[0,columnByName("z")] == 2
+test_dipole_transfer_matrix()
 
 # basic two-section assembly: Drift/Lens/Drift/Lens/Drift + Lens/Drift. lens/drift lengths define element positions, section lengths, etc
 # test: resulting rays should always be identical (compare to numpy saved rays)
