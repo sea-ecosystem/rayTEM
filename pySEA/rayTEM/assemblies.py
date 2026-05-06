@@ -7,7 +7,7 @@ import pickle
 import sys
 
 from .postprocessing import plot2D
-from .elements import Element,Source,Drift,Lens,columnByName
+from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName
 from .seashells import SEASerializable
 
 class MicroscopeSection(SEASerializable):
@@ -480,7 +480,7 @@ def load_microscope(filename):
 		jdict = json.loads("".join(open(filename+".json").readlines()))
 
 	import inspect
-	mapping = { "Drift":Drift, "QLens":Lens, "Source":Source } # TODO Eventually need to support all Element types from elements.py. and is there a way to map these automatically instead of explicitly?
+	mapping = { "Drift":Drift, "QLens":Lens, "Thin lens":Lens, "Source":Source, "Dipole":Dipole, "Thin dipole":Dipole, "Quad":Quadrapole, "Thin quad":Quadrapole } # TODO Eventually need to support all Element types from elements.py. and is there a way to map these automatically instead of explicitly?
 
 	sections = []
 	for section in jdict["Sections"]: # list of dicts, "section" is a dict

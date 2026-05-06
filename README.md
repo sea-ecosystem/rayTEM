@@ -12,6 +12,7 @@ Element types include (but not limied to):
 Source - initializes rays according to pre-defined criteria (number of rays emitted, at defined spacing in x and y, at varying angles)
 Lens - round lens, symetric focusing, beam rotation dependent on lens steength
 Quadrupole - asymetric focus/defocus in x/y
+Dipole - steering element that applies an angular kick in x or y
 Drift - free-space beam propagation
 Aperture - crops the beam, which affects the size, shape, and net intensity of the beam
 

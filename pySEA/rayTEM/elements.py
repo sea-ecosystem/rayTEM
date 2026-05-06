@@ -1,3 +1,8 @@
+from __future__ import annotations
+
+from typing import Sequence, Literal
+from numpy.typing import ArrayLike
+
 import numpy as xp
 flag_gpu = False
 import traceback
@@ -5,6 +10,8 @@ from warnings import warn
 from abc import abstractmethod
 
 from .seashells import SEASerializable
+
+element_list = ['Element']+[v.__name__ for v in Element.__subclasses__()]
 
 # CONVENTION: Rays are defined by positions laterally (x,y), angles (xt,yt, "t" for theta θ or tilt), position down column (z), intensities (I, e.g. when an aperture masks the beam and the overall intensity is reduced), and energy E
 # rays at a given position are 2D: a list up septuplets (grab the 'x' column to grab each ray's x position for example).
@@ -49,7 +56,7 @@ class Element(SEASerializable):
 
 	# print function: look for specific attributes on inheriting class object, and display as columns
 	def __repr__(self,header=True) -> str:
-		whitelist = [ "name", "kind", "position", "length", "strength", "calibration" ]
+		whitelist = [ "name", "kind", "position", "length", "strength", "calibration", "axis" ]
 		rep = { k:getattr(self,k) for k in self.__dict__ if k in whitelist }
 		#rep = {'name':self.name,
 		#	   'kind':self.kind,
@@ -355,6 +362,143 @@ class Quadrapole(Element):
 		#print("QUAD",m,self.strength,K,self.calibration,self.length)
 		return m
 		
+
+class Dipole(Element):
+	def __init__(self, name:str='',
+				 position:float=None, length:float=0.,
+				 strength:float=0, calibration:float=None,
+				 axis: Literal['x','y'] | float | Sequence='x'
+				 ) -> SEASerializable:
+		"""Dipole.
+
+		Parameters
+		----------
+		name : str, optional
+			Name given to the dipole, by default ''.
+		position : float, optional
+			The position of the element along the z-axis, by default None.
+		length : float, optional
+			Length of the element, by default 0.
+		strength : float, optional
+			Angular kick applied by the dipole, by default 0.
+		calibration : float or tuple, optional
+			Calibration applied to ``strength``. Numeric values apply a
+			linear scale; tuple values are interpreted as ``(scale, power)``,
+			matching ``Quadrapole`` behavior.
+		axis : {'x', 'y', float, Sequence}, optional
+			Transverse axis receiving the kick. Can be 'x', 'y', a float angle in radians, or a sequence [x, y], by default 'x'.
+
+		Raises
+		------
+		UserWarning
+			If ``axis`` is not ``'x'``, ``'y'``, a float, or a sequence.
+		"""
+		if length == 0: kind = 'Thin dipole'
+		else:		   kind = 'Dipole'
+
+		super().__init__(name=name,kind=kind)
+		self.position = position
+		self.length = length
+		self.strength = strength
+		self.calibration = calibration
+		
+		if axis.lower() == 'x':
+			self.phi = 0
+		elif axis.lower() == 'x':
+			self.phi = xp.pi/2
+		elif isinstance(axis, float):
+			if axis > 0 and axis <= 2*np.pi:
+				self.phi = axis
+			else:
+				self.phi = xp.remainder(axis + xp.pi, 2 * xp.pi) - xp.pi
+		elif isinstance(axis, Sequence):
+			self.phi = xp.arctan2(axis[1],axis[0])
+		else:
+			raise UserWarning(f'A float. sequence, "x", or "y" are valid `axis` values but a value of {axis} was provided which is a {type(axis)}.')
+
+	def transfer_matrix(self) -> ArrayLike:
+		r"""Transfer matrix for ray propogation.
+
+		Notes
+		-----
+		The current ray vector has no dedicated homogeneous coordinate, so
+		the dipole's constant steering term is carried by the ``I`` column.
+		This matches rays from ``Source``, where ``I`` is initialized to 1.
+
+		Returns
+		-------
+		xp.ndarray
+			Transfer matrix with drift and dipole steering terms.
+		"""
+		K = self.strength
+
+		# Apply a calibration
+		if self.calibration is not None:
+			if isinstance(self.calibration,(int,float)):
+				c = self.calibration
+				K *= c
+			else:
+				c,p = self.calibration
+				K = K**p * c
+		
+		# Project the strength
+		Kx = xp.cos(self.phi)
+		Ky = xp.sin(self.phi)
+
+		m = xp.zeros((7,8))
+		xp.fill_diagonal(m, 1, wrap=False)
+
+		if self.length == 0:
+			m[2, 7] = Kx
+			m[3, 7] = Ky
+		else:
+			L = self.length
+
+			# Drift terms
+			m[0, 2] = L   # x <- ux
+			m[1, 3] = L   # y <- uy
+			m[4, 4] = 1.0 # z stays identity (already set)
+			
+			# z advance
+			m[4, 7] = L
+
+			# Angular kicks
+			m[2, 7] = Kx * L
+			m[3, 7] = Ky * L
+
+			# Position offsets (affine)
+			m[0, 7] = 0.5 * Kx * L**2
+			m[1, 7] = 0.5 * Ky * L**2
+
+		return m
+	
+	def propagate_ray(self, r0:xp.ndarray,
+					  z:float=None, z0:float=0) -> xp.ndarray:
+		"""propagate an array through an element.
+
+		Parameters
+		----------
+		r0 : xp.ndarray
+			List of rays with possible initial conditions (x, θx, y, θy, E).
+		z : None | int | float | xp.ndarray, optional
+			Positions in the element to propagate to by default None
+		z0 : None | float, optional
+			Initial position of the element, by default 0
+
+		Returns
+		-------
+		xp.ndarray
+			List of propagated rays with initial condition (x, θx, y, θy, z, E)
+		"""
+		m = self.transfer_matrix()
+		print(f'm: {m.shape}')#FLAG
+		ones = xp.ones((r0.shape[0], 1), dtype=r0.dtype)
+		r0_aug = xp.concatenate([r0, ones], axis=1)
+		print(f'r0: { r0.shape} to {r0_aug.shape}')#FLAG
+
+		rf = xp.einsum('mn,in->im', m, r0_aug)
+		return rf
+
 
 class Lens(Element):
 	"""Lens element class for round lenses / symmetric focusing. https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example or Brown1983 page 105

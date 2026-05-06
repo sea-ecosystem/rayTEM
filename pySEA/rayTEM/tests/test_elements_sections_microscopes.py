@@ -6,7 +6,7 @@
 
 import sys,os
 sys.path.insert(1,"../../../")
-from pySEA.rayTEM import Source,Lens,Drift,Aperture,Quadrapole
+from pySEA.rayTEM import Source,Lens,Drift,Aperture,Dipole,Quadrapole
 from pySEA.rayTEM import MicroscopeSection,Microscope
 from pySEA.rayTEM import fix_ray_dims,plot2D,findPlanes,columnByName,load_microscope,load_section
 import numpy as np
@@ -64,6 +64,20 @@ def test_every_element():
 	r1_old = np.load(filename)
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 #test_every_element()
+
+def test_dipole_transfer_matrix():
+	r0 = np.asarray( [[0,0,0,0]] )
+	r0 = fix_ray_dims(r0,["x","xt","y","yt"])
+	r0[:,columnByName("I")] = 1
+
+	r1 = Dipole(strength=.2,axis="x").propagate_ray(r0)
+	assert r1[0,columnByName("x")] == 0
+	assert r1[0,columnByName("xt")] == .2
+
+	r1 = Dipole(length=2,strength=.2,axis="y").propagate_ray(r0)
+	assert r1[0,columnByName("y")] == .2
+	assert r1[0,columnByName("yt")] == .2
+	assert r1[0,columnByName("z")] == 2
 
 # basic two-section assembly: Drift/Lens/Drift/Lens/Drift + Lens/Drift. lens/drift lengths define element positions, section lengths, etc
 # test: resulting rays should always be identical (compare to numpy saved rays)
