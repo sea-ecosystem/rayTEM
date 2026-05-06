@@ -11,8 +11,6 @@ from abc import abstractmethod
 
 from .seashells import SEASerializable
 
-element_list = ['Element']+[v.__name__ for v in Element.__subclasses__()]
-
 # CONVENTION: Rays are defined by positions laterally (x,y), angles (xt,yt, "t" for theta θ or tilt), position down column (z), intensities (I, e.g. when an aperture masks the beam and the overall intensity is reduced), and energy E
 # rays at a given position are 2D: a list up septuplets (grab the 'x' column to grab each ray's x position for example).
 # rays throughout the microscope are 3D: a list of the above.
@@ -625,9 +623,9 @@ class Prism(Element):
 		if radius is not None and length is not None:
 			raise ValueError('Only specify the length or radius as providing both with radius is not unique.')
 		elif radius is not None:
-			length = angle_rad * radius
+			length = self.angle_rad * radius
 		elif length is not None:
-			radius = length/angle_rad 
+			radius = length/self.angle_rad
 		else:
 			raise ValueError('Either radius or length need to be specified.')
 
@@ -650,10 +648,10 @@ class Prism(Element):
 
 		if self.strength!=0:
 			m[1,0] = xp.tan(self.strength) / self.radius
-			if k1 == 0:
+			if self.K1 == 0:
 				m[1,0] = - xp.tan(self.strength) / self.radius
 			else: #include fringe fields
-				psi = (self.g/self.R) * self.k1 * (1+xp.sin(self.strength)**2)/xp.cos(self.strength)
+				psi = (self.g/self.radius) * self.K1 * (1+xp.sin(self.strength)**2)/xp.cos(self.strength)
 				m[2:4,2:4] = - xp.tan(self.strength - psi) / self.radius
 		else: #drif
 			pass
@@ -690,3 +688,6 @@ class Prism(Element):
 		m = m_focus2 @ m_bend @ m_focus1
 
 		return fix_mat_dims(m,["x","xt","y","yt","z","E"])
+
+
+element_list = ["Element"] + [subclass.__name__ for subclass in Element.__subclasses__()]
