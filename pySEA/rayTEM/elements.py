@@ -489,10 +489,10 @@ class Dipole(Element):
 			List of propagated rays with initial condition (x, θx, y, θy, z, E)
 		"""
 		m = self.transfer_matrix()
-		print(f'm: {m.shape}')#FLAG
+		#print(f'm: {m.shape}')#FLAG
 		ones = xp.ones((r0.shape[0], 1), dtype=r0.dtype)
 		r0_aug = xp.concatenate([r0, ones], axis=1)
-		print(f'r0: { r0.shape} to {r0_aug.shape}')#FLAG
+		#print(f'r0: { r0.shape} to {r0_aug.shape}')#FLAG
 
 		rf = xp.einsum('mn,in->im', m, r0_aug)
 		return rf
@@ -548,7 +548,7 @@ class Lens(Element):
 				#K = sum( Kvals ) ; print(self.calibration,self.strength,Kvals)
 				# A + B*x^(1/1) + C*x^(1/2) + D*x^(1/3) + ....
 				Kvals = [self.calibration[0]] + [ v*K**(1/(i+1)) for i,v in enumerate(self.calibration[1:]) ]
-				K = sum( Kvals ) ; print(self.calibration,self.strength,Kvals)
+				K = sum( Kvals ) #; print("lens","calibration",self.calibration,"strength",self.strength,"Kvals",Kvals)
 				#K = sum( [self.calibration[0]] + [ v*K**(1/(i+1)) for i,v in enumerate(self.calibration[1:]) ] )
 				#c,p = self.calibration
 				# A + B*x**C + D*x**E + ...

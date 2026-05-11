@@ -868,7 +868,7 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 		plt.imshow(residuals[::-1,:],extent=(np.amin(vals[1]),np.amax(vals[1]),np.amin(vals[0]),np.amax(vals[0])))
 		plt.xlabel(eleKeys[1]+" "+str(indices[1]))
 		plt.ylabel(eleKeys[0]+" "+str(indices[0]))
-		where=np.where(residuals==np.nanmin(residuals)) ; print(where)
+		where=np.where(residuals==np.nanmin(residuals)) ; print("where",where)
 		#if len(where[1])>0:
 		plt.plot(vals[1,0,where[1][0]],vals[0,where[0][0],0],c="r",marker="o")
 		plt.cbar=plt.colorbar()
@@ -885,6 +885,7 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 		# plot the final rays
 		plot2D( propagateAndCheck(x0,"r1") )
 
+# PROPERTIES OF THE OUTERMOST RAYS
 def measureAtZ(z,rays=None,section=None):
 	if rays is None and section.rays is None:
 		section.propagate_ray()
@@ -898,10 +899,14 @@ def measureAtZ(z,rays=None,section=None):
 	x,y,xt,yt = [ columnByName(v) for v in ["x","y","xt","yt"] ]
 	def interp(z,z1,z2,y1,y2):
 		return y1+(z-z1)/(z2-z1)*(y2-y1)
-	x = np.amax( interp(z,zs[i],zs[i+1],rays[i,:,x],rays[i+1,:,x]) )
-	y = np.amax( interp(z,zs[i],zs[i+1],rays[i,:,y],rays[i+1,:,y]) )
-	xt = np.amax( rays[i,:,xt] )
-	yt = np.amax( rays[i,:,yt] )
+	xs = interp(z,zs[i],zs[i+1],rays[i,:,x],rays[i+1,:,x])	# lateral position of all rays between elements i and i+1
+	sel_x = np.argmax(xs)									# index of outermost ray
+	x = xs[sel_x]											# lateral position of outermost ray
+	xt = rays[i,sel_x,xt]									# angle of outermost ray
+	ys = interp(z,zs[i],zs[i+1],rays[i,:,y],rays[i+1,:,y])
+	sel_y = np.argmax(ys)
+	y = ys[sel_y]
+	yt = rays[i,sel_y,yt]
 	#print("x,y,xt,yt",x,y,xt,yt)
 	return x,y,xt,yt
 
