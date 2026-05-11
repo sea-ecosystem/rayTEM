@@ -900,13 +900,13 @@ def measureAtZ(z,rays=None,section=None):
 	def interp(z,z1,z2,y1,y2):
 		return y1+(z-z1)/(z2-z1)*(y2-y1)
 	xs = interp(z,zs[i],zs[i+1],rays[i,:,x],rays[i+1,:,x])	# lateral position of all rays between elements i and i+1
-	sel_x = np.argmax(xs)									# index of outermost ray
-	x = xs[sel_x]											# lateral position of outermost ray
-	xt = rays[i,sel_x,xt]									# angle of outermost ray
 	ys = interp(z,zs[i],zs[i+1],rays[i,:,y],rays[i+1,:,y])
+	selected = np.argmax(np.sqrt(xs**2+ys**2))				# index of outermost ray
+	x = xs[selected]											# lateral position of outermost ray
+	xt = rays[i,selected,xt]									# angle of outermost ray
 	sel_y = np.argmax(ys)
-	y = ys[sel_y]
-	yt = rays[i,sel_y,yt]
+	y = ys[selected]
+	yt = rays[i,selected,yt]
 	#print("x,y,xt,yt",x,y,xt,yt)
 	return x,y,xt,yt
 
