@@ -585,6 +585,26 @@ class Lens(Element):
 			XY*=zeroer
 		return fix_mat_dims(XY,["x","xt","y","yt"])
 
+	def calibration_from_f_and_I(self,f,I):
+		# noting xt=f(x) cell from matrix is -1/f or -K*sin(K*L)*cos(K*L):
+		# APPROXIMATION: noting that at small angle, sin(K*L) ≈ K*L and cos(K*L) ≈ 1.
+		# 1/f ≈ K²L = (C*I)² L  --> C = √(1/f/L)/I
+		# BEWARE: inaccurate for large L. we really need to "solve for" C
+		self.calibration = xp.sqrt(1/f/self.length)/I
+		# NOT AN approximation: 1/f = K*S*C = (C*I)*sin(C*I*L)*cos(C*I*L)
+		# is there an analytical solution?
+		# trig identity: sin(x)*cos(y) = 1/2*(sin(x+y)+sin(x-y)) so if x=y, sin(x)*cos(x) = 1/2*sin(2*x)
+		#1/f = (C*I)*½*sin(2*C*I*L) idk how to solve this lol. if all you have is a hammer (scipy minimize) everything looks like a nail (a minimization problem)
+		from scipy.optimize import minimize
+		def dz(C):
+			return ( C*I*xp.sin(C*I*self.length)*xp.cos(C*I*self.length)-1/f )**2
+		x0 = self.calibration
+		import matplotlib.pyplot as plt
+		Cs = xp.linspace(0,4*x0,100) ; Ys=Cs*I*xp.sin(Cs*I*self.length)*xp.cos(Cs*I*self.length)
+		plt.plot(Cs,Ys) ; plt.plot(Cs,[1/f]*100) ; plt.show()
+		self.calibration = minimize(dz,x0=x0)['x'][0]
+		print("calibration_from_f_and_I found",self.calibration,"from starting guess",x0,dz(self.calibration))
+
 class Prism(Element):
 	def __init__(self, name:str='', 
 				 position:float=None, length:float=0.,

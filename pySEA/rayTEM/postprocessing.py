@@ -192,6 +192,155 @@ def plotSliceSeries(rays,N,M,filename=""):
 		plt.show()
 
 # Returns a dict for each axis, image vs diffraction planes, and the magnification and z position (NOTE: Z IS IN FRACTIONAL COORDINATES: 4.2 = 20% of the way through the 4th element)
+def findPlanes4(rays,axes="x"):
+	# FIRST, collapse rays down to the axis of interest. x,y,m
+	x=columnByName("x") ; y=columnByName("y") ; xt=columnByName("xt") ; yt=columnByName("yt")
+	rays_x = rays[:,:,x] ; rays_y = rays[:,:,y] ; rays_xt = rays[:,:,xt] ; rays_yt = rays[:,:,yt] ;
+	if axes == "x":
+		rays = rays_x ; rays_t = rays_xt
+	if axes == "y":
+		rays = rays_y ; rays_t = rays_yt
+	if axes=="m":
+		rays = np.sqrt(rays_x**2+rays_y**2)*np.sign(rays_x)
+		rays_t = np.sqrt(rays_xt**2+rays_yt**2)*np.sign(rays_xt)
+
+	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
+	diffRays=[] ; imageRays=[]
+
+	returnable={}
+	for imdiff in ["diff","image"]:
+		returnable[imdiff]={}
+		for p in ["z","M","R","p"]:
+			returnable[imdiff][p]=[]
+
+	# diffraction ray is the first ray emitted at zero angle (nonzero position!)
+	n_rays = len(rays[0])
+	for r in range(n_rays):
+		# diff X first ray is: zero angle, nonzero x
+		if len(diffRays)==0 and rays[0,r]!=0 and rays_t[0,r]==0:
+				diffRays.append(r)
+				for rr in range(n_rays):
+					if np.all(rays[0,r]==-rays[0,rr]):
+						diffRaysX.append(rr)
+						break
+		# second is same, but opposite x position. TWP 20260317 edit: or, just a different x position?? changing all "==-" to "!="
+		if len(diffRays)==1 and rays[0,r]!=0 and rays_t[0,r]==0 and rays[0,r]!=rays[0,diffRays[0]]: # TWP 20260317 edit: or, just a different x position?? changing all "==-" to "!="
+			diffRays.append(r)
+		# image X first ray is: nonzero angle x, zero angle y, zero x, zero y
+		if len(imageRays)==0 and rays_t[0,r]!=0 and rays[0,r]==0:
+			imageRays.append(r)
+		# second is same, but opposite x angle
+		if len(imageRays)==1 and rays_t[0,r]!=0 and rays[0,r]==0 and rays_t[0,r]!=rays_t[0,imageRaysX[0]]:
+			imageRays.append(r)
+		if len(diffRays)==2 and len(imageRays)==2:
+				break
+	if ( "x" in axes and ( len(diffRaysX)!=2 or len(imageRaysX)!=2 )) or ( "y" in axes and ( len(diffRaysY)!=2 or len(imageRaysY)!=2 )):
+		print("WARNING: diffraction and/or image rays could not be inferred by findPlanes(). no planes found")
+		if len(diffRaysX)<2 and "x" in axes:
+			print("diffraction rays (x2) in X: must be finite x, zero y, zero xt and yt")
+		if len(diffRaysY)<2 and "y" in axes:
+			print("diffraction rays (x2) in Y: must be finite y, zero x, zero xt and yt")
+		if len(imageRaysX)<2 and "x" in axes:
+			print("image rays (x2) in X: must be finite xt, zero yt, zero x and y")
+		if len(imageRaysY)<2 and "y" in axes:
+			print("image rays (x2) in Y: must be finite yt, zero xt, zero x and y")
+		return returnable
+
+	#print(diffRaysX,rays[0,diffRaysX[0],[x,xt]],rays[0,diffRaysX[1],[x,xt]])
+
+	x=columnByName("x") ; y=columnByName("y")
+	xt=columnByName("xt") ; yt=columnByName("yt")
+
+	def whereCrossesZero(y0,y1): # returns relative position (0-1) of crossover,
+		# if the originally-parallel ray crosses zero, this is a diffraction plane
+		if y1==0:								#'-.   ____m    (y-y0)=m*(x-x0)
+			dz=1								#    '-.   |    solve for x where y=0
+		elif y0<0 and y1>0 or y0>0 and y1<0:	#________'-.____x=-y0/m
+			m=y1-y0 ; dz=-y0/m					#   dz       '-.
+		else:
+			return None
+		return dz
+			#Zd.append(i-1+dz)					# I'm actually storing the fractional index of the crossover!
+			#ma=ya1-ya0 ; mb=yb1-yb0				# "magnification" of the diffraction plane
+			#ya=ya0+ma*dz ; yb=yb0+mb*dz			# comes from the *difference in position*
+			#Md.append((ya-yb)/(ta-tb))			# for two rays starting at *different angles*
+
+	def whereRaysCross(ya0,ya1,yb0,yb1):
+		# If rays have crossed in x or y, there is an image plane between i-1 and i. See FultzHowe2013 Fig 2.9
+		if ya1==yb1:							#'-.     /  (y-y0)=m*(x-x0)
+			dz=1								#    '-./   solve for where
+		elif ( ( ya0>yb0 and ya1<yb1 ) or 		#      / '-. ya=yb
+				( ya0<yb0 and ya1>yb1 ) ):		#     / ma*(x-xa0)+ya0=mb*(x-xb0)+yb0
+			ma=ya1-ya0 ; mb=yb1-yb0				#    / 	https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_line_equations
+			dz=(yb0-ya0)/(ma-mb)				# a=ma ; b=mb ; c=xa0 ; d=xb0
+		else:
+			return None
+		return dz
+			#Zi.append(i-1+dz)					# magnification of image plane is
+			#ya=ya0+ma*dz ; Mi.append(ya/rays[0,0,c]) # ratio of original size to current
+			#print(axis,"rays cross between",i-1,"and",i,"m",m,"dz",dz)
+
+	def positionAtZ(y0,y1,dz):
+		m=y1-y0
+		return y0+m*dz
+
+	# "magnification" of the diffraction plane comes from the *difference in position* for two rays starting at *different angles*. AKA, "camera length" if we assume positionondetector=scatteringangle*cameralength
+	# "magnification" of the image plane comes from the *difference in position* for two rays starting at *different positions*
+	def magnification(ya0,ya1,yb0,yb1,dz,ta,tb):
+		ya=positionAtZ(ya0,ya1,dz)
+		yb=positionAtZ(yb0,yb1,dz)
+		#print("magnification where",ya0,"-",ya1,"and",yb0,"-",yb1,"cross",ya-yb,"/",ta-tb)
+		return (ya-yb)/(ta-tb)
+
+	# rays "a" and "b", original positions
+	#xa0,xb0=rays[0,imageRayIndices,x]
+	#ya0,yb0=rays[0,imageRayIndices,y]
+	#xta0,xtb0=rays[0,imageRayIndices,xt]
+	#yta0,ytb0=rays[0,imageRayIndices,yt]
+
+	for axis,diffRays,imageRays,xy,yx,xyt in zip(["x","y"],[diffRaysX,diffRaysY],[imageRaysX,imageRaysY],[x,y],[y,x],[xt,yt]):
+		if axis not in axes:
+			continue
+		for i in range(1,len(rays)):
+			# CHECK DIFFRACTION: where originally-parallel rays cross
+			(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,diffRays,xy]
+			dz=whereRaysCross(xa1,xa2,xb1,xb2)
+			if dz is not None:
+				xta0,xtb0 = rays[0,imageRays,xyt] # magnification comes from starting angles of two non-parallel rays
+				# Magnification comes from conversion of angle to position
+				(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,imageRays,xy]
+				(ya1,yb1),(ya2,yb2)=rays[i-1:i+1,imageRays,yx]
+				M=magnification(xa1,xa2,xb1,xb2,dz,xta0,xtb0)
+				returnable[axis]["diff"]["z"].append( i-1+dz )
+				returnable[axis]["diff"]["M"].append( M )
+				returnable[axis]["diff"]["p"].append([])
+				for r in range(len(rays[0])):
+					xr=positionAtZ(*rays[i-1:i+1,r,x],dz)
+					yr=positionAtZ(*rays[i-1:i+1,r,y],dz)
+					returnable[axis]["diff"]["p"][-1].append( [xr,yr] )
+
+			# CHECK IMAGE PLANE: where rays leaving the same place re-cross
+			(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,imageRays,xy]
+			dz=whereRaysCross(xa1,xa2,xb1,xb2)
+			if dz is not None:
+				xa0,xb0 = rays[0,diffRays,xy] # magnification comes from change in scaling (position) of originally-parallel rays
+				(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,diffRays,xy]
+				(ya1,yb1),(ya2,yb2)=rays[i-1:i+1,diffRays,yx]
+				M=magnification(xa1,xa2,xb1,xb2,dz,xa0,xb0)
+				returnable[axis]["image"]["z"].append( i-1+dz )
+				returnable[axis]["image"]["M"].append( M )
+				returnable[axis]["image"]["p"].append([])
+				for r in range(len(rays[0])):
+					xr=positionAtZ(*rays[i-1:i+1,r,x],dz)
+					yr=positionAtZ(*rays[i-1:i+1,r,y],dz)
+					returnable[axis]["image"]["p"][-1].append( [xr,yr] )
+
+	return returnable
+
+
+
+
+# Returns a dict for each axis, image vs diffraction planes, and the magnification and z position (NOTE: Z IS IN FRACTIONAL COORDINATES: 4.2 = 20% of the way through the 4th element)
 def findPlanes(rays,axes="xy"):
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
 	diffRaysX=[] ; diffRaysY=[]
@@ -504,7 +653,7 @@ def findPlanes1(rays):
 # magnification ("M") in real space is defined as: the ratio of final/original positions of the ray
 # magnification ("M") for a diffraction plane is defined as: the ratio of final position vs starting angle of the ray
 # this diffraction mag is also known as the "camera length" based on the small angle approximation: dx=L*theta
-def findPlanes1(rays):
+def findPlanes2(rays):
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
 	diffRayIndex=None ; imageRayIndices=[]
 	x=columnByName("x") ; y=columnByName("y")

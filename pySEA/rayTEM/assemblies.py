@@ -383,6 +383,17 @@ class Microscope(SEASerializable):
 			elementOrSection.position = index-s.position
 			s.insert( len(s.elements), elementOrSection )
 
+	def adjust_element_length(self,element,newlength):
+		i,j = self.index(element)							# whichSection,whichElementInSection
+		l1 = self.sections[i].elements[j].length			# current length
+		dl = newlength-l1									# change in length
+		self.sections[i].elements[j].length = newlength		# update the element
+		if len(self.sections[i])>j+1:						# if this element isn't the last in its section
+			self.sections[i].elements[j+1].position+=dl		# update subsequent element position...
+			self.sections[i].elements[j+1].length-=dl			# ...and length
+		else:
+			print("ADJUST ELEMENT LENGTH NOT YET IMPLEMENTED FOR LAST ELEMENT IN SECTION")
+
 	@property
 	def named_positions(self):
 		l = {}
