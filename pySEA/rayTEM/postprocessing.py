@@ -1045,17 +1045,19 @@ def measureAtZ(z,rays=None,section=None):
 	zs = rays[:,0,columnByName('z')] # nthElement,nthRay,xythetaetc
 	i=np.where(zs<=z)[0][-1] # closest elemnt before or at z
 	#print(z,zs,i,zs[i])
-	x,y,xt,yt = [ columnByName(v) for v in ["x","y","xt","yt"] ]
+	x,y,xt,yt,R = [ columnByName(v) for v in ["x","y","xt","yt","R"] ]
 	def interp(z,z1,z2,y1,y2):
 		return y1+(z-z1)/(z2-z1)*(y2-y1)
 	xs = interp(z,zs[i],zs[i+1],rays[i,:,x],rays[i+1,:,x])	# lateral position of all rays between elements i and i+1
 	ys = interp(z,zs[i],zs[i+1],rays[i,:,y],rays[i+1,:,y])
 	selected = np.argmax(np.sqrt(xs**2+ys**2))				# index of outermost ray
-	x = xs[selected]											# lateral position of outermost ray
-	xt = rays[i,selected,xt]									# angle of outermost ray
-	sel_y = np.argmax(ys)
+	x = xs[selected]										# lateral position of outermost ray
+	xt = rays[i,selected,xt]								# angle of outermost ray
+	#sel_y = np.argmax(ys)
 	y = ys[selected]
 	yt = rays[i,selected,yt]
 	#print("x,y,xt,yt",x,y,xt,yt)
-	return x,y,xt,yt
+	Rs = interp(z,zs[i],zs[i+1],rays[i,:,R],rays[i+1,:,R])	# rotations??
+	R = Rs[selected]
+	return x,y,xt,yt,R
 
