@@ -43,6 +43,14 @@ pysea-refresh-wiki
 This refreshes repo-map.md, symbol-index.json, method-index.json, all TOC headers,
 and the ecosystem index.md.
 
+**When starting a task:**
+Scan active TODO filenames — slugs are descriptive, most won't need opening:
+```bash
+ls src/pySEA/ai_wiki/raytem/notes/shared/TODO_ACTIVE_*.md
+```
+Open any whose slug matches your task. Check items off as you complete them;
+rename `ACTIVE` → `DONE` when all items in a file are done.
+
 ## Contributor notes
 
 Before writing any note, run `git config user.name` to identify the current contributor.
