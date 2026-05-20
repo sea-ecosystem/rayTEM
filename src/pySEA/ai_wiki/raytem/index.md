@@ -5,7 +5,7 @@
 rayTEM simulates ray propagation through a transmission electron microscope using
 transfer matrix formalism. A simulated instrument is built as a hierarchy of
 `Microscope → MicroscopeSection → Element` objects. Rays are propagated through
-each element's 7×7 transfer matrix. Lens strengths can be fitted to achieve a
+each element's 8×8 transfer matrix. Lens strengths can be fitted to achieve a
 target image-plane position or magnification.
 
 The package also contains instrument-specific calibration work under `microscopes/`
@@ -17,14 +17,14 @@ The package also contains instrument-specific calibration work under `microscope
 Microscope
   └─ MicroscopeSection (e.g. "illumination", "objective", "projector")
        └─ Element (Source | Drift | Lens | Dipole | Quadrupole | Aperture | ...)
-            └─ transfer_matrix (7×7 numpy array)
+            └─ transfer_matrix (8×8 numpy array)
 ```
 
-Rays are represented as `(N, 7)` arrays where columns are ordered:
+Rays are represented as `(N, 8)` arrays where columns are ordered:
 
 ```
-[x,  xθ,  y,  yθ,  z,  I,  E]
- 0    1    2    3   4   5   6
+[x,  xθ,  y,  yθ,  z,  I,  E,  R]
+ 0    1    2    3   4   5   6   7
 ```
 
 Column indices are looked up by name via `columnByName(name)`. This indirection

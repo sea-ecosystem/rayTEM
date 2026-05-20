@@ -28,11 +28,11 @@ name:  x   xθ   y   yθ   z  I  E
 **Never reorder columns without updating every Element, `fix_mat_dims`, `fix_ray_dims`,
 and all callers in `assemblies.py` and `microscopes/`.**
 
-### 2. Transfer matrices are 7×7
+### 2. Transfer matrices are 8×8
 
 `fix_mat_dims(m, columnNames)` inflates a smaller physics matrix (e.g. 2×2 thin lens)
-into the 7×7 form. Elements must call `fix_mat_dims` — they must never store a
-raw 2×2 and apply it to the full 7-column ray array.
+into the 8×8 form. Elements must call `fix_mat_dims` — they must never store a
+raw 2×2 and apply it to the full 8-column ray array.
 
 ### 3. Hierarchy is strictly bottom-up
 

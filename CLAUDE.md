@@ -50,8 +50,8 @@ Shared architectural decisions go in `notes/shared/`.
 
 ## Core invariants
 
-- **Ray columns are fixed**: [x, xθ, y, yθ, z, I, E] — index 0–6 as returned by `columnByName()`. Do not reorder without updating every Element and all `columnByName` callers.
-- **Transfer matrices are 7×7**: Produced by `fix_mat_dims()`. Never pass a raw 2×2 matrix directly to `propagate_ray`.
+- **Ray columns are fixed**: [x, xθ, y, yθ, z, I, E, R] — index 0–7 as returned by `columnByName()`. R is cumulative Larmor rotation accumulated by thick lenses. Do not reorder without updating every Element and all `columnByName` callers.
+- **Transfer matrices are 8×8**: Produced by `fix_mat_dims()`. Never pass a raw 2×2 matrix directly to `propagate_ray`.
 - **Element → MicroscopeSection → Microscope hierarchy**: Rays propagate strictly bottom-up. Microscope never reaches inside an Element; MicroscopeSection never reaches inside a Microscope.
 - **seashells is the sea_eco seam**: All serialization goes through `seashells.SEASerializable`, which gracefully degrades if sea_eco is absent. Do not import from sea_eco directly in framework code.
 
