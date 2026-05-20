@@ -31,16 +31,17 @@ Read `src/pySEA/ai_wiki/raytem/wiki/<module>.md` (use method-index.json to find 
 Update the corresponding wiki doc — revise changed method entries, add cross-links for new relationships. Commit the doc alongside the code change.
 
 **After editing any wiki doc:**
-Run `pysea-gen-ai-index` to update the TOC header and wiki line numbers in method-index.json:
+Run `pysea-refresh-wiki` to update TOC headers, wiki line numbers, and the ecosystem index:
 ```bash
-pysea-gen-ai-index --out-dir src/pySEA/ai_wiki/raytem
+pysea-refresh-wiki
 ```
 
 **After structural changes** (new modules, renamed files, moved functions):
 ```bash
-pysea-gen-ai-index --out-dir src/pySEA/ai_wiki/raytem
+pysea-refresh-wiki
 ```
-This refreshes repo-map.md, symbol-index.json, method-index.json, and all TOC headers.
+This refreshes repo-map.md, symbol-index.json, method-index.json, all TOC headers,
+and the ecosystem index.md.
 
 ## Contributor notes
 
