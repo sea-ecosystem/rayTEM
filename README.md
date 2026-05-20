@@ -40,5 +40,20 @@ microscope.show()
 # Advanced usage:
 - advanced building: Elements can be referenced by name, in both the Microscope or MicroscopeSection, Elements can be deleted or inserted. See the examples in the "microscopes" folder for usage, e.g. REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/fine_PLs.py or DQCM.py
 - fitting: lens strengths can be fit based on desired image/diffraction plane magnification and position. see REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/course_PLs.py includes an example of this
-- sea-eco integration: if sea-eco (https://code.ornl.gov/sea-ecosystem/sea-eco) is installed, the sea file infrastructure can be used, allowing tight integration between data acquisition, analysis, and microscope simulation. rayTEM serves as a plugin for sea-eco in this context. 
+- sea-eco integration: if sea-eco (https://code.ornl.gov/sea-ecosystem/sea-eco) is installed, the sea file infrastructure can be used, allowing tight integration between data acquisition, analysis, and microscope simulation. rayTEM serves as a plugin for sea-eco in this context.
 
+## Installation
+
+```bash
+pip install -e ".[dev]"
+```
+
+## AI-assisted development
+
+This repo is part of the pySEA AI scaffold. To work on it with Claude Code or Codex:
+
+1. Start a **fresh** session from this repo's root (`claude` or equivalent — not Claude Desktop)
+2. Verify injection: ask *"Without reading any files, what are the core rules and layer boundaries for this repo?"*
+3. If injection worked, `CLAUDE.md`/`AGENTS.md` are already active as standing instructions — the LLM reads the `ai_wiki/` slice for per-module detail before editing code, and maintains it after
+
+For the full guide — which tools support injection, why session start matters, the freshness contract, and the two shared scripts — see the [sea-ecosystem README](https://github.com/sea-ecosystem/sea-ecosystem).
