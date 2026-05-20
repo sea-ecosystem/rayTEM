@@ -15,7 +15,7 @@ try:
 	from pySEA.sea_eco.architecture.base_structure import SEASerializable as _SEASerializable
 	sea_available = True
 except Exception as e:
-	print(e)
+	print(str(e)+". This is just a warning from rayTEM.seashells: rayTEM pySEA integration will not work.")
 	pass
 
 if sea_available:
