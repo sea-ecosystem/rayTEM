@@ -17,19 +17,20 @@ from .seashells import SEASerializable
 # currently, the columns are ordered: [x,xθ,y,yθ,I,ϕ,E]
 # but with the columnByName function used universally, additional columns can be added without every Element needing to be updated, and columns can be reordered arbitrarily.
 
+convention = ["x","xt","y","yt","z","I","E","R"]
 # given a keyword, return the column associated. r0[:,columnByName('x')] should return every ray's x position
 def columnByName(name):
-	return ["x","xt","y","yt","z","I","E"].index(name)
+	return convention.index(name)
 # given a transfer_matrix defined by a subset of columns (e.g. a 2x2 lens for focusing in x only) "inflate" out to 7x7 based on convention set by columnByName. [ x₂ θ₂ ] = [2x2] @ [ x₁ θ₁ ] (https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis) would become [ x₂ xθ₂ y₂ yθ₂ ....] = [7x7] @ [ x₁ xθ₁ y₁ yθ₁....]
 def fix_mat_dims(m,columnNames):
-	new=xp.eye(7)
+	new=xp.eye(len(convention))
 	for i,n1 in enumerate(columnNames):
 		for j,n2 in enumerate(columnNames):
 			new[columnByName(n1),columnByName(n2)]=m[i,j]
 	return new
 # similar to fix_mat_dims, but for rays
 def fix_ray_dims(rays,columnNames):
-	new=xp.zeros((len(rays),7))
+	new=xp.zeros((len(rays),len(convention)))
 	for i,name in enumerate(columnNames):
 		new[:,columnByName(name)]=rays[:,i]
 	return new
@@ -113,7 +114,10 @@ class Element(SEASerializable):
 		"""
 		m = self.transfer_matrix()
 		rf = xp.einsum('mn,in->im', m, r0) # matrix multiplication for a "list of vectors"
+		# additive terms: z_new = z_old+length, rotation_new = rotation_old+R
 		rf[:,columnByName("z")] = r0[:,columnByName("z")]+self.length
+		rf[:,columnByName("R")] = r0[:,columnByName("R")]+getattr(self,"rotation",0)
+		#print("propagate_ray",self.name,"new rotation",rf[-1,columnByName("R")])
 		return rf
 
 class Source(Element):
@@ -489,10 +493,10 @@ class Dipole(Element):
 			List of propagated rays with initial condition (x, θx, y, θy, z, E)
 		"""
 		m = self.transfer_matrix()
-		print(f'm: {m.shape}')#FLAG
+		#print(f'm: {m.shape}')#FLAG
 		ones = xp.ones((r0.shape[0], 1), dtype=r0.dtype)
 		r0_aug = xp.concatenate([r0, ones], axis=1)
-		print(f'r0: { r0.shape} to {r0_aug.shape}')#FLAG
+		#print(f'r0: { r0.shape} to {r0_aug.shape}')#FLAG
 
 		rf = xp.einsum('mn,in->im', m, r0_aug)
 		return rf
@@ -519,7 +523,7 @@ class Lens(Element):
 		"""
 	def __init__(self, name:str='', length:float=0.,
 				 strength:float=0, calibration:float=None,
-				 position:float=None, rotation:bool=False) -> SEASerializable:
+				 position:float=None) -> SEASerializable:
 		
 		if length == 0: kind = 'Thin lens'
 		else:		   kind = 'QLens'
@@ -529,7 +533,7 @@ class Lens(Element):
 		self.length = length
 		self.strength = strength
 		self.calibration = calibration
-		self.rotation = rotation
+		self.rotation = 0
 
 	def transfer_matrix(self) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
@@ -548,7 +552,7 @@ class Lens(Element):
 				#K = sum( Kvals ) ; print(self.calibration,self.strength,Kvals)
 				# A + B*x^(1/1) + C*x^(1/2) + D*x^(1/3) + ....
 				Kvals = [self.calibration[0]] + [ v*K**(1/(i+1)) for i,v in enumerate(self.calibration[1:]) ]
-				K = sum( Kvals ) ; print(self.calibration,self.strength,Kvals)
+				K = sum( Kvals ) #; print("lens","calibration",self.calibration,"strength",self.strength,"Kvals",Kvals)
 				#K = sum( [self.calibration[0]] + [ v*K**(1/(i+1)) for i,v in enumerate(self.calibration[1:]) ] )
 				#c,p = self.calibration
 				# A + B*x**C + D*x**E + ...
@@ -563,6 +567,7 @@ class Lens(Element):
 			m = xp.eye(4)
 			m[0,1]=self.length
 			m[2,3]=self.length
+			self.rotation = 0
 			return fix_mat_dims(m,["x","xt","y","yt"])
 
 		# THIN LENS, NO ROTATION (thick lens math will have sine term going to zero)
@@ -571,19 +576,68 @@ class Lens(Element):
 					     [ -(K**2) , 1 ]])
 			Y=xp.asarray([[    1   , 0 ],
 						 [ -(K**2) , 1 ]])
+			self.rotation = 0
 			return xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
 
 		# THICK LENS, FINITE K (zero K will have iK going to infinite)
 		kL=K*self.length ; iK=1/K
 		C=xp.cos(kL) ; S=xp.sin(kL)
-		XY=xp.asarray([[ C**2  , iK*S*C  ,   S*C  , iK*S**2 ],	# Brown1983 page 105
-						[-K*S*C ,  C**2   ,-K*S**2 ,   S*C   ],	# similar to standard
-						[ -S*C  ,-iK*S**2 ,   C**2 , iK*S*C  ],	# [  1   0 ] but with
-						[ K*S**2,  -S*C   , -K*S*C ,  C**2   ]] )# [ -1/f 1 ] rotation
-		if not self.rotation:
-			zeroer=xp.asarray([[1,1,0,0],[1,1,0,0],[0,0,1,1],[0,0,1,1]])
-			XY*=zeroer
-		return fix_mat_dims(XY,["x","xt","y","yt"])
+		#XY=xp.asarray([	[ C**2  , iK*S*C  ,   S*C  , iK*S**2 ],	# Brown1983 page 105
+		#				[-K*S*C ,  C**2   ,-K*S**2 ,   S*C   ],	# similar to standard
+		#				[ -S*C  ,-iK*S**2 ,   C**2 , iK*S*C  ],	# [  1   0 ] but with
+		#				[ K*S**2,  -S*C   , -K*S*C ,  C**2   ]] )# [ -1/f 1 ] rotation
+		XY= xp.asarray([[  C , iK*S ,  0  ,  0   ],				# Brown1983 page 106
+						[-K*S,  C   ,  0  ,  0   ],				# alternate definition
+						[  0 ,  0   ,  C  , iK*S ],				# M = R(-KL) @ M_alt
+						[  0 ,  0   ,-K*S ,  C   ]])
+		R = xp.asarray([[  C ,  0 ,  S ,  0 ],					# | c -s | is normal,
+						[  0 ,  C ,  0 ,  S ],					# | s  c | applied to x,y
+						[ -S ,  0 ,  C ,  0 ],					# and xt,yt independently
+						[  0 , -S ,  0 ,  C ]])					# here, flip signs to -KL
+		#print(xp.matmul(R,XY2)-XY)
+		#XY = xp.matmul(R,XY)
+		# TWP 2026-05-12: new procedure: never rotate, but Element.propagate_ray will track rotation angle
+		#if not self.rotation:
+		#	XY = XY2
+		#else:
+		#XY = xp.matmul(R,XY2)
+		#	zeroer=xp.asarray([[1,1,0,0],[1,1,0,0],[0,0,1,1],[0,0,1,1]])
+		#	XY*=zeroer
+		#print("lens",self.name,"adds rotation",kL)
+		self.rotation = -kL
+		M = fix_mat_dims(XY,["x","xt","y","yt"])
+		return M
+
+	def calibration_from_f_and_I(self,f,I,rotationPerAmp=None):
+		# noting xt=f(x) cell from matrix is -1/f or -K*sin(K*L)*cos(K*L):
+		# APPROXIMATION: noting that at small angle, sin(K*L) ≈ K*L and cos(K*L) ≈ 1.
+		# if K=C*I (strength = linear scaling * electrical current)
+		# 1/f ≈ K²L = (C*I)² L  --> C = √(1/f/L)/I
+		# and if length L is not fixed, but rotationPerAmp is given:
+		# R = K*L = C*I*L --> R/I = C*L
+		# BEWARE: inaccurate for large L. we really need to "solve for" C
+		self.calibration = xp.sqrt(1/f/self.length)/I
+		# NOT AN approximation: 1/f = K*S*C = (C*I)*sin(C*I*L)*cos(C*I*L)
+		# is there an analytical solution?
+		# trig identity: sin(x)*cos(y) = 1/2*(sin(x+y)+sin(x-y)) so if x=y, sin(x)*cos(x) = 1/2*sin(2*x)
+		#1/f = (C*I)*½*sin(2*C*I*L) idk how to solve this lol. if all you have is a hammer (scipy minimize) everything looks like a nail (a minimization problem)
+		# OPE: 1/f = K*sin, not 1/f = K*sin*cos. (note how the alternate form of M from Brown1983 eliminated the cos. the cos is there for rotation)
+		from scipy.optimize import minimize
+		if rotationPerAmp is None:
+			def dz(C):
+				return ( C*I*xp.sin(C*I*self.length)*xp.cos(C*I*self.length)-1/f )**2
+			x0 = self.calibration
+			self.calibration = minimize(dz,x0=x0)['x'][0]
+		else:
+			def dz(CL):
+				C,L=CL
+				return ( C*I*xp.sin(C*I*L)*xp.cos(C*I*L)-1/f )**2 + ( rotationPerAmp-C*L )**2
+			x0 = ( self.calibration, self.length )
+			self.calibration,self.length = minimize(dz,x0=x0)['x']
+			#import matplotlib.pyplot as plt
+			#Cs = xp.linspace(0,4*x0,100) ; Ys=Cs*I*xp.sin(Cs*I*self.length)#*xp.cos(Cs*I*self.length)
+			#plt.plot(Cs,Ys) ; plt.plot(Cs,[1/f]*100) ; plt.show()
+		#print("calibration_from_f_and_I found",self.calibration,"from starting guess",x0,dz(self.calibration))
 
 class Prism(Element):
 	def __init__(self, name:str='', 
