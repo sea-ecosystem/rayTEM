@@ -10,7 +10,7 @@ Read this file before adding elements, changing the ray representation, or touch
 3. `src/pySEA/ai_wiki/raytem/wiki/<relevant-module>.md` — method-level detail for the file you are about to edit
 
 For ecosystem context (what other repos exist and how they connect), see
-`src/pySEA/ai_wiki/ecosystem/CLAUDE.md` (installed via the `sea-ecosystem` dev dependency).
+`src/pySEA/ai_wiki/ecosystem/CLAUDE.md` (installed via the `sea-ecosystem` wiki dependency — `pip install -e ".[dev,wiki]"`).
 
 ## Navigation
 

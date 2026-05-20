@@ -45,7 +45,8 @@ microscope.show()
 ## Installation
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev]"       # testing
+pip install -e ".[dev,wiki]"  # + AI wiki tools (pysea-refresh-wiki etc.)
 ```
 
 ## AI-assisted development
