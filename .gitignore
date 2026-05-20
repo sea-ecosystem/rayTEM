@@ -1,5 +1,3 @@
 **/__pycache__/*
 **/._*
-pySEA/sea_eco/*
-pySEA/sea_pearl/*
-pySEA/sea_sand/*
+*.egg-info/
