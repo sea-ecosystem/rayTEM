@@ -33,4 +33,4 @@ testpaths = ["src/pySEA/rayTEM/tests"]
 python_files = ["test_*.py"]
 
 [tool.uv.sources]
-sea-ecosystem = { path = "../", editable = true }
+sea-ecosystem = { path = "../sea-ecosystem", editable = true }
