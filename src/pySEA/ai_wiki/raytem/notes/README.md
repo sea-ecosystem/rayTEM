@@ -38,6 +38,3 @@ ls src/pySEA/ai_wiki/raytem/notes/shared/TODO_ACTIVE_*.md
 Open any whose slug matches your task. Check items off as you complete them;
 rename ACTIVE → DONE once all items in a file are done.
 
-## Active notes
-
-*(none yet)*

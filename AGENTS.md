@@ -46,7 +46,7 @@ and the ecosystem index.md.
 **When starting a task:**
 Scan active TODO filenames — slugs are descriptive, most won't need opening:
 ```bash
-ls src/pySEA/ai_wiki/raytem/notes/shared/TODO_ACTIVE_*.md
+ls src/pySEA/ai_wiki/raytem/notes/shared/TODO_ACTIVE_*.md 2>/dev/null
 ```
 Open any whose slug matches your task. Check items off as you complete them;
 rename `ACTIVE` → `DONE` when all items in a file are done.
