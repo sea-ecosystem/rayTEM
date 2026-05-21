@@ -998,7 +998,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
     { name = "scipy", specifier = ">=1.16.3" },
-    { name = "sea-ecosystem", marker = "extra == 'wiki'", editable = "../" },
+    { name = "sea-ecosystem", marker = "extra == 'wiki'", editable = "../sea-ecosystem" },
 ]
 provides-extras = ["dev", "wiki"]
 
@@ -1056,7 +1056,7 @@ wheels = [
 [[package]]
 name = "sea-ecosystem"
 version = "0.0.1"
-source = { editable = "../" }
+source = { editable = "../sea-ecosystem" }
 
 [package.metadata]
 requires-dist = [{ name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" }]
