@@ -57,4 +57,4 @@ This repo is part of the pySEA AI scaffold. To work on it with Claude Code or Co
 2. Verify injection: ask *"Without reading any files, what are the core rules and layer boundaries for this repo?"*
 3. If injection worked, `CLAUDE.md`/`AGENTS.md` are already active as standing instructions — the LLM reads the `ai_wiki/` slice for per-module detail before editing code, and maintains it after
 
-For the full guide — which tools support injection, why session start matters, the freshness contract, and the two shared scripts — see the [sea-ecosystem README](https://github.com/sea-ecosystem/sea-ecosystem).
+For the full guide — which tools support injection, why session start matters, the freshness contract, and the scripts — see the [sea-ecosystem README](https://github.com/sea-ecosystem/sea-ecosystem).
