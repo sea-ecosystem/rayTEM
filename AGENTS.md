@@ -122,12 +122,25 @@ Shared architectural decisions go in `notes/shared/`.
 - `seashells.py` — conditional import logic; changing import path or attribute names breaks sea_eco round-trips
 - `AS2.py` — talks to a live instrument; errors here can send bad values to real hardware
 
+## Coding behavior
+
+- **Think before coding** — state assumptions explicitly before implementing. If multiple interpretations exist, present them. If something is unclear and would materially change the implementation, stop and ask.
+- **Prefer simplicity** — write the minimum code that solves the problem. No unrequested features, single-use abstractions, or unrequested configurability. If a more complex solution is warranted, flag it and offer to implement, add to TODO, or skip.
+- **Make surgical changes** — touch only what the task requires. Do not refactor unrelated code. Mention unrelated issues rather than fixing them silently. Match existing project style.
+- **Work from verifiable goals** — convert tasks into concrete success criteria before implementing. For multi-step tasks, name each step and its verification.
+
+> Full guidelines with examples: `sea-ecosystem/docs/dev/agent-coding-guidelines.md`
+
 ## Style rules
 
-- NumPy docstring style for public callables.
-- Prefer explicit classes over dataclasses unless clearly justified.
+- NumPy docstring style for **all** Python callables — public, private (leading underscore), dunder methods, properties, class methods, static methods, and classes. Documentation quality is part of code correctness.
+  Required sections: short summary · extended summary · Parameters · Attributes (classes) · Methods (classes) · Returns · Raises · Related · Notes · Examples · References. Include all sections that apply; Parameters, Returns, and Raises are required when they exist.
+- Prefer explicit type annotations in signatures. Prefer `Literal` over `str` for fixed value sets. Prefer `Sequence` over `list` or `tuple` in signatures.
+- Do not use dataclasses.
 - Keep method names action-oriented.
 - `microscopes/` subdirectories contain instrument-specific scripts, not general framework code. Do not import from them in framework modules.
+
+> Documentation protocol and examples: `sea-ecosystem/docs/dev/agent-documentation-protocol.md`
 
 ## AI workflow
 
