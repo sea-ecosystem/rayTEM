@@ -10,6 +10,8 @@ from .postprocessing import plot2D
 from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName
 from .seashells import SEASerializable
 
+from copy import deepcopy
+
 class MicroscopeSection(SEASerializable):
 	"""MicroscopeSection class represents a portion of a microscope, and contains multiple Elements. propagation through a Section results in propagation through individual Elements.
 
@@ -74,14 +76,21 @@ class MicroscopeSection(SEASerializable):
 
 	# TWP 2025-11-05: allow indexing of the assembly by name: section["PL1"] should return the section by that name! see removed_private_instrument_tree/PRIVATE_INSTRUMENT/fine_PLs.py. 2026-02-05: also allow slicing by name: section["sample":] should return a new section with all elements including and after "sample"
 	def __getitem__(self, item):
-		#return item
+		#print("section __getitem__",item)
+		# REFERENCE TO SINGLE ITEMS
 		if isinstance(item,str):	# convert "PL1" into an integer index
+			#print("index lookup, single item")
 			item = self.index(item)
+		if isinstance(item,int):
+			#print("simple index lookup, returning reference to element")
+			return self.elements[item]
+		# SLICES, POTENTIALLY MULTIPLE ITEMS, ALWAYS RETURN A COPY
 		if isinstance(item,slice):	# convert "sample:" (which results in "item" being a slice) to an integer-indexed slice, e.g. slice(3,None,None)
 			a,b,n=item.start,item.stop,item.step
 			a,b,n=[ self.index(v) if isinstance(v,str) else v for v in [a,b,n] ]
 			item = slice(a,b,n)
-		ret = self.elements[item]
+		#print("returning copied slice")
+		ret = self.copy().elements[item]
 		if isinstance(ret,list):
 			return MicroscopeSection(name=self.name,elements=ret,position=self.position)
 		return ret
@@ -225,11 +234,14 @@ class MicroscopeSection(SEASerializable):
 			pickle.dump(self,f)
 
 	def copy(self):
+		return deepcopy(self)
 		#print(self,self.elements)
 		elements = [ e.copy() for e in self.elements ]
 		dic = self.__dict__ ; dic["elements"]=elements
 		allowed_kwargs = inspect.signature(MicroscopeSection).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
 		dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it technically has one
+		#print("creating copy with dic",dic)
+		print("elem0 ids",id(elements[0]),id(self.elements[0]))
 		return MicroscopeSection(**dic)
 
 
@@ -260,34 +272,50 @@ class Microscope(SEASerializable):
 	################
     # region: Dunder
 	
+	# DISCUSSION: when do we return a reference to the section or element, and when do we return a copy?
+	# I think for singular elements/sections, we should return a reference:
+	# 'Microscope["PL1"].strength = newval' should update
+	# and we for sub-chunks of the microscope, we should return a copy:
+	# 'Microscope[:"PL1"]' is required to edit the 3rd section of CLs/OLs/PLs, so the "edited" version should be a full copy
 	def __getitem__(self, item):
+		#print("microscope __getitem__",item)
+		# SINGLE ELEMENT OR SECTION
 		# string passed (e.g., name of section or element), "PL1" or "PLs", convert to indices
 		if isinstance(item,str):
+			#print("index lookup from stringf")
 			item = self.index(item)
 		# single item specified: "PL1" or "PLs"
 		if isinstance(item,int): # microscope["PLs"] will find index of section, and return that section
+			#print("simple index, return reference to section")
 			return self.sections[item]
 		if isinstance(item,tuple): # microscope["PL1"] finds the element inside a section (indexOfPLss,indexOfPL1WithinPLs)
+			#print("tuple, return single element")
 			return self.sections[item[0]].elements[item[1]]
-		# multiple items specified: '"OLs":', or '"sample":' or '3:'
+		# POTENTIALLY MULTIPLE ITEMS: '"OLs":', or '"sample":' or '3:'
 		if isinstance(item,slice):	# convert "sample:" (which results in "item" being a slice) to an integer-indexed slice, e.g. slice(3,None,None)
 			a,b,n=item.start,item.stop,item.step
 			a,b,n=[ self.index(v) if isinstance(v,str) else v for v in [a,b,n] ]
-			if False not in [ v is None or isinstance(v,int) for v in [a,b,n] ]:
+			if False not in [ v is None or isinstance(v,int) for v in [a,b,n] ]: #False if tuple, i.e., these are just ints
 				item = slice(a,b,n)
-				ret = self.sections[item]
-				if isinstance(ret,int):			# microscope["PLs"] will find index of section, and return that section
-					return ret
-				if isinstance(ret,list):		# microscope["OLs":] will return list of sections OLs,DQCM,PLs, etc, so form into a new Microscope
-					return Microscope(name=self.name,sections=ret)
+				ret = self.copy().sections[item] # ALWAYS MAKE A COPY
+				# SINGLE SECTION, RETURN REFERENCE
+				#if isinstance(ret,int):			# microscope["PLs"] will find index of section, and return that section
+				#	return ret
+				# GROUP OF SECTIONS, RETURN COPY
+				#if isinstance(ret,list):		# microscope["OLs":] will return list of sections OLs,DQCM,PLs, etc, so form into a new Microscope
+				#print("all int or none, simple slice, return new microscope with copied sections")
+				return Microscope(name=self.name,sections=ret)
+
+			# ONE OR MORE SECTIONS IS SLICED: ':"PL1"' includes preceeding sections AND a portion of the PLs section
 			# microscope["sample":] should return a Microscope containing the sections/elements starting at "sample". if section "OLs" contains "sample", the returned Microscope should contain OLs, plus subsequent sections (e.g. DQCM and PLs), and the OLs section should only contain elements from "sample" and beyond
 			a1,b1,n1 = [ v[0] if isinstance(v,tuple) else v for v in [a,b,n] ]
 			if isinstance(b,(tuple,list)) and b[1]>0:
 				b1+=1
 
 			# TRIM LIST OF SECTIONS
+			#print("needs trimmed copy")
 			ret = self.copy().sections[slice(a1,b1,n1)]
-			print(ret,self.copy())
+			#print(ret,self.copy())
 			# TODO what if we do: "PL1:PL3", these are inside the same section, we ought to check if a1==b1
 			# TRIM FIRST SECTION'S ELEMENTS
 			if isinstance(a,tuple) and a[1]>0:
@@ -405,6 +433,10 @@ class Microscope(SEASerializable):
 		else:
 			print("ADJUST ELEMENT LENGTH NOT YET IMPLEMENTED FOR LAST ELEMENT IN SECTION")
 
+	def get_element_position(self,e):
+		i,j = self.index(e)
+		return self.sections[i].position+self.sections[i][j].position
+
 	@property
 	def named_positions(self):
 		l = {}
@@ -430,10 +462,15 @@ class Microscope(SEASerializable):
 		#print(self.rays.shape)
 		return self.rays
 
+	@property
+	def named_sections(self):
+		return { s.name+" ("+str(i)+")":[s.position,s.position+s.length] for i,s in enumerate(self.sections) }
+
 	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True,plt_ax=None):
 		if self.rays is None or regenerate:
 			r1 = self.propagate_ray()
-		sections = { s.name+" ("+str(i)+")":[s.position,s.position+s.length] for i,s in enumerate(self.sections) }# if s.name is not None }
+
+		sections = self.named_sections
 		#print("SECTIONS",sections)
 		if zlims is None:
 			zs = self.rays[:,0,columnByName("z")]
@@ -457,11 +494,13 @@ class Microscope(SEASerializable):
 			json.dump(jdict, f,indent=4)
 
 	def copy(self):
+		return deepcopy(self)
 		sections = [ s.copy() for s in self.sections ]
 		dic = self.__dict__ ; dic["sections"]=sections
 		allowed_kwargs = inspect.signature(Microscope).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
 		dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it technically has one
-		print("creating new Microscope with dic",dic)
+		#print("creating new Microscope with dic",dic)
+		print("section0 ids",id(sections[0]),id(self.sections[0]))
 		return Microscope(**dic)
 
 def load_section(filename):

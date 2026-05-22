@@ -36,7 +36,7 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 		for m,z,r in zip(M,Z,R):
 			ct+=1
 			z=zFromFractional(zs,z)
-			label=imdiff+" @ z="+str(np.round(z,3))+"\n M="+str(np.round(m,3))+"\n R="+str(np.round(r,3))
+			label=imdiff+" @ z="+str(np.round(z,3))+"\n M="+str(np.round(m,3))+"\n R="+str(np.round(r*180/np.pi,1))
 			ls={"diff":"--","image":"-."}[imdiff]
 			ax.plot([z,z],ylims,linestyle=ls,color="k",marker='',linewidth=1)
 			ax.annotate(label,(z,ylims[1]*ct/nplanes))
@@ -760,8 +760,9 @@ def error_dz(microscope,settings,targets): # settings is a dict of parameters to
 		deltas.append( zps_real[n]-z )
 	return deltas
 
-# given a Microscope object, a dict of lens parameters, and a dict of planes, detects nearest plane of the correct type, and return the delta in magnifications
-def error_magnification(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":{"z":5,"mag":10}}
+# given a Microscope object, a dict of lens parameters, and a dict of planes, detects nearest plane of the correct type, and return the delta in magnifications, deltas in rotations, etc
+def error_at_plane(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":{"z":5,"M":10}}
+	print(settings,targets)
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
 	#microscope.show()
@@ -771,12 +772,15 @@ def error_magnification(microscope,settings,targets): # settings is a dict of pa
 	# FOR EACH TARGET PLANE, FIND CLOSEST OF SAME TYPE, ERROR IS DELTA IN POSITION
 	deltas = []
 	for plane_type,zm in targets.items():
-		z=zm["z"] ; mag=zm["mag"]
+		z=zm["z"]
 		zs = r1[:,0,columnByName("z")] 								# all positions of 0th ray
 		zps_fractional = planes["x"][ plane_type ]["z"]				# coordinates are nth-element, % distance between
 		zps_real = [ zFromFractional(zs,z) for z in zps_fractional ]
 		n=np.argmin( np.absolute(np.asarray(zps_real)-z) )	# find the index of the closest plane
-		deltas.append( planes['x'][ plane_type ]['M']-mag )
+		for k,v in zm.items():
+			if k=="z":
+				continue
+			deltas.append( planes['x'][ plane_type ][k][n]-zm[k] ) # "M" for mag, "R" for rotation,
 	return deltas
 
 # given a Microscope object, a dict of lens parameters, and a list of positions, simply returns the beam diameter at each position
@@ -806,12 +810,6 @@ def error_angles(microscope,settings,targets,absolute=False): # settings is a di
 			xt=np.absolute(xt)
 		angles.append(xt)
 	return angles
-
-
-# error function (passable to scipy.minimize et al). modifiable is a dict of keywords, {"PL1":"calibration"}, settings is a list of dicts of settings: {"PL1":{"strength":.475}}
-#def error_multisetting(microscope,modifiable=[],settings=[]):
-
-
 
 # Given the ability to 1) generate a section 2) propagate rays and 3) measure attributes of the propagated rays (e.g. location of planes and magnifications), we should be able to fit for variables (like lens strength) to achieve a desired result
 # Desired result may be: position of an image/diffraction plane, magnification at that plane, angles coming in, or unbounded desirables like "maximize the magnitude" or "minimize the lens currents"
@@ -1004,7 +1002,7 @@ def measureAtZ(z,rays=None,section=None):
 	if rays is None:
 		rays = section.rays
 	if isinstance(z,str):
-		z=section[z].position
+		z=section.get_element_position(z)
 	zs = rays[:,0,columnByName('z')] # nthElement,nthRay,xythetaetc
 	i=np.where(zs<=z)[0][-1] # closest elemnt before or at z
 	#print(z,zs,i,zs[i])
