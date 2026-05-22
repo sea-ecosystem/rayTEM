@@ -601,7 +601,8 @@ class Lens(Element):
 						[ -S ,  0 ,  C ,  0 ],					# and xt,yt independently
 						[  0 , -S ,  0 ,  C ]])					# here, flip signs to -KL
 		#print(xp.matmul(R,XY2)-XY)
-		#XY = xp.matmul(R,XY)
+		XY = xp.matmul(R,XY)*xp.asarray([[1,1,0,0],[1,1,0,0],[0,0,1,1],[0,0,1,1]])
+
 		# TWP 2026-05-12: new procedure: never rotate, but Element.propagate_ray will track rotation angle
 		#if not self.rotation:
 		#	XY = XY2

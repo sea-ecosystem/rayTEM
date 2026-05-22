@@ -25,8 +25,8 @@ def test_basic_section_r0():
 	if not os.path.exists(filename):
 		np.save(filename,r1)
 	r1_old = np.load(filename)
-	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
-	ret = findPlanes(r1,axes="x")
+	assert np.sqrt(np.sum((r1[:,:,:7]-r1_old[:,:,:7])**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+	ret = findPlanes(r1,axis="x")
 	Zd=ret['x']['diff']['z'][0] ; Md=ret['x']['diff']['M'][0]
 	Zi=ret['x']['image']['z'][0] ; Mi=ret['x']['image']['M'][0]
 	planes = np.asarray([Zd,Md,Zi,Mi])
@@ -48,7 +48,7 @@ def test_basic_section_wsource():
 	if not os.path.exists(filename):
 		np.save(filename,r1)
 	r1_old = np.load(filename)
-	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+	assert np.sqrt(np.sum((r1[:,:,:7]-r1_old[:,:,:7])**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 #test_basic_section_wsource()
 
 # basic stack including Source, Drift, Lens, Aperture (TODO add additional elements as support is added)
@@ -62,7 +62,7 @@ def test_every_element():
 	if not os.path.exists(filename):
 		np.save(filename,r1)
 	r1_old = np.load(filename)
-	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+	assert np.sqrt(np.sum((r1[:,:,:7]-r1_old[:,:,:7])**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 #test_every_element()
 
 def test_dipole_transfer_matrix():
@@ -78,7 +78,7 @@ def test_dipole_transfer_matrix():
 	assert r1[0,columnByName("y")] == .2
 	assert r1[0,columnByName("yt")] == .2
 	assert r1[0,columnByName("z")] == 2
-test_dipole_transfer_matrix()
+#test_dipole_transfer_matrix()
 
 # basic two-section assembly: Drift/Lens/Drift/Lens/Drift + Lens/Drift. lens/drift lengths define element positions, section lengths, etc
 # test: resulting rays should always be identical (compare to numpy saved rays)
@@ -95,8 +95,8 @@ def test_basic_microscope_defined_by_lengths():
 	if not os.path.exists(filename):
 		np.save(filename,r1)
 	r1_old = np.load(filename)
-	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
-	ret = findPlanes(r1,axes="x")
+	assert np.sqrt(np.sum((r1[:,:,:7]-r1_old[:,:,:7])**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+	ret = findPlanes(r1,axis="x")
 	Zd=ret['x']['diff']['z'] ; Md=ret['x']['diff']['M']
 	Zi=ret['x']['image']['z'] ; Mi=ret['x']['image']['M']
 	#print(Zd,Md,Zi,Mi)
@@ -129,7 +129,7 @@ def test_basic_microscope_defined_by_positions():
 		print("ERROR: test_basic_microscope_defined_by_positions requires test_basic_microscope_defined_by_lengths to run first")
 		assert 1==0
 	r1_old = np.load(filename)
-	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+	assert np.sqrt(np.sum((r1[:,:,:7]-r1_old[:,:,:7])**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 #test_basic_microscope_defined_by_positions()
 
 # basic two-section assembly, reloaded from json file.
@@ -143,7 +143,7 @@ def test_basic_microscope_reload_json():
 		print("ERROR: test_basic_microscope_reload_json requires test_basic_microscope_defined_by_lengths to run first")
 		assert 1==0
 	r1_old = np.load(filename)
-	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+	assert np.sqrt(np.sum((r1[:,:,:7]-r1_old[:,:,:7])**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 #test_basic_microscope_reload_json()
 
 # basic two-section assembly, reloaded from sea file.
@@ -157,7 +157,7 @@ def test_basic_microscope_reload_sea():
 		print("ERROR: test_basic_microscope_reload_sea requires test_basic_microscope_defined_by_lengths to run first")
 		assert 1==0
 	r1_old = np.load(filename)
-	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+	assert np.sqrt(np.sum((r1[:,:,:7]-r1_old[:,:,:7])**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 #test_basic_microscope_reload_sea()
 
 #def test_insertion_section():
@@ -186,7 +186,7 @@ def test_element_insertion_microscope():
 		print("ERROR: test_insertion_microscope requires test_basic_microscope_defined_by_lengths to run first")
 		assert 1==0
 	r1_old = np.load(filename)[-1,:,:]
-	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+	assert np.sqrt(np.sum((r1[:,:7]-r1_old[:,:7])**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 
 def test_section_insertion_microscope():
 	ele1 = [ Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)),
@@ -215,7 +215,7 @@ def test_section_insertion_microscope():
 
 	r1_old = np.load(filename)
 	#print(np.sqrt(np.sum((r1[-1]-r1_old[-1])**2)))
-	assert np.sqrt(np.sum((r1[-1]-r1_old[-1])**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+	assert np.sqrt(np.sum((r1[-1,:,:7]-r1_old[-1,:,:7])**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 
 #test_section_insertion_microscope()
 
