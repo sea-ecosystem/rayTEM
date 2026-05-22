@@ -4,7 +4,7 @@ from typing import List
 
 flag_gpu = False
 import pickle
-import sys
+import sys,inspect
 
 from .postprocessing import plot2D
 from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName
@@ -111,10 +111,10 @@ class MicroscopeSection(SEASerializable):
 			rows = [ " ".join(columns) ] + [ " ".join([str(v) for v in rep ]) for rep in reps ]
 			return "\n".join(rows)
 		
-	def __str__(Self):
-		if self.name is None or self.name=='': name = 'Unamed'
-		else: name = self.name
-		return f'{name} (Section)'
+	#def __str__(self):
+	#	if self.name is None or self.name=='': name = 'Unamed'
+	#	else: name = self.name
+	#	return f'{name} (Section)'
 
 	def __len__(self):
 		return len(self.elements)
@@ -224,12 +224,13 @@ class MicroscopeSection(SEASerializable):
 		with open(filename+".pkl",'wb') as f:
 			pickle.dump(self,f)
 
-	#def copy(self):
-	#	elements = [ e.copy() for e in self.elements ]
-	#	dic = self.__dict__ ; dic["elements"]=elements
-	#	allowed_kwargs = inspect.signature(Microscope).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
-	#	dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it technically has one
-	#	return MicroscopeSection(**dic)
+	def copy(self):
+		#print(self,self.elements)
+		elements = [ e.copy() for e in self.elements ]
+		dic = self.__dict__ ; dic["elements"]=elements
+		allowed_kwargs = inspect.signature(MicroscopeSection).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
+		dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it technically has one
+		return MicroscopeSection(**dic)
 
 
 class Microscope(SEASerializable):
@@ -281,29 +282,29 @@ class Microscope(SEASerializable):
 					return Microscope(name=self.name,sections=ret)
 			# microscope["sample":] should return a Microscope containing the sections/elements starting at "sample". if section "OLs" contains "sample", the returned Microscope should contain OLs, plus subsequent sections (e.g. DQCM and PLs), and the OLs section should only contain elements from "sample" and beyond
 			a1,b1,n1 = [ v[0] if isinstance(v,tuple) else v for v in [a,b,n] ]
-			ret = self.sections[slice(a1,b1,n1)]	# trimmed list of sections
+			if isinstance(b,(tuple,list)) and b[1]>0:
+				b1+=1
 
-			#for i,s in enumerate(ret):
-			#	print("SECTION",i)
-			#	print(s)
-
-			if isinstance(a,tuple) and a[1]>0:		# trim first section
-				ret[0].elements = ret[0].elements[a[1]:] # TODO what if we do: "PL1:PL3", these are inside the same section, we ought to check if a1==b1
-				p0 = ret[0].elements[0].position
+			# TRIM LIST OF SECTIONS
+			ret = self.copy().sections[slice(a1,b1,n1)]
+			print(ret,self.copy())
+			# TODO what if we do: "PL1:PL3", these are inside the same section, we ought to check if a1==b1
+			# TRIM FIRST SECTION'S ELEMENTS
+			if isinstance(a,tuple) and a[1]>0:
+				ret[0].elements = ret[0].elements[a[1]:]
+				p0 = ret[0].elements[0].position			# now-first element's position
 				for i,e in enumerate(ret[0].elements):
-					ret[0].elements[i].position -= p0
-				ret[0].length -= p0
-			#if isinstance(b,tuple) and b[1]<len(new.sections[-1]): TODO FINISH IMPLEMENTING
-			#	new.sections[-1]=new.sections[-1][:b[1]]
-			p1 = ret[0].position
-			for i,s in enumerate(ret):				# shift so first section starts at 0
-				ret[i].position -= p1
-				if i>0:
-					ret[i].position -= p0			# subsequent sections ALSO need to be brought forwards by the the shortening of sec0
-
-			#for i,s in enumerate(ret):
-			#	print("SECTION",i)
-			#	print(s)
+					ret[0].elements[i].position -= p0		# shift all element positions so first is at zero
+				ret[0].length -= p0							# update section length
+				p1 = ret[0].position						# now-first section's position
+				for i,s in enumerate(ret):					# shift so first section starts at 0
+					ret[i].position -= p1					# shift all sections so first is at zero
+					if i>0:									# subsequent sections ALSO need to be brought forwards by the the shortening of
+						ret[i].position -= p0
+			# TRIM LAST SECTION'S ELEMENTS
+			if isinstance(b,tuple) and b[1]<len(ret[-1].elements):
+				ret[-1]=ret[-1][:b[1]]						# trim last section's elements
+				ret[-1].length = ret[-1][-1].position + ret[-1][-1].length # update last section's length
 
 			return Microscope(name=self.name,sections=ret)
 
@@ -320,10 +321,10 @@ class Microscope(SEASerializable):
 		#	return ''
 		return "\n".join(strings)
 		
-	def __str__(Self):
-		if self.name is None or self.name=='': name = 'Unamed'
-		else: name = self.name
-		return f'{name} (Section)'
+	#def __str__(self):
+	#	if self.name is None or self.name=='': name = 'Unamed'
+	#	else: name = self.name
+	#	return f'{name} (Section)'
 
 	# endregion
     ################
@@ -455,13 +456,13 @@ class Microscope(SEASerializable):
 		with open(filename+'.json', 'w') as f:
 			json.dump(jdict, f,indent=4)
 
-	#def copy(self):
-	#	sections = [ MicroscopeSection() for s in self.sections ]
-	#	sections = [ s.copy() for s in self.sections ]
-	#	dic = self.__dict__ ; dic["sections"]=sections
-	#	allowed_kwargs = inspect.signature(Microscope).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
-	#	dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it technically has one
-	#	return Microscope(**dic)
+	def copy(self):
+		sections = [ s.copy() for s in self.sections ]
+		dic = self.__dict__ ; dic["sections"]=sections
+		allowed_kwargs = inspect.signature(Microscope).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
+		dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it technically has one
+		print("creating new Microscope with dic",dic)
+		return Microscope(**dic)
 
 def load_section(filename):
 	if ".sea" in filename:

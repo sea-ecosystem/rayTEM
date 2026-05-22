@@ -5,7 +5,7 @@ from numpy.typing import ArrayLike
 
 import numpy as xp
 flag_gpu = False
-import traceback
+import traceback,inspect
 from warnings import warn
 from abc import abstractmethod
 
@@ -80,8 +80,11 @@ class Element(SEASerializable):
 		else: kind = self.kind
 		return f'{name} ({kind} Element)'
 
-	def __copy__(self):
-		return type(self)(self.name, self.kind)
+	def copy(self):
+		dic = self.__dict__
+		allowed_kwargs = inspect.signature(type(self)).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
+		dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it
+		return type(self)(**dic)
 
 	# endregion
 	#####################################
