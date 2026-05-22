@@ -49,6 +49,12 @@ pip install -e ".[dev]"       # testing
 pip install -e ".[dev,wiki]"  # + AI wiki tools (pysea-refresh-wiki etc.)
 ```
 
+When using `uv`, run wiki maintenance through the optional `wiki` extra:
+
+```bash
+uv run --extra wiki pysea-refresh-wiki
+```
+
 ## AI-assisted development
 
 This repo is part of the pySEA AI scaffold. To work on it with Claude Code or Codex:

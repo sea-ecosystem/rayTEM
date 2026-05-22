@@ -76,24 +76,24 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 
 ## Freshness loop
 
-**Before editing a `.py` file:**
-Read `src/pySEA/ai_wiki/raytem/wiki/<module>.md` (use method-index.json to find the path).
+**Existing module change:**
+read wiki -> edit code/tests -> manually update matching wiki doc -> run refresh
 
-**After editing a `.py` file:**
-Update the corresponding wiki doc — revise changed method entries, add cross-links for new relationships. Commit the doc alongside the code change.
+**Structural change** (new modules, renamed files, moved functions):
+edit code/tests -> run refresh to create/update stubs -> manually update wiki doc -> run refresh again
 
-**After editing any wiki doc:**
-Run `pysea-refresh-wiki` to update TOC headers, wiki line numbers, and the ecosystem index:
+**Wiki-only change:**
+edit wiki doc -> run refresh
+
+Refresh command:
 ```bash
-pysea-refresh-wiki
+uv run --extra wiki pysea-refresh-wiki
 ```
 
-**After structural changes** (new modules, renamed files, moved functions):
-```bash
-pysea-refresh-wiki
-```
-This refreshes symbol-index.json, method-index.json, the CLAUDE.md repo-map section,
-all TOC headers, and the ecosystem index.md.
+If the repository environment was installed manually with `pip install -e
+".[dev,wiki]"`, the bare `pysea-refresh-wiki` console script is also valid.
+When using `uv run`, include `--extra wiki`; otherwise the local
+`sea-ecosystem` tooling may not be present in the command environment.
 
 **When starting a task:**
 Scan active TODO filenames — slugs are descriptive, most won't need opening:
