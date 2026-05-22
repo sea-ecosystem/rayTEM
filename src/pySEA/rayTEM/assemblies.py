@@ -120,10 +120,10 @@ class MicroscopeSection(SEASerializable):
 			rows = [ " ".join(columns) ] + [ " ".join([str(v) for v in rep ]) for rep in reps ]
 			return "\n".join(rows)
 		
-	#def __str__(self):
-	#	if self.name is None or self.name=='': name = 'Unamed'
-	#	else: name = self.name
-	#	return f'{name} (Section)'
+	def __str__(self):
+		if self.name is None or self.name=='': name = 'Unamed'
+		else: name = self.name
+		return f'{name} (Section)'
 
 	def __len__(self):
 		return len(self.elements)
@@ -349,10 +349,10 @@ class Microscope(SEASerializable):
 		#	return ''
 		return "\n".join(strings)
 		
-	#def __str__(self):
-	#	if self.name is None or self.name=='': name = 'Unamed'
-	#	else: name = self.name
-	#	return f'{name} (Section)'
+	def __str__(self):
+		if self.name is None or self.name=='': name = 'Unamed'
+		else: name = self.name
+		return f'{name} (Section)'
 
 	# endregion
     ################
