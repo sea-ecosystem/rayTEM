@@ -128,7 +128,6 @@ class Element(SEASerializable):
 		rf[:,columnByName("xt")] += getattr(self,"tilt_x",0)
 		rf[:,columnByName("yt")] += getattr(self,"tilt_y",0)
 
-
 		#print("propagate_ray",self.name,"new rotation",rf[-1,columnByName("R")])
 		return rf
 
@@ -418,7 +417,7 @@ class Dipole(Element):
 		
 		if axis.lower() == 'x':
 			self.phi = 0
-		elif axis.lower() == 'x':
+		elif axis.lower() == 'y':
 			self.phi = xp.pi/2
 		elif isinstance(axis, float):
 			if axis > 0 and axis <= 2*np.pi:
@@ -459,8 +458,12 @@ class Dipole(Element):
 		Kx = K * xp.cos(self.phi)
 		Ky = K * xp.sin(self.phi)
 
-		self.tilt_x = Kx * L
-		self.tilt_y = Ky * L
+		if self.length == 0:
+			self.tilt_x = Kx
+			self.tilt_y = Ky
+		else:
+			self.tilt_x = Kx * self.length
+			self.tilt_y = Ky * self.length
 
 		return fix_mat_dims(xp.eye(4),["x","xt","y","yt"])
 

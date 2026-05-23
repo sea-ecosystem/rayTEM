@@ -71,13 +71,13 @@ def test_dipole_transfer_matrix():
 	r0[:,columnByName("I")] = 1
 
 	r1 = Dipole(strength=.2,axis="x").propagate_ray(r0) ; print(r1)
-	assert r1[0,columnByName("x")] == 0
-	assert r1[0,columnByName("xt")] == .2
+	assert r1[0,columnByName("x")] == 0			# beam is centered, tilted, so should remain centered (until free-space propagation)
+	assert r1[0,columnByName("xt")] == .2		# zero-thickess: strength is simply tilt angle
 
 	r1 = Dipole(length=2,strength=.2,axis="y").propagate_ray(r0)
-	assert r1[0,columnByName("y")] == .2
-	assert r1[0,columnByName("yt")] == .2
-	assert r1[0,columnByName("z")] == 2
+	assert r1[0,columnByName("y")] == 0			# beam is centered, tilted, so should remain centered
+	assert r1[0,columnByName("yt")] == .4		# tilted in y this time, strength x length
+	assert r1[0,columnByName("z")] == 2			# beam is propagated by length in z
 #test_dipole_transfer_matrix()
 
 # basic two-section assembly: Drift/Lens/Drift/Lens/Drift + Lens/Drift. lens/drift lengths define element positions, section lengths, etc
