@@ -592,10 +592,11 @@ class Lens(Element):
 
 		# THIN LENS, NO ROTATION (thick lens math will have sine term going to zero)
 		if self.length==0:
+			sign = -1*xp.sign(K) # sign allows negative calibration to give you diverging beams???
 			X=xp.asarray([[    1   , 0 ],
-					     [ -(K**2) , 1 ]])
+					     [ sign*(K**2) , 1 ]])
 			Y=xp.asarray([[    1   , 0 ],
-						 [ -(K**2) , 1 ]])
+						 [ sign*(K**2) , 1 ]])
 			self.rotation = 0
 			return xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
 
@@ -637,6 +638,9 @@ class Lens(Element):
 		# and if length L is not fixed, but rotationPerAmp is given:
 		# R = K*L = C*I*L --> R/I = C*L
 		# BEWARE: inaccurate for large L. we really need to "solve for" C
+		if self.length == 0:
+			self.calibration = xp.sign(f)*xp.sqrt(1/abs(f))/I # 1/f = K² = (I*C)²,
+			return
 		self.calibration = xp.sqrt(1/f/self.length)/I
 		# NOT AN approximation: 1/f = K*S*C = (C*I)*sin(C*I*L)*cos(C*I*L)
 		# is there an analytical solution?

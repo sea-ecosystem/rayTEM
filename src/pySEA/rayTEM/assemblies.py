@@ -7,7 +7,7 @@ import pickle
 import sys,inspect
 
 from .postprocessing import plot2D
-from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName
+from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture
 from .seashells import SEASerializable
 
 from copy import deepcopy
@@ -166,7 +166,7 @@ class MicroscopeSection(SEASerializable):
 			for i,ele in enumerate(self.elements): # "looking for element spanning 25.0: 5th element is a Drift which goes from 21.0 to 30.0"
 				if ele.position<=index and ele.position+ele.length>=index and ele.kind=="Drift":
 					#print("INSERTING ELEMENT",element.name,"AT",index,"(",ele.position,ele.length,")","AT POSITION",i)
-					elementlength=0 if self.ignoreLensThickness else element.length
+					elementlength=0 if self.ignoreLensThickness else getattr(element,"length",0)
 					l1=index-ele.position ; l2=ele.length-elementlength-l1 # "this drift needs to be length 4.0, and we'll need another drift after the insertion"
 					#print("PRE DRIFT",l1,"+ ELEMENT",element.length,"+ POST DRIFT",l2,"=",ele.length)
 					self.elements[i].length=l1			# "shorten" initial drift
@@ -485,7 +485,7 @@ class Microscope(SEASerializable):
 			s_attrs = {"Section name":s.name,"position":s.position,"length":s.length,"Elements":[]} | s.__dict__
 			del s_attrs["elements"],s_attrs["rays"],s_attrs["name"]
 			for e in s.elements:
-				e_attrs = {"Element name":e.name,"kind":e.kind,"position":e.position,"length":e.length} | e.__dict__
+				e_attrs = {"Element name":e.name,"kind":e.kind,"position":e.position} | e.__dict__
 				del e_attrs["name"]
 				s_attrs["Elements"].append(e_attrs)
 			jdict["Sections"].append(s_attrs)
@@ -541,7 +541,7 @@ def load_microscope(filename):
 		jdict = json.loads("".join(open(filename+".json").readlines()))
 
 	import inspect
-	mapping = { "Drift":Drift, "QLens":Lens, "Thin lens":Lens, "Source":Source, "Dipole":Dipole, "Thin dipole":Dipole, "Quad":Quadrapole, "Thin quad":Quadrapole } # TODO Eventually need to support all Element types from elements.py. and is there a way to map these automatically instead of explicitly?
+	mapping = { "Drift":Drift, "QLens":Lens, "Thin lens":Lens, "Source":Source, "Dipole":Dipole, "Thin dipole":Dipole, "Quad":Quadrapole, "Thin quad":Quadrapole, "Aperture":Aperture } # TODO Eventually need to support all Element types from elements.py. and is there a way to map these automatically instead of explicitly?
 
 	sections = []
 	for section in jdict["Sections"]: # list of dicts, "section" is a dict
