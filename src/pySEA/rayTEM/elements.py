@@ -121,8 +121,14 @@ class Element(SEASerializable):
 		m = self.transfer_matrix()
 		rf = xp.einsum('mn,in->im', m, r0) # matrix multiplication for a "list of vectors"
 		# additive terms: z_new = z_old+length, rotation_new = rotation_old+R
-		rf[:,columnByName("z")] = r0[:,columnByName("z")]+self.length
-		rf[:,columnByName("R")] = r0[:,columnByName("R")]+getattr(self,"rotation",0)
+		rf[:,columnByName("z")] += self.length
+		rf[:,columnByName("R")] += getattr(self,"rotation",0)
+		rf[:,columnByName("x")] += getattr(self,"shift_x",0)
+		rf[:,columnByName("y")] += getattr(self,"shift_y",0)
+		rf[:,columnByName("xt")] += getattr(self,"tilt_x",0)
+		rf[:,columnByName("yt")] += getattr(self,"tilt_y",0)
+
+
 		#print("propagate_ray",self.name,"new rotation",rf[-1,columnByName("R")])
 		return rf
 
@@ -450,62 +456,67 @@ class Dipole(Element):
 				K = K**p * c
 		
 		# Project the strength
-		Kx = xp.cos(self.phi)
-		Ky = xp.sin(self.phi)
+		Kx = K * xp.cos(self.phi)
+		Ky = K * xp.sin(self.phi)
 
-		m = xp.zeros((7,8))
-		xp.fill_diagonal(m, 1, wrap=False)
+		self.tilt_x = Kx * L
+		self.tilt_y = Ky * L
 
-		if self.length == 0:
-			m[2, 7] = Kx
-			m[3, 7] = Ky
-		else:
-			L = self.length
+		return fix_mat_dims(xp.eye(4),["x","xt","y","yt"])
 
-			# Drift terms
-			m[0, 2] = L   # x <- ux
-			m[1, 3] = L   # y <- uy
-			m[4, 4] = 1.0 # z stays identity (already set)
-			
-			# z advance
-			m[4, 7] = L
-
-			# Angular kicks
-			m[2, 7] = Kx * L
-			m[3, 7] = Ky * L
-
-			# Position offsets (affine)
-			m[0, 7] = 0.5 * Kx * L**2
-			m[1, 7] = 0.5 * Ky * L**2
-
-		return m
+		#m = xp.zeros((7,8))
+		#xp.fill_diagonal(m, 1, wrap=False)
+		#
+		#if self.length == 0:
+		#	m[2, 7] = Kx
+		#	m[3, 7] = Ky
+		#else:
+		#	L = self.length
+		#
+		#	# Drift terms
+		#	m[0, 2] = L   # x <- ux
+		#	m[1, 3] = L   # y <- uy
+		#	m[4, 4] = 1.0 # z stays identity (already set)
+		#
+		#	# z advance
+		#	m[4, 7] = L
+		#
+		#	# Angular kicks
+		#	m[2, 7] = Kx * L
+		#	m[3, 7] = Ky * L
+		#
+		#	# Position offsets (affine)
+		#	m[0, 7] = 0.5 * Kx * L**2
+		#	m[1, 7] = 0.5 * Ky * L**2
+		#
+		#return m
 	
-	def propagate_ray(self, r0:xp.ndarray,
-					  z:float=None, z0:float=0) -> xp.ndarray:
-		"""propagate an array through an element.
-
-		Parameters
-		----------
-		r0 : xp.ndarray
-			List of rays with possible initial conditions (x, θx, y, θy, E).
-		z : None | int | float | xp.ndarray, optional
-			Positions in the element to propagate to by default None
-		z0 : None | float, optional
-			Initial position of the element, by default 0
-
-		Returns
-		-------
-		xp.ndarray
-			List of propagated rays with initial condition (x, θx, y, θy, z, E)
-		"""
-		m = self.transfer_matrix()
-		#print(f'm: {m.shape}')#FLAG
-		ones = xp.ones((r0.shape[0], 1), dtype=r0.dtype)
-		r0_aug = xp.concatenate([r0, ones], axis=1)
-		#print(f'r0: { r0.shape} to {r0_aug.shape}')#FLAG
-
-		rf = xp.einsum('mn,in->im', m, r0_aug)
-		return rf
+	#def propagate_ray(self, r0:xp.ndarray,
+	#				  z:float=None, z0:float=0) -> xp.ndarray:
+	#	"""propagate an array through an element.
+	#
+	#	Parameters
+	#	----------
+	#	r0 : xp.ndarray
+	#		List of rays with possible initial conditions (x, θx, y, θy, E).
+	#	z : None | int | float | xp.ndarray, optional
+	#		Positions in the element to propagate to by default None
+	#	z0 : None | float, optional
+	#		Initial position of the element, by default 0
+	#
+	#	Returns
+	#	-------
+	#	xp.ndarray
+	#		List of propagated rays with initial condition (x, θx, y, θy, z, E)
+	#	"""
+	#	m = self.transfer_matrix()
+	#	#print(f'm: {m.shape}')#FLAG
+	#	ones = xp.ones((r0.shape[0], 1), dtype=r0.dtype)
+	#	r0_aug = xp.concatenate([r0, ones], axis=1)
+	#	#print(f'r0: { r0.shape} to {r0_aug.shape}')#FLAG
+	#
+	#	rf = xp.einsum('mn,in->im', m, r0_aug)
+	#	return rf
 
 
 class Lens(Element):
