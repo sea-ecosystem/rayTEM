@@ -767,6 +767,8 @@ def error_dz(microscope,settings,targets): # settings is a dict of parameters to
 		zps_real = [ zFromFractional(zs,z) for z in zps_fractional ]
 		n=np.argmin( np.absolute(np.asarray(zps_real)-z) )	# find the index of the closest plane
 		deltas.append( zps_real[n]-z )
+		print("add d",zps_real[n]-z,"for z model value",zps_real[n],"target value",z)
+
 	return deltas
 
 # given a Microscope object, a dict of lens parameters, and a dict of planes, detects nearest plane of the correct type, and return the delta in magnifications, deltas in rotations, etc
@@ -812,7 +814,7 @@ def error_at_position(microscope,settings,targets,absolute=False): # settings is
 				d = abs(dic[k])-abs(v)
 			else:
 				d = dic[k]-v
-			d/=v ; d*=10		# if target is 1e-6 (e.g., an angle), a delta of "only" 1e-6 is actually a 100% error! meanwhile, something like error_dz is a deviation in position, and it's plausible things are tens or hundreds of mm off! we don't want error_dz to overpower our error in measured parameters TODO what's the RIGHT way to balance these?
+			d/=v ; d*=100		# if target is 1e-6 (e.g., an angle), a delta of "only" 1e-6 is actually a 100% error! meanwhile, something like error_dz is a deviation in position, and it's plausible things are tens or hundreds of mm off! we don't want error_dz to overpower our error in measured parameters TODO what's the RIGHT way to balance these?
 			print("add d",d,"for key",k,"model value",dic[k],"target value",v)
 			deltas.append(d)
 	return deltas
