@@ -387,12 +387,13 @@ def findPlanes(rays,axis="xy"):
 					imageRays.append(r)
 		if len(diffRays)==2 and len(imageRays)==2:
 				break
-	if ( len(diffRays)!=2 or len(imageRays)!=2 ):
+	if len(diffRays)!=2 or len(imageRays)!=2:
 		print("WARNING: diffraction and/or image rays could not be inferred by findPlanes(). no planes found")
 		if len(diffRays)<2:
 			print("diffraction rays (x2) in "+axis+": must be finite "+axis+", zero "+axis+"t")
 		if len(imageRays)<2:
 			print("image rays (x2) in "+axis+": must be finite "+axis+"t, zero "+axis)
+	if len(diffRays)!=2 and len(imageRays)!=2:
 		return returnable
 
 	def whereCrossesZero(y0,y1): # returns relative position (0-1) of crossover, 
@@ -430,40 +431,48 @@ def findPlanes(rays,axis="xy"):
 		return (ya-yb)/(ta-tb)
 
 	for i in range(1,len(rays)):
-		# CHECK DIFFRACTION: where originally-parallel rays cross
-		(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,diffRays,x]
-		dz=whereRaysCross(xa1,xa2,xb1,xb2)
-		if dz is not None:
-			xta0,xtb0 = rays[0,imageRays,xt] # magnification comes from starting angles of two non-parallel rays
-			# Magnification comes from conversion of angle to position
-			(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,imageRays,x]
-			(ya1,yb1),(ya2,yb2)=rays[i-1:i+1,imageRays,y]
-			M=magnification(xa1,xa2,xb1,xb2,dz,xta0,xtb0)
-			returnable[axis]["diff"]["z"].append( i-1+dz )
-			returnable[axis]["diff"]["M"].append( M )
-			returnable[axis]["diff"]["p"].append([])
-			for r in range(len(rays[0])):
-				xr=positionAtZ(*rays[i-1:i+1,r,x],dz)
-				yr=positionAtZ(*rays[i-1:i+1,r,y],dz)
-				returnable[axis]["diff"]["p"][-1].append( [xr,yr] )
-			returnable[axis]["diff"]["R"].append( rays[i,r,R] )
-
-		# CHECK IMAGE PLANE: where rays leaving the same place re-cross
-		(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,imageRays,x]
-		dz=whereRaysCross(xa1,xa2,xb1,xb2)
-		if dz is not None:
-			xa0,xb0 = rays[0,diffRays,x] # magnification comes from change in scaling (position) of originally-parallel rays
+		if len(diffRays)>=2:
+			# CHECK DIFFRACTION: where originally-parallel rays cross
 			(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,diffRays,x]
-			(ya1,yb1),(ya2,yb2)=rays[i-1:i+1,diffRays,y]
-			M=magnification(xa1,xa2,xb1,xb2,dz,xa0,xb0)
-			returnable[axis]["image"]["z"].append( i-1+dz )
-			returnable[axis]["image"]["M"].append( M )
-			returnable[axis]["image"]["p"].append([])
-			for r in range(len(rays[0])):
-				xr=positionAtZ(*rays[i-1:i+1,r,x],dz)
-				yr=positionAtZ(*rays[i-1:i+1,r,y],dz)
-				returnable[axis]["image"]["p"][-1].append( [xr,yr] )
-			returnable[axis]["diff"]["R"].append( rays[i,r,R] )
+			dz=whereRaysCross(xa1,xa2,xb1,xb2)
+			if dz is not None:
+				if len(imageRays)<2:
+					M = np.nan
+				else:
+					xta0,xtb0 = rays[0,imageRays,xt] # magnification comes from starting angles of two non-parallel rays
+					# Magnification comes from conversion of angle to position
+					(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,imageRays,x]
+					(ya1,yb1),(ya2,yb2)=rays[i-1:i+1,imageRays,y]
+					M=magnification(xa1,xa2,xb1,xb2,dz,xta0,xtb0)
+				returnable[axis]["diff"]["z"].append( i-1+dz )
+				returnable[axis]["diff"]["M"].append( M )
+				returnable[axis]["diff"]["p"].append([])
+				for r in range(len(rays[0])):
+					xr=positionAtZ(*rays[i-1:i+1,r,x],dz)
+					yr=positionAtZ(*rays[i-1:i+1,r,y],dz)
+					returnable[axis]["diff"]["p"][-1].append( [xr,yr] )
+				returnable[axis]["diff"]["R"].append( rays[i,r,R] )
+
+		if len(imageRays)>=2:
+			# CHECK IMAGE PLANE: where rays leaving the same place re-cross
+			(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,imageRays,x]
+			dz=whereRaysCross(xa1,xa2,xb1,xb2)
+			if dz is not None:
+				if len(diffRays)<2:
+					M = np.nan
+				else:
+					xa0,xb0 = rays[0,diffRays,x] # magnification comes from change in scaling (position) of originally-parallel rays
+					(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,diffRays,x]
+					(ya1,yb1),(ya2,yb2)=rays[i-1:i+1,diffRays,y]
+					M=magnification(xa1,xa2,xb1,xb2,dz,xa0,xb0)
+				returnable[axis]["image"]["z"].append( i-1+dz )
+				returnable[axis]["image"]["M"].append( M )
+				returnable[axis]["image"]["p"].append([])
+				for r in range(len(rays[0])):
+					xr=positionAtZ(*rays[i-1:i+1,r,x],dz)
+					yr=positionAtZ(*rays[i-1:i+1,r,y],dz)
+					returnable[axis]["image"]["p"][-1].append( [xr,yr] )
+				returnable[axis]["diff"]["R"].append( rays[i,r,R] )
 
 	return returnable
 
@@ -780,8 +789,33 @@ def error_at_plane(microscope,settings,targets): # settings is a dict of paramet
 		for k,v in zm.items():
 			if k=="z":
 				continue
+			#if k in ["R","M"]:
 			deltas.append( planes['x'][ plane_type ][k][n]-zm[k] ) # "M" for mag, "R" for rotation,
+			#else:
+			#	x,y,xt,yt,R,I = measureAtZ(zps_real[n],rays=r1)
+			#	dic = { "x":x, "y":y, "xt":xt, "yt":yt, "R":R, "I":I }
+			#	deltas.append( dic[k] )
 	return deltas
+
+# given a Microscope object, a dict of lens parameters, and a dict of positions (not planes!), return the delta in position, angle, intensity, etc
+def error_at_position(microscope,settings,targets,absolute=False): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of positions and things to check: {5:{"xt":1e-3},7:{"I":.6}}
+	# UPDATE ALL ELEMENTS SPECIFIED
+	update_microscope_with_settings(microscope,settings)
+	# PROPAGATE, MEASURE BEAM
+	r1=microscope.propagate_ray()
+	deltas = []
+	for z,kv in targets.items():
+		x,y,xt,yt,R,I = measureAtZ(z,rays=r1)
+		dic = {"x":x,"y":y,"xt":xt,"yt":yt,"R":R,"I":I}
+		for k,v in kv.items():
+			if absolute:
+				d = abs(dic[k])-abs(v)
+			else:
+				d = dic[k]-v
+			d/=v ; d*=10		# if target is 1e-6 (e.g., an angle), a delta of "only" 1e-6 is actually a 100% error! meanwhile, something like error_dz is a deviation in position, and it's plausible things are tens or hundreds of mm off! we don't want error_dz to overpower our error in measured parameters TODO what's the RIGHT way to balance these?
+			deltas.append(d)
+	return deltas
+
 
 # given a Microscope object, a dict of lens parameters, and a list of positions, simply returns the beam diameter at each position
 def error_diameter(microscope,settings,targets,absolute=False): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a list of positions [5,7]
@@ -791,24 +825,24 @@ def error_diameter(microscope,settings,targets,absolute=False): # settings is a 
 	r1=microscope.propagate_ray()
 	diameters = []
 	for z in targets:
-		x,y,xt,yt = measureAtZ(z,rays=r1)
+		x,y,xt,yt,R,I = measureAtZ(z,rays=r1)
 		if absolute:
 			x=np.absolute(x)
 		diameters.append(x)
 	return diameters
 
 # given a Microscope object, a dict of lens parameters, and a list of positions, simply returns the outermost ray's angles at each position???
-def error_angles(microscope,settings,targets,absolute=False): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a list of positions [5,7]
+def error_angles(microscope,settings,targets,absolute=False): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of positions and angles: {5:1e-3,7:4e-2}
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
 	# PROPAGATE, MEASURE BEAM
 	r1=microscope.propagate_ray()
 	angles = []
-	for z in targets:
-		x,y,xt,yt = measureAtZ(z,rays=r1)
+	for z,t in targets.items():
+		x,y,xt,yt,R,I = measureAtZ(z,rays=r1)
 		if absolute:
 			xt=np.absolute(xt)
-		angles.append(xt)
+		angles.append(xt-t)
 	return angles
 
 # Given the ability to 1) generate a section 2) propagate rays and 3) measure attributes of the propagated rays (e.g. location of planes and magnifications), we should be able to fit for variables (like lens strength) to achieve a desired result
@@ -1006,7 +1040,7 @@ def measureAtZ(z,rays=None,section=None):
 	zs = rays[:,0,columnByName('z')] # nthElement,nthRay,xythetaetc
 	i=np.where(zs<=z)[0][-1] # closest elemnt before or at z
 	#print(z,zs,i,zs[i])
-	x,y,xt,yt,R = [ columnByName(v) for v in ["x","y","xt","yt","R"] ]
+	x,y,xt,yt,R,I = [ columnByName(v) for v in ["x","y","xt","yt","R","I"] ]
 	def interp(z,z1,z2,y1,y2):
 		return y1+(z-z1)/(z2-z1)*(y2-y1)
 	xs = interp(z,zs[i],zs[i+1],rays[i,:,x],rays[i+1,:,x])	# lateral position of all rays between elements i and i+1
@@ -1020,5 +1054,7 @@ def measureAtZ(z,rays=None,section=None):
 	#print("x,y,xt,yt",x,y,xt,yt)
 	Rs = interp(z,zs[i],zs[i+1],rays[i,:,R],rays[i+1,:,R])	# rotations??
 	R = Rs[selected]
-	return x,y,xt,yt,R
+	Is = interp(z,zs[i],zs[i+1],rays[i,:,I],rays[i+1,:,I])
+	I = Is[selected]
+	return x,y,xt,yt,R,I # TODO this is getting out of hand. maybe measureAtZ should be passed a list of keys to return??
 
