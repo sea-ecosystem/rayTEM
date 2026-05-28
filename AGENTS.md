@@ -3,6 +3,14 @@
 This repository is a ray-tracing electron optics simulator for TEM instruments.
 Read this file before adding elements, changing the ray representation, or touching fitting or calibration logic.
 
+<!-- AGENT-COMMON:main — do not edit this block in CLAUDE.md/AGENTS.md; edit src/pySEA/ai_wiki/ecosystem/agent-common.md in sea-ecosystem and run: pysea-refresh-wiki --sync-agent-instructions -->
+
+(placeholder — run pysea-refresh-wiki --sync-agent-instructions to populate)
+
+<!-- END AGENT-COMMON:main -->
+
+`microscopes/` subdirectories contain instrument-specific scripts, not general framework code. Do not import from them in framework modules.
+
 ## Read first (always)
 
 1. `src/pySEA/ai_wiki/raytem/index.md` — orientation and mental model
@@ -74,41 +82,6 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 
 <!-- REPO-MAP-END -->
 
-## Freshness loop
-
-**Existing module change:**
-read wiki -> edit code/tests -> manually update matching wiki doc -> run refresh
-
-**Structural change** (new modules, renamed files, moved functions):
-edit code/tests -> run refresh to create/update stubs -> manually update wiki doc -> run refresh again
-
-**Wiki-only change:**
-edit wiki doc -> run refresh
-
-Refresh command:
-```bash
-uv run --extra wiki pysea-refresh-wiki
-```
-
-If the repository environment was installed manually with `pip install -e
-".[dev,wiki]"`, the bare `pysea-refresh-wiki` console script is also valid.
-When using `uv run`, include `--extra wiki`; otherwise the local
-`sea-ecosystem` tooling may not be present in the command environment.
-
-**When starting a task:**
-Scan active TODO filenames — slugs are descriptive, most won't need opening:
-```bash
-ls src/pySEA/ai_wiki/raytem/notes/shared/TODO_ACTIVE_*.md 2>/dev/null
-```
-Open any whose slug matches your task. Check items off as you complete them;
-rename `ACTIVE` → `DONE` when all items in a file are done.
-
-## Contributor notes
-
-Before writing any note, run `git config user.name` to identify the current contributor.
-Write working notes to `src/pySEA/ai_wiki/raytem/notes/<name>/`.
-Shared architectural decisions go in `notes/shared/`.
-
 ## Core invariants
 
 - **Ray columns are fixed**: [x, xθ, y, yθ, z, I, E, R] — index 0–7 as returned by `columnByName()`. R is cumulative Larmor rotation accumulated by thick lenses. Do not reorder without updating every Element and all `columnByName` callers.
@@ -121,26 +94,6 @@ Shared architectural decisions go in `notes/shared/`.
 - `elements.py` — `columnByName()` and `fix_mat_dims()` are referenced everywhere; changes break all Elements
 - `seashells.py` — conditional import logic; changing import path or attribute names breaks sea_eco round-trips
 - `AS2.py` — talks to a live instrument; errors here can send bad values to real hardware
-
-## Coding behavior
-
-- **Think before coding** — state assumptions explicitly before implementing. If multiple interpretations exist, present them. If something is unclear and would materially change the implementation, stop and ask.
-- **Prefer simplicity** — write the minimum code that solves the problem. No unrequested features, single-use abstractions, or unrequested configurability. If a more complex solution is warranted, flag it and offer to implement, add to TODO, or skip.
-- **Make surgical changes** — touch only what the task requires. Do not refactor unrelated code. Mention unrelated issues rather than fixing them silently. Match existing project style.
-- **Work from verifiable goals** — convert tasks into concrete success criteria before implementing. For multi-step tasks, name each step and its verification.
-
-> Full guidelines with examples: `sea-ecosystem/docs/dev/agent-coding-guidelines.md`
-
-## Style rules
-
-- NumPy docstring style for **all** Python callables — public, private (leading underscore), dunder methods, properties, class methods, static methods, and classes. Documentation quality is part of code correctness.
-  Required sections: short summary · extended summary · Parameters · Attributes (classes) · Methods (classes) · Returns · Raises · Related · Notes · Examples · References. Include all sections that apply; Parameters, Returns, and Raises are required when they exist.
-- Prefer explicit type annotations in signatures. Prefer `Literal` over `str` for fixed value sets. Prefer `Sequence` over `list` or `tuple` in signatures.
-- Do not use dataclasses.
-- Keep method names action-oriented.
-- `microscopes/` subdirectories contain instrument-specific scripts, not general framework code. Do not import from them in framework modules.
-
-> Documentation protocol and examples: `sea-ecosystem/docs/dev/agent-documentation-protocol.md`
 
 ## AI workflow
 
