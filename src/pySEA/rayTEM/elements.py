@@ -169,6 +169,7 @@ class Source(Element):
 
 	# Source term, initialize rays at sweep of angles and positions
 	def rays(self):
+		print("SOURCE GENERATING RAYS",self.np_xy,self.size,self.na_xy,self.angle)
 		xs=xp.linspace(-self.size[0],self.size[0],self.np_xy[0])
 		ys=xp.linspace(-self.size[1],self.size[1],self.np_xy[1])
 		xts=xp.zeros(1) ; yts=xp.zeros(1)
