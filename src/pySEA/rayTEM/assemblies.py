@@ -93,6 +93,10 @@ class MicroscopeSection(SEASerializable):
 			item = slice(a,b,n)
 		#print("returning copied slice")
 		ret = self.copy().elements[item]
+		p0 = ret[0].position
+		for i,e in enumerate(ret):
+			ret[i].position -= p0		# shift all element positions so first is at zero
+
 		if isinstance(ret,list):
 			return MicroscopeSection(name=self.name,elements=ret,position=self.position)
 		return ret

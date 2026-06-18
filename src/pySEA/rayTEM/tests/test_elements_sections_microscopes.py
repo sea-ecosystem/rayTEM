@@ -218,6 +218,7 @@ def test_section_insertion_microscope():
 	assert np.sqrt(np.sum((r1[-1]-r1_old[-1])**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 
 def test_cropping_section():
+	# ASSEMBLE
 	elements = [ Source(name="S",size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)),
 				Drift(name="D1",length=1),
 				Lens(name="L1",strength=3,length=.1),
@@ -227,15 +228,31 @@ def test_cropping_section():
 	section = MicroscopeSection(elements=elements)
 	r1 = section.propagate_ray()
 	#section.show()
+	# CROP BY INDEX, REPLACE SOURCE
 	section = section[1:]
 	section.insert(0, Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)) )
 	r2 = section.propagate_ray()
-	#section.show()
+	# RAYS MUST MATCH
 	assert np.sqrt(np.sum((r1[-1]-r2[-1])**2)) < .0001
+
+	# INFER POSITIONS OF ELEMENTS
+	positions_1 = [ e.position for e in section.elements ]
+	#print(positions_1) ; print(repr(section))
+	# SLICE BY ELEMENT NAME
+	#section.show()
+	z_D2 = section["D2"].position
 	section = section["D2":]
 	section.insert(0, Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)) )
 	#section.show()
-	print(repr(section))
+	#print(repr(section))
+	# AGAIN INFER POSITIONS OF ELEMENTS
+	positions_2 = [ e.position for e in section.elements ]
+	#print(positions_2) ; print(repr(section))
+
+	# CHECK: if we successfully sliced at D2, the microscope should now start at D2, and positions should be shifted by z_D2
+	for v1,v2 in zip(reversed(positions_1[2:]),reversed(positions_2[2:])):
+		assert v1==v2+z_D2
+
 
 def test_cropping_microscope():
 	# ASSEMBLE
@@ -272,6 +289,6 @@ def test_cropping_microscope():
 		assert v1==v2+z_D2
 
 #test_cropping_section()
-test_cropping_microscope()
+#test_cropping_microscope()
 
 
