@@ -217,9 +217,61 @@ def test_section_insertion_microscope():
 	#print(np.sqrt(np.sum((r1[-1]-r1_old[-1])**2)))
 	assert np.sqrt(np.sum((r1[-1]-r1_old[-1])**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 
-#test_section_insertion_microscope()
+def test_cropping_section():
+	elements = [ Source(name="S",size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)),
+				Drift(name="D1",length=1),
+				Lens(name="L1",strength=3,length=.1),
+				Drift(name="D2",length=.4),
+				Lens(name="L2",strength=5,length=.1),
+				Drift(name="D3",length=1)  ]
+	section = MicroscopeSection(elements=elements)
+	r1 = section.propagate_ray()
+	#section.show()
+	section = section[1:]
+	section.insert(0, Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)) )
+	r2 = section.propagate_ray()
+	#section.show()
+	assert np.sqrt(np.sum((r1[-1]-r2[-1])**2)) < .0001
+	section = section["D2":]
+	section.insert(0, Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)) )
+	#section.show()
+	print(repr(section))
 
+def test_cropping_microscope():
+	# ASSEMBLE
+	ele1 = [ Source(name="S",size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)),
+				Drift(name="D1",length=1),
+				Lens(name="L1",strength=3,length=.1),
+				Drift(name="D2",length=.4),
+				Lens(name="L2",strength=5,length=.1),
+				Drift(name="D3",length=1)  ]
+	ele2 = [ Lens(name="L3",strength=3,length=.1),
+				Drift(name="D4",length=.4),
+				Lens(name="L4",strength=5,length=.1),
+				Drift(name="D5",length=1)  ]
 
+	s1 = MicroscopeSection(elements=ele1)
+	s2 = MicroscopeSection(elements=ele2)
+	microscope = Microscope(sections=[s1,s2])
+	# INFER POSITIONS OF ELEMENTS
+	positions_1 = sum( [[ e.position+s.position for e in s.elements ] for s in microscope.sections ] , [] )
+	#print(positions_1) ; print(repr(microscope))
+	#microscope.show()
+	# SLICE
+	z_D2 = microscope["D2"].position
+	microscope = microscope["D2":]
+	microscope.insert(0, Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)) )
 
+	# AGAIN INFER POSITIONS OF ELEMENTS
+	positions_2 = sum( [[ e.position+s.position for e in s.elements ] for s in microscope.sections ] , [] )
+	#print(positions_2) ; print(repr(microscope))
+	#microscope.show()
+
+	# CHECK: if we successfully sliced at D2, the microscope should now start at D2, and positions should be shifted by z_D2
+	for v1,v2 in zip(reversed(positions_1[2:]),reversed(positions_2[2:])):
+		assert v1==v2+z_D2
+
+#test_cropping_section()
+test_cropping_microscope()
 
 

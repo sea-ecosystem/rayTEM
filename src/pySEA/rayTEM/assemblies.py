@@ -74,7 +74,9 @@ class MicroscopeSection(SEASerializable):
 		self.elements[item-1].length += getattr(self.elements[item],"length",0)
 		del self.elements[item]
 
-	# TWP 2025-11-05: allow indexing of the assembly by name: section["PL1"] should return the section by that name! see removed_private_instrument_tree/PRIVATE_INSTRUMENT/fine_PLs.py. 2026-02-05: also allow slicing by name: section["sample":] should return a new section with all elements including and after "sample"
+	# TWP 2025-11-05: allow indexing of the assembly by name: section["PL1"] should return the section by that name! see removed_private_instrument_tree/PRIVATE_INSTRUMENT/fine_PLs.py.
+	# 2026-02-05: also allow slicing by name: section["sample":] should return a new section with all elements including and after "sample"
+	# 2026-06-18: and slicing by z position: section[2.5:] should return a new section trimmed to z>=2.5?
 	def __getitem__(self, item):
 		#print("section __getitem__",item)
 		# REFERENCE TO SINGLE ITEMS
@@ -209,7 +211,7 @@ class MicroscopeSection(SEASerializable):
 		ri=[r0]
 		for i,ele in enumerate(self.elements):
 			if verbose:
-				print(ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
+				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
 			ele_ri = ele.propagate_ray(ri[-1], z=z)
 			#ele_ri[...,-2] += ele.position # TWP 2025/08/27 - do not add distance. drift already should update z
 			#print(ele_ri.shape,r0.shape)
