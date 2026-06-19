@@ -45,6 +45,7 @@ class MicroscopeSection(SEASerializable):
 
 		new = []
 		for n,ele in enumerate(elements):
+			#print("process element",n,"=",repr(ele))
 			#print("self.length",self.length,"adding ele",ele.kind,ele.name,ele.position,ele.length)
 			if ele.position is None:						# e.g. pass Lens(l1),Drift(l2),Lens(l3) --> Drift.position=l1, Drift.position=l1+l2
 				#print("(no position, add to end)")
@@ -53,14 +54,18 @@ class MicroscopeSection(SEASerializable):
 			if self.length < ele.position:
 				#print("(gap before this element)")
 				dz = ele.position - self.length #; print("dz",dz,"position",ele.position-dz)
-				new.append( Drift(length=dz,position=ele.position-dz) )
+				if dz>1e-10:
+					#print("add drift",n,ele.position,self.length,dz)
+					new.append( Drift(length=dz,position=ele.position-dz, name="["+str(n)+"app"+str(dz)+"]") )
 				self.length += dz
 			new.append(ele)
 			if self.length > ele.position:
 				print('WARNING: previous Element ('+str(elements[n-1])+') overlaps with specified Element position '+str(ele))
 			if ignoreLensThickness and ele.kind in ['Thin lens','QLens','Thin quad','Quad']:
 				continue
+			#print("increment length by",getattr(ele,"length",0))
 			self.length += getattr(ele,"length",0)
+			#print("new length = ",self.length)
 		self.elements = new
 
 	#####################################
@@ -77,7 +82,7 @@ class MicroscopeSection(SEASerializable):
 	# TWP 2025-11-05: allow indexing of the assembly by name: section["PL1"] should return the section by that name! see removed_private_instrument_tree/PRIVATE_INSTRUMENT/fine_PLs.py.
 	# 2026-02-05: also allow slicing by name: section["sample":] should return a new section with all elements including and after "sample"
 	# 2026-06-18: and slicing by z position: section[2.5:] should return a new section trimmed to z>=2.5?
-	def __getitem__(self, item):
+	def __getitemOLD__(self, item):
 		#print("section __getitem__",item)
 		# REFERENCE TO SINGLE ITEMS
 		if isinstance(item,str):	# convert "PL1" into an integer index
@@ -89,17 +94,77 @@ class MicroscopeSection(SEASerializable):
 		# SLICES, POTENTIALLY MULTIPLE ITEMS, ALWAYS RETURN A COPY
 		if isinstance(item,slice):	# convert "sample:" (which results in "item" being a slice) to an integer-indexed slice, e.g. slice(3,None,None)
 			a,b,n=item.start,item.stop,item.step
-			a,b,n=[ self.index(v) if isinstance(v,str) else v for v in [a,b,n] ]
+			trim_first = 0 ; trim_last = 0
+			a,b,n=[ self.index(v) if isinstance(v,str) else v for v in [a,b,n] ] # convert "PL1:" to whatever the index is for PL1
+			if isinstance(a,float):
+				trim_first = a
+				positions = xp.asarray([ e.position for e in self.elements ])
+				a = xp.where(positions<a)[0][-1]
+			#if isinstance(b,float): # TODO finish implementing
+			#	trim_last = self.elements[b].length-
+			#	b=int(np.ceil(b))
 			item = slice(a,b,n)
 		#print("returning copied slice")
 		ret = self.copy().elements[item]
+		if trim_first > 0:
+			ret[0].length-=trim_first ; ret[0].position+=trim_first
+		#if trim_last > 0:	# TODO finish implementing
 		p0 = ret[0].position
 		for i,e in enumerate(ret):
 			ret[i].position -= p0		# shift all element positions so first is at zero
 
 		if isinstance(ret,list):
+			#print("CONSTRUCT NEW SECTION WITH\n",ret)
 			return MicroscopeSection(name=self.name,elements=ret,position=self.position)
 		return ret
+
+	def __getitem__(self, item):
+		# RETURN A REFERENCE TO A SINGLE ITEM, BY NAME OR INDEX
+		if isinstance(item,str):	# convert "PL1" into an integer index
+			#print("index lookup, single item")
+			item = self.index(item)
+		if isinstance(item,int):
+			#print("simple index lookup, returning reference to element")
+			return self.elements[item]
+		# RETURN A COPY OF A SLICE (SUBSET OF ITEMS), BY NAME, INDEX, OR Z-LOCATION
+		if isinstance(item,slice):
+			# "sample:" --> a="sample",b=None,c=None. or "2.5:11.0" --> a=2.5,b=11.5,c=None.
+			a,b,n=item.start,item.stop,item.step
+			trim_first = 0 ; trim_last = 0
+			positions = xp.asarray([ e.position for e in self.elements ])
+			if isinstance(a,float):
+				i = xp.where(positions<a)[0][-1] 	# index of last element which starts prior to z=a, i.e., spans across z=a
+				trim_first = a-positions[i]			# we'll need to cut off dz from that element (e.pos=4.5, a=5, trim 0.5)
+				a = i								# index slicing of self.elements will begin with the element spanning z=a
+			if isinstance(b,float):
+				i = xp.where(positions<b)[0][-1]
+				trim_last = b-positions[i]
+				b=i+1								# we want to include the element spanning z=b, hence +1
+			if isinstance(a,str):
+				a = self.index(a)
+			if isinstance(b,str):
+				b = self.index(b)
+			item = slice(a,b,n)
+		#print("returning copied slice")
+		# DEEP COPY MYSELF, SLICE ELEMENTS, MAKE ADJUSTMENTS TO POSITIONS AND LENGTHS
+		new = self.copy()
+		new.elements = new.elements[item]		# list of elements, deeeeeep-copied (including copies of all elements)
+		# front-side trimming: first element's length (if it was chopped midway), and positions of all elements (if a!=0)
+		if trim_first > 0:
+			new.elements[0].length-=trim_first			# trim first element
+			new.elements[0].position+=trim_first		# then "scoot it back" so it ends where it ended previously
+		p0 = new.elements[0].position
+		for i,e in enumerate(new.elements):
+			new.elements[i].position -= p0		# shift all element positions so first is at zero
+		if trim_last > 0:
+			new.elements[-1].length-=trim_last
+		# scoot ALL elements forwards so element 0 starts at 0
+		p0 = new.elements[0].position
+		for i,e in enumerate(new.elements):
+			new.elements[i].position -= p0		# shift all element positions so first is at zero
+		# and finally, update new's length
+		new.length = new.elements[-1].position+new.elements[-1].length
+		return new
 
 	def __setitem__(self, item, value): # TWP 2026-02-04: allow setting by assembly name or index. sec1[0]=sec2[0] should work
 		if isinstance(item,str):
@@ -179,7 +244,7 @@ class MicroscopeSection(SEASerializable):
 					element.position = index			# update new element's position
 					self.elements.insert(i+1,element)	# add new element
 					if l2>0:							# add following drift
-						self.elements.insert(i+2,Drift(length=l2,position=index+elementlength))
+						self.elements.insert(i+2,Drift(length=l2,position=index+elementlength,name="[inserted]"))
 					if l1==0:							# possible drift1 is length zero, so delete it
 						del self.elements[i]
 					break
@@ -247,7 +312,7 @@ class MicroscopeSection(SEASerializable):
 		allowed_kwargs = inspect.signature(MicroscopeSection).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
 		dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it technically has one
 		#print("creating copy with dic",dic)
-		print("elem0 ids",id(elements[0]),id(self.elements[0]))
+		#print("elem0 ids",id(elements[0]),id(self.elements[0]))
 		return MicroscopeSection(**dic)
 
 
@@ -271,7 +336,7 @@ class Microscope(SEASerializable):
 			for s,s2 in zip(self.sections[:-1],self.sections[1:]):
 				if s.position+s.length<s2.position:
 					dz = s2.position-(s.position+s.length)
-					s.insert( len(s.elements) , Drift(position = s.length, length = dz ) )
+					s.insert( len(s.elements) , Drift(position = s.length, length = dz, name="[inserted]" ) )
 				if s2.position==0:
 					s2.position = s.position+s.length
 
@@ -283,7 +348,7 @@ class Microscope(SEASerializable):
 	# 'Microscope["PL1"].strength = newval' should update
 	# and we for sub-chunks of the microscope, we should return a copy:
 	# 'Microscope[:"PL1"]' is required to edit the 3rd section of CLs/OLs/PLs, so the "edited" version should be a full copy
-	def __getitem__(self, item):
+	def __getitemOLD__(self, item):
 		#print("microscope __getitem__",item)
 		# SINGLE ELEMENT OR SECTION
 		# string passed (e.g., name of section or element), "PL1" or "PLs", convert to indices
@@ -311,6 +376,14 @@ class Microscope(SEASerializable):
 				#if isinstance(ret,list):		# microscope["OLs":] will return list of sections OLs,DQCM,PLs, etc, so form into a new Microscope
 				#print("all int or none, simple slice, return new microscope with copied sections")
 				return Microscope(name=self.name,sections=ret)
+
+			if isinstance(a,float):
+				positions = xp.asarray([ s.position for s in self.sections ])
+				j = xp.where(positions<a)[0][-1]
+				a = (j,a-positions[j]) # "slice the nth section to coordinated x.yz, relative to the beginning of that section
+			#if isinstance(b,float): # TODO finish implementing
+			#	trim_last = self.elements[b].length-
+			#	b=int(np.ceil(b))
 
 			# ONE OR MORE SECTIONS IS SLICED: ':"PL1"' includes preceeding sections AND a portion of the PLs section
 			# microscope["sample":] should return a Microscope containing the sections/elements starting at "sample". if section "OLs" contains "sample", the returned Microscope should contain OLs, plus subsequent sections (e.g. DQCM and PLs), and the OLs section should only contain elements from "sample" and beyond
@@ -341,6 +414,60 @@ class Microscope(SEASerializable):
 				ret[-1].length = ret[-1][-1].position + ret[-1][-1].length # update last section's length
 
 			return Microscope(name=self.name,sections=ret)
+
+	def __getitem__(self, item):
+		# RETURN A REFERENCE TO A SINGLE ITEM (SECTION OR ELEMENT), BY NAME OR INDEX
+		if isinstance(item,str):	# convert "PL1" into an integer index
+			item = self.index(item)							# tuple (indexOfSection,indexOfElementInThatSection)
+		if isinstance(item,tuple):
+			return self.sections[item[0]].elements[item[1]]
+		if isinstance(item,int):
+			return self.elements[item]
+		# RETURN A COPY OF A SLICE (SUBSET OF ITEMS), BY NAME, INDEX, OR Z-LOCATION
+		if isinstance(item,slice):
+			# "sample:" --> a="sample",b=None,c=None. or "2.5:11.0" --> a=2.5,b=11.5,c=None.
+			a,b,n=item.start,item.stop,item.step
+			trim_first = 0 ; trim_last = 0
+			positions = xp.asarray([ s.position for s in self.sections ])
+			if isinstance(a,float):
+				i = xp.where(positions<a)[0][-1] 	# index of last section which starts prior to z=a, i.e., spans across z=a
+				trim_first = a-positions[i]			# we'll need to cut off dz from that section (s.pos=4.5, a=5, trim 0.5)
+				a = i								# index slicing of self.sections will begin with the section spanning z=a
+			if isinstance(b,float):
+				i = xp.where(positions<b)[0][-1]
+				trim_last = b-positions[i]
+				b=i+1								# we want to include the section spanning z=b, hence +1
+			if isinstance(a,str):
+				a = self.index(a)					# may be a tuple! be careful
+			if isinstance(b,str):
+				b = self.index(b)
+			# since self.index(namedElement) might be a tuple (sectionIndex,elementIndex), we need to filter to section indices
+			a1,b1,n1 = [ v[0] if isinstance(v,tuple) else v for v in [a,b,n] ]
+			item = slice(a1,b1,n1)
+		# DEEP COPY MYSELF, SLICE SECTIONS, MAKE ADJUSTMENTS TO POSITIONS AND LENGTHS
+		new = self.copy()
+		new.sections = new.sections[item]		# list of sections, deeeeeep-copied (including copies of all sections/elements)
+		# front side trimming by index: hand off to section trimming
+		if isinstance(a,tuple):
+			l1 = new.sections[0].length
+			new.sections[0] = new.sections[0][a[1]:]
+			new.sections[0].position += l1-new.sections[0].length # then "scoot it back" so it ends where it ended previously
+		# front-side trimming by z_position: hand off to section trimming
+		if trim_first > 0:
+			new.sections[0] = new.sections[0][trim_first:]	# let MicroscopeSection.__getattr__ handle section trimming
+			new.sections[0].position+=trim_first		# then "scoot it back" so it ends where it ended previously
+		p0 = new.sections[0].position
+		for i,s in enumerate(new.sections):
+			new.sections[i].position -= p0		# shift all sections positions so first is at zero
+		if trim_last > 0:
+			new.sections[-1] = new.sections[-1][:trim_last]	# let MicroscopeSection.__getattr__ handle section trimming
+		# scoot ALL sections forwards so section 0 starts at 0
+		p0 = new.sections[0].position
+		for i,s in enumerate(new.sections):
+			new.sections[i].position -= p0		# shift all section positions so first is at zero
+		# and finally, update new's length
+		new.length = new.sections[-1].position+new.sections[-1].length
+		return new
 
 	def __repr__(self) -> str:
 
@@ -423,7 +550,7 @@ class Microscope(SEASerializable):
 		else: # TODO bug: if we insert a huge drift ("big enough to fill the space") it's just a huge drift. we should update the length based on the space it'll fit. either here, or in Section.insert.
 			s = self.sections[-1]
 			dz = index-(s.position+s.length)
-			s.insert( len(s.elements), Drift(length=dz,position=s.length) )
+			s.insert( len(s.elements), Drift(length=dz,position=s.length, name="[inserted]") )
 			#print("APPENDING ELEMENT",element.name,"AT END OF",index-s.position,"IN SECTION",s.name)
 			elementOrSection.position = index-s.position
 			s.insert( len(s.elements), elementOrSection )

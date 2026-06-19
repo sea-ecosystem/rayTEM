@@ -243,7 +243,7 @@ def test_cropping_section():
 	z_D2 = section["D2"].position
 	section = section["D2":]
 	section.insert(0, Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)) )
-	#section.show()
+	section.show()
 	#print(repr(section))
 	# AGAIN INFER POSITIONS OF ELEMENTS
 	positions_2 = [ e.position for e in section.elements ]
@@ -252,6 +252,15 @@ def test_cropping_section():
 	# CHECK: if we successfully sliced at D2, the microscope should now start at D2, and positions should be shifted by z_D2
 	for v1,v2 in zip(reversed(positions_1[2:]),reversed(positions_2[2:])):
 		assert v1==v2+z_D2
+
+	# NOW TRY CROPPING BY FLOAT Z LOCATION
+	section = MicroscopeSection(elements=elements)
+	section = section[0.5:]
+	positions_3 = [ e.position for e in section.elements ]
+	#print(positions_3) ; print(repr(section))
+	for v1,v3 in zip(reversed(positions_1[2:]),reversed(positions_3[2:])):
+		#print(v1,v3)
+		assert v1==v3+.5
 
 
 def test_cropping_microscope():
@@ -277,7 +286,7 @@ def test_cropping_microscope():
 	# SLICE
 	z_D2 = microscope["D2"].position
 	microscope = microscope["D2":]
-	microscope.insert(0, Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)) )
+	microscope.insert(0, Source(name="S2",size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)) )
 
 	# AGAIN INFER POSITIONS OF ELEMENTS
 	positions_2 = sum( [[ e.position+s.position for e in s.elements ] for s in microscope.sections ] , [] )
@@ -288,7 +297,16 @@ def test_cropping_microscope():
 	for v1,v2 in zip(reversed(positions_1[2:]),reversed(positions_2[2:])):
 		assert v1==v2+z_D2
 
+	# NOW TRY CROPPING BY FLOAT Z LOCATION
+	microscope = Microscope(sections=[s1,s2])
+	microscope = microscope[0.5:]
+	positions_3 = sum( [[ e.position+s.position for e in s.elements ] for s in microscope.sections ] , [] )
+	#print(positions_2) ; print(repr(microscope))
+	for v1,v3 in zip(reversed(positions_1[2:]),reversed(positions_3[2:])):
+		assert v1==v3+.5
+
+
 #test_cropping_section()
-#test_cropping_microscope()
+test_cropping_microscope()
 
 
