@@ -56,7 +56,7 @@ class MicroscopeSection(SEASerializable):
 				dz = ele.position - self.length #; print("dz",dz,"position",ele.position-dz)
 				if dz>1e-10:
 					#print("add drift",n,ele.position,self.length,dz)
-					new.append( Drift(length=dz,position=ele.position-dz, name="["+str(n)+"app"+str(dz)+"]") )
+					new.append( Drift(length=dz,position=ele.position-dz) )
 				self.length += dz
 			new.append(ele)
 			if self.length > ele.position:
@@ -244,7 +244,7 @@ class MicroscopeSection(SEASerializable):
 					element.position = index			# update new element's position
 					self.elements.insert(i+1,element)	# add new element
 					if l2>0:							# add following drift
-						self.elements.insert(i+2,Drift(length=l2,position=index+elementlength,name="[inserted]"))
+						self.elements.insert(i+2,Drift(length=l2,position=index+elementlength))
 					if l1==0:							# possible drift1 is length zero, so delete it
 						del self.elements[i]
 					break
@@ -336,7 +336,7 @@ class Microscope(SEASerializable):
 			for s,s2 in zip(self.sections[:-1],self.sections[1:]):
 				if s.position+s.length<s2.position:
 					dz = s2.position-(s.position+s.length)
-					s.insert( len(s.elements) , Drift(position = s.length, length = dz, name="[inserted]" ) )
+					s.insert( len(s.elements) , Drift(position = s.length, length = dz ) )
 				if s2.position==0:
 					s2.position = s.position+s.length
 
@@ -422,7 +422,7 @@ class Microscope(SEASerializable):
 		if isinstance(item,tuple):
 			return self.sections[item[0]].elements[item[1]]
 		if isinstance(item,int):
-			return self.elements[item]
+			return self.sections[item]
 		# RETURN A COPY OF A SLICE (SUBSET OF ITEMS), BY NAME, INDEX, OR Z-LOCATION
 		if isinstance(item,slice):
 			# "sample:" --> a="sample",b=None,c=None. or "2.5:11.0" --> a=2.5,b=11.5,c=None.
@@ -550,7 +550,7 @@ class Microscope(SEASerializable):
 		else: # TODO bug: if we insert a huge drift ("big enough to fill the space") it's just a huge drift. we should update the length based on the space it'll fit. either here, or in Section.insert.
 			s = self.sections[-1]
 			dz = index-(s.position+s.length)
-			s.insert( len(s.elements), Drift(length=dz,position=s.length, name="[inserted]") )
+			s.insert( len(s.elements), Drift(length=dz,position=s.length) )
 			#print("APPENDING ELEMENT",element.name,"AT END OF",index-s.position,"IN SECTION",s.name)
 			elementOrSection.position = index-s.position
 			s.insert( len(s.elements), elementOrSection )
