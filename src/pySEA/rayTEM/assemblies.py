@@ -619,7 +619,9 @@ class Microscope(SEASerializable):
 			del s_attrs["elements"],s_attrs["rays"],s_attrs["name"]
 			for e in s.elements:
 				e_attrs = {"Element name":e.name,"kind":e.kind,"position":e.position} | e.__dict__
-				del e_attrs["name"]
+				for k in ["name","rotation"]: # "name" is to be saved as "Element name", and a lens's rotation is a locally-calculated value, NOT a meaningful attribute
+					if k in e_attrs.keys():
+						del e_attrs[k]
 				s_attrs["Elements"].append(e_attrs)
 			jdict["Sections"].append(s_attrs)
 		import json

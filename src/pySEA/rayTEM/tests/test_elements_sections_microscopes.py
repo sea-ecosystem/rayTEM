@@ -243,7 +243,7 @@ def test_cropping_section():
 	z_D2 = section["D2"].position
 	section = section["D2":]
 	section.insert(0, Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)) )
-	section.show()
+	#section.show()
 	#print(repr(section))
 	# AGAIN INFER POSITIONS OF ELEMENTS
 	positions_2 = [ e.position for e in section.elements ]
@@ -307,6 +307,6 @@ def test_cropping_microscope():
 
 
 #test_cropping_section()
-test_cropping_microscope()
+#test_cropping_microscope()
 
 
