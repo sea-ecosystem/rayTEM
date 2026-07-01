@@ -819,8 +819,9 @@ def error_at_position(microscope,settings,targets,absolute=False): # settings is
 				d = abs(dic[k])-abs(v)
 			else:
 				d = dic[k]-v
-			d/=v ; d*=100		# if target is 1e-6 (e.g., an angle), a delta of "only" 1e-6 is actually a 100% error! meanwhile, something like error_dz is a deviation in position, and it's plausible things are tens or hundreds of mm off! we don't want error_dz to overpower our error in measured parameters TODO what's the RIGHT way to balance these?
-			print("add d",d,"for key",k,"model value",dic[k],"target value",v)
+			if v>0:
+				d/=v ; d*=100		# if target is 1e-6 (e.g., an angle), a delta of "only" 1e-6 is actually a 100% error! meanwhile, something like error_dz is a deviation in position, and it's plausible things are tens or hundreds of mm off! we don't want error_dz to overpower our error in measured parameters TODO what's the RIGHT way to balance these?
+			#print("add d",d,"for key",k,"model value",dic[k],"target value",v)
 			deltas.append(d)
 	return deltas
 

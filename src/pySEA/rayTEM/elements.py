@@ -89,6 +89,14 @@ class Element(SEASerializable):
 		dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it
 		return type(self)(**dic)
 
+	# e.position should be read-only! user should not set position of an element within a section, they should use s.move(...)
+	@property
+	def position(self):
+		return self._position
+	#@position.setter			# commented out: "position" attribute should be read-only! this setter only exists to ensure pytest tests as expected (i.e., failing a test when "position" is writeable)
+	#def position(self,val):
+	#	self._position = val
+
 	# endregion
 	#####################################
 
@@ -162,7 +170,7 @@ class Source(Element):
 		self.np_xy = np_xy
 		self.angle = angle
 		self.na_xy = na_xy
-		self.position = position
+		self._position = position
 		self.length = 0
 		self.strength = 0
 		self.calibration = None
@@ -208,7 +216,7 @@ class Aperture(Element):
 
 	def __init__(self, name:str='', radius:float=0., calibration:float=None, position:float=None) -> SEASerializable:
 		super().__init__(name=name, kind='Aperture')
-		self.position = position
+		self._position = position
 		self.radius = radius
 		self.calibration = calibration
 
@@ -266,7 +274,7 @@ class Drift(Element):
 	def __init__(self, name:str='', length:float=0., calibration:float=None, position:float=None) -> SEASerializable:
 
 		super().__init__(name=name,kind='Drift')
-		self.position = position
+		self._position = position
 		self.length = length
 		self.calibration = calibration
 
@@ -317,7 +325,7 @@ class Quadrapole(Element):
 		else:		   kind = 'Quad'
 
 		super().__init__(name=name,kind=kind)
-		self.position = position
+		self._position = position
 		self.length = length
 		self.strength = strength
 		self.calibration = calibration
@@ -411,7 +419,7 @@ class Dipole(Element):
 		else:		   kind = 'Dipole'
 
 		super().__init__(name=name,kind=kind)
-		self.position = position
+		self._position = position
 		self.length = length
 		self.strength = strength
 		self.calibration = calibration
@@ -550,7 +558,7 @@ class Lens(Element):
 		else:		   kind = 'QLens'
 
 		super().__init__(name=name,kind=kind)
-		self.position = position
+		self._position = position
 		self.length = length
 		self.strength = strength
 		self.calibration = calibration
@@ -710,7 +718,7 @@ class Prism(Element):
 			raise ValueError('Either radius or length need to be specified.')
 
 		super().__init__(name=name,kind='Prism')
-		self.position = position
+		self._position = position
 		self.length = length
 		self.strength = strength
 		self.calibration = calibration

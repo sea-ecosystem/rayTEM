@@ -49,7 +49,7 @@ class MicroscopeSection(SEASerializable):
 			#print("self.length",self.length,"adding ele",ele.kind,ele.name,ele.position,ele.length)
 			if ele.position is None:						# e.g. pass Lens(l1),Drift(l2),Lens(l3) --> Drift.position=l1, Drift.position=l1+l2
 				#print("(no position, add to end)")
-				ele.position = self.length
+				ele._position = self.length
 			# SANITY CHECK: if there's a "gap" between this element's position and end of previous, then add a drift
 			if self.length < ele.position:
 				#print("(gap before this element)")
@@ -107,11 +107,11 @@ class MicroscopeSection(SEASerializable):
 		#print("returning copied slice")
 		ret = self.copy().elements[item]
 		if trim_first > 0:
-			ret[0].length-=trim_first ; ret[0].position+=trim_first
+			ret[0].length-=trim_first ; ret[0]._position+=trim_first
 		#if trim_last > 0:	# TODO finish implementing
 		p0 = ret[0].position
 		for i,e in enumerate(ret):
-			ret[i].position -= p0		# shift all element positions so first is at zero
+			ret[i]._position -= p0		# shift all element positions so first is at zero
 
 		if isinstance(ret,list):
 			#print("CONSTRUCT NEW SECTION WITH\n",ret)
@@ -152,16 +152,16 @@ class MicroscopeSection(SEASerializable):
 		# front-side trimming: first element's length (if it was chopped midway), and positions of all elements (if a!=0)
 		if trim_first > 0:
 			new.elements[0].length-=trim_first			# trim first element
-			new.elements[0].position+=trim_first		# then "scoot it back" so it ends where it ended previously
-		p0 = new.elements[0].position
+			new.elements[0]._position+=trim_first		# then "scoot it back" so it ends where it ended previously
+		p0 = new.elements[0]._position
 		for i,e in enumerate(new.elements):
-			new.elements[i].position -= p0		# shift all element positions so first is at zero
+			new.elements[i]._position -= p0		# shift all element positions so first is at zero
 		if trim_last > 0:
 			new.elements[-1].length-=trim_last
 		# scoot ALL elements forwards so element 0 starts at 0
 		p0 = new.elements[0].position
 		for i,e in enumerate(new.elements):
-			new.elements[i].position -= p0		# shift all element positions so first is at zero
+			new.elements[i]._position -= p0		# shift all element positions so first is at zero
 		# and finally, update new's length
 		new.length = new.elements[-1].position+new.elements[-1].length
 		return new
@@ -241,7 +241,7 @@ class MicroscopeSection(SEASerializable):
 					l1=index-ele.position ; l2=ele.length-elementlength-l1 # "this drift needs to be length 4.0, and we'll need another drift after the insertion"
 					#print("PRE DRIFT",l1,"+ ELEMENT",element.length,"+ POST DRIFT",l2,"=",ele.length)
 					self.elements[i].length=l1			# "shorten" initial drift
-					element.position = index			# update new element's position
+					element._position = index			# update new element's position
 					self.elements.insert(i+1,element)	# add new element
 					if l2>0:							# add following drift
 						self.elements.insert(i+2,Drift(length=l2,position=index+elementlength))
@@ -253,6 +253,15 @@ class MicroscopeSection(SEASerializable):
 
 	def append(self,element):
 		self.insert(len(self.elements),element)
+
+	def move(self,elementName,z=None,dz=None): # TODO massive assumption here is that we're adjusting non-first non-last element positions!
+		i=self.index(elementName)
+		if z is not None:
+			dz = z-self.elements[i].position
+		self.elements[i]._position+=dz			# element position is updated
+		self.elements[i-1].length+=dz			# previous element is lengthened
+		self.elements[i+1]._position+=dz		# subsequent element is also moved
+		self.elements[i+1].length-=dz			# subsequent element is shortened
 
 	def wobble(self,r0,elementIndex,func,kwargName,valRange,numSteps):
 		vals=xp.linspace(valRange[0],valRange[1],numSteps)
@@ -401,7 +410,7 @@ class Microscope(SEASerializable):
 				ret[0].elements = ret[0].elements[a[1]:]
 				p0 = ret[0].elements[0].position			# now-first element's position
 				for i,e in enumerate(ret[0].elements):
-					ret[0].elements[i].position -= p0		# shift all element positions so first is at zero
+					ret[0].elements[i]._position -= p0		# shift all element positions so first is at zero
 				ret[0].length -= p0							# update section length
 				p1 = ret[0].position						# now-first section's position
 				for i,s in enumerate(ret):					# shift so first section starts at 0
@@ -537,7 +546,7 @@ class Microscope(SEASerializable):
 					sec2 = elementOrSection ; sec2.position = sec1.position+l1 # s2 needs position set
 					ele3 = [ e for e in elements if e.position > l1 ]	# s3 needs
 					for e in ele3:
-						e.position -= (l1+l2)
+						e._position -= (l1+l2)
 					#print(ele3)
 					sec3 = MicroscopeSection(name="added",position=sec1.position+l1+l2,elements=ele3)
 					#sec3.insert(0,Drift(length=l3-sec3.length)) ; print(ele3,sec3.length)

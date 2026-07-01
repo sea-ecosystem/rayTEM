@@ -4,7 +4,7 @@
 # image and diffraction plane determination (findPlanes function)
 # microscope saving and reloading via both json and sea (see https://github.com/sea-ecosystem/sea-eco/)
 
-import sys,os
+import sys,os,pytest
 sys.path.insert(1,"../../../")
 from pySEA.rayTEM import Source,Lens,Drift,Aperture,Dipole,Quadrapole
 from pySEA.rayTEM import MicroscopeSection,Microscope
@@ -309,4 +309,27 @@ def test_cropping_microscope():
 #test_cropping_section()
 #test_cropping_microscope()
 
+def test_element_move():
+	elements = [ Drift(length=1), Lens(name="L1",strength=3,length=.1), Drift(length=1.4), Lens(name="L2",strength=5,length=.1), Drift(length=2)  ]
+	section = MicroscopeSection(elements=elements)
+	# user should *not* be allowed to update the position of element, since it requires updating surrounding elements!
+	with pytest.raises(AttributeError):
+		section["L2"].position += 1
+
+	# sanity check: nextposition-thisposition should equal thislength. we'll use this function to verify a successful move
+	def check_lengths(section):
+		zs = np.asarray( [ e.position for e in section.elements ] )
+		ls = np.asarray( [ e.length for e in section.elements ] )
+		dz = zs[1:]-zs[:-1] ; print(zs,ls)
+		assert np.sum( np.absolute( dz-ls[:-1] ) ) < .00001
+	check_lengths(section)
+
+	# user should *instead* use the move function to move an element (move function likely needs to be on the Section, not the Element, since the Element doesn't know it's parents??)
+	section.move("L2",dz=1)
+	check_lengths(section)
+	section.move("L1",dz=-.5)
+	check_lengths(section)
+
+
+#test_element_move()
 
