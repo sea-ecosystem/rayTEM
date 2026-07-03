@@ -758,6 +758,7 @@ def update_microscope_with_settings(microscope,settings):
 def error_dz(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":5,"image":7}
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
+	print("error_dz: settings",settings,"targets",targets)
 	#microscope.show()
 	# PROPAGATE, DETECT PLANES
 	r1=microscope.propagate_ray()
@@ -778,7 +779,7 @@ def error_dz(microscope,settings,targets): # settings is a dict of parameters to
 
 # given a Microscope object, a dict of lens parameters, and a dict of planes, detects nearest plane of the correct type, and return the delta in magnifications, deltas in rotations, etc
 def error_at_plane(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":{"z":5,"M":10}}
-	print(settings,targets)
+	print("error_at_plane: settings",settings,"targets",targets)
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
 	#microscope.show()
