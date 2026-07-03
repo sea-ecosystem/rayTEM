@@ -640,6 +640,7 @@ class Lens(Element):
 		return M
 
 	def calibration_from_f_and_I(self,f,I,rotationPerAmp=None):
+		print("for lens",self.name,"seeking a calibration factor C, which focuses strength",I,"to focal length",f,"and rotationPerAmp",rotationPerAmp)
 		# noting xt=f(x) cell from matrix is -1/f or -K*sin(K*L)*cos(K*L):
 		# APPROXIMATION: noting that at small angle, sin(K*L) ≈ K*L and cos(K*L) ≈ 1.
 		# if K=C*I (strength = linear scaling * electrical current)
@@ -659,18 +660,23 @@ class Lens(Element):
 		from scipy.optimize import minimize
 		if rotationPerAmp is None:
 			def dz(C):
-				return ( C*I*xp.sin(C*I*self.length)*xp.cos(C*I*self.length)-1/f )**2
+				#return ( C*I*xp.sin(C*I*self.length)*xp.cos(C*I*self.length)-1/f )**2 # 1/f = K*S*C = (C*I)*sin(C*I*L)*cos(C*I*L)
+				return (C*I*xp.sin(C*I*self.length)-1/f)**2	# 1/f = K*S = (C*I)*sin(C*I*L)
 			x0 = self.calibration
 			self.calibration = minimize(dz,x0=x0)['x'][0]
 		else:
 			def dz(CL):
+				#print(CL)
 				C,L=CL
-				return ( C*I*xp.sin(C*I*L)*xp.cos(C*I*L)-1/f )**2 + ( rotationPerAmp-C*L )**2
+				#return ( C*I*xp.sin(C*I*L)*xp.cos(C*I*L)-1/f )**2 + ( rotationPerAmp-C*L )**2
+				return ( C*I*xp.sin(C*I*L)-1/f )**2 + ( rotationPerAmp+C*L )**2 # rad/A so don't multiply by I
 			x0 = ( self.calibration, self.length )
 			self.calibration,self.length = minimize(dz,x0=x0)['x']
 			#import matplotlib.pyplot as plt
 			#Cs = xp.linspace(0,4*x0,100) ; Ys=Cs*I*xp.sin(Cs*I*self.length)#*xp.cos(Cs*I*self.length)
 			#plt.plot(Cs,Ys) ; plt.plot(Cs,[1/f]*100) ; plt.show()
+		print("for lens",self.name,"found calibration factor",self.calibration,"and len",self.length)
+
 		#print("calibration_from_f_and_I found",self.calibration,"from starting guess",x0,dz(self.calibration))
 
 class Prism(Element):
