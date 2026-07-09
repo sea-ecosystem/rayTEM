@@ -344,7 +344,9 @@ def findPlanes4(rays,axes="x"):
 
 
 # Returns a dict for each axis, image vs diffraction planes, and the magnification and z position (NOTE: Z IS IN FRACTIONAL COORDINATES: 4.2 = 20% of the way through the 4th element)
+warned = []
 def findPlanes(rays,axis="xy"):
+	global warned
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
 	diffRays=[] ; imageRays=[]
 	x=columnByName("x") ; y=columnByName("y")
@@ -389,12 +391,14 @@ def findPlanes(rays,axis="xy"):
 					imageRays.append(r)
 		if len(diffRays)==2 and len(imageRays)==2:
 				break
-	if len(diffRays)!=2 or len(imageRays)!=2:
-		print("WARNING: diffraction and/or image rays could not be inferred by findPlanes(). no planes found")
-		if len(diffRays)<2:
-			print("diffraction rays (x2) in "+axis+": must be finite "+axis+", zero "+axis+"t")
-		if len(imageRays)<2:
-			print("image rays (x2) in "+axis+": must be finite "+axis+"t, zero "+axis)
+	#if len(diffRays)!=2 or len(imageRays)!=2:
+		#print("WARNING: diffraction and/or image rays could not be inferred by findPlanes(). no planes found")
+	if len(diffRays)<2 and "diff" not in warned:
+		warned.append("diff")
+		print("diffraction rays (x2) in "+axis+": must be finite "+axis+", zero "+axis+"t")
+	if len(imageRays)<2 and "image" not in warned:
+		warned.append("image")
+		print("image rays (x2) in "+axis+": must be finite "+axis+"t, zero "+axis)
 	if len(diffRays)!=2 and len(imageRays)!=2:
 		return returnable
 	#print("x",x,"xt",xt,"y",y,"yt",yt)
@@ -758,7 +762,7 @@ def update_microscope_with_settings(microscope,settings):
 def error_dz(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":5,"image":7}
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
-	print("error_dz: settings",settings,"targets",targets)
+	#print("error_dz: settings",settings,"targets",targets)
 	#microscope.show()
 	# PROPAGATE, DETECT PLANES
 	r1=microscope.propagate_ray()
@@ -773,13 +777,13 @@ def error_dz(microscope,settings,targets): # settings is a dict of parameters to
 		zps_real = [ zFromFractional(zs,z) for z in zps_fractional ]
 		n=np.argmin( np.absolute(np.asarray(zps_real)-z) )	# find the index of the closest plane
 		deltas.append( zps_real[n]-z )
-		print("add d",zps_real[n]-z,"for z model value",zps_real[n],"target value",z)
+		#print("add d",zps_real[n]-z,"for z model value",zps_real[n],"target value",z)
 
 	return deltas
 
 # given a Microscope object, a dict of lens parameters, and a dict of planes, detects nearest plane of the correct type, and return the delta in magnifications, deltas in rotations, etc
 def error_at_plane(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":{"z":5,"M":10}}
-	print("error_at_plane: settings",settings,"targets",targets)
+	#print("error_at_plane: settings",settings,"targets",targets)
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
 	#microscope.show()
@@ -806,7 +810,7 @@ def error_at_plane(microscope,settings,targets): # settings is a dict of paramet
 	return deltas
 
 # given a Microscope object, a dict of lens parameters, and a dict of positions (not planes!), return the delta in position, angle, intensity, etc
-def error_at_position(microscope,settings,targets,absolute=False): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of positions and things to check: {5:{"xt":1e-3},7:{"I":.6}}
+def error_at_position(microscope,settings,targets,absolute=True): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of positions and things to check: {5:{"xt":1e-3},7:{"I":.6}}
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
 	# PROPAGATE, MEASURE BEAM
@@ -817,7 +821,7 @@ def error_at_position(microscope,settings,targets,absolute=False): # settings is
 		dic = {"x":x,"y":y,"xt":xt,"yt":yt,"R":R,"I":I}
 		for k,v in kv.items():
 			if absolute:
-				d = abs(dic[k])-abs(v)
+				d = abs(dic[k])-abs(v) ; v=abs(v)
 			else:
 				d = dic[k]-v
 			if v>0:
@@ -828,7 +832,7 @@ def error_at_position(microscope,settings,targets,absolute=False): # settings is
 
 
 # given a Microscope object, a dict of lens parameters, and a list of positions, simply returns the beam diameter at each position
-def error_diameter(microscope,settings,targets,absolute=False): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a list of positions [5,7]
+def error_diameter(microscope,settings,targets,absolute=True): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a list of positions [5,7]
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
 	# PROPAGATE, MEASURE BEAM
@@ -842,7 +846,7 @@ def error_diameter(microscope,settings,targets,absolute=False): # settings is a 
 	return diameters
 
 # given a Microscope object, a dict of lens parameters, and a list of positions, simply returns the outermost ray's angles at each position???
-def error_angles(microscope,settings,targets,absolute=False): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of positions and angles: {5:1e-3,7:4e-2}
+def error_angles(microscope,settings,targets,absolute=True): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of positions and angles: {5:1e-3,7:4e-2}
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
 	# PROPAGATE, MEASURE BEAM
@@ -851,7 +855,7 @@ def error_angles(microscope,settings,targets,absolute=False): # settings is a di
 	for z,t in targets.items():
 		x,y,xt,yt,R,I = measureAtZ(z,rays=r1)
 		if absolute:
-			xt=np.absolute(xt)
+			xt=np.absolute(xt) ; t=abs(t)
 		angles.append(xt-t)
 	return angles
 

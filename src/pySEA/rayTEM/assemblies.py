@@ -6,7 +6,7 @@ flag_gpu = False
 import pickle
 import sys,inspect
 
-from .postprocessing import plot2D
+from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
 from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture
 from .seashells import SEASerializable
 
@@ -498,6 +498,30 @@ class Microscope(SEASerializable):
 
 	# endregion
     ################
+
+	# TODO rather silly to need to infer planes in every script and measure. we should have a property for each to standardize it
+	#@property
+	def beam_current(self,regenerate=False):
+		if regenerate:
+			self.propagate_ray()
+		return self.rays[-1,0,columnByName('I')]
+	#@property
+	def convergence_angle(self,regenerate=False):
+		if regenerate:
+			self.propagate_ray()
+		z = self.get_element_position("OL1")+self["OL1"].length+.001
+		x,y,xt,yt,R,I = measureAtZ(z,section=self)
+		return xt
+	#@property
+	def focus_error(self,expected_C3_crossover=0,regenerate=False):
+		if regenerate:
+			self.propagate_ray()
+		planes = findPlanes(self.rays,"x") #['x']['diff' or 'image']['z' or 'M' or 'R' or 'p']
+		zp = planes['x']['diff']['z']	# findPlanes returns fractional coordinated. 1.4 is 40% of the way through element 1
+		zp = [ zFromFractional(self.rays[:,0,columnByName('z')],z) for z in zp ]
+		zp=xp.asarray(zp)
+		i = xp.where(zp > self.get_element_position("CL3"))[0][0] # first plane after CL3 (not closest, as we did for mag/rot w/r/t CCD)
+		return zp[i]-expected_C3_crossover
 
 	#####################################
     # region: SEASerializable integration
