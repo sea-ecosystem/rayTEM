@@ -178,8 +178,10 @@ def test_element_insertion_microscope():
 		print("ERROR: test_insertion_microscope requires test_basic_microscope_defined_by_lengths to run first")
 		assert 1==0
 	microscope = load_microscope(filename)
+	#lengths_0 = [ s.length for s in microscope.sections ]
 	#section.insert(1,Lens(name="inserted by index at 1",strength=0))
 	microscope.insert(1.25,Lens(name="inserted by position at 1.25",strength=0))
+	#lengths_1 = [ s.length for s in microscope.sections ]
 	r1 = microscope.propagate_ray()[-1,:,:]
 	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths_rays.npy"
 	if not os.path.exists(filename):
@@ -187,6 +189,23 @@ def test_element_insertion_microscope():
 		assert 1==0
 	r1_old = np.load(filename)[-1,:,:]
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+	#print(repr(microscope))
+	# insertion at zero should NOT go before the zero-length source! it should only go into the first Drift.
+	microscope.insert(0.,Drift(name="inserted by position at 0.0",length=1.))
+	r1 = microscope.propagate_ray()[-1,:,:]
+	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001
+	# breaking up a drift, with zero left-over at the end...
+	microscope.insert(.5,Drift(name="inserted by position at 0.5",length=.5))
+	r1 = microscope.propagate_ray()[-1,:,:]
+	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001
+	# drift *replacement* by inserting one of the same-position same-length
+	microscope.insert(.5,Drift(name="new inserted by position at 0.5",length=.5))
+	r1 = microscope.propagate_ray()[-1,:,:]
+	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001
+	#print(repr(microscope))
+	#lengths_2 = [ s.length for s in microscope.sections ]
+	#print(lengths_0,lengths_1,lengths_2)
+	#microscope.show()
 
 def test_section_insertion_microscope():
 	ele1 = [ Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)),
@@ -341,5 +360,5 @@ def test_element_move():
 	#section.show(title="L3 dz -0.5, L1,L2,L3 @ 0.5,3.5,4.5")
 
 
-test_element_move()
-
+#test_element_move()
+#test_element_insertion_microscope()
