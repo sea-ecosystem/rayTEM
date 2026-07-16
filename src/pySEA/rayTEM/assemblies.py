@@ -260,8 +260,18 @@ class MicroscopeSection(SEASerializable):
 			dz = z-self.elements[i].position
 		self.elements[i]._position+=dz			# element position is updated
 		self.elements[i-1].length+=dz			# previous element is lengthened
-		self.elements[i+1]._position+=dz		# subsequent element is also moved
-		self.elements[i+1].length-=dz			# subsequent element is shortened
+		if self.elements[i-1].length < 0 and i>2 and self.elements[i-2].kind == "Drift": # edge case: if two drifts in a row, and one is shortened to below zero length, simply combine them
+			self.elements[i-2].length += self.elements[i-1].length
+			del self.elements[i-1] ; i-=1
+		if i+1<len(self.elements):
+			self.elements[i+1]._position+=dz	# subsequent element is also moved
+			self.elements[i+1].length-=dz		# subsequent element is shortened
+		else: # IF THIS IS THE LAST ELEMENT:
+			if dz<0: # append Drift element if elementName is moved forwards...
+				self.elements.append(Drift(length=-dz,position=self.elements[i]._position+self.elements[i].length))
+			else:	# or lengthen section (dangerous!) if elementName is moved backwards...
+				self.length += dz
+		print(repr(self))
 
 	def wobble(self,r0,elementIndex,func,kwargName,valRange,numSteps):
 		vals=xp.linspace(valRange[0],valRange[1],numSteps)
@@ -658,6 +668,7 @@ class Microscope(SEASerializable):
 				s_attrs["Elements"].append(e_attrs)
 			jdict["Sections"].append(s_attrs)
 		import json
+		#print(jdict)
 		with open(filename+'.json', 'w') as f:
 			json.dump(jdict, f,indent=4)
 

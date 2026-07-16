@@ -310,7 +310,7 @@ def test_cropping_microscope():
 #test_cropping_microscope()
 
 def test_element_move():
-	elements = [ Drift(length=1), Lens(name="L1",strength=3,length=.1), Drift(length=1.4), Lens(name="L2",strength=5,length=.1), Drift(length=2)  ]
+	elements = [ Source() , Drift(length=1), Lens(name="L1",strength=3,length=.1), Drift(length=1.4), Lens(name="L2",strength=5,length=.1), Drift(length=2.4) , Lens(name="L3",strength=1,length=.1) ]
 	section = MicroscopeSection(elements=elements)
 	# user should *not* be allowed to update the position of element, since it requires updating surrounding elements!
 	with pytest.raises(AttributeError):
@@ -323,13 +323,23 @@ def test_element_move():
 		dz = zs[1:]-zs[:-1] ; print(zs,ls)
 		assert np.sum( np.absolute( dz-ls[:-1] ) ) < .00001
 	check_lengths(section)
+	#section.show(title="original, L1,L2,L3 @ 1,2.5,5")
 
 	# user should *instead* use the move function to move an element (move function likely needs to be on the Section, not the Element, since the Element doesn't know it's parents??)
 	section.move("L2",dz=1)
 	check_lengths(section)
+	#section.show(title="L2 dz +1, L1,L2,L3 @ 1,3.5,5")
+
 	section.move("L1",dz=-.5)
 	check_lengths(section)
+	#section.show(title="L1 dz -0.5, L1,L2,L3 @ 0.5,3.5,5")
+
+	# make sure move works for last element in section?
+	section.move("L3",dz=-.5)
+	print(repr(section))
+	check_lengths(section)
+	#section.show(title="L3 dz -0.5, L1,L2,L3 @ 0.5,3.5,4.5")
 
 
-#test_element_move()
+test_element_move()
 

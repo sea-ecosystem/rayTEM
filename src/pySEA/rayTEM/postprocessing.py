@@ -781,6 +781,22 @@ def error_dz(microscope,settings,targets): # settings is a dict of parameters to
 
 	return deltas
 
+def closest_plane(microscope,z_target,plane_type):
+	# PROPAGATE, DETECT PLANES
+	r1=microscope.propagate_ray()
+	planes = findPlanes(r1,"x")
+	zs = r1[:,0,columnByName("z")] 								# all positions of 0th ray
+	zps_fractional = planes["x"][ plane_type ]["z"]				# coordinates are nth-element, % distance between
+	zps_real = [ zFromFractional(zs,z) for z in zps_fractional ]
+	if len(zps_real)==0:
+		#print(repr(microscope))
+		#microscope.show()
+		return {"z":microscope.length}
+	n=np.argmin( np.absolute(np.asarray(zps_real)-z_target) )			# find the index of the closest plane
+	plane = { k:planes["x"][plane_type][k][n] for k in planes["x"][plane_type].keys() }
+	plane["z"] = zps_real[n]
+	return plane
+
 # given a Microscope object, a dict of lens parameters, and a dict of planes, detects nearest plane of the correct type, and return the delta in magnifications, deltas in rotations, etc
 def error_at_plane(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":{"z":5,"M":10}}
 	#print("error_at_plane: settings",settings,"targets",targets)
