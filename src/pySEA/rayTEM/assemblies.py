@@ -37,8 +37,9 @@ class MicroscopeSection(SEASerializable):
 		self.elements = elements
 		self.position = position
 		self.ignoreLensThickness = ignoreLensThickness
-		self.rays = None
 		self.length = 0 #= self.position #xp.sum([e.length for e in self.elements])
+		self.rays = None
+
 		
 		if self.elements is None or (self.elements)==0:
 			return
@@ -314,6 +315,17 @@ class MicroscopeSection(SEASerializable):
 		#ri = xp.append(r0[:,None,:], ri, axis=1)
 		#return ri
 
+	#@property
+	#def rays(self):
+	#	if self._rays is None:
+	#		self.propagate_ray()
+	#	return self._rays
+
+	#@property
+	#def planes(self):
+	#	if self._planes is None:
+	#
+
 	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True):
 		if self.rays is None or regenerate:
 			r1 = self.propagate_ray()
@@ -350,7 +362,7 @@ class Microscope(SEASerializable):
 				 sections:ArrayLike=None ) -> SEASerializable:
 		self.name = name
 		self.sections = sections
-		self.rays = None
+		self.rays = None ; self._planes = None
 		if self.sections is not None and len(self.sections)>1: # check if consecutive sections are correct length. if not, insert drift at tail of first one
 			for s,s2 in zip(self.sections[:-1],self.sections[1:]):
 				if s.position+s.length<s2.position:
@@ -636,7 +648,17 @@ class Microscope(SEASerializable):
 			r=r1[-1,:,:] # rays fed into subsequent section are the rays exiting this section
 		self.rays = xp.asarray(rs) # if you want the non-flattened nthSection,nthElement,nthRay,xyzthetaetc, you should access microscope.section.rays which contain the individual nthElement,nthRay,xyzthetaetc
 		#print(self.rays.shape)
+		self._planes = None
 		return self.rays
+
+	# property for planes ("microscope.planes" instead of "postprocessing.findPlanes(microscope)"), which avoids the need to recalculate planes a bunch of times.
+	@property
+	def planes(self):
+		if self._planes is None:
+			if self.rays is None:
+				self.propagate_ray()
+			self._planes = findPlanes(self.rays,"x")
+		return self._planes
 
 	@property
 	def named_sections(self):

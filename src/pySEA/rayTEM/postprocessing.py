@@ -781,10 +781,12 @@ def error_dz(microscope,settings,targets): # settings is a dict of parameters to
 
 	return deltas
 
-def closest_plane(microscope,z_target,plane_type):
+def closest_plane(microscope,z_target,plane_type,regenerate=True):
 	# PROPAGATE, DETECT PLANES
-	r1=microscope.propagate_ray()
-	planes = findPlanes(r1,"x")
+	if regenerate or microscope.rays is None:
+		r1=microscope.propagate_ray()
+	r1 = microscope.rays
+	planes = microscope.planes
 	zs = r1[:,0,columnByName("z")] 								# all positions of 0th ray
 	zps_fractional = planes["x"][ plane_type ]["z"]				# coordinates are nth-element, % distance between
 	zps_real = [ zFromFractional(zs,z) for z in zps_fractional ]
