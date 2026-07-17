@@ -800,27 +800,32 @@ def closest_plane(microscope,z_target,plane_type,regenerate=True):
 	return plane
 
 # given a Microscope object, a dict of lens parameters, and a dict of planes, detects nearest plane of the correct type, and return the delta in magnifications, deltas in rotations, etc
-def error_at_plane(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":{"z":5,"M":10}}
+def error_at_plane(microscope,settings,targets,absolute=True,include_z=True): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":{"z":5,"M":10}}
 	#print("error_at_plane: settings",settings,"targets",targets)
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
+	microscope.propagate_ray()
 	#microscope.show()
-	# PROPAGATE, DETECT PLANES
-	r1=microscope.propagate_ray()
-	planes = findPlanes(r1,"x")
 	# FOR EACH TARGET PLANE, FIND CLOSEST OF SAME TYPE, ERROR IS DELTA IN POSITION
 	deltas = []
 	for plane_type,zm in targets.items():
-		z=zm["z"]
-		zs = r1[:,0,columnByName("z")] 								# all positions of 0th ray
-		zps_fractional = planes["x"][ plane_type ]["z"]				# coordinates are nth-element, % distance between
-		zps_real = [ zFromFractional(zs,z) for z in zps_fractional ]
-		n=np.argmin( np.absolute(np.asarray(zps_real)-z) )	# find the index of the closest plane
+		plane = closest_plane(microscope,zm['z'],plane_type)
+		#z=zm["z"]
+		#zs = r1[:,0,columnByName("z")] 								# all positions of 0th ray
+		#zps_fractional = planes["x"][ plane_type ]["z"]				# coordinates are nth-element, % distance between
+		#zps_real = [ zFromFractional(zs,z) for z in zps_fractional ]
+		#n=np.argmin( np.absolute(np.asarray(zps_real)-z) )	# find the index of the closest plane
 		for k,v in zm.items():
-			if k=="z":
+			if not include_z:
 				continue
 			#if k in ["R","M"]:
-			deltas.append( planes['x'][ plane_type ][k][n]-zm[k] ) # "M" for mag, "R" for rotation,
+			if absolute:
+				d = abs(plane[k]) - abs(v)
+			else:
+				d = plane[k] - v
+			if v>0:
+				d/=v ; d*=100
+			deltas.append(d) # "M" for mag, "R" for rotation,
 			#else:
 			#	x,y,xt,yt,R,I = measureAtZ(zps_real[n],rays=r1)
 			#	dic = { "x":x, "y":y, "xt":xt, "yt":yt, "R":R, "I":I }

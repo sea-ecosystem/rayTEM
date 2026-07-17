@@ -236,7 +236,7 @@ class MicroscopeSection(SEASerializable):
 			self.elements.insert(index,element)
 		else:									# coordinate-based insertion: section.insert(25.0,newlens) places newlens in drift that spans 25.0
 			for i,ele in enumerate(self.elements): # "looking for element spanning 25.0: 5th element is a Drift which goes from 21.0 to 30.0"
-				if ele.position<=index and ele.position+ele.length>index and ele.kind=="Drift":
+				if ele.position<=index and ele.position+getattr(ele,"length",0)>index and ele.kind=="Drift":
 					#print("INSERTING ELEMENT",element.name,"AT",index,"(",ele,ele.position,ele.length,")","AT POSITION",i)
 					elementlength=0 if self.ignoreLensThickness else getattr(element,"length",0)
 					l1=index-ele.position ; l2=ele.length-elementlength-l1 # "this drift needs to be length 4.0, and we'll need another drift after the insertion"
@@ -659,6 +659,10 @@ class Microscope(SEASerializable):
 				self.propagate_ray()
 			self._planes = findPlanes(self.rays,"x")
 		return self._planes
+
+	# TODO self.rays should be a property, self._rays should hold the previously-calculated rays. self.rays should do a hash on the microscope (use repr?) to check if the microscope has changed. if so, re-call propagate_ray, else, return self._rays.
+	#@property
+	#def rays():
 
 	@property
 	def named_sections(self):
