@@ -6,7 +6,7 @@ flag_gpu = False
 import pickle
 import sys,inspect
 
-from .postprocessing import plot2D
+from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
 from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture
 from .seashells import SEASerializable
 
@@ -37,30 +37,36 @@ class MicroscopeSection(SEASerializable):
 		self.elements = elements
 		self.position = position
 		self.ignoreLensThickness = ignoreLensThickness
-		self.rays = None
 		self.length = 0 #= self.position #xp.sum([e.length for e in self.elements])
+		self.rays = None
+
 		
 		if self.elements is None or (self.elements)==0:
 			return
 
 		new = []
 		for n,ele in enumerate(elements):
+			#print("process element",n,"=",repr(ele))
 			#print("self.length",self.length,"adding ele",ele.kind,ele.name,ele.position,ele.length)
 			if ele.position is None:						# e.g. pass Lens(l1),Drift(l2),Lens(l3) --> Drift.position=l1, Drift.position=l1+l2
 				#print("(no position, add to end)")
-				ele.position = self.length
+				ele._position = self.length
 			# SANITY CHECK: if there's a "gap" between this element's position and end of previous, then add a drift
 			if self.length < ele.position:
 				#print("(gap before this element)")
 				dz = ele.position - self.length #; print("dz",dz,"position",ele.position-dz)
-				new.append( Drift(length=dz,position=ele.position-dz) )
+				if dz>1e-10:
+					#print("add drift",n,ele.position,self.length,dz)
+					new.append( Drift(length=dz,position=ele.position-dz) )
 				self.length += dz
 			new.append(ele)
 			if self.length > ele.position:
 				print('WARNING: previous Element ('+str(elements[n-1])+') overlaps with specified Element position '+str(ele))
 			if ignoreLensThickness and ele.kind in ['Thin lens','QLens','Thin quad','Quad']:
 				continue
+			#print("increment length by",getattr(ele,"length",0))
 			self.length += getattr(ele,"length",0)
+			#print("new length = ",self.length)
 		self.elements = new
 
 	#####################################
@@ -74,8 +80,10 @@ class MicroscopeSection(SEASerializable):
 		self.elements[item-1].length += getattr(self.elements[item],"length",0)
 		del self.elements[item]
 
-	# TWP 2025-11-05: allow indexing of the assembly by name: section["PL1"] should return the section by that name! see removed_private_instrument_tree/PRIVATE_INSTRUMENT/fine_PLs.py. 2026-02-05: also allow slicing by name: section["sample":] should return a new section with all elements including and after "sample"
-	def __getitem__(self, item):
+	# TWP 2025-11-05: allow indexing of the assembly by name: section["PL1"] should return the section by that name! see removed_private_instrument_tree/PRIVATE_INSTRUMENT/fine_PLs.py.
+	# 2026-02-05: also allow slicing by name: section["sample":] should return a new section with all elements including and after "sample"
+	# 2026-06-18: and slicing by z position: section[2.5:] should return a new section trimmed to z>=2.5?
+	def __getitemOLD__(self, item):
 		#print("section __getitem__",item)
 		# REFERENCE TO SINGLE ITEMS
 		if isinstance(item,str):	# convert "PL1" into an integer index
@@ -87,13 +95,77 @@ class MicroscopeSection(SEASerializable):
 		# SLICES, POTENTIALLY MULTIPLE ITEMS, ALWAYS RETURN A COPY
 		if isinstance(item,slice):	# convert "sample:" (which results in "item" being a slice) to an integer-indexed slice, e.g. slice(3,None,None)
 			a,b,n=item.start,item.stop,item.step
-			a,b,n=[ self.index(v) if isinstance(v,str) else v for v in [a,b,n] ]
+			trim_first = 0 ; trim_last = 0
+			a,b,n=[ self.index(v) if isinstance(v,str) else v for v in [a,b,n] ] # convert "PL1:" to whatever the index is for PL1
+			if isinstance(a,float):
+				trim_first = a
+				positions = xp.asarray([ e.position for e in self.elements ])
+				a = xp.where(positions<a)[0][-1]
+			#if isinstance(b,float): # TODO finish implementing
+			#	trim_last = self.elements[b].length-
+			#	b=int(np.ceil(b))
 			item = slice(a,b,n)
 		#print("returning copied slice")
 		ret = self.copy().elements[item]
+		if trim_first > 0:
+			ret[0].length-=trim_first ; ret[0]._position+=trim_first
+		#if trim_last > 0:	# TODO finish implementing
+		p0 = ret[0].position
+		for i,e in enumerate(ret):
+			ret[i]._position -= p0		# shift all element positions so first is at zero
+
 		if isinstance(ret,list):
+			#print("CONSTRUCT NEW SECTION WITH\n",ret)
 			return MicroscopeSection(name=self.name,elements=ret,position=self.position)
 		return ret
+
+	def __getitem__(self, item):
+		# RETURN A REFERENCE TO A SINGLE ITEM, BY NAME OR INDEX
+		if isinstance(item,str):	# convert "PL1" into an integer index
+			#print("index lookup, single item")
+			item = self.index(item)
+		if isinstance(item,int):
+			#print("simple index lookup, returning reference to element")
+			return self.elements[item]
+		# RETURN A COPY OF A SLICE (SUBSET OF ITEMS), BY NAME, INDEX, OR Z-LOCATION
+		if isinstance(item,slice):
+			# "sample:" --> a="sample",b=None,c=None. or "2.5:11.0" --> a=2.5,b=11.5,c=None.
+			a,b,n=item.start,item.stop,item.step
+			trim_first = 0 ; trim_last = 0
+			positions = xp.asarray([ e.position for e in self.elements ])
+			if isinstance(a,float):
+				i = xp.where(positions<a)[0][-1] 	# index of last element which starts prior to z=a, i.e., spans across z=a
+				trim_first = a-positions[i]			# we'll need to cut off dz from that element (e.pos=4.5, a=5, trim 0.5)
+				a = i								# index slicing of self.elements will begin with the element spanning z=a
+			if isinstance(b,float):
+				i = xp.where(positions<b)[0][-1]
+				trim_last = b-positions[i]
+				b=i+1								# we want to include the element spanning z=b, hence +1
+			if isinstance(a,str):
+				a = self.index(a)
+			if isinstance(b,str):
+				b = self.index(b)
+			item = slice(a,b,n)
+		#print("returning copied slice")
+		# DEEP COPY MYSELF, SLICE ELEMENTS, MAKE ADJUSTMENTS TO POSITIONS AND LENGTHS
+		new = self.copy()
+		new.elements = new.elements[item]		# list of elements, deeeeeep-copied (including copies of all elements)
+		# front-side trimming: first element's length (if it was chopped midway), and positions of all elements (if a!=0)
+		if trim_first > 0:
+			new.elements[0].length-=trim_first			# trim first element
+			new.elements[0]._position+=trim_first		# then "scoot it back" so it ends where it ended previously
+		p0 = new.elements[0]._position
+		for i,e in enumerate(new.elements):
+			new.elements[i]._position -= p0		# shift all element positions so first is at zero
+		if trim_last > 0:
+			new.elements[-1].length-=trim_last
+		# scoot ALL elements forwards so element 0 starts at 0
+		p0 = new.elements[0].position
+		for i,e in enumerate(new.elements):
+			new.elements[i]._position -= p0		# shift all element positions so first is at zero
+		# and finally, update new's length
+		new.length = new.elements[-1].position+new.elements[-1].length
+		return new
 
 	def __setitem__(self, item, value): # TWP 2026-02-04: allow setting by assembly name or index. sec1[0]=sec2[0] should work
 		if isinstance(item,str):
@@ -164,13 +236,13 @@ class MicroscopeSection(SEASerializable):
 			self.elements.insert(index,element)
 		else:									# coordinate-based insertion: section.insert(25.0,newlens) places newlens in drift that spans 25.0
 			for i,ele in enumerate(self.elements): # "looking for element spanning 25.0: 5th element is a Drift which goes from 21.0 to 30.0"
-				if ele.position<=index and ele.position+ele.length>=index and ele.kind=="Drift":
-					#print("INSERTING ELEMENT",element.name,"AT",index,"(",ele.position,ele.length,")","AT POSITION",i)
+				if ele.position<=index and ele.position+getattr(ele,"length",0)>index and ele.kind=="Drift":
+					#print("INSERTING ELEMENT",element.name,"AT",index,"(",ele,ele.position,ele.length,")","AT POSITION",i)
 					elementlength=0 if self.ignoreLensThickness else getattr(element,"length",0)
 					l1=index-ele.position ; l2=ele.length-elementlength-l1 # "this drift needs to be length 4.0, and we'll need another drift after the insertion"
 					#print("PRE DRIFT",l1,"+ ELEMENT",element.length,"+ POST DRIFT",l2,"=",ele.length)
 					self.elements[i].length=l1			# "shorten" initial drift
-					element.position = index			# update new element's position
+					element._position = index			# update new element's position
 					self.elements.insert(i+1,element)	# add new element
 					if l2>0:							# add following drift
 						self.elements.insert(i+2,Drift(length=l2,position=index+elementlength))
@@ -182,6 +254,25 @@ class MicroscopeSection(SEASerializable):
 
 	def append(self,element):
 		self.insert(len(self.elements),element)
+
+	def move(self,elementName,z=None,dz=None): # TODO massive assumption here is that we're adjusting non-first non-last element positions!
+		i=self.index(elementName)
+		if z is not None:
+			dz = z-self.elements[i].position
+		self.elements[i]._position+=dz			# element position is updated
+		self.elements[i-1].length+=dz			# previous element is lengthened
+		if self.elements[i-1].length < 0 and i>2 and self.elements[i-2].kind == "Drift": # edge case: if two drifts in a row, and one is shortened to below zero length, simply combine them
+			self.elements[i-2].length += self.elements[i-1].length
+			del self.elements[i-1] ; i-=1
+		if i+1<len(self.elements):
+			self.elements[i+1]._position+=dz	# subsequent element is also moved
+			self.elements[i+1].length-=dz		# subsequent element is shortened
+		else: # IF THIS IS THE LAST ELEMENT:
+			if dz<0: # append Drift element if elementName is moved forwards...
+				self.elements.append(Drift(length=-dz,position=self.elements[i]._position+self.elements[i].length))
+			else:	# or lengthen section (dangerous!) if elementName is moved backwards...
+				self.length += dz
+		print(repr(self))
 
 	def wobble(self,r0,elementIndex,func,kwargName,valRange,numSteps):
 		vals=xp.linspace(valRange[0],valRange[1],numSteps)
@@ -209,7 +300,7 @@ class MicroscopeSection(SEASerializable):
 		ri=[r0]
 		for i,ele in enumerate(self.elements):
 			if verbose:
-				print(ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
+				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
 			ele_ri = ele.propagate_ray(ri[-1], z=z)
 			#ele_ri[...,-2] += ele.position # TWP 2025/08/27 - do not add distance. drift already should update z
 			#print(ele_ri.shape,r0.shape)
@@ -223,6 +314,17 @@ class MicroscopeSection(SEASerializable):
 		#Include the initial ray. #TODO: Add conditional if source is included
 		#ri = xp.append(r0[:,None,:], ri, axis=1)
 		#return ri
+
+	#@property
+	#def rays(self):
+	#	if self._rays is None:
+	#		self.propagate_ray()
+	#	return self._rays
+
+	#@property
+	#def planes(self):
+	#	if self._planes is None:
+	#
 
 	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True):
 		if self.rays is None or regenerate:
@@ -241,7 +343,7 @@ class MicroscopeSection(SEASerializable):
 		allowed_kwargs = inspect.signature(MicroscopeSection).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
 		dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it technically has one
 		#print("creating copy with dic",dic)
-		print("elem0 ids",id(elements[0]),id(self.elements[0]))
+		#print("elem0 ids",id(elements[0]),id(self.elements[0]))
 		return MicroscopeSection(**dic)
 
 
@@ -260,7 +362,7 @@ class Microscope(SEASerializable):
 				 sections:ArrayLike=None ) -> SEASerializable:
 		self.name = name
 		self.sections = sections
-		self.rays = None
+		self.rays = None ; self._planes = None
 		if self.sections is not None and len(self.sections)>1: # check if consecutive sections are correct length. if not, insert drift at tail of first one
 			for s,s2 in zip(self.sections[:-1],self.sections[1:]):
 				if s.position+s.length<s2.position:
@@ -277,7 +379,7 @@ class Microscope(SEASerializable):
 	# 'Microscope["PL1"].strength = newval' should update
 	# and we for sub-chunks of the microscope, we should return a copy:
 	# 'Microscope[:"PL1"]' is required to edit the 3rd section of CLs/OLs/PLs, so the "edited" version should be a full copy
-	def __getitem__(self, item):
+	def __getitemOLD__(self, item):
 		#print("microscope __getitem__",item)
 		# SINGLE ELEMENT OR SECTION
 		# string passed (e.g., name of section or element), "PL1" or "PLs", convert to indices
@@ -306,6 +408,14 @@ class Microscope(SEASerializable):
 				#print("all int or none, simple slice, return new microscope with copied sections")
 				return Microscope(name=self.name,sections=ret)
 
+			if isinstance(a,float):
+				positions = xp.asarray([ s.position for s in self.sections ])
+				j = xp.where(positions<a)[0][-1]
+				a = (j,a-positions[j]) # "slice the nth section to coordinated x.yz, relative to the beginning of that section
+			#if isinstance(b,float): # TODO finish implementing
+			#	trim_last = self.elements[b].length-
+			#	b=int(np.ceil(b))
+
 			# ONE OR MORE SECTIONS IS SLICED: ':"PL1"' includes preceeding sections AND a portion of the PLs section
 			# microscope["sample":] should return a Microscope containing the sections/elements starting at "sample". if section "OLs" contains "sample", the returned Microscope should contain OLs, plus subsequent sections (e.g. DQCM and PLs), and the OLs section should only contain elements from "sample" and beyond
 			a1,b1,n1 = [ v[0] if isinstance(v,tuple) else v for v in [a,b,n] ]
@@ -322,7 +432,7 @@ class Microscope(SEASerializable):
 				ret[0].elements = ret[0].elements[a[1]:]
 				p0 = ret[0].elements[0].position			# now-first element's position
 				for i,e in enumerate(ret[0].elements):
-					ret[0].elements[i].position -= p0		# shift all element positions so first is at zero
+					ret[0].elements[i]._position -= p0		# shift all element positions so first is at zero
 				ret[0].length -= p0							# update section length
 				p1 = ret[0].position						# now-first section's position
 				for i,s in enumerate(ret):					# shift so first section starts at 0
@@ -335,6 +445,60 @@ class Microscope(SEASerializable):
 				ret[-1].length = ret[-1][-1].position + ret[-1][-1].length # update last section's length
 
 			return Microscope(name=self.name,sections=ret)
+
+	def __getitem__(self, item):
+		# RETURN A REFERENCE TO A SINGLE ITEM (SECTION OR ELEMENT), BY NAME OR INDEX
+		if isinstance(item,str):	# convert "PL1" into an integer index
+			item = self.index(item)							# tuple (indexOfSection,indexOfElementInThatSection)
+		if isinstance(item,tuple):
+			return self.sections[item[0]].elements[item[1]]
+		if isinstance(item,int):
+			return self.sections[item]
+		# RETURN A COPY OF A SLICE (SUBSET OF ITEMS), BY NAME, INDEX, OR Z-LOCATION
+		if isinstance(item,slice):
+			# "sample:" --> a="sample",b=None,c=None. or "2.5:11.0" --> a=2.5,b=11.5,c=None.
+			a,b,n=item.start,item.stop,item.step
+			trim_first = 0 ; trim_last = 0
+			positions = xp.asarray([ s.position for s in self.sections ])
+			if isinstance(a,float):
+				i = xp.where(positions<a)[0][-1] 	# index of last section which starts prior to z=a, i.e., spans across z=a
+				trim_first = a-positions[i]			# we'll need to cut off dz from that section (s.pos=4.5, a=5, trim 0.5)
+				a = i								# index slicing of self.sections will begin with the section spanning z=a
+			if isinstance(b,float):
+				i = xp.where(positions<b)[0][-1]
+				trim_last = b-positions[i]
+				b=i+1								# we want to include the section spanning z=b, hence +1
+			if isinstance(a,str):
+				a = self.index(a)					# may be a tuple! be careful
+			if isinstance(b,str):
+				b = self.index(b)
+			# since self.index(namedElement) might be a tuple (sectionIndex,elementIndex), we need to filter to section indices
+			a1,b1,n1 = [ v[0] if isinstance(v,tuple) else v for v in [a,b,n] ]
+			item = slice(a1,b1,n1)
+		# DEEP COPY MYSELF, SLICE SECTIONS, MAKE ADJUSTMENTS TO POSITIONS AND LENGTHS
+		new = self.copy()
+		new.sections = new.sections[item]		# list of sections, deeeeeep-copied (including copies of all sections/elements)
+		# front side trimming by index: hand off to section trimming
+		if isinstance(a,tuple):
+			l1 = new.sections[0].length
+			new.sections[0] = new.sections[0][a[1]:]
+			new.sections[0].position += l1-new.sections[0].length # then "scoot it back" so it ends where it ended previously
+		# front-side trimming by z_position: hand off to section trimming
+		if trim_first > 0:
+			new.sections[0] = new.sections[0][trim_first:]	# let MicroscopeSection.__getattr__ handle section trimming
+			new.sections[0].position+=trim_first		# then "scoot it back" so it ends where it ended previously
+		p0 = new.sections[0].position
+		for i,s in enumerate(new.sections):
+			new.sections[i].position -= p0		# shift all sections positions so first is at zero
+		if trim_last > 0:
+			new.sections[-1] = new.sections[-1][:trim_last]	# let MicroscopeSection.__getattr__ handle section trimming
+		# scoot ALL sections forwards so section 0 starts at 0
+		p0 = new.sections[0].position
+		for i,s in enumerate(new.sections):
+			new.sections[i].position -= p0		# shift all section positions so first is at zero
+		# and finally, update new's length
+		new.length = new.sections[-1].position+new.sections[-1].length
+		return new
 
 	def __repr__(self) -> str:
 
@@ -356,6 +520,30 @@ class Microscope(SEASerializable):
 
 	# endregion
     ################
+
+	# TODO rather silly to need to infer planes in every script and measure. we should have a property for each to standardize it
+	#@property
+	def beam_current(self,regenerate=False):
+		if regenerate:
+			self.propagate_ray()
+		return self.rays[-1,0,columnByName('I')]
+	#@property
+	def convergence_angle(self,regenerate=False):
+		if regenerate:
+			self.propagate_ray()
+		z = self.get_element_position("OL1")+self["OL1"].length+.001
+		x,y,xt,yt,R,I = measureAtZ(z,section=self)
+		return xt
+	#@property
+	def focus_error(self,expected_C3_crossover=0,regenerate=False):
+		if regenerate:
+			self.propagate_ray()
+		planes = findPlanes(self.rays,"x") #['x']['diff' or 'image']['z' or 'M' or 'R' or 'p']
+		zp = planes['x']['diff']['z']	# findPlanes returns fractional coordinated. 1.4 is 40% of the way through element 1
+		zp = [ zFromFractional(self.rays[:,0,columnByName('z')],z) for z in zp ]
+		zp=xp.asarray(zp)
+		i = xp.where(zp > self.get_element_position("CL3"))[0][0] # first plane after CL3 (not closest, as we did for mag/rot w/r/t CCD)
+		return zp[i]-expected_C3_crossover
 
 	#####################################
     # region: SEASerializable integration
@@ -404,7 +592,7 @@ class Microscope(SEASerializable):
 					sec2 = elementOrSection ; sec2.position = sec1.position+l1 # s2 needs position set
 					ele3 = [ e for e in elements if e.position > l1 ]	# s3 needs
 					for e in ele3:
-						e.position -= (l1+l2)
+						e._position -= (l1+l2)
 					#print(ele3)
 					sec3 = MicroscopeSection(name="added",position=sec1.position+l1+l2,elements=ele3)
 					#sec3.insert(0,Drift(length=l3-sec3.length)) ; print(ele3,sec3.length)
@@ -428,7 +616,7 @@ class Microscope(SEASerializable):
 		dl = newlength-l1									# change in length
 		self.sections[i].elements[j].length = newlength		# update the element
 		if len(self.sections[i])>j+1:						# if this element isn't the last in its section
-			self.sections[i].elements[j+1].position+=dl		# update subsequent element position...
+			self.sections[i].elements[j+1]._position+=dl		# update subsequent element position...
 			self.sections[i].elements[j+1].length-=dl			# ...and length
 		else:
 			print("ADJUST ELEMENT LENGTH NOT YET IMPLEMENTED FOR LAST ELEMENT IN SECTION")
@@ -460,7 +648,21 @@ class Microscope(SEASerializable):
 			r=r1[-1,:,:] # rays fed into subsequent section are the rays exiting this section
 		self.rays = xp.asarray(rs) # if you want the non-flattened nthSection,nthElement,nthRay,xyzthetaetc, you should access microscope.section.rays which contain the individual nthElement,nthRay,xyzthetaetc
 		#print(self.rays.shape)
+		self._planes = None
 		return self.rays
+
+	# property for planes ("microscope.planes" instead of "postprocessing.findPlanes(microscope)"), which avoids the need to recalculate planes a bunch of times.
+	@property
+	def planes(self):
+		if self._planes is None:
+			if self.rays is None:
+				self.propagate_ray()
+			self._planes = findPlanes(self.rays,"x")
+		return self._planes
+
+	# TODO self.rays should be a property, self._rays should hold the previously-calculated rays. self.rays should do a hash on the microscope (use repr?) to check if the microscope has changed. if so, re-call propagate_ray, else, return self._rays.
+	#@property
+	#def rays():
 
 	@property
 	def named_sections(self):
@@ -486,10 +688,13 @@ class Microscope(SEASerializable):
 			del s_attrs["elements"],s_attrs["rays"],s_attrs["name"]
 			for e in s.elements:
 				e_attrs = {"Element name":e.name,"kind":e.kind,"position":e.position} | e.__dict__
-				del e_attrs["name"]
+				for k in ["name","rotation","_position"]: # "name" is to be saved as "Element name", and a lens's rotation is a locally-calculated value, NOT a meaningful attribute
+					if k in e_attrs.keys():
+						del e_attrs[k]
 				s_attrs["Elements"].append(e_attrs)
 			jdict["Sections"].append(s_attrs)
 		import json
+		#print(jdict)
 		with open(filename+'.json', 'w') as f:
 			json.dump(jdict, f,indent=4)
 

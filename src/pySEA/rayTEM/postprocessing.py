@@ -1,4 +1,4 @@
-from .elements import columnByName
+from .elements import columnByName,fix_mat_dims
 import numpy as np
 from scipy.optimize import minimize,brute
 import matplotlib.pyplot as plt
@@ -10,7 +10,10 @@ from matplotlib.cm import plasma as cmap
 
 
 # Basic 2D plotting (along z, and in whatever axis you have chosen)
+# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
+# For now, plot2D assumes it is given unrotated-reference-frame rays, and should likely call convert_to_rotating_reference_frame.
 def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,title=None,plt_ax=None):
+	r1 = convert_to_rotating_reference_frame(r1)
 	if plt_ax is None:
 		fig,ax = plt.subplots()
 	else:
@@ -33,7 +36,9 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 		Z=planes[axis][imdiff]["z"]
 		M=planes[axis][imdiff]["M"]
 		R=planes[axis][imdiff]["R"]
+		#print("PLANES",imdiff,Z,M,R)
 		for m,z,r in zip(M,Z,R):
+			#print("ADD PLANE",Z,imdiff)
 			ct+=1
 			z=zFromFractional(zs,z)
 			label=imdiff+" @ z="+str(np.round(z,3))+"\n M="+str(np.round(m,3))+"\n R="+str(np.round(r*180/np.pi,1))
@@ -338,11 +343,30 @@ def findPlanes4(rays,axes="x"):
 
 	return returnable
 
+# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
+# This function provides easy return to the rotated reference frame
+def convert_to_rotating_reference_frame(rays):
+	nl,nr,nc = rays.shape
+	converted = np.zeros(rays.shape)
+	for l in range(nl):
+		for r in range(nr):
+			R = rays[l,r,columnByName('R')]
+			C = np.cos(R)
+			S = np.sin(R)
+			M = np.asarray([[C,S,0,0],[-S,C,0,0],[0,0,C,S],[0,0,-S,C]])
+			M = fix_mat_dims(M,["x","y","xt","yt"])
+			converted[l,r,:] = np.matmul(M,rays[l,r,:])
+	return converted
 
 
 
 # Returns a dict for each axis, image vs diffraction planes, and the magnification and z position (NOTE: Z IS IN FRACTIONAL COORDINATES: 4.2 = 20% of the way through the 4th element)
+warned = []
+# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
+# For now, findPlanes assumes it is given unrotated-reference-frame rays, must call convert_to_rotating_reference_frame.
 def findPlanes(rays,axis="xy"):
+	rays = convert_to_rotating_reference_frame(rays)
+	global warned
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
 	diffRays=[] ; imageRays=[]
 	x=columnByName("x") ; y=columnByName("y")
@@ -387,14 +411,19 @@ def findPlanes(rays,axis="xy"):
 					imageRays.append(r)
 		if len(diffRays)==2 and len(imageRays)==2:
 				break
-	if len(diffRays)!=2 or len(imageRays)!=2:
-		print("WARNING: diffraction and/or image rays could not be inferred by findPlanes(). no planes found")
-		if len(diffRays)<2:
-			print("diffraction rays (x2) in "+axis+": must be finite "+axis+", zero "+axis+"t")
-		if len(imageRays)<2:
-			print("image rays (x2) in "+axis+": must be finite "+axis+"t, zero "+axis)
+	#if len(diffRays)!=2 or len(imageRays)!=2:
+		#print("WARNING: diffraction and/or image rays could not be inferred by findPlanes(). no planes found")
+	if len(diffRays)<2 and "diff" not in warned:
+		warned.append("diff")
+		print("diffraction rays (x2) in "+axis+": must be finite "+axis+", zero "+axis+"t")
+	if len(imageRays)<2 and "image" not in warned:
+		warned.append("image")
+		print("image rays (x2) in "+axis+": must be finite "+axis+"t, zero "+axis)
 	if len(diffRays)!=2 and len(imageRays)!=2:
 		return returnable
+	#print("x",x,"xt",xt,"y",y,"yt",yt)
+	#print(axis,"imageRays",imageRays,":",rays[0,imageRays[0],:],",",rays[0,imageRays[1],:])
+	#print(axis,"diffRays" ,diffRays ,":",rays[0,diffRays[0],:] ,",",rays[0,diffRays[1],:] )
 
 	def whereCrossesZero(y0,y1): # returns relative position (0-1) of crossover, 
 		# if the originally-parallel ray crosses zero, this is a diffraction plane
@@ -434,7 +463,7 @@ def findPlanes(rays,axis="xy"):
 		if len(diffRays)>=2:
 			# CHECK DIFFRACTION: where originally-parallel rays cross
 			(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,diffRays,x]
-			dz=whereRaysCross(xa1,xa2,xb1,xb2)
+			dz=whereRaysCross(xa1,xa2,xb1,xb2) #; print("diff",i,dz)
 			if dz is not None:
 				if len(imageRays)<2:
 					M = np.nan
@@ -456,7 +485,7 @@ def findPlanes(rays,axis="xy"):
 		if len(imageRays)>=2:
 			# CHECK IMAGE PLANE: where rays leaving the same place re-cross
 			(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,imageRays,x]
-			dz=whereRaysCross(xa1,xa2,xb1,xb2)
+			dz=whereRaysCross(xa1,xa2,xb1,xb2) #; print("image",i,dz)
 			if dz is not None:
 				if len(diffRays)<2:
 					M = np.nan
@@ -472,7 +501,7 @@ def findPlanes(rays,axis="xy"):
 					xr=positionAtZ(*rays[i-1:i+1,r,x],dz)
 					yr=positionAtZ(*rays[i-1:i+1,r,y],dz)
 					returnable[axis]["image"]["p"][-1].append( [xr,yr] )
-				returnable[axis]["diff"]["R"].append( rays[i,r,R] )
+				returnable[axis]["image"]["R"].append( rays[i,r,R] )
 
 	return returnable
 
@@ -753,6 +782,7 @@ def update_microscope_with_settings(microscope,settings):
 def error_dz(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":5,"image":7}
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
+	#print("error_dz: settings",settings,"targets",targets)
 	#microscope.show()
 	# PROPAGATE, DETECT PLANES
 	r1=microscope.propagate_ray()
@@ -767,32 +797,55 @@ def error_dz(microscope,settings,targets): # settings is a dict of parameters to
 		zps_real = [ zFromFractional(zs,z) for z in zps_fractional ]
 		n=np.argmin( np.absolute(np.asarray(zps_real)-z) )	# find the index of the closest plane
 		deltas.append( zps_real[n]-z )
-		print("add d",zps_real[n]-z,"for z model value",zps_real[n],"target value",z)
+		#print("add d",zps_real[n]-z,"for z model value",zps_real[n],"target value",z)
 
 	return deltas
 
+def closest_plane(microscope,z_target,plane_type,regenerate=True):
+	# PROPAGATE, DETECT PLANES
+	if regenerate or microscope.rays is None:
+		r1=microscope.propagate_ray()
+	r1 = microscope.rays
+	planes = microscope.planes
+	zs = r1[:,0,columnByName("z")] 								# all positions of 0th ray
+	zps_fractional = planes["x"][ plane_type ]["z"]				# coordinates are nth-element, % distance between
+	zps_real = [ zFromFractional(zs,z) for z in zps_fractional ]
+	if len(zps_real)==0:
+		#print(repr(microscope))
+		#microscope.show()
+		return {"z":microscope.length}
+	n=np.argmin( np.absolute(np.asarray(zps_real)-z_target) )			# find the index of the closest plane
+	plane = { k:planes["x"][plane_type][k][n] for k in planes["x"][plane_type].keys() }
+	plane["z"] = zps_real[n]
+	return plane
+
 # given a Microscope object, a dict of lens parameters, and a dict of planes, detects nearest plane of the correct type, and return the delta in magnifications, deltas in rotations, etc
-def error_at_plane(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":{"z":5,"M":10}}
-	print(settings,targets)
+def error_at_plane(microscope,settings,targets,absolute=True,include_z=True): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":{"z":5,"M":10}}
+	#print("error_at_plane: settings",settings,"targets",targets)
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
+	microscope.propagate_ray()
 	#microscope.show()
-	# PROPAGATE, DETECT PLANES
-	r1=microscope.propagate_ray()
-	planes = findPlanes(r1,"x")
 	# FOR EACH TARGET PLANE, FIND CLOSEST OF SAME TYPE, ERROR IS DELTA IN POSITION
 	deltas = []
 	for plane_type,zm in targets.items():
-		z=zm["z"]
-		zs = r1[:,0,columnByName("z")] 								# all positions of 0th ray
-		zps_fractional = planes["x"][ plane_type ]["z"]				# coordinates are nth-element, % distance between
-		zps_real = [ zFromFractional(zs,z) for z in zps_fractional ]
-		n=np.argmin( np.absolute(np.asarray(zps_real)-z) )	# find the index of the closest plane
+		plane = closest_plane(microscope,zm['z'],plane_type)
+		#z=zm["z"]
+		#zs = r1[:,0,columnByName("z")] 								# all positions of 0th ray
+		#zps_fractional = planes["x"][ plane_type ]["z"]				# coordinates are nth-element, % distance between
+		#zps_real = [ zFromFractional(zs,z) for z in zps_fractional ]
+		#n=np.argmin( np.absolute(np.asarray(zps_real)-z) )	# find the index of the closest plane
 		for k,v in zm.items():
-			if k=="z":
+			if not include_z:
 				continue
 			#if k in ["R","M"]:
-			deltas.append( planes['x'][ plane_type ][k][n]-zm[k] ) # "M" for mag, "R" for rotation,
+			if absolute:
+				d = abs(plane[k]) - abs(v)
+			else:
+				d = plane[k] - v
+			if v>0:
+				d/=v ; d*=100
+			deltas.append(d) # "M" for mag, "R" for rotation,
 			#else:
 			#	x,y,xt,yt,R,I = measureAtZ(zps_real[n],rays=r1)
 			#	dic = { "x":x, "y":y, "xt":xt, "yt":yt, "R":R, "I":I }
@@ -800,7 +853,7 @@ def error_at_plane(microscope,settings,targets): # settings is a dict of paramet
 	return deltas
 
 # given a Microscope object, a dict of lens parameters, and a dict of positions (not planes!), return the delta in position, angle, intensity, etc
-def error_at_position(microscope,settings,targets,absolute=False): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of positions and things to check: {5:{"xt":1e-3},7:{"I":.6}}
+def error_at_position(microscope,settings,targets,absolute=True): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of positions and things to check: {5:{"xt":1e-3},7:{"I":.6}}
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
 	# PROPAGATE, MEASURE BEAM
@@ -811,17 +864,18 @@ def error_at_position(microscope,settings,targets,absolute=False): # settings is
 		dic = {"x":x,"y":y,"xt":xt,"yt":yt,"R":R,"I":I}
 		for k,v in kv.items():
 			if absolute:
-				d = abs(dic[k])-abs(v)
+				d = abs(dic[k])-abs(v) ; v=abs(v)
 			else:
 				d = dic[k]-v
-			d/=v ; d*=100		# if target is 1e-6 (e.g., an angle), a delta of "only" 1e-6 is actually a 100% error! meanwhile, something like error_dz is a deviation in position, and it's plausible things are tens or hundreds of mm off! we don't want error_dz to overpower our error in measured parameters TODO what's the RIGHT way to balance these?
-			print("add d",d,"for key",k,"model value",dic[k],"target value",v)
+			if v>0:
+				d/=v ; d*=100		# if target is 1e-6 (e.g., an angle), a delta of "only" 1e-6 is actually a 100% error! meanwhile, something like error_dz is a deviation in position, and it's plausible things are tens or hundreds of mm off! we don't want error_dz to overpower our error in measured parameters TODO what's the RIGHT way to balance these?
+			#print("add d",d,"for key",k,"model value",dic[k],"target value",v)
 			deltas.append(d)
 	return deltas
 
 
 # given a Microscope object, a dict of lens parameters, and a list of positions, simply returns the beam diameter at each position
-def error_diameter(microscope,settings,targets,absolute=False): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a list of positions [5,7]
+def error_diameter(microscope,settings,targets,absolute=True): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a list of positions [5,7]
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
 	# PROPAGATE, MEASURE BEAM
@@ -835,7 +889,7 @@ def error_diameter(microscope,settings,targets,absolute=False): # settings is a 
 	return diameters
 
 # given a Microscope object, a dict of lens parameters, and a list of positions, simply returns the outermost ray's angles at each position???
-def error_angles(microscope,settings,targets,absolute=False): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of positions and angles: {5:1e-3,7:4e-2}
+def error_angles(microscope,settings,targets,absolute=True): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of positions and angles: {5:1e-3,7:4e-2}
 	# UPDATE ALL ELEMENTS SPECIFIED
 	update_microscope_with_settings(microscope,settings)
 	# PROPAGATE, MEASURE BEAM
@@ -844,7 +898,7 @@ def error_angles(microscope,settings,targets,absolute=False): # settings is a di
 	for z,t in targets.items():
 		x,y,xt,yt,R,I = measureAtZ(z,rays=r1)
 		if absolute:
-			xt=np.absolute(xt)
+			xt=np.absolute(xt) ; t=abs(t)
 		angles.append(xt-t)
 	return angles
 

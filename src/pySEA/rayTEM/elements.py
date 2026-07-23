@@ -19,7 +19,7 @@ from copy import deepcopy
 # currently, the columns are ordered: [x,xθ,y,yθ,I,ϕ,E]
 # but with the columnByName function used universally, additional columns can be added without every Element needing to be updated, and columns can be reordered arbitrarily.
 
-convention = ["x","xt","y","yt","z","I","E","R"]
+convention = ["x","xt","y","yt","z","E","I","R"]
 # given a keyword, return the column associated. r0[:,columnByName('x')] should return every ray's x position
 def columnByName(name):
 	return convention.index(name)
@@ -88,6 +88,14 @@ class Element(SEASerializable):
 		allowed_kwargs = inspect.signature(type(self)).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
 		dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it
 		return type(self)(**dic)
+
+	# e.position should be read-only! user should not set position of an element within a section, they should use s.move(...)
+	@property
+	def position(self):
+		return self._position
+	#@position.setter			# commented out: "position" attribute should be read-only! this setter only exists to ensure pytest tests as expected (i.e., failing a test when "position" is writeable)
+	#def position(self,val):
+	#	self._position = val
 
 	# endregion
 	#####################################
@@ -162,14 +170,14 @@ class Source(Element):
 		self.np_xy = np_xy
 		self.angle = angle
 		self.na_xy = na_xy
-		self.position = position
+		self._position = position
 		self.length = 0
 		self.strength = 0
 		self.calibration = None
 
 	# Source term, initialize rays at sweep of angles and positions
 	def rays(self):
-		print("SOURCE GENERATING RAYS",self.np_xy,self.size,self.na_xy,self.angle)
+		#print("SOURCE GENERATING RAYS",self.np_xy,self.size,self.na_xy,self.angle)
 		xs=xp.linspace(-self.size[0],self.size[0],self.np_xy[0])
 		ys=xp.linspace(-self.size[1],self.size[1],self.np_xy[1])
 		xts=xp.zeros(1) ; yts=xp.zeros(1)
@@ -208,7 +216,7 @@ class Aperture(Element):
 
 	def __init__(self, name:str='', radius:float=0., calibration:float=None, position:float=None) -> SEASerializable:
 		super().__init__(name=name, kind='Aperture')
-		self.position = position
+		self._position = position
 		self.radius = radius
 		self.calibration = calibration
 
@@ -266,7 +274,7 @@ class Drift(Element):
 	def __init__(self, name:str='', length:float=0., calibration:float=None, position:float=None) -> SEASerializable:
 
 		super().__init__(name=name,kind='Drift')
-		self.position = position
+		self._position = position
 		self.length = length
 		self.calibration = calibration
 
@@ -317,7 +325,7 @@ class Quadrapole(Element):
 		else:		   kind = 'Quad'
 
 		super().__init__(name=name,kind=kind)
-		self.position = position
+		self._position = position
 		self.length = length
 		self.strength = strength
 		self.calibration = calibration
@@ -411,7 +419,7 @@ class Dipole(Element):
 		else:		   kind = 'Dipole'
 
 		super().__init__(name=name,kind=kind)
-		self.position = position
+		self._position = position
 		self.length = length
 		self.strength = strength
 		self.calibration = calibration
@@ -550,11 +558,12 @@ class Lens(Element):
 		else:		   kind = 'QLens'
 
 		super().__init__(name=name,kind=kind)
-		self.position = position
+		self._position = position
 		self.length = length
 		self.strength = strength
 		self.calibration = calibration
 		self.rotation = 0
+
 
 	def transfer_matrix(self) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
@@ -617,9 +626,9 @@ class Lens(Element):
 						[ -S ,  0 ,  C ,  0 ],					# and xt,yt independently
 						[  0 , -S ,  0 ,  C ]])					# here, flip signs to -KL
 		#print(xp.matmul(R,XY2)-XY)
-		#XY = xp.matmul(R,XY)*xp.asarray([[1,1,0,0],[1,1,0,0],[0,0,1,1],[0,0,1,1]])
+		#XY = xp.matmul(R,XY) # *xp.asarray([[1,1,0,0],[1,1,0,0],[0,0,1,1],[0,0,1,1]])
 
-		# TWP 2026-05-12: new procedure: never rotate, but Element.propagate_ray will track rotation angle
+		# TWP 2026-05-12: new procedure: never rotate, but Element.propagate_ray will track rotation angle JK SEE BELOW
 		#if not self.rotation:
 		#	XY = XY2
 		#else:
@@ -627,11 +636,14 @@ class Lens(Element):
 		#	zeroer=xp.asarray([[1,1,0,0],[1,1,0,0],[0,0,1,1],[0,0,1,1]])
 		#	XY*=zeroer
 		#print("lens",self.name,"adds rotation",kL)
+		# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
+		XY = xp.matmul(R,XY)
 		self.rotation = -kL
 		M = fix_mat_dims(XY,["x","xt","y","yt"])
 		return M
 
 	def calibration_from_f_and_I(self,f,I,rotationPerAmp=None):
+		print("for lens",self.name,"seeking a calibration factor C, which focuses strength",I,"to focal length",f,"and rotationPerAmp",rotationPerAmp)
 		# noting xt=f(x) cell from matrix is -1/f or -K*sin(K*L)*cos(K*L):
 		# APPROXIMATION: noting that at small angle, sin(K*L) ≈ K*L and cos(K*L) ≈ 1.
 		# if K=C*I (strength = linear scaling * electrical current)
@@ -651,18 +663,23 @@ class Lens(Element):
 		from scipy.optimize import minimize
 		if rotationPerAmp is None:
 			def dz(C):
-				return ( C*I*xp.sin(C*I*self.length)*xp.cos(C*I*self.length)-1/f )**2
+				#return ( C*I*xp.sin(C*I*self.length)*xp.cos(C*I*self.length)-1/f )**2 # 1/f = K*S*C = (C*I)*sin(C*I*L)*cos(C*I*L)
+				return (C*I*xp.sin(C*I*self.length)-1/f)**2	# 1/f = K*S = (C*I)*sin(C*I*L)
 			x0 = self.calibration
 			self.calibration = minimize(dz,x0=x0)['x'][0]
 		else:
 			def dz(CL):
+				#print(CL)
 				C,L=CL
-				return ( C*I*xp.sin(C*I*L)*xp.cos(C*I*L)-1/f )**2 + ( rotationPerAmp-C*L )**2
+				#return ( C*I*xp.sin(C*I*L)*xp.cos(C*I*L)-1/f )**2 + ( rotationPerAmp-C*L )**2
+				return ( C*I*xp.sin(C*I*L)-1/f )**2 + ( rotationPerAmp+C*L )**2 # rad/A so don't multiply by I
 			x0 = ( self.calibration, self.length )
 			self.calibration,self.length = minimize(dz,x0=x0)['x']
 			#import matplotlib.pyplot as plt
 			#Cs = xp.linspace(0,4*x0,100) ; Ys=Cs*I*xp.sin(Cs*I*self.length)#*xp.cos(Cs*I*self.length)
 			#plt.plot(Cs,Ys) ; plt.plot(Cs,[1/f]*100) ; plt.show()
+		print("for lens",self.name,"found calibration factor",self.calibration,"and len",self.length)
+
 		#print("calibration_from_f_and_I found",self.calibration,"from starting guess",x0,dz(self.calibration))
 
 class Prism(Element):
@@ -710,7 +727,7 @@ class Prism(Element):
 			raise ValueError('Either radius or length need to be specified.')
 
 		super().__init__(name=name,kind='Prism')
-		self.position = position
+		self._position = position
 		self.length = length
 		self.strength = strength
 		self.calibration = calibration

@@ -98,7 +98,7 @@ def rootControlSettingValue(level="R",path="",activeOnly=False,filename="",setti
 # pass "S_Condensers/active/OL1" and we won't bother checking S_DQCM and friends
 # pass "S_Condensers/30mrad15iRef/OL1" and we'll return that even if it's not active
 def lookupStrengthsXML(path,filename,settings={},reload=False):
-	print(path)
+	#print(path)
 	control,setting,drive = path.split('/') ; val=0
 	controls = rootControlSettingValue(level="R",filename=filename,reload=reload) # list of controls, at level "R"="root"
 	if control not in ["active","any"]:
@@ -118,10 +118,10 @@ def lookupStrengthsXML(path,filename,settings={},reload=False):
 		for d in drives:
 			if d == drive:
 				v=rootControlSettingValue(level="D",path=c+"/"+s+"/"+d,filename=filename)
-				print("lookupStrengthsXML",c,">",s,">",d,"=",v)
+				#print("lookupStrengthsXML",c,">",s,">",d,"=",v)
 				val+=v
 	v2 = rootControlSettingValue(level="D",path="global/global/"+drive,filename=filename)
-	print("lookupStrengthsXML","global",">","global",">",drive,"=",v2)
+	#print("lookupStrengthsXML","global",">","global",">",drive,"=",v2)
 	val+=v2
 	return val
 
