@@ -1,4 +1,4 @@
-from .elements import columnByName
+from .elements import columnByName,fix_mat_dims
 import numpy as np
 from scipy.optimize import minimize,brute
 import matplotlib.pyplot as plt
@@ -10,7 +10,10 @@ from matplotlib.cm import plasma as cmap
 
 
 # Basic 2D plotting (along z, and in whatever axis you have chosen)
+# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
+# For now, plot2D assumes it is given unrotated-reference-frame rays, and should likely call convert_to_rotating_reference_frame.
 def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,title=None,plt_ax=None):
+	r1 = convert_to_rotating_reference_frame(r1)
 	if plt_ax is None:
 		fig,ax = plt.subplots()
 	else:
@@ -340,12 +343,29 @@ def findPlanes4(rays,axes="x"):
 
 	return returnable
 
+# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
+# This function provides easy return to the rotated reference frame
+def convert_to_rotating_reference_frame(rays):
+	nl,nr,nc = rays.shape
+	converted = np.zeros(rays.shape)
+	for l in range(nl):
+		for r in range(nr):
+			R = rays[l,r,columnByName('R')]
+			C = np.cos(R)
+			S = np.sin(R)
+			M = np.asarray([[C,S,0,0],[-S,C,0,0],[0,0,C,S],[0,0,-S,C]])
+			M = fix_mat_dims(M,["x","y","xt","yt"])
+			converted[l,r,:] = np.matmul(M,rays[l,r,:])
+	return converted
 
 
 
 # Returns a dict for each axis, image vs diffraction planes, and the magnification and z position (NOTE: Z IS IN FRACTIONAL COORDINATES: 4.2 = 20% of the way through the 4th element)
 warned = []
+# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
+# For now, findPlanes assumes it is given unrotated-reference-frame rays, must call convert_to_rotating_reference_frame.
 def findPlanes(rays,axis="xy"):
+	rays = convert_to_rotating_reference_frame(rays)
 	global warned
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
 	diffRays=[] ; imageRays=[]
@@ -849,7 +869,7 @@ def error_at_position(microscope,settings,targets,absolute=True): # settings is 
 				d = dic[k]-v
 			if v>0:
 				d/=v ; d*=100		# if target is 1e-6 (e.g., an angle), a delta of "only" 1e-6 is actually a 100% error! meanwhile, something like error_dz is a deviation in position, and it's plausible things are tens or hundreds of mm off! we don't want error_dz to overpower our error in measured parameters TODO what's the RIGHT way to balance these?
-			print("add d",d,"for key",k,"model value",dic[k],"target value",v)
+			#print("add d",d,"for key",k,"model value",dic[k],"target value",v)
 			deltas.append(d)
 	return deltas
 

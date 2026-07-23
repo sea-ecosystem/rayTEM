@@ -19,7 +19,7 @@ from copy import deepcopy
 # currently, the columns are ordered: [x,xθ,y,yθ,I,ϕ,E]
 # but with the columnByName function used universally, additional columns can be added without every Element needing to be updated, and columns can be reordered arbitrarily.
 
-convention = ["x","xt","y","yt","z","I","E","R"]
+convention = ["x","xt","y","yt","z","E","I","R"]
 # given a keyword, return the column associated. r0[:,columnByName('x')] should return every ray's x position
 def columnByName(name):
 	return convention.index(name)
@@ -564,6 +564,7 @@ class Lens(Element):
 		self.calibration = calibration
 		self.rotation = 0
 
+
 	def transfer_matrix(self) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		"""
@@ -625,9 +626,9 @@ class Lens(Element):
 						[ -S ,  0 ,  C ,  0 ],					# and xt,yt independently
 						[  0 , -S ,  0 ,  C ]])					# here, flip signs to -KL
 		#print(xp.matmul(R,XY2)-XY)
-		#XY = xp.matmul(R,XY)*xp.asarray([[1,1,0,0],[1,1,0,0],[0,0,1,1],[0,0,1,1]])
+		#XY = xp.matmul(R,XY) # *xp.asarray([[1,1,0,0],[1,1,0,0],[0,0,1,1],[0,0,1,1]])
 
-		# TWP 2026-05-12: new procedure: never rotate, but Element.propagate_ray will track rotation angle
+		# TWP 2026-05-12: new procedure: never rotate, but Element.propagate_ray will track rotation angle JK SEE BELOW
 		#if not self.rotation:
 		#	XY = XY2
 		#else:
@@ -635,6 +636,8 @@ class Lens(Element):
 		#	zeroer=xp.asarray([[1,1,0,0],[1,1,0,0],[0,0,1,1],[0,0,1,1]])
 		#	XY*=zeroer
 		#print("lens",self.name,"adds rotation",kL)
+		# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
+		XY = xp.matmul(R,XY)
 		self.rotation = -kL
 		M = fix_mat_dims(XY,["x","xt","y","yt"])
 		return M
