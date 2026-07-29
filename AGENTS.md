@@ -32,7 +32,15 @@ stepping on each other's work.
    ```
 
 4. Write a TODO note in **your own** notes folder with the task broken into
-   checkboxes.
+   checkboxes. State in a short header at the top:
+   - **Branch/worktree:** the branch or worktree the work will be performed in
+     (per repo when the task spans several). Names must be meaningful: a short
+     kebab-case slug describing the task (e.g. `fix-pipeline-editor-undo`,
+     `wiki-refresh-utf8`), ideally matching the TODO note's slug. Never use
+     auto-generated or random names (`claude/abc123`, `worktree-1`); if a tool
+     creates one automatically, rename it before starting work.
+   - **Plan:** relative links to any plan/handoff files (see "Plans and
+     handoffs" below), or `none`.
 
 5. Append an **[Under Construction]** entry to **your own** `LOG.md` stating
    what you are about to do and why. Format:
@@ -68,6 +76,18 @@ Keep commits small — a checked-off item plus whatever code it covers.
 - There is no `shared/` folder. Cross-contributor context belongs in each
   person's own log with enough explanation for the other side to understand.
 - Never check off or edit items in the other contributor's TODO files.
+
+### Plans and handoffs
+
+Plans and handoff documents written by an agent are part of the task record —
+store them; do not let them die with the session:
+
+- Save them in **your own** notes folder, named to match the TODO's slug:
+  `PLAN_YYYY-MM-DD_slug.md` / `HANDOFF_YYYY-MM-DD_slug.md` (no liveness
+  marker — the linked TODO carries the live status).
+- Link them from the TODO header (and reference the TODO from the plan) so
+  the other contributor can see a TODO project's full scope, comment on it,
+  or pick it up mid-flight.
 
 ---
 
@@ -111,6 +131,33 @@ Write all working notes to your own folder (`notes/ondrej/` or `notes/eric/`).
 Run `git config user.name` if unsure which folder is yours. Never write to the
 other contributor's folder. There is no `shared/` folder.
 
+## Schemas (prescriptive contracts)
+
+Some shared surfaces carry a **schema**: a prescriptive contract (intents +
+golden fixtures, plus an artifact format where one crosses implementations)
+owned by one package and satisfied by every implementation — any frontend or
+backend, in any technology. Distinct from the wiki *manifests*, which only
+register what exists. Discover them via `schema-index.json` in a repo's wiki
+slice (or the `schemas` field of its `meta.json`); current schemas include
+sea-eco's `pipeline-editor` and `nd-plotting`.
+
+- **Before creating or editing classes or functions related to a schema'd
+  surface** (GUI elements, plotting/array backends, pipeline components),
+  read that surface's `schema/intents.md`.
+- **Behavior changes start in the schema**: update intents + fixtures in the
+  owning package first, then the implementations and their conformance files
+  (`docs/conformance/<schema-id>.md` in each implementing repo).
+- Never re-derive or hand-copy schema rules into an implementation without
+  pointing back at the schema; fixtures — not prose — keep implementations
+  aligned.
+
+## Developer docs ("Into the SEA-weeds")
+
+Every ecosystem package must carry developer docs titled **"Into the
+SEA-weeds"** under `docs/`; repos that own or implement schemas render them
+there in a **Schema** section. `pysea-refresh-wiki` warns when the docs or
+the schema references are missing.
+
 ## Coding behavior
 
 - **Think before coding** — state assumptions explicitly before implementing. If multiple interpretations exist, present them. If something is unclear and would materially change the implementation, stop and ask.
@@ -120,6 +167,19 @@ other contributor's folder. There is no `shared/` folder.
 
 > Full guidelines with examples: `sea-ecosystem/docs/dev/agent-coding-guidelines.md`
 
+## Documentation behavior
+
+- **Start simple** - for new user-facing features, write a short guide that
+  states the basic premise, the main workflow, and one minimal example.
+- **Split deeper detail** - put API contracts, storage details, extension
+  points, error behavior, and host-integration notes in a second page under an
+  "In the weeds", "Developers", or "Internals" style section.
+- **Keep the first page usable** - include only critical details needed to avoid
+  common mistakes; do not make the introductory guide carry maintainer-level
+  detail.
+
+> Documentation protocol and examples: `sea-ecosystem/docs/dev/agent-documentation-protocol.md`
+
 ## Style rules
 
 - NumPy docstring style for **all** Python callables — public, private (leading underscore), dunder methods, properties, class methods, static methods, and classes. Documentation quality is part of code correctness.
@@ -128,8 +188,6 @@ other contributor's folder. There is no `shared/` folder.
 - Do not use dataclasses.
 - Keep public method names descriptive and action-oriented.
 - Make errors actionable and concise.
-
-> Documentation protocol and examples: `sea-ecosystem/docs/dev/agent-documentation-protocol.md`
 
 <!-- END AGENT-COMMON:main -->
 
