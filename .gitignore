@@ -1,0 +1,9 @@
+**/__pycache__/*
+**/._*
+*.egg-info/
+src/pySEA/sea_eco/*
+src/pySEA/sea_pearl/*
+src/pySEA/sea_sand/*
+src/pySEA/py.typed
+src/pySEA/ai_wiki/sea_eco/*
+src/pySEA/ai_wiki/sea_sand/*
