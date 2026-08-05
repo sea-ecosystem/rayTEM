@@ -1,5 +1,7 @@
 # rayTEM
-rayTEM is an electron optics simulator for a transmission electron microscope. A simulated microscope is constructed according to the Microscope > MicroscopeSection > Element hierarchy. Each Element has its own transformation matrix, which takes an input matrix of rays (list of rays, defined by their position, angle, energy, and so on), and returns the appropriately-modified rays. 
+rayTEM is an electron optics simulator for a transmission electron microscope. Extensive discussion on construction and calibration of a microscope model can be found in our manuscript: https://arxiv.org/abs/2607.29411. 
+
+A simulated microscope is constructed according to the Microscope > MicroscopeSection > Element hierarchy. Each Element has its own transformation matrix, which takes an input matrix of rays (list of rays, defined by their position, angle, energy, and so on), and returns the appropriately-modified rays. 
 
 For example, a simplified aberration-free thin lens applies the following transformation in 2D:
 ```
