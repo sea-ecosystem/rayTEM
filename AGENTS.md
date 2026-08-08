@@ -223,18 +223,18 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 - `REMOVED_PRIVATE_INSTRUMENT_TREE/02_basicFitting.py`
 - `REMOVED_PRIVATE_INSTRUMENT_TREE/03_lensRotation.py`
 - `REMOVED_PRIVATE_INSTRUMENT_TREE/04_PRIVATE_INSTRUMENT.py`
+- `REMOVED_PRIVATE_INSTRUMENT_TREE/json2sea.py`
 - `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/PLs.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/20260429/ellipsefitting.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/20260429/processsweeplog.py`
 - `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/builder.py`
 - `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/CLs.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/old/PLs_2Dsweep.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/old/PLs_linearsweeps.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/old/PLs_upstream.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/old/PLs_v0.01.py`
+- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/diffraction.py`
+- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/DQCM.py`
+- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/OLs.py`
 - `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/PLs.py`
 - `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/PLs_upstream.py`
+- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/rederive.py`
 - `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/viewAndCalculate.py`
+- `REMOVED_PRIVATE_INSTRUMENT_TREE/planes.py`
 - `REMOVED_PRIVATE_INSTRUMENT_TREE/shiftvstilt.py`
 - `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/calibrate.py`
 - `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/private_instrument_uncalibrated.py`
@@ -260,7 +260,9 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 - `src/pySEA/rayTEM/references/andys_functions.py`
 - `src/pySEA/rayTEM/seashells.py` — seashells serves as a wrapper around the sea_eco SEASerializable object, enabling easy integration with sea_eco.
 - `src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py`
+- `src/pySEA/rayTEM/tests/test_wave_and_envelope.py`
 - `src/pySEA/rayTEM/utilities.py`
+- `src/pySEA/rayTEM/waveoptics.py` — Paraxial scalar wave-optics primitives for rayTEM.
 - `src/pySEA/rayTEM/xmlNion.py`
 
 <!-- REPO-MAP-END -->

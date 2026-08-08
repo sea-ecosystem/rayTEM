@@ -15,11 +15,11 @@
 
 ## Invariants
 
-### 1. Ray column order is frozen
+### 1. Ray column order is frozen (and purely geometric)
 
 ```
-index: 0   1    2   3    4  5  6
-name:  x   xθ   y   yθ   z  I  E
+index: 0   1    2   3    4  5
+name:  x   xθ   y   yθ   z  E
 ```
 
 `columnByName(name)` is the only safe way to get a column index. Every Element's
@@ -28,17 +28,28 @@ name:  x   xθ   y   yθ   z  I  E
 **Never reorder columns without updating every Element, `fix_mat_dims`, `fix_ray_dims`,
 and all callers in `assemblies.py` and `microscopes/`.**
 
-### 2. Transfer matrices are 8×8
+**Intensity (`I`) and cumulative Larmor rotation (`R`) are NOT columns.** They are
+separate parallel arrays on `MicroscopeSection`/`Microscope` (`.I`, `.R`, shape
+`(n_planes, n_rays)`), updated by `Element.apply_intensity` / `apply_rotation`.
+Postprocessing helpers that need them take `R`/`I` explicitly. This reorder is done;
+`microscopes/` scripts still using `columnByName("I")`/`("R")` must migrate to `.I`/`.R`.
+
+### 2. Transfer matrices are 6×6
 
 `fix_mat_dims(m, columnNames)` inflates a smaller physics matrix (e.g. 2×2 thin lens)
-into the 8×8 form. Elements must call `fix_mat_dims` — they must never store a
-raw 2×2 and apply it to the full 8-column ray array.
+into the 6×6 form (it sizes off `len(convention)`). Elements must call `fix_mat_dims` —
+they must never store a raw 2×2 and apply it to the full 6-column ray array.
 
-### 3. Hierarchy is strictly bottom-up
+### 3. Hierarchy is strictly bottom-up (all three propagation modes)
 
-- `Element.propagate_ray()` — single element
-- `MicroscopeSection.propagate_ray()` — delegates to ordered Elements
-- `Microscope.propagate_ray()` — delegates to ordered MicroscopeSections
+- `Element.propagate_ray()` / `propagate_moments()` / `propagate_wave()` — single element
+- `MicroscopeSection.propagate_*()` — delegates to ordered Elements
+- `Microscope.propagate_*()` — delegates to ordered MicroscopeSections
+
+`propagate_moments` transports the beam covariance (`Σ'=MΣMᵀ`, results on
+`.mu`/`.covariance_matrix`); `propagate_wave` transports a paraxial complex wavefield
+(sea_eco `Signal` on `.wave`, physics in `waveoptics.py`, Signal construction in
+`seashells.make_wavefield_signal`). All three reuse the same transfer matrices.
 
 Microscope does not reach inside Elements. MicroscopeSection does not reach inside
 Microscope. Cross-level direct access is a violation.
