@@ -14,14 +14,15 @@
 - [x] `pytest` green (13 passed)
 
 ## Step 2 — Wavelength + result containers
-- [ ] `utilities.relativistic_wavelength(voltage_kV)` + test
-- [ ] `Source.voltage` optional → seeds `E`; default `None`
-- [ ] `rays` SignalSet, `covariance_matrix`, `wave` containers; eager re-chain drivers
+- [x] `utilities.relativistic_wavelength(voltage_kV)` + test
+- [x] `Source.voltage` optional → seeds `E` + `wavelength`; default `None`
+- [x] `covariance_matrix`/`wave`/`mu` container attributes + eager re-chain drivers (envelope done; wave in step 4)
+- [ ] wrap `rays` as a sea_eco `SignalSet` (deferred; see step 4 sea_eco integration)
 
-## Step 3 — Beam-envelope mode
-- [ ] `Element.propagate_moments`; Source seeds Σ0; Aperture intensity-only
-- [ ] Section/Microscope `propagate_moments` drivers → `covariance_matrix`
-- [ ] `beam_widths`, `emittance`; golden test
+## Step 3 — Beam-envelope mode ✓
+- [x] `Element.propagate_moments`; Source seeds Σ0; Aperture intensity-only (non-truncating approx)
+- [x] Section/Microscope `propagate_moments` drivers → `covariance_matrix` (+ `mu`)
+- [x] `beam_widths`, `emittance`; tests (MC covariance match, emittance conservation, waist=focus)
 
 ## Step 4 — Wave-optics mode
 - [ ] `seashells.make_wavefield_signal` (present + absent paths)
