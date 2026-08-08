@@ -7,7 +7,8 @@ import pickle
 import sys,inspect
 
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
-from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention
+from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention,_propagate_method_name
+from typing import Literal
 from .seashells import SEASerializable
 
 from copy import deepcopy
@@ -508,6 +509,34 @@ class MicroscopeSection(SEASerializable):
 		return make_rays_signalset(self.rays, self.I, self.R, convention,
 								   name=(self.name or 'section') + ' rays')
 
+	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave"]="ray", **kwargs):
+		"""Unified propagation dispatcher across the three modes.
+
+		Routes to :meth:`propagate_ray`, :meth:`propagate_moments`, or
+		:meth:`propagate_wave` according to ``kind``; all arguments are forwarded
+		unchanged to the selected method.
+
+		Parameters
+		----------
+		*args
+			Positional arguments forwarded to the selected ``propagate_*`` method.
+		kind : {'ray','rays','moments','envelope','covariance','wave'}, optional
+			Propagation mode, by default ``'ray'``.
+		**kwargs
+			Keyword arguments forwarded to the selected ``propagate_*`` method.
+
+		Returns
+		-------
+		object
+			Whatever the selected ``propagate_*`` method returns.
+
+		Raises
+		------
+		ValueError
+			If ``kind`` is not a recognized propagation mode.
+		"""
+		return getattr(self, _propagate_method_name(kind))(*args, **kwargs)
+
 		#Include the initial ray. #TODO: Add conditional if source is included
 		#ri = xp.append(r0[:,None,:], ri, axis=1)
 		#return ri
@@ -959,6 +988,34 @@ class Microscope(SEASerializable):
 			self.propagate_ray()
 		return make_rays_signalset(self.rays, self.I, self.R, convention,
 								   name=(self.name or 'microscope') + ' rays')
+
+	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave"]="ray", **kwargs):
+		"""Unified propagation dispatcher across the three modes.
+
+		Routes to :meth:`propagate_ray`, :meth:`propagate_moments`, or
+		:meth:`propagate_wave` according to ``kind``; all arguments are forwarded
+		unchanged to the selected method.
+
+		Parameters
+		----------
+		*args
+			Positional arguments forwarded to the selected ``propagate_*`` method.
+		kind : {'ray','rays','moments','envelope','covariance','wave'}, optional
+			Propagation mode, by default ``'ray'``.
+		**kwargs
+			Keyword arguments forwarded to the selected ``propagate_*`` method.
+
+		Returns
+		-------
+		object
+			Whatever the selected ``propagate_*`` method returns.
+
+		Raises
+		------
+		ValueError
+			If ``kind`` is not a recognized propagation mode.
+		"""
+		return getattr(self, _propagate_method_name(kind))(*args, **kwargs)
 
 	# property for planes ("microscope.planes" instead of "postprocessing.findPlanes(microscope)"), which avoids the need to recalculate planes a bunch of times.
 	@property
