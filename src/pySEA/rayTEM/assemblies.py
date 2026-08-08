@@ -7,7 +7,7 @@ import pickle
 import sys,inspect
 
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
-from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture
+from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention
 from .seashells import SEASerializable
 
 from copy import deepcopy
@@ -485,6 +485,29 @@ class MicroscopeSection(SEASerializable):
 		self.wave = _stack_wavefields(fi, name=(self.name or 'section') + ' wave')
 		return self.wave
 
+	def rays_signalset(self):
+		"""Return a sea_eco ``SignalSet`` view of the traced rays (rays + I + R).
+
+		Wraps the most recent ray-mode result (``self.rays``/``self.I``/``self.R``)
+		as a calibrated ``SignalSet`` via the seashells seam, propagating first if
+		needed. This is the Signal-backed container form of the ray result; the raw
+		arrays remain the primary working representation.
+
+		Returns
+		-------
+		SignalSet or None
+			SignalSet of ``[rays, I, R]``; ``None`` if sea_eco is unavailable.
+
+		Related
+		-------
+		seashells.make_rays_signalset : Builds the SignalSet.
+		"""
+		from .seashells import make_rays_signalset
+		if self.rays is None:
+			self.propagate_ray()
+		return make_rays_signalset(self.rays, self.I, self.R, convention,
+								   name=(self.name or 'section') + ' rays')
+
 		#Include the initial ray. #TODO: Add conditional if source is included
 		#ri = xp.append(r0[:,None,:], ri, axis=1)
 		#return ri
@@ -913,6 +936,29 @@ class Microscope(SEASerializable):
 			f = s._wave_planes[-1]
 		self.wave = _stack_wavefields(planes, name=(self.name or 'microscope') + ' wave')
 		return self.wave
+
+	def rays_signalset(self):
+		"""Return a sea_eco ``SignalSet`` view of the traced rays (rays + I + R).
+
+		Wraps the most recent ray-mode result (``self.rays``/``self.I``/``self.R``)
+		as a calibrated ``SignalSet`` via the seashells seam, propagating first if
+		needed. This is the Signal-backed container form of the ray result; the raw
+		arrays remain the primary working representation.
+
+		Returns
+		-------
+		SignalSet or None
+			SignalSet of ``[rays, I, R]``; ``None`` if sea_eco is unavailable.
+
+		Related
+		-------
+		seashells.make_rays_signalset : Builds the SignalSet.
+		"""
+		from .seashells import make_rays_signalset
+		if self.rays is None:
+			self.propagate_ray()
+		return make_rays_signalset(self.rays, self.I, self.R, convention,
+								   name=(self.name or 'microscope') + ' rays')
 
 	# property for planes ("microscope.planes" instead of "postprocessing.findPlanes(microscope)"), which avoids the need to recalculate planes a bunch of times.
 	@property
