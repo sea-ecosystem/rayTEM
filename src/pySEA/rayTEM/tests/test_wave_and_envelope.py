@@ -202,3 +202,34 @@ def test_rays_signalset_view():
 	assert np.allclose(by_name["I"].data, microscope.I)
 	assert np.allclose(by_name["R"].data, microscope.R)
 	assert by_name["rays"].metadata.to_dict()["components"] == list("x xt y yt z E".split())
+
+
+# --- unified propagate(kind=...) dispatcher --------------------------------
+
+def test_propagate_dispatcher_routes_to_each_mode():
+	from pySEA.rayTEM import Source,Lens,Drift,MicroscopeSection
+	section = MicroscopeSection(elements=[
+		Source(voltage=200, field_shape=(32,32), field_extent=2e-3, angle=(0.02,0.02)),
+		Drift(length=0.05), Lens(strength=6.0, length=0.0), Drift(length=0.05)])
+
+	# ray mode: propagate(kind="ray") matches propagate_ray
+	r_disp = section.propagate(kind="ray")
+	r_direct = section.propagate_ray()
+	assert np.allclose(r_disp, r_direct)
+
+	# moments mode via each alias returns the covariance stack
+	cov = section.propagate(kind="moments")
+	assert cov.shape[1:] == (6,6)
+	assert np.allclose(cov, section.propagate(kind="covariance"))
+	assert np.allclose(cov, section.propagate(kind="envelope"))
+
+	# wave mode returns a stacked wavefield matching propagate_wave
+	w_disp = section.propagate(kind="wave")
+	from pySEA.rayTEM.seashells import read_wavefield
+	d_disp, *_ = read_wavefield(w_disp)
+	d_direct, *_ = read_wavefield(section.propagate_wave())
+	assert np.allclose(d_disp, d_direct)
+
+	# unknown kind is a clear error
+	with pytest.raises(ValueError):
+		section.propagate(kind="bogus")
