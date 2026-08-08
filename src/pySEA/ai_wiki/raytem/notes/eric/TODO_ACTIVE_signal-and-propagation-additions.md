@@ -3,15 +3,15 @@
 **Branch:** `Signal_and_propagation_additions` (rayTEM)
 **Plan:** [PLAN_2026-08-08_signal-and-propagation-additions.md](PLAN_2026-08-08_signal-and-propagation-additions.md)
 
-## Step 1 — Finish ray-representation refactor (geometric [x,xt,y,yt,z,E])
-- [ ] `elements.py`: `convention` → 6 geometric cols; matrices 6×6
-- [ ] `elements.py`: `Source.rays` returns geometric rays + seeds separate `I` (=1), `R` (=0)
-- [ ] `elements.py`: `Element.propagate_ray` returns geometric rays + threads `I`, `R`
-- [ ] `elements.py`: `Aperture` scales `I` separately; `Dipole` no longer references `I` column
-- [ ] `assemblies.py`: Section/Microscope store `.rays` (geometric), `.I`, `.R`; fix `beam_current`/`convergence_angle`
-- [ ] `postprocessing.py`: `convert_to_rotating_reference_frame`, `findPlanes`, `measureAtZ` take `R`/`I` explicitly
-- [ ] tests: drop `swap_columns`, regenerate goldens, fix `columnByName("I")` in dipole test
-- [ ] `pytest` green
+## Step 1 — Finish ray-representation refactor (geometric [x,xt,y,yt,z,E]) ✓
+- [x] `elements.py`: `convention` → 6 geometric cols; matrices 6×6
+- [x] `elements.py`: `Source.rays` returns geometric rays (I/R seeded by drivers: I=1, R=0)
+- [x] `elements.py`: `Element` gains `apply_intensity`/`apply_rotation` side channels; `propagate_ray` stays geometric
+- [x] `elements.py`: `Aperture` scales `I` separately; `Dipole` docstring no longer references `I` column
+- [x] `assemblies.py`: Section/Microscope store `.rays` (geometric), `.I`, `.R`; fix `beam_current`/`planes`/`show`/`save`
+- [x] `postprocessing.py`: `convert_to_rotating_reference_frame`, `findPlanes`, `measureAtZ`, `plot2D`/`plot3D`, `error_*` take `R`/`I` explicitly
+- [x] tests: drop `swap_columns`, regenerate 6-col goldens, drop `columnByName("I")` in dipole test
+- [x] `pytest` green (13 passed)
 
 ## Step 2 — Wavelength + result containers
 - [ ] `utilities.relativistic_wavelength(voltage_kV)` + test
