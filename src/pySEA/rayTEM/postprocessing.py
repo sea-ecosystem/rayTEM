@@ -1174,3 +1174,65 @@ def measureAtZ(z,rays=None,I=None,R=None,section=None):
 		Ival = Is[selected]
 	return x,y,xt,yt,Rval,Ival # TODO this is getting out of hand. maybe measureAtZ should be passed a list of keys to return??
 
+
+# --- BEAM-ENVELOPE (COVARIANCE) READOUTS -----------------------------------
+
+def beam_widths(covariance_matrix):
+	r"""RMS beam half-widths in x and y from a stack of covariance matrices.
+
+	The RMS size along an axis is the square root of that axis's variance, i.e.
+	the diagonal covariance element, evaluated per plane. Companion to
+	:meth:`Microscope.propagate_moments`.
+
+	Parameters
+	----------
+	covariance_matrix : np.ndarray
+		Per-plane covariance matrices, shape
+		``(n_planes, len(convention), len(convention))``.
+
+	Returns
+	-------
+	np.ndarray
+		Per-plane ``[width_x, width_y]``, shape ``(n_planes, 2)`` (same units as
+		the position coordinates).
+
+	Related
+	-------
+	emittance : Phase-space area from the same covariance stack.
+	"""
+	xi = columnByName("x") ; yi = columnByName("y")
+	return np.sqrt(np.stack([covariance_matrix[:,xi,xi],
+							 covariance_matrix[:,yi,yi]], axis=-1))
+
+
+def emittance(covariance_matrix):
+	r"""RMS emittance in x and y from a stack of covariance matrices.
+
+	The RMS emittance along an axis is :math:`\sqrt{\det \Sigma_2}`, where
+	:math:`\Sigma_2` is the ``2x2`` position-angle sub-block for that axis
+	(``[[<uu>, <uu'>], [<u'u>, <u'u'>]]``). In a linear (symplectic) system it is
+	conserved, which makes it a useful invariant for checking envelope propagation.
+
+	Parameters
+	----------
+	covariance_matrix : np.ndarray
+		Per-plane covariance matrices, shape
+		``(n_planes, len(convention), len(convention))``.
+
+	Returns
+	-------
+	np.ndarray
+		Per-plane ``[emittance_x, emittance_y]``, shape ``(n_planes, 2)``.
+
+	Related
+	-------
+	beam_widths : RMS sizes from the same covariance stack.
+	"""
+	xi,xti,yi,yti = [ columnByName(v) for v in ["x","xt","y","yt"] ]
+	def sub_det(a,b):
+		return covariance_matrix[:,a,a]*covariance_matrix[:,b,b] \
+			 - covariance_matrix[:,a,b]*covariance_matrix[:,b,a]
+	eps_x = np.sqrt(np.clip(sub_det(xi,xti), 0, None))
+	eps_y = np.sqrt(np.clip(sub_det(yi,yti), 0, None))
+	return np.stack([eps_x, eps_y], axis=-1)
+

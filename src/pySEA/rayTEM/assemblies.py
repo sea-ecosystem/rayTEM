@@ -41,6 +41,9 @@ class MicroscopeSection(SEASerializable):
 		self.rays = None
 		self.I = None		# per-plane, per-ray intensity (parallel to self.rays, not a ray coordinate)
 		self.R = None		# per-plane, per-ray cumulative Larmor rotation (radians)
+		self.mu = None					# per-plane mean state vector (beam-envelope mode)
+		self.covariance_matrix = None	# per-plane covariance matrix (beam-envelope mode)
+		self.wave = None				# per-plane complex wavefield Signal (wave-optics mode)
 
 		
 		if self.elements is None or (self.elements)==0:
@@ -210,7 +213,7 @@ class MicroscopeSection(SEASerializable):
     # region: SEASerializable integration
 
 	def _get_tree_html(self, recursive_level: List[str] = 0,
-					   exclude_keys: List[str] = ['rays', 'I', 'R'],
+					   exclude_keys: List[str] = ['rays', 'I', 'R', 'mu', 'covariance_matrix', 'wave'],
                        exclude_hidden: bool = True,
                        exclude_properties:bool = False,
                        promote_itterable_keys: List[str] = ['elements']
@@ -358,6 +361,54 @@ class MicroscopeSection(SEASerializable):
 		self.R = xp.asarray(Ri)
 		return self.rays
 
+	def propagate_moments(self, mu0:xp.ndarray=None, Sigma0:xp.ndarray=None,
+						   z: float = None):
+		"""Propagate beam moments (mean + covariance) through every element.
+
+		The envelope-mode analog of :meth:`propagate_ray`: transports a mean state
+		``mu`` and covariance ``Sigma`` element-by-element via
+		:meth:`Element.propagate_moments`. Per-plane results are stored on
+		``self.mu`` and ``self.covariance_matrix`` using the same append/replace
+		logic as :meth:`propagate_ray` (a plane is logged after each finite-length
+		element or aperture).
+
+		Parameters
+		----------
+		mu0 : xp.ndarray, optional
+			Initial mean state. If ``None`` and the first element is a ``Source``,
+			it is seeded from :meth:`Source.moments`.
+		Sigma0 : xp.ndarray, optional
+			Initial covariance. Seeded from the ``Source`` when ``None``.
+		z : float, optional
+			Unused placeholder mirroring :meth:`propagate_ray`, by default ``None``.
+
+		Returns
+		-------
+		xp.ndarray
+			Per-plane covariance matrices, shape
+			``(n_planes, len(convention), len(convention))``. Means are on ``self.mu``.
+
+		Raises
+		------
+		UserWarning
+			If moments are not provided and the first element is not a ``Source``.
+		"""
+		if mu0 is None or Sigma0 is None:
+			if isinstance(self.elements[0], Source):
+				mu0, Sigma0 = self.elements[0].moments()
+			else:
+				raise UserWarning("First element is not a Source, and no (mu0, Sigma0) provided to propagate_moments. Please provide initial moments or ensure first element is a Source.")
+		mui=[mu0] ; Si=[Sigma0]
+		for ele in self.elements:
+			mu, S = ele.propagate_moments(mui[-1], Si[-1])
+			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
+				mui.append(mu) ; Si.append(S)
+			else:
+				mui[-1]=mu ; Si[-1]=S
+		self.mu = xp.asarray(mui)
+		self.covariance_matrix = xp.asarray(Si)
+		return self.covariance_matrix
+
 		#Include the initial ray. #TODO: Add conditional if source is included
 		#ri = xp.append(r0[:,None,:], ri, axis=1)
 		#return ri
@@ -411,6 +462,8 @@ class Microscope(SEASerializable):
 		self.sections = sections
 		self.rays = None ; self._planes = None
 		self.I = None ; self.R = None		# per-plane, per-ray intensity and cumulative rotation (parallel to self.rays)
+		self.mu = None ; self.covariance_matrix = None	# beam-envelope mode results
+		self.wave = None								# wave-optics mode result (complex wavefield Signal)
 		if self.sections is not None and len(self.sections)>1: # check if consecutive sections are correct length. if not, insert drift at tail of first one
 			for s,s2 in zip(self.sections[:-1],self.sections[1:]):
 				if s.position+s.length<s2.position:
@@ -597,7 +650,7 @@ class Microscope(SEASerializable):
     # region: SEASerializable integration
 
 	def _get_tree_html(self, recursive_level: List[str] = 0,
-					   exclude_keys: List[str] = ['rays', 'labels', 'I', 'R'],
+					   exclude_keys: List[str] = ['rays', 'labels', 'I', 'R', 'mu', 'covariance_matrix', 'wave'],
                        exclude_hidden: bool = True,
                        exclude_properties:bool = False,
                        promote_itterable_keys: List[str] = ['sections']
@@ -723,6 +776,40 @@ class Microscope(SEASerializable):
 		self._planes = None
 		return self.rays
 
+	def propagate_moments(self, mu0:xp.ndarray=None, Sigma0:xp.ndarray=None, z: float = None):
+		"""Propagate beam moments through every section, chaining across boundaries.
+
+		Envelope-mode analog of :meth:`propagate_ray`. Each section's exit moments
+		seed the next section (eager re-chain), so the assembled instrument is always
+		consistent. Flattened per-plane means and covariances are stored on
+		``self.mu`` and ``self.covariance_matrix``.
+
+		Parameters
+		----------
+		mu0 : xp.ndarray, optional
+			Initial mean fed to the first section; seeded from its ``Source`` when ``None``.
+		Sigma0 : xp.ndarray, optional
+			Initial covariance fed to the first section; seeded from its ``Source`` when ``None``.
+		z : float, optional
+			Unused placeholder mirroring :meth:`propagate_ray`, by default ``None``.
+
+		Returns
+		-------
+		xp.ndarray
+			Flattened per-plane covariance matrices, shape
+			``(n_planes, len(convention), len(convention))``. Means are on ``self.mu``.
+		"""
+		mu=mu0 ; S=Sigma0
+		mus=[] ; Ss=[]
+		for s in self.sections:
+			S1 = s.propagate_moments(mu0=mu, Sigma0=S, z=z)
+			for k in range(len(S1)):
+				mus.append(s.mu[k]) ; Ss.append(s.covariance_matrix[k])
+			mu = s.mu[-1] ; S = s.covariance_matrix[-1]
+		self.mu = xp.asarray(mus)
+		self.covariance_matrix = xp.asarray(Ss)
+		return self.covariance_matrix
+
 	# property for planes ("microscope.planes" instead of "postprocessing.findPlanes(microscope)"), which avoids the need to recalculate planes a bunch of times.
 	@property
 	def planes(self):
@@ -754,10 +841,12 @@ class Microscope(SEASerializable):
 	# Basically just json dumps all attributes, with some special considerations to make the json more human-readable: "Microscope name","Section name","Element name" instead of just "name" for each, specified ordering of attributes (name always first), and nesting lists to go down from Microscope -> Section -> Element
 	def save(self,filename):
 		jdict = {"Microscope name":self.name,"Sections":[]} | self.__dict__
-		del jdict["sections"],jdict["rays"],jdict["I"],jdict["R"]
+		for k in ["sections","rays","I","R","mu","covariance_matrix","wave"]:
+			jdict.pop(k,None)
 		for s in self.sections:
 			s_attrs = {"Section name":s.name,"position":s.position,"length":s.length,"Elements":[]} | s.__dict__
-			del s_attrs["elements"],s_attrs["rays"],s_attrs["I"],s_attrs["R"],s_attrs["name"]
+			for k in ["elements","rays","I","R","mu","covariance_matrix","wave","name"]:
+				s_attrs.pop(k,None)
 			for e in s.elements:
 				e_attrs = {"Element name":e.name,"kind":e.kind,"position":e.position} | e.__dict__
 				for k in ["name","rotation","_position"]: # "name" is to be saved as "Element name", and a lens's rotation is a locally-calculated value, NOT a meaningful attribute
