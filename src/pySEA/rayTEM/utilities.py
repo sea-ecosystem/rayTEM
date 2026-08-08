@@ -1,8 +1,72 @@
-# ELLIPSE FITTING BELOW STOLEN FROM SEA-ECO, WITH CACHING ADDED
-
 import os,json
 import numpy as np
 from scipy.optimize import minimize,brute
+
+# Physical constants (CODATA 2018), SI units
+_PLANCK = 6.62607015e-34        # J s
+_ELECTRON_MASS = 9.1093837015e-31   # kg
+_ELECTRON_CHARGE = 1.602176634e-19  # C
+_SPEED_OF_LIGHT = 299792458.0       # m / s
+
+
+def relativistic_wavelength(voltage_kV: float) -> float:
+	r"""Relativistic de Broglie wavelength of an electron at a given accelerating voltage.
+
+	Computes the wavelength of an electron accelerated through a potential
+	difference ``voltage_kV`` (in kilovolts), including the relativistic
+	correction that matters at TEM energies. Used to seed the wave-optics
+	initial field and to convert accelerating voltage to wavelength for
+	envelope/wave propagation.
+
+	Parameters
+	----------
+	voltage_kV : float
+		Accelerating voltage in kilovolts (e.g. ``200`` for a 200 kV instrument).
+
+	Returns
+	-------
+	float
+		Electron wavelength in metres.
+
+	Raises
+	------
+	ValueError
+		If ``voltage_kV`` is not strictly positive.
+
+	Notes
+	-----
+	The wavelength follows
+
+	.. math::
+
+		\lambda = \frac{h}{\sqrt{2 m_0 e V \left(1 + \dfrac{e V}{2 m_0 c^2}\right)}}
+
+	with :math:`V` the accelerating voltage in volts and :math:`h, m_0, e, c`
+	the Planck constant, electron rest mass, elementary charge, and speed of
+	light. The parenthetical term is the relativistic correction.
+
+	Examples
+	--------
+	>>> round(relativistic_wavelength(200) * 1e12, 3)  # picometres
+	2.508
+
+	References
+	----------
+	Williams, D. B. and Carter, C. B., *Transmission Electron Microscopy*,
+	2nd ed., Springer (2009), Eq. 1.6-1.7.
+	"""
+	if voltage_kV <= 0:
+		raise ValueError(f"voltage_kV must be positive, got {voltage_kV}.")
+	V = voltage_kV * 1e3        # kV -> V
+	eV = _ELECTRON_CHARGE * V
+	denominator = np.sqrt(2 * _ELECTRON_MASS * eV *
+						  (1 + eV / (2 * _ELECTRON_MASS * _SPEED_OF_LIGHT**2)))
+	return _PLANCK / denominator
+
+
+# ELLIPSE FITTING BELOW STOLEN FROM SEA-ECO, WITH CACHING ADDED
+
+
 
 def ellipse(t,xc,yc,a,b,theta):
 	x,y=a*np.cos(t),b*np.sin(t)			# start with a scrunched circle

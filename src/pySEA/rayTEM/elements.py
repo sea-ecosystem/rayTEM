@@ -210,6 +210,18 @@ class Source(Element):
 			number of angles for emitted rays in x and y
 		position : float, optional
 			The position of the element along the z-axis, by default 0
+		voltage : float, optional
+			Accelerating voltage in kilovolts. When provided, it seeds the electron
+			``wavelength`` (used by wave-optics/envelope propagation) and populates the
+			per-ray ``E`` (beam energy, keV) column. When ``None`` (default), ``E``
+			stays 0 and no wavelength is defined, preserving purely geometric behavior.
+
+		Attributes
+		----------
+		voltage : float or None
+			Accelerating voltage in kilovolts, or ``None`` if unset.
+		wavelength : float or None
+			Relativistic electron wavelength in metres, or ``None`` if ``voltage`` is unset.
 		"""
 
 	def __init__(self, name:str=None,
@@ -217,7 +229,8 @@ class Source(Element):
 			np_xy:tuple=(3,3),		# number of grid points in x and y
 			angle:tuple=(1,1),		# angles in x,y (ranges of xt yt)
 			na_xy:tuple=(3,3),
-			position:float=None) -> SEASerializable:
+			position:float=None,
+			voltage:float=None) -> SEASerializable:
 		super().__init__(name=name, kind='Source')
 
 		self.size = size
@@ -228,6 +241,10 @@ class Source(Element):
 		self.length = 0
 		self.strength = 0
 		self.calibration = None
+		self.voltage = voltage
+		# derived: relativistic wavelength (metres); None when voltage is unset
+		from .utilities import relativistic_wavelength
+		self.wavelength = relativistic_wavelength(voltage) if voltage is not None else None
 
 	# Source term, initialize rays at sweep of angles and positions
 	def rays(self):
@@ -246,6 +263,8 @@ class Source(Element):
 		array[:,2]=(xts[None,None,:,None]*xp.ones(shape)).flat
 		array[:,3]=(yts[None,None,None,:]*xp.ones(shape)).flat
 		array=fix_ray_dims(array,["x","y","xt","yt"])
+		if self.voltage is not None:					# beam energy (keV) rides in the E column when defined
+			array[:,columnByName("E")] = self.voltage
 		return array
 
 	# dummy propagation in case someone tries to propagate through since this is technically an element
