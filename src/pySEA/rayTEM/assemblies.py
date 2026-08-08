@@ -39,6 +39,8 @@ class MicroscopeSection(SEASerializable):
 		self.ignoreLensThickness = ignoreLensThickness
 		self.length = 0 #= self.position #xp.sum([e.length for e in self.elements])
 		self.rays = None
+		self.I = None		# per-plane, per-ray intensity (parallel to self.rays, not a ray coordinate)
+		self.R = None		# per-plane, per-ray cumulative Larmor rotation (radians)
 
 		
 		if self.elements is None or (self.elements)==0:
@@ -207,8 +209,8 @@ class MicroscopeSection(SEASerializable):
 	#####################################
     # region: SEASerializable integration
 
-	def _get_tree_html(self, recursive_level: List[str] = 0, 
-					   exclude_keys: List[str] = ['rays'], 
+	def _get_tree_html(self, recursive_level: List[str] = 0,
+					   exclude_keys: List[str] = ['rays', 'I', 'R'],
                        exclude_hidden: bool = True,
                        exclude_properties:bool = False,
                        promote_itterable_keys: List[str] = ['elements']
@@ -289,26 +291,71 @@ class MicroscopeSection(SEASerializable):
 
 	# returns nthElement,nthRay,xythetaetc
 	def propagate_ray(self, r0:xp.ndarray=None,
-					   z: float = None, 
+					   I0:xp.ndarray=None, R0:xp.ndarray=None,
+					   z: float = None,
 					   verbose=False):
+		"""Propagate rays through every element in the section, bottom-up.
+
+		Intensity (``I``) and cumulative Larmor rotation (``R``) travel as separate
+		parallel arrays rather than as ray coordinates; they are stored on
+		``self.I`` / ``self.R`` alongside ``self.rays``. When chaining sections
+		(see :meth:`Microscope.propagate_ray`) the exit ``I``/``R`` of one section
+		seed ``I0``/``R0`` of the next so rotation and attenuation accumulate.
+
+		Parameters
+		----------
+		r0 : xp.ndarray, optional
+			Initial geometric ray table. If ``None`` and the first element is a
+			``Source``, rays are generated from it; otherwise a ``UserWarning`` is raised.
+		I0 : xp.ndarray, optional
+			Per-ray intensity entering the section, shape ``(n_rays,)``. Defaults to ones.
+		R0 : xp.ndarray, optional
+			Per-ray cumulative rotation (radians) entering the section. Defaults to zeros.
+		z : float, optional
+			Position within an element to propagate to, by default ``None``.
+		verbose : bool, optional
+			Print per-element progress, by default ``False``.
+
+		Returns
+		-------
+		xp.ndarray
+			Geometric rays, shape ``(n_planes, n_rays, len(convention))``. The
+			matching intensity and rotation are on ``self.I`` / ``self.R``.
+
+		Raises
+		------
+		UserWarning
+			If ``r0`` is ``None`` and the first element is not a ``Source``.
+		"""
 		#print("Section r0",r0)
 		if r0 is None:
 			if isinstance(self.elements[0], Source):
 				r0 = self.elements[0].rays()
 			else:
 				raise UserWarning("First element is not a Source, and no r0 provided to propagate_ray. Please provide initial rays or ensure first element is a Source.")
-		ri=[r0]
+		n_rays = len(r0)
+		if I0 is None:
+			I0 = xp.ones(n_rays)
+		if R0 is None:
+			R0 = xp.zeros(n_rays)
+		ri=[r0] ; Ii=[I0] ; Ri=[R0]
 		for i,ele in enumerate(self.elements):
 			if verbose:
 				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
+			# intensity/rotation are evaluated relative to the incoming rays; rotation
+			# must follow propagate_ray so thick-lens self.rotation is already set.
+			ele_I  = ele.apply_intensity(Ii[-1], ri[-1])
 			ele_ri = ele.propagate_ray(ri[-1], z=z)
+			ele_R  = ele.apply_rotation(Ri[-1])
 			#ele_ri[...,-2] += ele.position # TWP 2025/08/27 - do not add distance. drift already should update z
 			#print(ele_ri.shape,r0.shape)
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
-				ri.append(ele_ri[:,:])
+				ri.append(ele_ri[:,:]) ; Ii.append(ele_I) ; Ri.append(ele_R)
 			else:
-				ri[-1]=ele_ri[:,:]
+				ri[-1]=ele_ri[:,:] ; Ii[-1]=ele_I ; Ri[-1]=ele_R
 		self.rays = xp.asarray(ri) # xp.swapaxes(xp.asarray(ri),0,1)
+		self.I = xp.asarray(Ii)
+		self.R = xp.asarray(Ri)
 		return self.rays
 
 		#Include the initial ray. #TODO: Add conditional if source is included
@@ -329,7 +376,7 @@ class MicroscopeSection(SEASerializable):
 	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True):
 		if self.rays is None or regenerate:
 			r1 = self.propagate_ray()
-		plot2D(self.rays,zpts = self.named_positions, filename=filename ,title=title, ylims=ylims,xlims=zlims)
+		plot2D(self.rays,self.R,zpts = self.named_positions, filename=filename ,title=title, ylims=ylims,xlims=zlims)
 
 	def save(self,filename):
 		with open(filename+".pkl",'wb') as f:
@@ -363,6 +410,7 @@ class Microscope(SEASerializable):
 		self.name = name
 		self.sections = sections
 		self.rays = None ; self._planes = None
+		self.I = None ; self.R = None		# per-plane, per-ray intensity and cumulative rotation (parallel to self.rays)
 		if self.sections is not None and len(self.sections)>1: # check if consecutive sections are correct length. if not, insert drift at tail of first one
 			for s,s2 in zip(self.sections[:-1],self.sections[1:]):
 				if s.position+s.length<s2.position:
@@ -526,7 +574,7 @@ class Microscope(SEASerializable):
 	def beam_current(self,regenerate=False):
 		if regenerate:
 			self.propagate_ray()
-		return self.rays[-1,0,columnByName('I')]
+		return self.I[-1,0]
 	#@property
 	def convergence_angle(self,regenerate=False):
 		if regenerate:
@@ -548,8 +596,8 @@ class Microscope(SEASerializable):
 	#####################################
     # region: SEASerializable integration
 
-	def _get_tree_html(self, recursive_level: List[str] = 0, 
-					   exclude_keys: List[str] = ['rays', 'labels'], 
+	def _get_tree_html(self, recursive_level: List[str] = 0,
+					   exclude_keys: List[str] = ['rays', 'labels', 'I', 'R'],
                        exclude_hidden: bool = True,
                        exclude_properties:bool = False,
                        promote_itterable_keys: List[str] = ['sections']
@@ -635,18 +683,42 @@ class Microscope(SEASerializable):
 		return l
 
 	def propagate_ray(self, r0:xp.ndarray=None, z: float = None, verbose=False):
-		r=r0 #; print("Microscope r0",r0)# starting rays (optional) to be fed into section.propagate
-		rs=[]
+		"""Propagate rays through every section, carrying intensity/rotation across boundaries.
+
+		Each section's exit intensity (``I``) and rotation (``R``) seed the next
+		section, so both accumulate across the whole instrument. The flattened
+		per-plane intensity and rotation are stored on ``self.I`` / ``self.R``,
+		parallel to ``self.rays``.
+
+		Parameters
+		----------
+		r0 : xp.ndarray, optional
+			Initial geometric ray table fed to the first section. If ``None`` the
+			first section generates rays from its ``Source``.
+		z : float, optional
+			Position within an element to propagate to, by default ``None``.
+		verbose : bool, optional
+			Print per-element progress, by default ``False``.
+
+		Returns
+		-------
+		xp.ndarray
+			Flattened geometric rays, shape ``(n_planes, n_rays, len(convention))``.
+		"""
+		r=r0 ; I=None ; R=None #; print("Microscope r0",r0)# starting rays/intensity/rotation fed into section.propagate
+		rs=[] ; Is=[] ; Rs=[]
 		for n,s in enumerate(self.sections):
 			#print("section",s)
-			r1 = s.propagate_ray(z=z,r0=r,verbose=verbose) # r1 is shape nthElement,nthRay,xythetaetc
+			r1 = s.propagate_ray(z=z,r0=r,I0=I,R0=R,verbose=verbose) # r1 is shape nthElement,nthRay,xythetaetc
 			#print(r1.shape)
-			for r in r1:
+			for k in range(len(r1)):
 				#r[:,columnByName('z')]#+=s.position
-				rs.append(r)
+				rs.append(r1[k]) ; Is.append(s.I[k]) ; Rs.append(s.R[k])
 			#print(r1[-1,0,:])
-			r=r1[-1,:,:] # rays fed into subsequent section are the rays exiting this section
+			r=r1[-1,:,:] ; I=s.I[-1] ; R=s.R[-1] # rays/intensity/rotation fed into subsequent section are those exiting this section
 		self.rays = xp.asarray(rs) # if you want the non-flattened nthSection,nthElement,nthRay,xyzthetaetc, you should access microscope.section.rays which contain the individual nthElement,nthRay,xyzthetaetc
+		self.I = xp.asarray(Is)
+		self.R = xp.asarray(Rs)
 		#print(self.rays.shape)
 		self._planes = None
 		return self.rays
@@ -657,7 +729,7 @@ class Microscope(SEASerializable):
 		if self._planes is None:
 			if self.rays is None:
 				self.propagate_ray()
-			self._planes = findPlanes(self.rays,"x")
+			self._planes = findPlanes(self.rays,self.R,"x")
 		return self._planes
 
 	# TODO self.rays should be a property, self._rays should hold the previously-calculated rays. self.rays should do a hash on the microscope (use repr?) to check if the microscope has changed. if so, re-call propagate_ray, else, return self._rays.
@@ -677,15 +749,15 @@ class Microscope(SEASerializable):
 		if zlims is None:
 			zs = self.rays[:,0,columnByName("z")]
 			zlims = [ xp.amin(zs),xp.amax(zs) ]
-		plot2D(self.rays, zpts=self.named_positions, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims,plt_ax=plt_ax)
+		plot2D(self.rays, self.R, zpts=self.named_positions, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims,plt_ax=plt_ax)
 
 	# Basically just json dumps all attributes, with some special considerations to make the json more human-readable: "Microscope name","Section name","Element name" instead of just "name" for each, specified ordering of attributes (name always first), and nesting lists to go down from Microscope -> Section -> Element
 	def save(self,filename):
 		jdict = {"Microscope name":self.name,"Sections":[]} | self.__dict__
-		del jdict["sections"],jdict["rays"]
+		del jdict["sections"],jdict["rays"],jdict["I"],jdict["R"]
 		for s in self.sections:
 			s_attrs = {"Section name":s.name,"position":s.position,"length":s.length,"Elements":[]} | s.__dict__
-			del s_attrs["elements"],s_attrs["rays"],s_attrs["name"]
+			del s_attrs["elements"],s_attrs["rays"],s_attrs["I"],s_attrs["R"],s_attrs["name"]
 			for e in s.elements:
 				e_attrs = {"Element name":e.name,"kind":e.kind,"position":e.position} | e.__dict__
 				for k in ["name","rotation","_position"]: # "name" is to be saved as "Element name", and a lens's rotation is a locally-calculated value, NOT a meaningful attribute
