@@ -14,7 +14,7 @@ sea_available = False
 try:
 	sys.path.insert(1,"../../")
 	from pySEA.sea_eco.architecture.base_structure import SEASerializable as _SEASerializable
-	from pySEA.sea_eco.architecture.base_structure import Signal as _Signal, Dimension as _Dimension
+	from pySEA.sea_eco.architecture.base_structure import Signal as _Signal, Dimension as _Dimension, SignalSet as _SignalSet
 	sea_available = True
 except Exception as e:
 	print(str(e)+". This is just a warning from rayTEM.seashells: rayTEM pySEA integration will not work.")
@@ -160,12 +160,70 @@ def make_wavefield_signal(data, dx, dy, wavelength, z=None, name="wavefield"):
 	meta = {"wavelength_m": float(wavelength), "dx_m": float(dx), "dy_m": float(dy)}
 	if data.ndim == 3:
 		zvals = _np.asarray(z if z is not None else range(data.shape[0]), dtype=float)
-		zdim = _Dimension(name="z", space="position", values=zvals, units="m", unstructured=True)
+		# unstructured z: pass a representative scale/offset so sea_eco skips its
+		# values-without-scale inference (which is only a plotting fallback here).
+		zscale = float(zvals[1] - zvals[0]) if len(zvals) > 1 else 1.0
+		zdim = _Dimension(name="z", space="position", scale=zscale, offset=float(zvals[0]),
+						  values=zvals, units="m", unstructured=True)
 		dimensions = [zdim, ydim, xdim]
 	else:
 		meta["z_m"] = float(z) if z is not None else 0.0
 		dimensions = [ydim, xdim]
 	return _Signal(data=data, name=name, dimensions=dimensions, metadata=meta, signal_type="Image")
+
+
+def make_rays_signalset(rays, I, R, components, name="rays"):
+	"""Wrap traced rays and their intensity/rotation as a sea_eco ``SignalSet``.
+
+	Assembles a Signal-backed view of a ray-mode result: the geometric ray table
+	plus the separate intensity (``I``) and rotation (``R``) arrays, sharing an
+	unstructured plane-``z`` axis and an unstructured ray-index axis. The ray table
+	additionally carries an unstructured component axis (the ``convention`` columns,
+	listed in metadata). Returns ``None`` (with a warning) when sea_eco is absent.
+
+	Parameters
+	----------
+	rays : numpy.ndarray
+		Geometric rays, shape ``(n_planes, n_rays, n_components)``.
+	I : numpy.ndarray
+		Per-plane, per-ray intensity, shape ``(n_planes, n_rays)``.
+	R : numpy.ndarray
+		Per-plane, per-ray cumulative rotation, shape ``(n_planes, n_rays)``.
+	components : Sequence[str]
+		Names of the ray-vector components (the ``convention`` list).
+	name : str, optional
+		Name for the SignalSet, by default ``"rays"``.
+
+	Returns
+	-------
+	SignalSet or None
+		A SignalSet of ``[rays, I, R]`` when sea_eco is present, else ``None``.
+
+	Related
+	-------
+	MicroscopeSection.rays_signalset, Microscope.rays_signalset
+	"""
+	import numpy as _np
+	if not sea_available:
+		warn("sea_eco is not installed; rays_signalset requires sea_eco and returns None.")
+		return None
+	rays = _np.asarray(rays) ; I = _np.asarray(I) ; R = _np.asarray(R)
+	n_planes, n_rays, n_comp = rays.shape
+	z_index = components.index("z") if "z" in components else 0
+	zvals = _np.asarray(rays[:, 0, z_index], dtype=float)
+	# plane-z is genuinely non-uniform (unstructured); ray/component are index axes.
+	# A representative scale/offset is passed so sea_eco skips its values-without-scale
+	# inference path (a plotting fallback that also emits stray debug output).
+	zscale = float(zvals[1] - zvals[0]) if len(zvals) > 1 else 1.0
+	zdim = _Dimension(name="plane_z", space="position", scale=zscale, offset=float(zvals[0]),
+					  values=zvals, units="m", unstructured=True)
+	rdim = _Dimension(name="ray", scale=1, offset=0, units="", unstructured=True)
+	cdim = _Dimension(name="component", scale=1, offset=0, units="", unstructured=True)
+	ray_sig = _Signal(data=rays, name="rays", dimensions=[zdim, rdim, cdim],
+					  metadata={"components": list(components)})
+	I_sig = _Signal(data=I, name="I", dimensions=[zdim, rdim])
+	R_sig = _Signal(data=R, name="R", dimensions=[zdim, rdim])
+	return _SignalSet(signals=[ray_sig, I_sig, R_sig], main_signal=0, name=name)
 
 
 def read_wavefield(signal):

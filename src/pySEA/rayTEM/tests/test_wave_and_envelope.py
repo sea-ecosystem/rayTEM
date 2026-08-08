@@ -179,3 +179,26 @@ def test_wave_prism_not_implemented():
 	dummy = make_wavefield_signal(wo.plane_wave((16,16)), 1e-4, 1e-4, 2.5e-12, z=0.0)
 	with pytest.raises(NotImplementedError):
 		prism.propagate_wave(dummy)
+
+
+# --- rays SignalSet container view -----------------------------------------
+
+@pytest.mark.skipif(not sea_available, reason="rays_signalset requires sea_eco")
+def test_rays_signalset_view():
+	from pySEA.rayTEM import Source,Lens,Drift,MicroscopeSection,Microscope
+	section = MicroscopeSection(elements=[
+		Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)),
+		Drift(length=1), Lens(strength=3,length=0.1), Drift(length=1)])
+	microscope = Microscope(sections=[section])
+	microscope.propagate_ray()
+	ss = microscope.rays_signalset()
+	# three datasets sharing the plane_z / ray axes
+	names = sorted(getattr(d, "name", None) for d in ss.datasets)
+	assert names == ["I", "R", "rays"]
+	# the ray-table signal data matches microscope.rays; I/R match the parallel arrays
+	by_name = {d.name: d for d in ss.datasets}
+	assert by_name["rays"].data.shape == microscope.rays.shape
+	assert np.allclose(by_name["rays"].data, microscope.rays)
+	assert np.allclose(by_name["I"].data, microscope.I)
+	assert np.allclose(by_name["R"].data, microscope.R)
+	assert by_name["rays"].metadata.to_dict()["components"] == list("x xt y yt z E".split())
