@@ -8,11 +8,13 @@ All objects we then expect to integrate with sea_eco then inherit the SEASeriali
 """
 
 import sys,inspect
+from warnings import warn
 
 sea_available = False
 try:
 	sys.path.insert(1,"../../")
 	from pySEA.sea_eco.architecture.base_structure import SEASerializable as _SEASerializable
+	from pySEA.sea_eco.architecture.base_structure import Signal as _Signal, Dimension as _Dimension
 	sea_available = True
 except Exception as e:
 	print(str(e)+". This is just a warning from rayTEM.seashells: rayTEM pySEA integration will not work.")
@@ -71,6 +73,128 @@ else:
 			print("WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead")
 		def from_sea(self,filename):
 			print("WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead")
+
+
+class _Wavefield:
+	"""Lightweight fallback wavefield container used when sea_eco is unavailable.
+
+	Mirrors the read surface of a sea_eco wavefield ``Signal`` (data plus transverse
+	sampling, wavelength, and z position) so wave-optics propagation still runs and
+	round-trips in-memory without the calibrated-Signal machinery. Serialization
+	(``to_sea``) is not available in this mode.
+
+	Parameters
+	----------
+	data : numpy.ndarray
+		Complex field, shape ``(ny, nx)`` for a single plane or ``(nz, ny, nx)``
+		for a stack.
+	dx, dy : float
+		Transverse sample spacings (metres).
+	wavelength : float
+		Wavelength (metres).
+	z : float or numpy.ndarray or None
+		Plane position (2D) or array of plane positions (3D), metres.
+
+	Attributes
+	----------
+	data : numpy.ndarray
+		The complex field.
+	dx, dy : float
+		Transverse sample spacings (metres).
+	wavelength : float
+		Wavelength (metres).
+	z : float or numpy.ndarray or None
+		Plane position(s) (metres).
+	"""
+	def __init__(self, data, dx, dy, wavelength, z):
+		self.data = data
+		self.dx = dx
+		self.dy = dy
+		self.wavelength = wavelength
+		self.z = z
+
+
+def make_wavefield_signal(data, dx, dy, wavelength, z=None, name="wavefield"):
+	"""Wrap a complex field array as a calibrated sea_eco wavefield ``Signal``.
+
+	Builds a ``Signal`` whose transverse axes carry the pixel-size calibration and
+	whose metadata carries the wavelength (and, for a single plane, the z position);
+	for a stack, ``z`` becomes an unstructured z axis with explicit coordinates.
+	When sea_eco is unavailable a :class:`_Wavefield` fallback is returned instead so
+	wave propagation still works in-memory (with a warning).
+
+	Parameters
+	----------
+	data : numpy.ndarray
+		Complex field. ``(ny, nx)`` for one plane, or ``(nz, ny, nx)`` for a stack.
+	dx, dy : float
+		Transverse sample spacings (metres).
+	wavelength : float
+		Wavelength (metres).
+	z : float or Sequence[float] or None, optional
+		Plane position for a single plane, or the ``nz`` plane positions for a
+		stack. Stack positions become an unstructured z axis.
+	name : str, optional
+		Signal name, by default ``"wavefield"``.
+
+	Returns
+	-------
+	Signal or _Wavefield
+		A calibrated complex ``Signal`` when sea_eco is present, otherwise a
+		:class:`_Wavefield` fallback.
+
+	Related
+	-------
+	read_wavefield : Inverse accessor returning ``(data, dx, dy, wavelength, z)``.
+	"""
+	import numpy as _np
+	data = _np.asarray(data)
+	if not sea_available:
+		warn("sea_eco is not installed; make_wavefield_signal returns a lightweight "
+			 "_Wavefield fallback (no .sea serialization).")
+		return _Wavefield(data, dx, dy, wavelength, z)
+	ny, nx = data.shape[-2], data.shape[-1]
+	xdim = _Dimension(name="x", space="position", scale=dx, offset=-(nx // 2) * dx, units="m")
+	ydim = _Dimension(name="y", space="position", scale=dy, offset=-(ny // 2) * dy, units="m")
+	# calibration is also mirrored into metadata for robust, parse-free read-back
+	meta = {"wavelength_m": float(wavelength), "dx_m": float(dx), "dy_m": float(dy)}
+	if data.ndim == 3:
+		zvals = _np.asarray(z if z is not None else range(data.shape[0]), dtype=float)
+		zdim = _Dimension(name="z", space="position", values=zvals, units="m", unstructured=True)
+		dimensions = [zdim, ydim, xdim]
+	else:
+		meta["z_m"] = float(z) if z is not None else 0.0
+		dimensions = [ydim, xdim]
+	return _Signal(data=data, name=name, dimensions=dimensions, metadata=meta, signal_type="Image")
+
+
+def read_wavefield(signal):
+	"""Read ``(data, dx, dy, wavelength, z)`` from a wavefield Signal or fallback.
+
+	Inverse of :func:`make_wavefield_signal`. Reads the transverse sampling and
+	wavelength from metadata (mirrored there by the factory) so it does not depend
+	on parsing ``Dimension`` objects, and works for both a real sea_eco ``Signal``
+	and the :class:`_Wavefield` fallback.
+
+	Parameters
+	----------
+	signal : Signal or _Wavefield
+		A wavefield produced by :func:`make_wavefield_signal`.
+
+	Returns
+	-------
+	tuple
+		``(data, dx, dy, wavelength, z)`` where ``data`` is the complex field and
+		``z`` is a float (single plane) or ndarray (stack) or ``None``.
+	"""
+	if isinstance(signal, _Wavefield):
+		return signal.data, signal.dx, signal.dy, signal.wavelength, signal.z
+	meta = signal.metadata.to_dict() if signal.metadata is not None else {}
+	dx = meta.get("dx_m")
+	dy = meta.get("dy_m")
+	wavelength = meta.get("wavelength_m")
+	z = meta.get("z_m", None)
+	return signal.data, dx, dy, wavelength, z
 
 
 #SEASerializable.from_sea will create a purely-SEASerializable object. rayTEM objects (Element, MicroscopeSection, Microscope, etc) will have inherited from SEASerializable, so we may need to reinstantiate rayTEM objects to ensure they have the rayTEM-specific functionality (e.g. "scope=Microscope(); scope.from_sea" will find scope.sections is a list of purely-SEASerializable objects without functions like "propagate_ray").

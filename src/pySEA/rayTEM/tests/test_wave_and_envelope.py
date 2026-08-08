@@ -98,3 +98,84 @@ def test_envelope_waist_matches_ray_optics_focus():
 
 	assert abs(z_waist - (d1+f)) < 0.05, f"waist z={z_waist}, expected {d1+f}"
 	assert abs(z_waist - z_diff) < 0.05, f"waist z={z_waist} vs ray diff plane {z_diff}"
+
+
+# --- wave optics -----------------------------------------------------------
+
+import os
+from pySEA.rayTEM import waveoptics as wo
+from pySEA.rayTEM.seashells import make_wavefield_signal, read_wavefield, sea_available
+
+def test_wave_plane_wave_focuses_at_focal_length():
+	# A plane wave through a thin lens (focal length f) focuses a distance f behind it:
+	# the on-axis intensity is maximal at z=f, and larger there than before/after.
+	N, L, lam, f = 512, 4e-3, 500e-9, 0.5
+	dx = dy = L/N
+	field0 = wo.plane_wave((N,N))
+	focused = wo.focal_phase(field0, dx, dy, lam, 1.0/f, 1.0/f)	# power = 1/f
+	c = N//2
+	def central_intensity(z):
+		fz = wo.angular_spectrum_propagate(focused, dx, dy, lam, z)
+		return np.abs(fz[c,c])**2
+	I_half, I_focus, I_double = central_intensity(0.5*f), central_intensity(f), central_intensity(1.5*f)
+	# on-axis intensity peaks at the focus and is a strong concentration vs the unit input
+	assert I_focus > I_half and I_focus > I_double
+	fz = wo.angular_spectrum_propagate(focused, dx, dy, lam, f)
+	assert np.unravel_index(np.argmax(np.abs(fz)**2), fz.shape) == (c,c)
+	assert I_focus > 50.0		# strong concentration relative to the unit-amplitude plane wave
+
+def test_wave_fresnel_gaussian_spreading():
+	# A Gaussian beam spreads per w(z) = w0 sqrt(1+(z/zR)^2), zR = pi w0^2 / lambda.
+	N, L, lam = 1024, 8e-3, 500e-9
+	dx = dy = L/N
+	sigma = 300e-6						# amplitude field exp(-r^2/(2 sigma^2))
+	w0 = np.sqrt(2)*sigma				# 1/e^2 intensity radius
+	zR = np.pi*w0**2/lam
+	field0 = wo.gaussian_field((N,N), dx, dy, sigma, sigma)
+
+	def rms_width_x(field):
+		I = np.abs(field)**2
+		Ix = I.sum(axis=0)				# collapse y -> I(x)
+		x = (np.arange(N)-N//2)*dx
+		xbar = (x*Ix).sum()/Ix.sum()
+		return np.sqrt(((x-xbar)**2*Ix).sum()/Ix.sum())
+
+	# at z=0 the measured RMS equals sigma/sqrt(2): the intensity marginal exp(-x^2/sigma^2)
+	# has variance sigma^2/2.
+	rms0_expected = sigma/np.sqrt(2)
+	assert abs(rms_width_x(field0) - rms0_expected)/rms0_expected < 0.02
+	# at z=zR the beam should widen by ~sqrt(2)
+	fz = wo.angular_spectrum_propagate(field0, dx, dy, lam, zR)
+	ratio = rms_width_x(fz)/rms_width_x(field0)
+	assert abs(ratio - np.sqrt(2))/np.sqrt(2) < 0.05, f"width ratio {ratio}, expected ~{np.sqrt(2)}"
+
+def test_wave_microscope_stack_and_sea_roundtrip(tmp_path):
+	from pySEA.rayTEM import Source,Lens,Drift,MicroscopeSection,Microscope
+	section1 = MicroscopeSection(elements=[
+		Source(voltage=200, field_shape=(64,64), field_extent=2e-3, field_kind='gaussian'),
+		Drift(length=0.05), Lens(strength=8.0, length=0.0), Drift(length=0.05)])
+	section2 = MicroscopeSection(elements=[Drift(length=0.05)])
+	microscope = Microscope(sections=[section1, section2])
+	wave = microscope.propagate_wave()
+
+	data, dx, dy, wavelength, z = read_wavefield(wave)
+	# single stacked (Nz, Ny, Nx) complex wavefield
+	assert data.ndim == 3 and data.shape[1:] == (64,64)
+	assert np.iscomplexobj(data)
+	assert abs(wavelength - relativistic_wavelength(200)) < 1e-16
+
+	if sea_available:
+		# wavefield Signal must round-trip through .sea preserving complex data
+		from pySEA.sea_eco.architecture.base_structure import Signal
+		path = str(tmp_path/"wavefield.sea")
+		wave.to_sea(path)
+		reloaded = Signal(); reloaded.from_sea(path)
+		assert np.allclose(reloaded.data, data)
+		assert reloaded.data.dtype == data.dtype
+
+def test_wave_prism_not_implemented():
+	from pySEA.rayTEM import Prism
+	prism = Prism(length=0.1, strength=0.2)
+	dummy = make_wavefield_signal(wo.plane_wave((16,16)), 1e-4, 1e-4, 2.5e-12, z=0.0)
+	with pytest.raises(NotImplementedError):
+		prism.propagate_wave(dummy)

@@ -12,6 +12,40 @@ from .seashells import SEASerializable
 
 from copy import deepcopy
 
+
+def _stack_wavefields(planes, name="wavefield"):
+	"""Stack a list of 2D wavefield Signals into one calibrated 3D wavefield Signal.
+
+	Reads each per-plane wavefield and assembles a single ``(n_planes, ny, nx)``
+	complex Signal whose z axis is unstructured (explicit per-plane positions) and
+	whose transverse ``(x, y)`` calibration and wavelength are shared.
+
+	Parameters
+	----------
+	planes : Sequence
+		Per-plane wavefields (Signals or ``seashells._Wavefield`` fallbacks), all on
+		the same transverse grid.
+	name : str, optional
+		Name for the stacked Signal, by default ``"wavefield"``.
+
+	Returns
+	-------
+	Signal or seashells._Wavefield
+		The stacked wavefield.
+
+	Related
+	-------
+	seashells.make_wavefield_signal, seashells.read_wavefield
+	"""
+	from .seashells import read_wavefield, make_wavefield_signal
+	datas=[] ; zs=[] ; dx=dy=wavelength=None
+	for p in planes:
+		d, dx, dy, wavelength, z = read_wavefield(p)
+		datas.append(d) ; zs.append(z if z is not None else 0.0)
+	stacked = xp.asarray(datas)
+	return make_wavefield_signal(stacked, dx, dy, wavelength, z=xp.asarray(zs), name=name)
+
+
 class MicroscopeSection(SEASerializable):
 	"""MicroscopeSection class represents a portion of a microscope, and contains multiple Elements. propagation through a Section results in propagation through individual Elements.
 
@@ -408,6 +442,48 @@ class MicroscopeSection(SEASerializable):
 		self.mu = xp.asarray(mui)
 		self.covariance_matrix = xp.asarray(Si)
 		return self.covariance_matrix
+
+	def propagate_wave(self, field0=None):
+		"""Propagate a paraxial wavefield through every element in the section.
+
+		The wave-optics analog of :meth:`propagate_ray`. Threads a 2D complex
+		wavefield element-by-element via :meth:`Element.propagate_wave`, logging a
+		plane after each finite-length element or aperture (same append/replace logic
+		as ray/moment propagation). The per-plane fields are stacked into a single
+		calibrated ``(n_planes, ny, nx)`` complex ``Signal`` stored on ``self.wave``.
+
+		Parameters
+		----------
+		field0 : Signal or seashells._Wavefield, optional
+			Initial wavefield. If ``None`` and the first element is a ``Source``, it
+			is generated from :meth:`Source.field`.
+
+		Returns
+		-------
+		Signal or seashells._Wavefield
+			The stacked wavefield (also stored on ``self.wave``). Per-plane wavefields
+			are kept on ``self._wave_planes`` for chaining by :class:`Microscope`.
+
+		Raises
+		------
+		UserWarning
+			If ``field0`` is ``None`` and the first element is not a ``Source``.
+		"""
+		if field0 is None:
+			if isinstance(self.elements[0], Source):
+				field0 = self.elements[0].field()
+			else:
+				raise UserWarning("First element is not a Source, and no field0 provided to propagate_wave. Please provide an initial wavefield or ensure first element is a Source.")
+		fi=[field0]
+		for ele in self.elements:
+			f = ele.propagate_wave(fi[-1])
+			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
+				fi.append(f)
+			else:
+				fi[-1]=f
+		self._wave_planes = fi
+		self.wave = _stack_wavefields(fi, name=(self.name or 'section') + ' wave')
+		return self.wave
 
 		#Include the initial ray. #TODO: Add conditional if source is included
 		#ri = xp.append(r0[:,None,:], ri, axis=1)
@@ -809,6 +885,34 @@ class Microscope(SEASerializable):
 		self.mu = xp.asarray(mus)
 		self.covariance_matrix = xp.asarray(Ss)
 		return self.covariance_matrix
+
+	def propagate_wave(self, field0=None):
+		"""Propagate a paraxial wavefield through every section, chaining boundaries.
+
+		Wave-optics analog of :meth:`propagate_ray`. Each section's exit wavefield
+		seeds the next (eager re-chain), and all per-plane wavefields are flattened
+		into a single calibrated ``(n_planes, ny, nx)`` complex ``Signal`` on
+		``self.wave``.
+
+		Parameters
+		----------
+		field0 : Signal or seashells._Wavefield, optional
+			Initial wavefield fed to the first section; generated from its ``Source``
+			when ``None``.
+
+		Returns
+		-------
+		Signal or seashells._Wavefield
+			The stacked wavefield for the whole instrument (also on ``self.wave``).
+		"""
+		f = field0
+		planes=[]
+		for s in self.sections:
+			s.propagate_wave(field0=f)
+			planes.extend(s._wave_planes)
+			f = s._wave_planes[-1]
+		self.wave = _stack_wavefields(planes, name=(self.name or 'microscope') + ' wave')
+		return self.wave
 
 	# property for planes ("microscope.planes" instead of "postprocessing.findPlanes(microscope)"), which avoids the need to recalculate planes a bunch of times.
 	@property
