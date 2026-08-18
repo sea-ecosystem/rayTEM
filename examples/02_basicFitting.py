@@ -1,8 +1,8 @@
 import sys
 sys.path.insert(1,"../")
-from rayTEM.elements import Lens,Drift,fix_ray_dims,Source
-from rayTEM.assemblies import MicroscopeSection
-from rayTEM.postprocessing import fitForCrossover,plot2D
+from pySEA.rayTEM.elements import Lens,Drift,fix_ray_dims,Source
+from pySEA.rayTEM.assemblies import MicroscopeSection
+from pySEA.rayTEM.postprocessing import fitForCrossover,plot2D
 import numpy as np
 
 def createFreshSection():
@@ -22,17 +22,18 @@ def createFreshSection():
 #		r0.append([i,i,th,th])
 #r0=fix_ray_dims(np.asarray(r0),["x","y","xt","yt"])
 
-plot2D( createFreshSection().propagate_ray() )
+section = createFreshSection()
+plot2D( section.propagate_ray(), section.R )
 
 fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":3}],modifiable={2:"strength",4:"strength"})#,filename="figs/02_basicFitting_01")
 
-fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":3,"strength":"maximize"}],modifiable={1:"strength",3:"strength"})#,filename="figs/02_basicFitting_02")
+fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":3,"strength":"maximize"}],modifiable={2:"strength",4:"strength"})#,filename="figs/02_basicFitting_02")
 
-fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":3,"strength":"minimize"}],modifiable={1:"strength",3:"strength"})#,filename="figs/02_basicFitting_03")
+fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":3,"strength":"minimize"}],modifiable={2:"strength",4:"strength"})#,filename="figs/02_basicFitting_03")
 
-fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":"maximize"}],modifiable={1:"strength",3:"strength"})#,filename="figs/02_basicFitting_04")
+fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":"maximize"}],modifiable={2:"strength",4:"strength"})#,filename="figs/02_basicFitting_04")
 
-fitForCrossover(createFreshSection(),targets=[{"plane":"diff","z":6,"mag":"maximize"}],modifiable={1:"strength",3:"strength"})#,filename="figs/02_basicFitting_05")
+fitForCrossover(createFreshSection(),targets=[{"plane":"diff","z":6,"mag":"maximize"}],modifiable={2:"strength",4:"strength"})#,filename="figs/02_basicFitting_05")
 
 
 # TODOs

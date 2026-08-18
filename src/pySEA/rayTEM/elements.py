@@ -129,6 +129,57 @@ class Element(SEASerializable):
 		dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it
 		return type(self)(**dic)
 
+	def kget(self, key:str):
+		"""Get an element attribute by name.
+
+		A small keyed accessor used by fitting helpers (e.g.
+		:func:`postprocessing.fitForCrossover`) to read a parameter such as
+		``"strength"`` generically.
+
+		Parameters
+		----------
+		key : str
+			Attribute name to read.
+
+		Returns
+		-------
+		object
+			The value of ``self.<key>``.
+
+		Raises
+		------
+		AttributeError
+			If the element has no attribute ``key``.
+
+		Related
+		-------
+		kset : Keyed setter counterpart.
+		"""
+		return getattr(self, key)
+
+	def kset(self, key:str, value) -> None:
+		"""Set an element attribute by name.
+
+		Keyed setter counterpart to :meth:`kget`, used by fitting helpers to write
+		a parameter such as ``"strength"`` generically.
+
+		Parameters
+		----------
+		key : str
+			Attribute name to set.
+		value : object
+			New value to assign to ``self.<key>``.
+
+		Returns
+		-------
+		None
+
+		Related
+		-------
+		kget : Keyed getter counterpart.
+		"""
+		setattr(self, key, value)
+
 	# e.position should be read-only! user should not set position of an element within a section, they should use s.move(...)
 	@property
 	def position(self):

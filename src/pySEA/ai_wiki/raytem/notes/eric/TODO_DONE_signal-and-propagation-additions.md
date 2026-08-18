@@ -35,15 +35,15 @@
 ## Step 5 — Unified dispatcher ✓
 - [x] `propagate(*args, kind=..., **kwargs)` on Element/Section/Microscope + test
 
-## Step 6 — Migrate instrument scripts + tools ✓
-- [x] `microscopes/` scripts off `columnByName("I")`/`("R")` → `.I`/`.R`
-- [x] add `R` arg to `findPlanes`/`plot2D`/`plot3D`; `I`/`R`/`section=` to `measureAtZ`; drop stale `axes=`/`returnObjectOnly=`
-- [x] `py_compile` clean for every touched script; no residual stale patterns
+## Step 6 — Migrate non-framework scripts to the geometric-ray API ✓
+- [x] instrument (`microscopes/`) tree removed upstream to protect proprietary info → that migration is moot on the clean history (do NOT re-add those files)
+- [x] generic `examples/` migrated: `plot2D`/`plot3D` take `R`; imports → `pySEA.rayTEM.*`
+- [x] `examples/01_basicRays.ipynb` + `BasicFittingExample.ipynb` execute end-to-end headlessly (nbconvert), zero errors; the three `examples/*.py` run clean
+- [x] fixed two pre-existing non-proprietary bugs that broke the fitting examples: `Element.kget`/`kset` (undefined but called by `fitForCrossover`), and a stale fit-target index in `02_basicFitting.py`
 
 ## Step 7 — Wiki + docs ✓
 - [x] `pysea-refresh-wiki`; hand-edited CLAUDE.md core invariants + index.md/layer-map.md
 
 ## Follow-ups (noted for later)
-- **04_PRIVATE_INSTRUMENT.py:** pre-existing truncated scratch fragment (invalid Python already on `origin/main`, undefined lowercase `start/lens/drift/quad` helpers). Left as-is — not a refactor issue; needs its author to finish it.
 - **sea-eco:** leftover `print(...)#FLAG` debug lines in `Dimension.__init__` (values-without-scale path). Worked around from rayTEM by passing scale/offset to unstructured z axes; the real cleanup belongs in sea-eco.
 - **sea-ecosystem:** `pysea-discover-wiki` couldn't regenerate `ecosystem/index.md` in this multi-repo namespace-package checkout (resolves `pySEA` to the first path). rayTEM's own wiki refresh completed.
