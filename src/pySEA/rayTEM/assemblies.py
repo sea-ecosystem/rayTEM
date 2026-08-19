@@ -6,7 +6,7 @@ flag_gpu = False
 import pickle
 import sys,inspect,os,datetime,shutil
 
-from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
+from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ,beam_widths
 from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention,_propagate_method_name
 from typing import Literal
 from .seashells import SEASerializable
@@ -483,8 +483,10 @@ class MicroscopeSection(SEASerializable):
 				mui.append(mu) ; Si.append(S)
 			else:
 				mui[-1]=mu ; Si[-1]=S
+		from .seashells import make_covariance_signal
 		self.mu = xp.asarray(mui)
-		self.covariance_matrix = xp.asarray(Si)
+		self.covariance_matrix = make_covariance_signal(xp.asarray(Si), self.mu[:, columnByName('z')],
+														convention, name=(self.name or 'section') + ' covariance')
 		return self.covariance_matrix
 
 	def propagate_wave(self, field0=None):
@@ -1044,15 +1046,18 @@ class Microscope(SEASerializable):
 			Flattened per-plane covariance matrices, shape
 			``(n_planes, len(convention), len(convention))``. Means are on ``self.mu``.
 		"""
+		from .seashells import make_covariance_signal, as_ndarray
 		mu=mu0 ; S=Sigma0
 		mus=[] ; Ss=[]
 		for s in self.sections:
-			S1 = s.propagate_moments(mu0=mu, Sigma0=S, z=z)
-			for k in range(len(S1)):
-				mus.append(s.mu[k]) ; Ss.append(s.covariance_matrix[k])
-			mu = s.mu[-1] ; S = s.covariance_matrix[-1]
+			s.propagate_moments(mu0=mu, Sigma0=S, z=z)
+			cov = as_ndarray(s.covariance_matrix)		# raw (n_planes, 6, 6) for chaining
+			for k in range(len(cov)):
+				mus.append(s.mu[k]) ; Ss.append(cov[k])
+			mu = s.mu[-1] ; S = cov[-1]
 		self.mu = xp.asarray(mus)
-		self.covariance_matrix = xp.asarray(Ss)
+		self.covariance_matrix = make_covariance_signal(xp.asarray(Ss), self.mu[:, columnByName('z')],
+														convention, name=(self.name or 'microscope') + ' covariance')
 		return self.covariance_matrix
 
 	def propagate_wave(self, field0=None):
@@ -1151,16 +1156,80 @@ class Microscope(SEASerializable):
 	def named_sections(self):
 		return { s.name+" ("+str(i)+")":[s.position,s.position+s.length] for i,s in enumerate(self.sections) }
 
-	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True,plt_ax=None):
-		if self.rays is None or regenerate:
-			r1 = self.propagate_ray()
+	def show(self, kind:Literal["ray","rays","moments","envelope","covariance","wave"]="ray",
+			 filename=None, title=None, ylims=None, zlims=None, regenerate=True, plt_ax=None,
+			 plane:int=-1):
+		"""Visualize a propagation result.
 
-		sections = self.named_sections
-		#print("SECTIONS",sections)
-		if zlims is None:
-			zs = self.rays[:,0,columnByName("z")]
-			zlims = [ xp.amin(zs),xp.amax(zs) ]
-		plot2D(self.rays, self.R, zpts=self.named_positions, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims,plt_ax=plt_ax)
+		``kind="ray"`` draws the usual ray diagram (with element/plane overlays).
+		``kind="moments"`` and ``kind="wave"`` are first-pass plots of the
+		result Signal's ``.data`` — the RMS beam envelope vs z, and the wavefield
+		intensity image, respectively. These two do NOT yet overlay the microscope
+		elements/planes (that annotation is future work).
+
+		Parameters
+		----------
+		kind : {'ray','rays','moments','envelope','covariance','wave'}, optional
+			Which propagation result to show, by default ``'ray'``.
+		filename : str, optional
+			If given, save the figure here instead of showing it.
+		title : str, optional
+			Plot title.
+		ylims, zlims : sequence, optional
+			Axis limits for the ray diagram (``kind='ray'`` only).
+		regenerate : bool, optional
+			Re-propagate before plotting, by default ``True``.
+		plt_ax : matplotlib axis, optional
+			Draw into an existing axis instead of creating one.
+		plane : int, optional
+			For ``kind='wave'``, which z-plane's intensity to image, by default ``-1``
+			(the last plane).
+
+		Returns
+		-------
+		None
+
+		Related
+		-------
+		propagate_ray, propagate_moments, propagate_wave
+		"""
+		from .seashells import as_ndarray
+		# --- ray diagram (unchanged behavior) ---
+		if kind in ("ray","rays"):
+			if self.rays is None or regenerate:
+				self.propagate_ray()
+			sections = self.named_sections
+			if zlims is None:
+				zs = self.rays[:,0,columnByName("z")]
+				zlims = [ xp.amin(zs),xp.amax(zs) ]
+			plot2D(self.rays, self.R, zpts=self.named_positions, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims,plt_ax=plt_ax)
+			return
+		# --- Signal.data plots for the envelope / wave modes ---
+		import matplotlib.pyplot as plt
+		ax = plt_ax if plt_ax is not None else plt.subplots()[1]
+		if kind in ("moments","envelope","covariance"):
+			if self.covariance_matrix is None or regenerate:
+				self.propagate_moments()
+			widths = beam_widths(self.covariance_matrix)		# (n_planes, 2) from the covariance Signal
+			zs = self.mu[:, columnByName("z")]
+			ax.plot(zs, widths[:,0], marker='o', label="x RMS width")
+			ax.plot(zs, widths[:,1], marker='o', label="y RMS width")
+			ax.set_xlabel("z") ; ax.set_ylabel("RMS beam width") ; ax.legend()
+			ax.set_title(title or "beam-envelope widths")
+		elif kind == "wave":
+			if self.wave is None or regenerate:
+				self.propagate_wave()
+			data = as_ndarray(self.wave)						# (n_planes, ny, nx) complex
+			intensity = xp.abs(data[plane])**2
+			im = ax.imshow(intensity, origin="lower")
+			ax.set_title(title or f"wavefield |E|^2 (plane {plane})")
+			plt.colorbar(im, ax=ax)
+		else:
+			raise ValueError(f"Unknown show kind {kind!r}; expected 'ray', 'moments', or 'wave'.")
+		if filename is not None:
+			plt.gcf().savefig(filename)
+		elif plt_ax is None:
+			plt.show()
 
 	# Basically just json dumps all attributes, with some special considerations to make the json more human-readable: "Microscope name","Section name","Element name" instead of just "name" for each, specified ordering of attributes (name always first), and nesting lists to go down from Microscope -> Section -> Element
 	def save(self,filename):

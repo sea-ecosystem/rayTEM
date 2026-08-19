@@ -1263,6 +1263,9 @@ def beam_widths(covariance_matrix):
 	-------
 	emittance : Phase-space area from the same covariance stack.
 	"""
+	# accept either the raw ndarray or the calibrated covariance Signal
+	if hasattr(covariance_matrix, "dimensions"):
+		covariance_matrix = covariance_matrix.data
 	xi = columnByName("x") ; yi = columnByName("y")
 	return np.sqrt(np.stack([covariance_matrix[:,xi,xi],
 							 covariance_matrix[:,yi,yi]], axis=-1))
@@ -1291,6 +1294,9 @@ def emittance(covariance_matrix):
 	-------
 	beam_widths : RMS sizes from the same covariance stack.
 	"""
+	# accept either the raw ndarray or the calibrated covariance Signal
+	if hasattr(covariance_matrix, "dimensions"):
+		covariance_matrix = covariance_matrix.data
 	xi,xti,yi,yti = [ columnByName(v) for v in ["x","xt","y","yt"] ]
 	def sub_det(a,b):
 		return covariance_matrix[:,a,a]*covariance_matrix[:,b,b] \

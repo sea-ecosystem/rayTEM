@@ -226,6 +226,69 @@ def make_rays_signalset(rays, I, R, components, name="rays"):
 	return _SignalSet(signals=[ray_sig, I_sig, R_sig], main_signal=0, name=name)
 
 
+def as_ndarray(x):
+	"""Return the raw ndarray behind a sea_eco ``Signal`` (passthrough for arrays).
+
+	Discriminates on the presence of a ``dimensions`` attribute (Signals have one;
+	plain ndarrays and the ``_Wavefield`` fallback do not), so it cannot be fooled
+	by ``numpy.ndarray.data`` (which is a memoryview, not the array).
+
+	Parameters
+	----------
+	x : Signal or numpy.ndarray or _Wavefield
+		A calibrated Signal or a raw array-like.
+
+	Returns
+	-------
+	numpy.ndarray
+		``x.data`` when ``x`` is a Signal, otherwise ``x`` unchanged.
+	"""
+	return x.data if hasattr(x, "dimensions") else x
+
+
+def make_covariance_signal(covariance, z, components, name="covariance"):
+	"""Wrap a stack of per-plane covariance matrices as a calibrated sea_eco ``Signal``.
+
+	Builds a ``(n_planes, n_comp, n_comp)`` Signal for the beam-envelope result: an
+	unstructured plane-``z`` axis plus two component (row/col) index axes whose
+	labels (the ``convention`` columns) are recorded in metadata. Returns the raw
+	ndarray (with a warning) when sea_eco is unavailable.
+
+	Parameters
+	----------
+	covariance : numpy.ndarray
+		Per-plane covariance matrices, shape ``(n_planes, n_comp, n_comp)``.
+	z : Sequence[float]
+		The ``n_planes`` plane positions (metres) for the unstructured z axis.
+	components : Sequence[str]
+		Names of the phase-space components (the ``convention`` list).
+	name : str, optional
+		Signal name, by default ``"covariance"``.
+
+	Returns
+	-------
+	Signal or numpy.ndarray
+		A calibrated ``Signal`` when sea_eco is present, else ``covariance`` unchanged.
+
+	Related
+	-------
+	make_rays_signalset, make_wavefield_signal, as_ndarray
+	"""
+	import numpy as _np
+	covariance = _np.asarray(covariance)
+	if not sea_available:
+		warn("sea_eco is not installed; make_covariance_signal returns a raw ndarray.")
+		return covariance
+	zvals = _np.asarray(z, dtype=float)
+	zscale = float(zvals[1] - zvals[0]) if len(zvals) > 1 else 1.0
+	zdim = _Dimension(name="z", space="position", scale=zscale, offset=float(zvals[0]),
+					  values=zvals, units="m", unstructured=True)
+	rowdim = _Dimension(name="row", scale=1, offset=0, units="", unstructured=True)
+	coldim = _Dimension(name="col", scale=1, offset=0, units="", unstructured=True)
+	return _Signal(data=covariance, name=name, dimensions=[zdim, rowdim, coldim],
+				   metadata={"components": list(components)}, signal_type="Image")
+
+
 def read_wavefield(signal):
 	"""Read ``(data, dx, dy, wavelength, z)`` from a wavefield Signal or fallback.
 
