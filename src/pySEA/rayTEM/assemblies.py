@@ -6,7 +6,7 @@ flag_gpu = False
 import pickle
 import sys,inspect,os,datetime,shutil
 
-from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ,beam_widths
+from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
 from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention,_propagate_method_name
 from typing import Literal
 from .seashells import SEASerializable
@@ -1162,10 +1162,11 @@ class Microscope(SEASerializable):
 		"""Visualize a propagation result.
 
 		``kind="ray"`` draws the usual ray diagram (with element/plane overlays).
-		``kind="moments"`` and ``kind="wave"`` are first-pass plots of the
-		result Signal's ``.data`` — the RMS beam envelope vs z, and the wavefield
-		intensity image, respectively. These two do NOT yet overlay the microscope
-		elements/planes (that annotation is future work).
+		``kind="moments"`` and ``kind="wave"`` delegate to the result **Signal's own**
+		``.show()``: the covariance matrix at one plane, and the wavefield intensity
+		``|E|²`` at one plane, respectively (sea_eco's ``Signal.show`` renders ≤2D, so a
+		single z-plane is selected via ``plane``). These two do not yet overlay the
+		microscope elements/planes (that annotation is future work).
 
 		Parameters
 		----------
@@ -1193,7 +1194,6 @@ class Microscope(SEASerializable):
 		-------
 		propagate_ray, propagate_moments, propagate_wave
 		"""
-		from .seashells import as_ndarray
 		# --- ray diagram (unchanged behavior) ---
 		if kind in ("ray","rays"):
 			if self.rays is None or regenerate:
@@ -1204,26 +1204,26 @@ class Microscope(SEASerializable):
 				zlims = [ xp.amin(zs),xp.amax(zs) ]
 			plot2D(self.rays, self.R, zpts=self.named_positions, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims,plt_ax=plt_ax)
 			return
-		# --- Signal.data plots for the envelope / wave modes ---
+		# --- delegate to the result Signal's own .show() (sea_eco renders <=2D) ---
 		import matplotlib.pyplot as plt
+		from .seashells import read_wavefield, make_wavefield_signal
 		ax = plt_ax if plt_ax is not None else plt.subplots()[1]
 		if kind in ("moments","envelope","covariance"):
 			if self.covariance_matrix is None or regenerate:
 				self.propagate_moments()
-			widths = beam_widths(self.covariance_matrix)		# (n_planes, 2) from the covariance Signal
-			zs = self.mu[:, columnByName("z")]
-			ax.plot(zs, widths[:,0], marker='o', label="x RMS width")
-			ax.plot(zs, widths[:,1], marker='o', label="y RMS width")
-			ax.set_xlabel("z") ; ax.set_ylabel("RMS beam width") ; ax.legend()
-			ax.set_title(title or "beam-envelope widths")
+			self.covariance_matrix[plane].show(ax=ax)			# 6x6 covariance at one plane
+			if title:
+				ax.set_title(title)
 		elif kind == "wave":
 			if self.wave is None or regenerate:
 				self.propagate_wave()
-			data = as_ndarray(self.wave)						# (n_planes, ny, nx) complex
-			intensity = xp.abs(data[plane])**2
-			im = ax.imshow(intensity, origin="lower")
-			ax.set_title(title or f"wavefield |E|^2 (plane {plane})")
-			plt.colorbar(im, ax=ax)
+			data, dx, dy, wavelength, zvals = read_wavefield(self.wave)
+			zval = float(zvals[plane]) if hasattr(zvals, "__len__") else 0.0
+			# wavefield is complex; show |E|^2 as a calibrated 2D wavefield Signal
+			make_wavefield_signal(xp.abs(data[plane])**2, dx, dy, wavelength, z=zval,
+								  name="wavefield |E|^2").show(ax=ax)
+			if title:
+				ax.set_title(title)
 		else:
 			raise ValueError(f"Unknown show kind {kind!r}; expected 'ray', 'moments', or 'wave'.")
 		if filename is not None:
