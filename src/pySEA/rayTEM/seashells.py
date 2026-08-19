@@ -154,8 +154,9 @@ def make_wavefield_signal(data, dx, dy, wavelength, z=None, name="wavefield"):
 			 "_Wavefield fallback (no .sea serialization).")
 		return _Wavefield(data, dx, dy, wavelength, z)
 	ny, nx = data.shape[-2], data.shape[-1]
-	xdim = _Dimension(name="x", space="position", scale=dx, offset=-(nx // 2) * dx, units="m")
-	ydim = _Dimension(name="y", space="position", scale=dy, offset=-(ny // 2) * dy, units="m")
+	# size is set on every axis so Dimensions.ndim matches data.ndim (Signal.show relies on it)
+	xdim = _Dimension(name="x", space="position", scale=dx, offset=-(nx // 2) * dx, size=nx, units="m")
+	ydim = _Dimension(name="y", space="position", scale=dy, offset=-(ny // 2) * dy, size=ny, units="m")
 	# calibration is also mirrored into metadata for robust, parse-free read-back
 	meta = {"wavelength_m": float(wavelength), "dx_m": float(dx), "dy_m": float(dy)}
 	if data.ndim == 3:
@@ -164,7 +165,7 @@ def make_wavefield_signal(data, dx, dy, wavelength, z=None, name="wavefield"):
 		# values-without-scale inference (which is only a plotting fallback here).
 		zscale = float(zvals[1] - zvals[0]) if len(zvals) > 1 else 1.0
 		zdim = _Dimension(name="z", space="position", scale=zscale, offset=float(zvals[0]),
-						  values=zvals, units="m", unstructured=True)
+						  size=len(zvals), values=zvals, units="m", unstructured=True)
 		dimensions = [zdim, ydim, xdim]
 	else:
 		meta["z_m"] = float(z) if z is not None else 0.0
@@ -216,9 +217,9 @@ def make_rays_signalset(rays, I, R, components, name="rays"):
 	# inference path (a plotting fallback that also emits stray debug output).
 	zscale = float(zvals[1] - zvals[0]) if len(zvals) > 1 else 1.0
 	zdim = _Dimension(name="plane_z", space="position", scale=zscale, offset=float(zvals[0]),
-					  values=zvals, units="m", unstructured=True)
-	rdim = _Dimension(name="ray", scale=1, offset=0, units="", unstructured=True)
-	cdim = _Dimension(name="component", scale=1, offset=0, units="", unstructured=True)
+					  size=n_planes, values=zvals, units="m", unstructured=True)
+	rdim = _Dimension(name="ray", scale=1, offset=0, size=n_rays, units="", unstructured=True)
+	cdim = _Dimension(name="component", scale=1, offset=0, size=n_comp, units="", unstructured=True)
 	ray_sig = _Signal(data=rays, name="rays", dimensions=[zdim, rdim, cdim],
 					  metadata={"components": list(components)})
 	I_sig = _Signal(data=I, name="I", dimensions=[zdim, rdim])
@@ -280,11 +281,14 @@ def make_covariance_signal(covariance, z, components, name="covariance"):
 		warn("sea_eco is not installed; make_covariance_signal returns a raw ndarray.")
 		return covariance
 	zvals = _np.asarray(z, dtype=float)
+	ncomp = covariance.shape[1]
 	zscale = float(zvals[1] - zvals[0]) if len(zvals) > 1 else 1.0
 	zdim = _Dimension(name="z", space="position", scale=zscale, offset=float(zvals[0]),
-					  values=zvals, units="m", unstructured=True)
-	rowdim = _Dimension(name="row", scale=1, offset=0, units="", unstructured=True)
-	coldim = _Dimension(name="col", scale=1, offset=0, units="", unstructured=True)
+					  size=len(zvals), values=zvals, units="m", unstructured=True)
+	# row/col are regular (structured) index axes so Signal.show renders a heatmap,
+	# not an unstructured scatter.
+	rowdim = _Dimension(name="row", scale=1, offset=0, size=ncomp, units="", unstructured=False)
+	coldim = _Dimension(name="col", scale=1, offset=0, size=ncomp, units="", unstructured=False)
 	return _Signal(data=covariance, name=name, dimensions=[zdim, rowdim, coldim],
 				   metadata={"components": list(components)}, signal_type="Image")
 
