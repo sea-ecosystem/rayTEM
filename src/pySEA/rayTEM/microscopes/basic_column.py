@@ -1,26 +1,45 @@
 """Builder for the default generic TEM column (``basic_column.sea``).
 
-Constructs a complete, instrument-agnostic microscope template:
+Constructs a complete, instrument-agnostic 200 kV microscope template at
+realistic scales — the source initializes all three propagation
+representations consistently (geometric rays, beam-envelope covariance, and a
+coherent wavefunction), and every element sits at a plausible physical z:
 
-1. **G** — gun section: electron ``Source`` (200 kV).
-2. **C** — condenser section: three round lenses (C1–C3), each bracketed by a
-   dipole pair (one pair before, one pair after), with a quadrupole pair at the
-   section end.
-3. **O** — objective section: upper/lower lenses OL1 & OL2, a dipole pair before
-   OL1 and one after OL2, and a quadrupole at the very end.
-4. **P** — projector section: four lenses (PL1–PL4), each with a pre and post
-   dipole pair, ending in a zero-length named ``detector`` plane.
+1. **G** — gun section: 200 kV ``Source`` (2.5 µm RMS beam, 0.1 mrad
+   divergence), 12 cm accelerator drift into the condenser.
+2. **C** — condenser section: three round lenses C1 (f = 45 mm), C2 (30 mm),
+   C3 (90 mm), each bracketed by a dipole pair (one before, one after), a
+   quadrupole pair at the section end.
+3. **O** — objective section: OL1 (f = 8 mm) and OL2 (f = 10 mm) around a 4 mm
+   sample gap, a dipole pair before OL1 and one after OL2, and a quadrupole at
+   the very end.
+4. **P** — projector section: PL1–PL4 (f = 25/40/60/80 mm), each with a pre
+   and post dipole pair, a 30 cm camera drift, and a zero-length named
+   ``detector`` plane at the very end (total column ≈ 1.3 m).
+
+Lens strengths are derived from focal lengths through the thick-lens relation
+``1/f = K·sin(K·L)`` (the form used by ``Lens.transfer_matrix``), so each lens
+carries a physical bore length and the resulting Larmor rotation.
 
 A *dipole pair* is two thin dipoles at the same plane whose kick axes are
 rotated 45° with respect to each other (``axis=0`` and ``axis=π/4``). A
 *quadrupole pair* is two thin quadrupoles of opposite-sign strength (a
-quadrupole rotated 90° is exactly a sign flip; a true 45°/skew quadrupole is not
-yet representable because ``Quadrapole`` has no axis parameter).
+quadrupole rotated 90° is exactly a sign flip; a true 45°/skew quadrupole is
+not yet representable because ``Quadrapole`` has no axis parameter).
 
-All deflector/stigmator strengths default to zero (an aligned column); the round
-lenses carry placeholder focusing strengths meant to be calibrated per
-instrument. Running this module rebuilds and saves ``basic_column.sea`` next to
-this file.
+All deflector/stigmator strengths default to zero (an aligned column).
+Running this module rebuilds and saves ``basic_column.sea`` next to this file.
+
+Notes
+-----
+The wave representation initializes a *coherent* 200 kV Gaussian wavefunction
+matching the source size on a 20 µm / 256² grid — exact at the source plane
+(and in its Fourier/qx-qy plane). Propagating it through cm-focal-length
+lenses on this fixed grid is, however, outside the sampling limit of the
+angular-spectrum method: the lens phase gradient ``k·x/f`` exceeds the grid
+Nyquist ``π/dx`` by 10–100×, because a µm-scale 200 kV beam spans ~10⁵–10⁶
+wavelengths of phase space. Use the ray and covariance modes for full-column
+transport; use the wave mode near planes of interest.
 
 Related
 -------
@@ -34,6 +53,66 @@ import numpy as xp
 
 from pySEA.rayTEM.elements import Source, Drift, Lens, Dipole, Quadrapole
 from pySEA.rayTEM.assemblies import Microscope, MicroscopeSection
+
+
+def strength_for_focal_length(f: float, length: float) -> float:
+	r"""Solve the thick-lens strength ``K`` that yields focal length ``f``.
+
+	Inverts the thick-lens focusing relation used by ``Lens.transfer_matrix``
+	(Brown 1983 alternate form),
+
+	.. math:: 1/f = K \sin(K L),
+
+	on the first branch ``K L < π/2``, so a physical bore length can be kept
+	while specifying optics by focal length.
+
+	Parameters
+	----------
+	f : float
+		Target focal length in metres.
+	length : float
+		Lens bore length ``L`` in metres (must be > 0).
+
+	Returns
+	-------
+	float
+		Lens strength ``K`` such that ``K·sin(K·length) = 1/f``.
+
+	Raises
+	------
+	ValueError
+		If ``f`` is shorter than the first-branch minimum ``sin(π/2)·π/(2L)``
+		(i.e. no solution with ``K L < π/2``).
+
+	Notes
+	-----
+	The first-branch bound means ``f`` must satisfy ``f ≥ 2·length/π``.
+	"""
+	from scipy.optimize import brentq
+	K_max = (xp.pi / 2 - 1e-9) / length
+	if 1.0 / f > K_max * xp.sin(K_max * length):
+		raise ValueError(f"f={f} m is unreachable with L={length} m on the first branch; need f >= {2*length/xp.pi:.4f} m.")
+	return brentq(lambda K: K * xp.sin(K * length) - 1.0 / f, 1e-9, K_max)
+
+
+def round_lens(name: str, f: float, length: float) -> Lens:
+	"""Build a thick round lens specified by focal length.
+
+	Parameters
+	----------
+	name : str
+		Lens name.
+	f : float
+		Focal length in metres.
+	length : float
+		Bore length in metres.
+
+	Returns
+	-------
+	Lens
+		Lens whose strength satisfies ``K·sin(K·length) = 1/f``.
+	"""
+	return Lens(name=name, strength=strength_for_focal_length(f, length), length=length)
 
 
 def dipole_pair(name: str, strength: float = 0.0) -> list:
@@ -82,54 +161,71 @@ def quadrupole_pair(name: str, strength: float = 0.0) -> list:
 
 
 def build_basic_column(voltage: float = 200.0) -> Microscope:
-	"""Assemble the default generic TEM column.
+	"""Assemble the default generic TEM column at realistic scales.
+
+	The source seeds all three representations consistently: a 5×5 grid of rays
+	over ±2.5 µm with ±0.1 mrad fans, a diagonal covariance with the same RMS
+	size/divergence, and a coherent 200 kV Gaussian wavefunction of the same
+	transverse size on a 20 µm / 256² grid.
 
 	Parameters
 	----------
 	voltage : float, optional
-		Accelerating voltage in kilovolts for the source, by default 200.
+		Accelerating voltage in kilovolts, by default 200.
 
 	Returns
 	-------
 	Microscope
-		The assembled ``basic column`` microscope (G, C, O, P sections with a
-		``detector`` plane at the very end).
+		The assembled ``basic column`` (G, C, O, P sections, ``detector`` plane
+		at ≈1.3 m).
 	"""
-	# 1) G — gun: the source, plus a drift into the condenser
+	beam_size = 2.5e-6		# RMS transverse size entering the condenser (m)
+	beam_angle = 1e-4		# RMS divergence (rad)
+
+	# 1) G — gun: the source, plus the accelerator drift into the condenser
 	gun = MicroscopeSection(name="G", elements=[
-		Source(name="G", voltage=voltage, size=(1e-3, 1e-3), np_xy=(3, 3),
-			   angle=(5e-3, 5e-3), na_xy=(3, 3)),
-		Drift(length=0.10),
+		Source(name="G", voltage=voltage,
+			   size=(beam_size, beam_size), np_xy=(5, 5),
+			   angle=(beam_angle, beam_angle), na_xy=(3, 3),
+			   field_shape=(256, 256), field_extent=8 * beam_size,
+			   field_kind="gaussian"),
+		Drift(length=0.12),
 	])
 
-	# 2) C — condenser: three lenses, each with a dipole pair before and after,
+	# 2) C — condenser: C1/C2/C3, each with a dipole pair before and after,
 	#    plus a quadrupole pair at the end
 	c_elements = []
-	for i, strength in enumerate([3.0, 3.5, 3.0], start=1):
-		c_elements += dipole_pair(f"C{i}_Dpre")
-		c_elements += [Lens(name=f"C{i}", strength=strength, length=0.02)]
-		c_elements += dipole_pair(f"C{i}_Dpost")
-		c_elements += [Drift(length=0.15)]
+	for name, f, gap in [("C1", 0.045, 0.07), ("C2", 0.030, 0.09), ("C3", 0.090, 0.10)]:
+		c_elements += dipole_pair(f"{name}_Dpre")
+		c_elements += [round_lens(name, f=f, length=0.02)]
+		c_elements += dipole_pair(f"{name}_Dpost")
+		c_elements += [Drift(length=gap)]
 	c_elements += quadrupole_pair("CQ")
-	c_elements += [Drift(length=0.10)]
+	c_elements += [Drift(length=0.05)]
 	condenser = MicroscopeSection(name="C", elements=c_elements)
 
-	# 3) O — objective: dipole pair, OL1, OL2, dipole pair, quadrupole at the end
+	# 3) O — objective: OL1/OL2 twin around a 4 mm sample gap, dipole pair
+	#    before OL1 and after OL2, quadrupole at the very end
 	o_elements = []
 	o_elements += dipole_pair("O_Dpre")
-	o_elements += [Lens(name="OL1", strength=4.0, length=0.02), Drift(length=0.08),
-				   Lens(name="OL2", strength=4.0, length=0.02)]
+	o_elements += [round_lens("OL1", f=0.008, length=0.01),
+				   Drift(name="sample", length=0.004),
+				   round_lens("OL2", f=0.010, length=0.01)]
 	o_elements += dipole_pair("O_Dpost")
-	o_elements += [Drift(length=0.10), Quadrapole(name="OQ", strength=0.0), Drift(length=0.10)]
+	o_elements += [Drift(length=0.06), Quadrapole(name="OQ", strength=0.0), Drift(length=0.12)]
 	objective = MicroscopeSection(name="O", elements=o_elements)
 
-	# 4) P — projector: four lenses, each with pre and post dipole pairs
+	# 4) P — projector: PL1–PL4, each with pre and post dipole pairs, then the
+	#    camera drift and the detector plane
 	p_elements = []
-	for i, strength in enumerate([2.5, 3.0, 3.0, 2.5], start=1):
-		p_elements += dipole_pair(f"PL{i}_Dpre")
-		p_elements += [Lens(name=f"PL{i}", strength=strength, length=0.02)]
-		p_elements += dipole_pair(f"PL{i}_Dpost")
-		p_elements += [Drift(length=0.12)]
+	for name, f, gap in [("PL1", 0.025, 0.05), ("PL2", 0.040, 0.07),
+						 ("PL3", 0.060, 0.09), ("PL4", 0.080, 0.0)]:
+		p_elements += dipole_pair(f"{name}_Dpre")
+		p_elements += [round_lens(name, f=f, length=0.015)]
+		p_elements += dipole_pair(f"{name}_Dpost")
+		if gap:
+			p_elements += [Drift(length=gap)]
+	p_elements += [Drift(length=0.30)]			# camera length to the detector
 	# 5) detector plane at the very end (zero-length named marker)
 	p_elements += [Drift(name="detector", length=0.0)]
 	projector = MicroscopeSection(name="P", elements=p_elements)
@@ -143,4 +239,4 @@ if __name__ == "__main__":
 	target = os.path.join(here, "basic_column.sea")
 	scope.to_sea(target)
 	print("saved", target)
-	print(repr(scope))
+	print("total length (m):", round(sum(s.length for s in scope.sections), 4))
