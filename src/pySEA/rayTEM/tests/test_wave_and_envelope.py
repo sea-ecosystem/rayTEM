@@ -27,8 +27,9 @@ def test_relativistic_wavelength_rejects_nonpositive():
 
 # --- beam-envelope (covariance) propagation --------------------------------
 
-from pySEA.rayTEM import Source,Lens,Drift,MicroscopeSection,columnByName,findPlanes
+from pySEA.rayTEM import Source,Lens,Drift,MicroscopeSection,Microscope,columnByName,findPlanes
 from pySEA.rayTEM import beam_widths,emittance,fix_ray_dims
+from pySEA.rayTEM.seashells import sea_available
 from pySEA.rayTEM.postprocessing import zFromFractional
 
 def test_moments_match_monte_carlo_covariance():
@@ -43,8 +44,8 @@ def test_moments_match_monte_carlo_covariance():
 		Sigma0[k,k] = v
 	mu0 = np.zeros(6)
 
-	# analytic
-	cov = section.propagate_moments(mu0=mu0, Sigma0=Sigma0)
+	# analytic (covariance_matrix is now a calibrated Signal; use its .data)
+	cov = section.propagate_moments(mu0=mu0, Sigma0=Sigma0).data
 
 	# monte-carlo: sample a bundle from N(mu0, Sigma0) and trace it
 	rng = np.random.default_rng(0)
@@ -61,6 +62,34 @@ def test_moments_match_monte_carlo_covariance():
 	# relative Frobenius error small for large N
 	rel = np.linalg.norm(sample_cov-analytic_cov)/np.linalg.norm(analytic_cov)
 	assert rel < 0.02, f"covariance mismatch, rel={rel}"
+
+@pytest.mark.skipif(not sea_available, reason="covariance Signal requires sea_eco")
+def test_covariance_matrix_is_a_signal():
+	from pySEA.sea_eco.architecture.base_structure import Signal
+	section = MicroscopeSection(elements=[
+		Source(size=(0.3,0.2),angle=(0.05,0.04)), Drift(length=1),
+		Lens(strength=1.5,length=0.0), Drift(length=1.0)])
+	cov = section.propagate_moments()
+	assert isinstance(cov, Signal) and cov is section.covariance_matrix
+	assert cov.data.shape[1:] == (6,6)
+	assert [d.name for d in cov.dimensions.dimensions] == ["z","row","col"]
+	assert cov.metadata.to_dict()["components"] == list("x xt y yt z E".split())
+
+def test_show_plots_each_mode_headless():
+	import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200, field_shape=(16,16), field_extent=2e-3, angle=(0.03,0.03)),
+		Drift(length=0.05), Lens(strength=6.0, length=0.0), Drift(length=0.05)])])
+	# each kind should draw into a provided axis without raising
+	for kind in ("ray","moments","wave"):
+		fig, ax = plt.subplots()
+		mic.show(kind=kind, plt_ax=ax)
+		plt.close(fig)
+	# unknown kind is a clear error
+	fig, ax = plt.subplots()
+	with pytest.raises(ValueError):
+		mic.show(kind="bogus", plt_ax=ax)
+	plt.close(fig)
 
 def test_emittance_conserved_through_symplectic_elements():
 	# Drifts and thin lenses are symplectic (det M = 1), so RMS emittance is invariant.
@@ -217,11 +246,11 @@ def test_propagate_dispatcher_routes_to_each_mode():
 	r_direct = section.propagate_ray()
 	assert np.allclose(r_disp, r_direct)
 
-	# moments mode via each alias returns the covariance stack
-	cov = section.propagate(kind="moments")
+	# moments mode via each alias returns the covariance Signal
+	cov = section.propagate(kind="moments").data
 	assert cov.shape[1:] == (6,6)
-	assert np.allclose(cov, section.propagate(kind="covariance"))
-	assert np.allclose(cov, section.propagate(kind="envelope"))
+	assert np.allclose(cov, section.propagate(kind="covariance").data)
+	assert np.allclose(cov, section.propagate(kind="envelope").data)
 
 	# wave mode returns a stacked wavefield matching propagate_wave
 	w_disp = section.propagate(kind="wave")
