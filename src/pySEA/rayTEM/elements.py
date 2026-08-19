@@ -924,13 +924,15 @@ class Dipole(Element):
 		self.length = length
 		self.strength = strength
 		self.calibration = calibration
-		
-		if axis.lower() == 'x':
+		self.axis = axis	# keep the user's axis spec so .sea round-trips preserve the rotation
+
+		# strings must be tested before calling .lower() (floats have no .lower())
+		if isinstance(axis, str) and axis.lower() == 'x':
 			self.phi = 0
-		elif axis.lower() == 'y':
+		elif isinstance(axis, str) and axis.lower() == 'y':
 			self.phi = xp.pi/2
-		elif isinstance(axis, float):
-			if axis > 0 and axis <= 2*np.pi:
+		elif isinstance(axis, (int, float)):
+			if axis > 0 and axis <= 2*xp.pi:
 				self.phi = axis
 			else:
 				self.phi = xp.remainder(axis + xp.pi, 2 * xp.pi) - xp.pi
