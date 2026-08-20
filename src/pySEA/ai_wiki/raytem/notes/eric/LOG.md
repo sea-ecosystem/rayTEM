@@ -7,6 +7,13 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-20 — [Under Construction] Unify wave-mode naming on "wave"
+**Goal:** The wave signal is the object everywhere; rename the Source "field" API and driver kwargs to wave terminology (wave/wave_scaled/wave_shape/wave_kind/wave0).
+**Why:** Eric's review: "field" was an undefined synonym for the wave signal, inconsistent with rays()/moments() and the .wave/.wave_scaled containers.
+- [ ] Source API rename (field->wave family)
+- [ ] driver field0->wave0 + regenerate basic_column.sea
+- [ ] tests/examples/wiki sync
+
 ## 2026-08-20 — [Done] Transparent Element defaults + aperture field_kind
 **Goal:** Every propagation kind works as identity on the root Element class, and the aperture initial wave becomes a `field_kind` instead of a separate seeding path.
 **Why:** Eric's review: propagation defaults must be shared root-class behavior (identity matrix / phase of nothing), not subclass-only; and the source should hold one wavefunction generator with kinds, not parallel seeding functions.
