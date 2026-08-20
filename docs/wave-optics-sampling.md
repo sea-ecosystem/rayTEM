@@ -99,7 +99,51 @@ at `z = f` and Fresnel Gaussian spreading); the realistic `basic_column`
 template is valid at the source plane but not through its cm-focal-length
 lenses.
 
-## Remedies (roadmap)
+## Scaled Fresnel propagation (implemented): `propagate_wave_scaled`
+
+The co-moving / scaled-coordinates remedy is now implemented as a sibling wave
+mode, `propagate_wave_scaled` (dispatcher `kind="wave-scaled"`). The wave is
+factored as
+
+```
+ψ(x, y, z) = (1/s(z)) · U(ξ, η, τ) · exp[i k (x² + y²) / 2R(z)],
+ξ = x/s,  η = y/s,  1/R = s′/s,  τ = ∫ dz′/s²
+```
+
+so the reduced field `U` obeys the ordinary paraxial equation in `(ξ, η, τ)`
+and is propagated by the *same* angular-spectrum kernel over `Δτ`
+(carrier-free). What this buys:
+
+- **Lens phases never touch the grid.** A round lens updates only the
+  curvature state, `1/R⁺ = 1/R⁻ − 1/f` (`U⁺ = U⁻`), so the lens-phase
+  sampling criterion above disappears entirely — cm-focal-length electron
+  lenses are exact.
+- **The grid zooms with the beam.** Through a free segment `s` evolves
+  linearly, `s(z) = s₀[1 + Δz/R₀]`, and the physical pixel is always
+  `Δx = |s|·Δξ`, so a converging beam is followed at constant relative
+  resolution. `Δτ = Δz / (s₀²[1 + Δz/R₀])` in closed form (verified against
+  the numerical integral in the test suite).
+- **Non-quadratic phases still apply to U** (quadrupole saddle, dipole tilt,
+  future aberrations), evaluated at physical coordinates `x = s·ξ` and
+  protected by a per-pixel `|Δχ| < π` sampling guard — stigmator-scale
+  strengths pass; over-strong settings fail loudly instead of aliasing.
+- **Reconstruction back to physical x, y** at any logged plane:
+  `Microscope.wavefield_at(z_or_name, target_dx=..., target_shape=...)`
+  returns a standard calibrated wavefield Signal — on the native `|s|·Δξ`
+  grid, or band-limited-resampled onto a prescribed grid for an external
+  package (e.g. multislice) to consume.
+
+State lives in the sea_eco architecture: `Δξ/Δη` on the ξ/η `Dimension`
+calibration, the chart scalars `(s, R, τ)` in metadata (single plane) and as
+companion Signals in the `.wave_scaled` `SignalSet` (stacked result, sharing
+the plane-z axis with the U stack).
+
+**Remaining limit — crossovers.** The chart is singular where `s → 0` (the
+beam crossover). Propagation stops with an actionable error naming the
+crossover position before `|s|` falls below `s_min` (default `1e-3`);
+switching to a fresh chart through a crossover is a tracked follow-up.
+
+## Other remedies (roadmap)
 
 1. **Collins / ABCD Gaussian-mode transport (grid-free, exact).** Propagate the
    complex beam parameter `1/q = 1/R − i λ/(π w²)` through the *same* transfer
@@ -110,11 +154,8 @@ lenses.
    limit `σₓσθ = λ/4π` reproduces the Gaussian **widths** exactly, but carries no
    phase); the q-parameter adds the wave content — curvature, Gouy phase,
    complex field — while remaining exact in any linear paraxial system.
-2. **Co-moving / scaled coordinates.** Factor the quadratic reference phase out
-   analytically (Fresnel scaling / two-step propagators) and sample only the
-   residual field on a grid that zooms with the beam. Standard in light-optics
-   codes; removes the lens-phase criterion at the cost of bookkeeping.
-3. **Hybrid transport (the field-standard pattern).** Use matrices for the
+   (Tracked as GitHub issue #1.)
+2. **Hybrid transport (the field-standard pattern).** Use matrices for the
    column, and attach sampled-wave patches only at planes of interest — e.g.
    apply the aberration phase in the diffraction plane and a wave calculation
    across the specimen window.
@@ -128,3 +169,7 @@ lenses.
   quadratic phases and the space–bandwidth product).
 - Matsushima, K. & Shimobaba, T., "Band-limited angular spectrum method,"
   *Opt. Express* **17**, 19662 (2009) (the drift criterion).
+- Sziklas, E. A. & Siegman, A. E., "Mode calculations in unstable resonators
+  with flowing saturable gain. 2: Fast Fourier transform method,"
+  *Appl. Opt.* **14**, 1874 (1975) (the coordinate-scaling transform behind
+  `propagate_wave_scaled`).
