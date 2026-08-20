@@ -227,6 +227,163 @@ def make_rays_signalset(rays, I, R, components, name="rays"):
 	return _SignalSet(signals=[ray_sig, I_sig, R_sig], main_signal=0, name=name)
 
 
+class _Phase:
+	"""Lightweight fallback phase container used when sea_eco is unavailable.
+
+	Mirrors the read surface consumed by the wave propagators: the real phase
+	array plus its application domain. Produced by the phase-Signal factories in
+	place of a calibrated ``Signal``.
+
+	Parameters
+	----------
+	data : numpy.ndarray
+		Real phase χ (radians), shape ``(ny, nx)``.
+	space : str
+		Application domain: ``'position'`` (real-space screen) or
+		``'scattering'`` (reciprocal-space propagator phase).
+	name : str
+		Human-readable name.
+
+	Attributes
+	----------
+	data : numpy.ndarray
+		The phase array.
+	space : str
+		The application domain.
+	name : str
+		The name.
+	"""
+	def __init__(self, data, space, name):
+		self.data = data
+		self.space = space
+		self.name = name
+
+
+def make_screen_phase_signal(data, dx, dy, name="phase screen"):
+	"""Wrap a real-space phase screen χ(x, y) as a space-tagged Signal.
+
+	The returned Signal's transverse Dimensions carry the pixel calibration and
+	``space='position'``, which is how the wave propagators recognize a
+	real-space screen (multiply by ``exp(iχ)``). Falls back to :class:`_Phase`
+	when sea_eco is absent.
+
+	Parameters
+	----------
+	data : numpy.ndarray
+		Real phase χ (radians), shape ``(ny, nx)``.
+	dx, dy : float
+		Sample spacings of the grid the phase was built on (metres).
+	name : str, optional
+		Signal name, by default ``"phase screen"``.
+
+	Returns
+	-------
+	Signal or _Phase
+		The domain-tagged phase.
+
+	Related
+	-------
+	make_kernel_phase_signal : Reciprocal-space counterpart.
+	phase_space_of : Reads the domain tag back.
+	"""
+	import numpy as _np
+	data = _np.asarray(data)
+	if not sea_available:
+		return _Phase(data, "position", name)
+	ny, nx = data.shape
+	xdim = _Dimension(name="x", space="position", scale=dx, offset=-(nx // 2) * dx, size=nx, units="m")
+	ydim = _Dimension(name="y", space="position", scale=dy, offset=-(ny // 2) * dy, size=ny, units="m")
+	return _Signal(data=data, name=name, dimensions=[ydim, xdim], signal_type="Image")
+
+
+def make_kernel_phase_signal(data, fx, fy, name="propagator phase"):
+	"""Wrap a reciprocal-space propagator phase χ(f_x, f_y) as a space-tagged Signal.
+
+	The returned Signal's Dimensions carry the (unshifted, fftfreq-ordered)
+	spatial frequencies and ``space='scattering'``, which is how the wave
+	propagators recognize a phase to apply in the FFT domain. Falls back to
+	:class:`_Phase` when sea_eco is absent.
+
+	Parameters
+	----------
+	data : numpy.ndarray
+		Real phase χ (radians), shape ``(ny, nx)``, in fftfreq order.
+	fx, fy : numpy.ndarray
+		Spatial-frequency axes (1/m), fftfreq order, lengths ``nx``/``ny``.
+	name : str, optional
+		Signal name, by default ``"propagator phase"``.
+
+	Returns
+	-------
+	Signal or _Phase
+		The domain-tagged phase.
+
+	Related
+	-------
+	make_screen_phase_signal : Real-space counterpart.
+	phase_space_of : Reads the domain tag back.
+	"""
+	import numpy as _np
+	data = _np.asarray(data)
+	if not sea_available:
+		return _Phase(data, "scattering", name)
+	fxdim = _Dimension(name="f_x", space="scattering", scale=1, offset=0, size=len(fx),
+					   values=_np.asarray(fx, float), units="1/m", unstructured=True)
+	fydim = _Dimension(name="f_y", space="scattering", scale=1, offset=0, size=len(fy),
+					   values=_np.asarray(fy, float), units="1/m", unstructured=True)
+	return _Signal(data=data, name=name, dimensions=[fydim, fxdim], signal_type="Image")
+
+
+def phase_space_of(phase):
+	"""Return the application domain of a phase produced by the factories above.
+
+	Parameters
+	----------
+	phase : Signal or _Phase
+		A domain-tagged phase.
+
+	Returns
+	-------
+	str
+		``'position'`` or ``'scattering'`` (read from the fallback attribute or
+		from the first Dimension's ``space``).
+	"""
+	if isinstance(phase, _Phase):
+		return phase.space
+	return phase.dimensions.dimensions[0].space
+
+
+def grid_of(dimensions):
+	"""Normalize a transverse-grid description to ``(ny, nx, dy, dx)``.
+
+	Accepts either a sea_eco ``Dimensions`` object whose last two axes are the
+	calibrated transverse y/x dimensions (the wavefield-Signal layout), or a
+	plain ``(shape, dx, dy)`` tuple used on the sea_eco-absent fallback path.
+
+	Parameters
+	----------
+	dimensions : Dimensions or tuple
+		Grid description: a ``Dimensions`` with trailing y/x axes, or
+		``((ny, nx), dx, dy)``.
+
+	Returns
+	-------
+	tuple
+		``(ny, nx, dy, dx)``.
+
+	Raises
+	------
+	TypeError
+		If ``dimensions`` is neither form.
+	"""
+	if isinstance(dimensions, tuple) and len(dimensions) == 3:
+		(ny, nx), dx, dy = dimensions
+		return ny, nx, dy, dx
+	dims = dimensions.dimensions
+	ydim, xdim = dims[-2], dims[-1]
+	return int(ydim.size), int(xdim.size), float(ydim.scale), float(xdim.scale)
+
+
 def as_ndarray(x):
 	"""Return the raw ndarray behind a sea_eco ``Signal`` (passthrough for arrays).
 
