@@ -7,6 +7,18 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-19 — [Under Construction] Scaled Fresnel propagation (propagate_wave_scaled)
+**Goal:** Implement Eric's scaled-Fresnel handoff — factor ψ = (1/s)·U(ξ,η,τ)·exp[ikr²/2R] so the grid rides the beam (Δx = |s|Δξ), with a per-element `phase_shift` contract shared by the fixed and scaled wave paths and reconstruction back to physical x,y at any plane.
+**Why:** The fixed-grid wave mode cannot cross a real column (lens phases 10–100× over grid Nyquist; ~10⁶ transverse-scale range — see docs/wave-optics-sampling.md); this removes the reference curvature and scale from the sampled array analytically.
+- [ ] phase_shift contract + fixed-path refactor (regression-safe)
+- [ ] scaled Signal seam + factor/reconstruct identity
+- [ ] scaled free propagation (constant then linear s; Δτ closed form verified)
+- [ ] scaled element consumption (lens→R; quad/dipole→phase on U, guarded)
+- [ ] target-grid Fourier reconstruction; entrance-plane equivalence
+- [ ] drivers + .wave_scaled SignalSet + wavefield_at + dispatcher kind
+- [ ] docs/wiki; crossover chart-switching follow-up issue
+Note: PLAN_2026-08-19_scaled-fresnel-wave.md was rewritten — the earlier pilot-Gaussian/ABCD draft it held was rejected in favor of the handoff's pure phase-factorization formulation.
+
 ## 2026-08-08 — [Done] Signal-backed results and new propagation modes
 **Goal:** Add `propagate_moments` (beam-envelope covariance) and `propagate_wave` (paraxial wave optics, sea_eco Signal-backed), each with its own result container, on a cleaned geometric ray vector.
 **Why:** rayTEM only had geometric ray transfer; the intended `[x,θx,y,θy,z,E]` reorder (I/R pulled out of the ray columns) was left half-finished (7/13 tests red on a fresh clone), and there was no wavelength, phase, or ensemble-statistics machinery.
