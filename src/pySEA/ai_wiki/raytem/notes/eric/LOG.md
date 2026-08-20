@@ -7,11 +7,13 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
-## 2026-08-20 — [Under Construction] Stale ray-doc fixes + scaled-wave basic_column demo
+## 2026-08-20 — [Done] Stale ray-doc fixes + scaled-wave basic_column demo
 **Goal:** Correct the wiki's pre-refactor 8-column ray descriptions and demonstrate `propagate_wave_scaled` end-to-end on the basic_column template (saved result + cross-section and x-y slice plots).
 **Why:** elements.md/assemblies.md still document I/R as ray columns and 8x8 matrices (misleading after the 6-col refactor), and the new scaled mode has no worked column example.
-- [ ] wiki ray-doc fixes (+ ecosystem index if env allows)
-- [ ] scaled-wave demo: propagate basic_column, save, cross-section + x-y slices
+- [x] wiki ray-doc fixes (+ ecosystem index if env allows)
+- [x] scaled-wave demo: propagate basic_column, save, cross-section + x-y slices
+
+**Outcome:** elements.md/assemblies.md now describe the 6-col geometric convention (separate .I/.R, 6x6 matrices, apply_intensity/apply_rotation flow); AGENTS.md re-synced from CLAUDE.md (it still carried the old 8-col invariants) and the invariants list all four propagation modes. Root cause of the ecosystem-index refresh error was a discover_wiki bug (MultiplexedPath join lands on the first pySEA namespace root) — fixed in sea-ecosystem (branch claude/raytem-beam-propagation-3mi4up); pysea-refresh-wiki now regenerates the ecosystem index from sibling envs. New examples/04_scaledWave_basic_column.py: loads basic_column.sea, threads Source.scaled_field() element-by-element via propagate_wave_scaled (drifts subdivided adaptively, finer as the chart converges), saves the U + s/R/tau SignalSet to basic_column_scaled_wave.sea, and renders the |psi(x,0,z)| cross-section (wave analog of plot2D) plus x-y |psi|^2 slices on the zooming physical grid (dx: 78 nm -> 1.6 nm at s=0.02). Propagation stops just before the C1 crossover at z~174.9 mm with the guard's actionable error demonstrated — continuing through crossovers is issue #2. Energy conserved to 1e-6 at every logged plane.
 
 ## 2026-08-19 — [Done] Scaled Fresnel propagation (propagate_wave_scaled)
 **Goal:** Implement Eric's scaled-Fresnel handoff — factor ψ = (1/s)·U(ξ,η,τ)·exp[ikr²/2R] so the grid rides the beam (Δx = |s|Δξ), with a per-element `phase_shift` contract shared by the fixed and scaled wave paths and reconstruction back to physical x,y at any plane.
