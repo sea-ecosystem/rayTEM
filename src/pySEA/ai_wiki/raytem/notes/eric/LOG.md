@@ -7,6 +7,13 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-20 — [Under Construction] Transparent Element defaults + aperture field_kind
+**Goal:** Every propagation kind works as identity on the root Element class, and the aperture initial wave becomes a `field_kind` instead of a separate seeding path.
+**Why:** Eric's review: propagation defaults must be shared root-class behavior (identity matrix / phase of nothing), not subclass-only; and the source should hold one wavefunction generator with kinds, not parallel seeding functions.
+- [ ] identity transfer_matrix + transparent phase_shift on Element
+- [ ] field_kind='aperture' + aperture_radius; scaled_field simplification
+- [ ] tests + example + wiki sync
+
 ## 2026-08-20 — [Done] Stale ray-doc fixes + scaled-wave basic_column demo
 **Goal:** Correct the wiki's pre-refactor 8-column ray descriptions and demonstrate `propagate_wave_scaled` end-to-end on the basic_column template (saved result + cross-section and x-y slice plots).
 **Why:** elements.md/assemblies.md still document I/R as ray columns and 8x8 matrices (misleading after the 6-col refactor), and the new scaled mode has no worked column example.
