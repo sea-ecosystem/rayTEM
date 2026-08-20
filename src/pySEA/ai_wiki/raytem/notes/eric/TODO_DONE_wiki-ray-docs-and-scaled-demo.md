@@ -9,7 +9,7 @@
       columns and 8×8 matrices); align to `convention = [x,xt,y,yt,z,E]`,
       6×6 matrices, separate `.I`/`.R`; regenerate ecosystem index.md if the
       env allows
-- [ ] Step 2 — scaled-wave demo on `microscopes/basic_column.sea`:
+- [x] Step 2 — scaled-wave demo on `microscopes/basic_column.sea`:
       `propagate_wave_scaled` (crossovers handled by stopping at the s_min
       guard per section), save the scaled result to `.sea`, render a
       |ψ|(x, z) cross-section (wave analog of the ray plot2D) and x–y
