@@ -1,8 +1,8 @@
 """Scaled-Fresnel wave propagation through the basic_column template.
 
 Demonstrates ``propagate_wave_scaled`` on ``microscopes/basic_column.sea``:
-a flat-intensity hard-aperture wavefunction Θ(a−r) from
-``Source.scaled_field(aperture_radius=...)`` (200 kV) is carried through the
+a flat-intensity hard-aperture wavefunction Θ(a−r) (200 kV; the source's
+``field_kind`` is set to ``'aperture'``) is carried through the
 accelerator drift and the C1 condenser lens on the zooming (ξ, η) grid — the lens is
 absorbed into the curvature state R, so its centimetre-scale focal phase never
 touches the sampled array (the fixed-grid mode cannot sample it; see
@@ -73,7 +73,11 @@ def propagate_until_crossover(scope):
 		returned as ``guard_message``.
 	"""
 	source = scope.sections[0].elements[0]
-	state = source.scaled_field(aperture_radius=APERTURE_RADIUS)
+	# select the flat-intensity aperture wavefunction on the source's one
+	# field generator (the stored template defaults to field_kind='gaussian')
+	source.field_kind = "aperture"
+	source.aperture_radius = APERTURE_RADIUS
+	state = source.scaled_field()
 	planes = [state]
 	markers = {}
 	guard_message = None

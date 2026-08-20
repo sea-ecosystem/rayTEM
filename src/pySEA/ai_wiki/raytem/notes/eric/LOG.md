@@ -7,12 +7,14 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
-## 2026-08-20 — [Under Construction] Transparent Element defaults + aperture field_kind
+## 2026-08-20 — [Done] Transparent Element defaults + aperture field_kind
 **Goal:** Every propagation kind works as identity on the root Element class, and the aperture initial wave becomes a `field_kind` instead of a separate seeding path.
 **Why:** Eric's review: propagation defaults must be shared root-class behavior (identity matrix / phase of nothing), not subclass-only; and the source should hold one wavefunction generator with kinds, not parallel seeding functions.
-- [ ] identity transfer_matrix + transparent phase_shift on Element
-- [ ] field_kind='aperture' + aperture_radius; scaled_field simplification
-- [ ] tests + example + wiki sync
+- [x] identity transfer_matrix + transparent phase_shift on Element
+- [x] field_kind='aperture' + aperture_radius; scaled_field simplification
+- [x] tests + example + wiki sync
+
+**Outcome:** The root Element now carries a working default for every propagation kind: transfer_matrix returns the identity (no longer @abstractmethod) and phase_shift returns the transparent program (full-length free kernel on the fixed path, (0.0, None) on the scaled path), with length=0 seeded in Element.__init__ — a bare Element propagates as identity through ray/moments/wave/wave-scaled (new test). Source now has one wavefunction generator: field_kind gained 'aperture' (flat-intensity Theta(a-r) at the new aperture_radius attribute, delegating to aperture_field); scaled_field() lost its separate aperture_radius kwarg and always seeds from field(). Note: the scaled run still stops at the C1 beam crossover — that is the chart singularity s->0 of the (s, R, tau) reference frame (issue #2), not missing methods; every element in the column has all four propagation functions. 48 tests green; demo output unchanged.
 
 ## 2026-08-20 — [Done] Stale ray-doc fixes + scaled-wave basic_column demo
 **Goal:** Correct the wiki's pre-refactor 8-column ray descriptions and demonstrate `propagate_wave_scaled` end-to-end on the basic_column template (saved result + cross-section and x-y slice plots).

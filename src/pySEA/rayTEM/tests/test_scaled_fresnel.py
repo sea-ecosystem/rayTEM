@@ -214,8 +214,9 @@ def _run_aperture_lens_system():
 	# initial wave built by the Source method the plan mandates (Eq 9, hard edge);
 	# the system regime itself uses an optical wavelength so the fixed-grid
 	# reference is valid for comparison (electron scale is covered separately).
-	src = Source(voltage=200, field_shape=(n, n), field_extent=n * dx)
-	psi0, dx_src, dy_src, _, _ = read_wavefield(src.aperture_field(radius))
+	src = Source(voltage=200, field_shape=(n, n), field_extent=n * dx,
+				 field_kind="aperture", aperture_radius=radius)
+	psi0, dx_src, dy_src, _, _ = read_wavefield(src.field())
 	assert np.isclose(dx_src, dx) and np.isclose(dy_src, dx)
 	assert np.allclose(psi0, wo.aperture_mask(wo.plane_wave((n, n)), dx, dx, radius))
 	# ordinary fixed-grid reference (valid regime for these parameters)
@@ -373,18 +374,18 @@ from pySEA.rayTEM.seashells import sea_available
 def _scaled_column():
 	"""Source (200 kV, 10 um aperture) -> drift -> f=45 mm lens -> drift."""
 	K = np.sqrt(1 / 45e-3)		# thin-lens power = K^2 = 1/f
-	return [Source(voltage=200, field_shape=(64, 64), field_extent=64 * 2.5e-7),
+	return [Source(voltage=200, field_shape=(64, 64), field_extent=64 * 2.5e-7,
+				   field_kind="aperture", aperture_radius=5e-6),
 			Drift(length=1e-3), Lens(strength=K, length=0.0, name="OL"),
 			Drift(length=20e-3)]
 
 
 def test_column_integration_scaled():
-	radius = 5e-6
 	sec = MicroscopeSection(elements=_scaled_column())
-	out = sec.propagate_wave_scaled(field0=sec.elements[0].scaled_field(radius))
+	out = sec.propagate_wave_scaled()		# driver seeds from Source.scaled_field()
 
 	# standalone chained element calls must match the driver bit-for-bit
-	f = sec.elements[0].scaled_field(radius)
+	f = sec.elements[0].scaled_field()
 	for ele in sec.elements:
 		f = ele.propagate_wave_scaled(f)
 	U_end, dxi, deta, lam, s_end, R_end, tau_end, z_end = read_scaled_wavefield(f)
@@ -405,13 +406,13 @@ def test_column_integration_scaled():
 
 	# dispatcher routes kind="wave-scaled" (element, section, and microscope)
 	sec2 = MicroscopeSection(elements=_scaled_column())
-	sec2.propagate(field0=sec2.elements[0].scaled_field(radius), kind="wave-scaled")
+	sec2.propagate(kind="wave-scaled")
 	U2 = read_scaled_wavefield(sec2._wave_scaled_planes[-1])[0]
 	assert np.allclose(U2, U_drv)
 
 	# Microscope driver + physical-wave reconstruction at a requested plane
 	mic = Microscope(sections=[MicroscopeSection(elements=_scaled_column())])
-	mic.propagate_wave_scaled(field0=mic.sections[0].elements[0].scaled_field(radius))
+	mic.propagate_wave_scaled()
 	psi_sig = mic.wavefield_at(21e-3)
 	data, dx, dy, lam_out, z_out = read_wavefield(psi_sig)
 	assert np.isclose(z_out, 21e-3) and np.isclose(lam_out, lam)
@@ -429,7 +430,53 @@ def test_scaled_guard_through_column():
 	# a drift long enough to reach the crossover must raise the actionable error
 	K = np.sqrt(1 / 45e-3)
 	sec = MicroscopeSection(elements=[
-		Source(voltage=200, field_shape=(64, 64), field_extent=64 * 2.5e-7),
+		Source(voltage=200, field_shape=(64, 64), field_extent=64 * 2.5e-7,
+			   field_kind="aperture", aperture_radius=5e-6),
 		Lens(strength=K, length=0.0), Drift(length=44.96e-3)])
 	with pytest.raises(ValueError, match="crossover"):
-		sec.propagate_wave_scaled(field0=sec.elements[0].scaled_field(5e-6))
+		sec.propagate_wave_scaled()
+
+
+# --- transparent base-element defaults ------------------------------------------
+
+from pySEA.rayTEM.elements import Element
+
+
+def test_base_element_is_transparent_in_every_kind():
+	# the root Element carries a working identity default for each propagation
+	# kind: identity transfer matrix (rays/moments), phase of nothing (waves)
+	ele = Element(name="generic")
+	assert np.allclose(ele.transfer_matrix(), np.eye(6))
+	r0 = RNG.normal(size=(4, 6))
+	assert np.allclose(ele.propagate_ray(r0.copy()), r0)		# zero length: unchanged
+	mu, Sig = RNG.normal(size=6), np.eye(6)
+	mu_out, Sig_out = ele.propagate_moments(mu, Sig)
+	assert np.allclose(mu_out, mu) and np.allclose(Sig_out, Sig)
+	# fixed wave path: zero length -> empty phase program -> field unchanged
+	assert ele.phase_shift(GRID, LAM) == []
+	src = Source(voltage=200, field_shape=(32, 32), field_extent=2e-6)
+	w0 = src.field()
+	w1 = ele.propagate_wave(w0)
+	assert np.allclose(w1.data, w0.data)
+	# scaled path: (0, None) split -> state unchanged
+	assert ele.phase_shift(GRID, LAM, scaled=True) == (0.0, None)
+	s0 = src.scaled_field()
+	s1 = ele.propagate_wave_scaled(s0)
+	U0 = read_scaled_wavefield(s0)[0] ; U1 = read_scaled_wavefield(s1)[0]
+	assert np.allclose(U1, U0)
+	# a finite length makes the transparent element a pure free segment
+	ele.length = 0.01
+	items = ele.phase_shift(GRID, LAM)
+	assert len(items) == 1 and phase_space_of(items[0]) == "scattering"
+
+
+def test_field_kind_aperture_matches_aperture_field():
+	src = Source(voltage=200, field_shape=(64, 64), field_extent=16e-6,
+				 field_kind="aperture", aperture_radius=5e-6)
+	via_kind, dx, dy, *_ = read_wavefield(src.field())
+	via_builder, *_ = read_wavefield(src.aperture_field(5e-6))
+	assert np.allclose(via_kind, via_builder)
+	assert np.allclose(np.unique(np.abs(via_kind)), [0.0, 1.0])	# flat intensity
+	with pytest.raises(ValueError, match="aperture_radius"):
+		Source(voltage=200, field_shape=(64, 64), field_extent=16e-6,
+			   field_kind="aperture").field()

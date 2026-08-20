@@ -11,37 +11,37 @@
 |   `Element.transfer_matrix(self)` | 101 |
 |   `Element.propagate_ray(self, r0, z, z0)` | 105 |
 |   `Element.phase_shift(self, dimensions, wavelength, scaled=False, s=1.0)` | 111 |
-|   `Element.propagate_wave(self, signal)` | 128 |
-|   `Element.propagate_wave_scaled(self, signal, s_min=1e-3)` | 134 |
-|   `Element.propagate(self, *args, kind='ray', **kwargs)` | 143 |
-| Source | 150 |
-|   `Source.__init__(self, name, size, np_xy, angle, na_xy, position)` | 154 |
-|   `Source.rays(self)` | 161 |
-|   `Source.propagate_ray(self, r0, **kwargs)` | 165 |
-|   `Source.field(self)` / `Source.aperture_field(self, radius)` / `Source.scaled_field(self, aperture_radius=None)` | 169 |
-| Aperture | 180 |
-|   `Aperture.__init__(self, name, radius, calibration, position)` | 184 |
-|   `Aperture.propagate_ray(self, r0, z, z0)` | 188 |
-|   `Aperture.propagate_wave(self, signal)` / `Aperture.propagate_wave_scaled(self, signal, s_min=1e-3)` | 192 |
-| Drift | 201 |
-|   `Drift.__init__(self, name, length, calibration, position)` | 205 |
-|   `Drift.transfer_matrix(self)` | 209 |
-| Quadrapole | 215 |
-|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 219 |
-|   `Quadrapole.transfer_matrix(self)` | 223 |
-| Dipole | 229 |
-|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 233 |
-|   `Dipole.transfer_matrix(self)` | 237 |
-|   `Dipole.propagate_ray(self, r0, z, z0)` | 241 |
-| Lens | 247 |
-|   `Lens.__init__(self, name, length, strength, calibration, position)` | 251 |
-|   `Lens.transfer_matrix(self)` | 259 |
-|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 266 |
-| Prism | 272 |
-|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 276 |
-|   `Prism.focus_matrix(self)` | 280 |
-|   `Prism.bending_matrix(self, s)` | 284 |
-|   `Prism.transfer_matrix(self)` | 288 |
+|   `Element.propagate_wave(self, signal)` | 132 |
+|   `Element.propagate_wave_scaled(self, signal, s_min=1e-3)` | 138 |
+|   `Element.propagate(self, *args, kind='ray', **kwargs)` | 147 |
+| Source | 154 |
+|   `Source.__init__(self, name, size, np_xy, angle, na_xy, position)` | 158 |
+|   `Source.rays(self)` | 165 |
+|   `Source.propagate_ray(self, r0, **kwargs)` | 169 |
+|   `Source.field(self)` / `Source.aperture_field(self, radius)` / `Source.scaled_field(self)` | 173 |
+| Aperture | 187 |
+|   `Aperture.__init__(self, name, radius, calibration, position)` | 191 |
+|   `Aperture.propagate_ray(self, r0, z, z0)` | 195 |
+|   `Aperture.propagate_wave(self, signal)` / `Aperture.propagate_wave_scaled(self, signal, s_min=1e-3)` | 199 |
+| Drift | 208 |
+|   `Drift.__init__(self, name, length, calibration, position)` | 212 |
+|   `Drift.transfer_matrix(self)` | 216 |
+| Quadrapole | 222 |
+|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 226 |
+|   `Quadrapole.transfer_matrix(self)` | 230 |
+| Dipole | 236 |
+|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 240 |
+|   `Dipole.transfer_matrix(self)` | 244 |
+|   `Dipole.propagate_ray(self, r0, z, z0)` | 248 |
+| Lens | 254 |
+|   `Lens.__init__(self, name, length, strength, calibration, position)` | 258 |
+|   `Lens.transfer_matrix(self)` | 266 |
+|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 273 |
+| Prism | 279 |
+|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 283 |
+|   `Prism.focus_matrix(self)` | 287 |
+|   `Prism.bending_matrix(self, s)` | 291 |
+|   `Prism.transfer_matrix(self)` | 295 |
 <!-- END AUTO-GENERATED TOC -->
 
 # elements.py
@@ -92,15 +92,15 @@ Same idea as `fix_mat_dims` but for ray arrays. Given a compact `(N, k)` array w
 
 ## Element
 
-Abstract base class for all optic elements. Enforces that subclasses implement `transfer_matrix()` and provides a concrete `propagate_ray()` shared by all elements.
+Base class for all optic elements. It is **transparent by default in every propagation kind** — identity transfer matrix (rays/moments), a phase of nothing plus free transport over its `length` (waves) — so any element propagates out of the box and subclasses override only what their physics requires.
 
 ### `Element.__init__(self, name, kind)`
 
-Stores `name` and `kind` only. Concrete element subclasses call `super().__init__()` and then set their physics attributes (`strength`, `length`, `position`, `calibration`, etc.).
+Stores `name` and `kind`, and seeds the transparent default `length = 0`. Concrete element subclasses call `super().__init__()` and then set their physics attributes (`strength`, `length`, `position`, `calibration`, etc.).
 
-### `Element.transfer_matrix(self)` *(abstract)*
+### `Element.transfer_matrix(self)`
 
-Must return a 6×6 numpy array (use `fix_mat_dims` to build it). The base class marks this abstract — any subclass omitting it will raise `TypeError` at instantiation.
+Returns a 6×6 numpy array. The base class returns the **identity** (a transparent element); subclasses with ray physics override it, building the matrix with `fix_mat_dims`.
 
 ### `Element.propagate_ray(self, r0, z, z0)`
 
@@ -122,8 +122,12 @@ at physical coords x = s·ξ (Eqs 47–48; `None` when fully absorbed).
 Definitions: Lens χ = −k(x²+y²)/2f (scaled: full 1/f → R, no screen);
 Quadrapole χ = −k(x²−y²)/2f_q saddle (scaled: nothing absorbed, full screen);
 Dipole χ = k(θ_x·x + θ_y·y) (scaled: full screen); Drift reciprocal kernel
-(scaled: `(0.0, None)` — the driver runs the free segment). Base raises
-NotImplementedError; so do Source/Aperture (not phases) and Prism.
+(scaled: `(0.0, None)` — the driver runs the free segment). The base `Element`
+is **transparent** (the wave analog of the identity matrix): a phase of
+nothing plus free transport over its `length` — fixed path returns a single
+full-length kernel (empty program at zero length), scaled path returns
+`(0.0, None)`. Source/Aperture/Prism override it to fail loudly because their
+wave action is not a phase.
 
 ### `Element.propagate_wave(self, signal)`
 
@@ -166,14 +170,17 @@ Constructs a full 2D grid of (position × angle) rays via `meshgrid`-style broad
 
 No-op: passes `r0` through unchanged. Exists so `MicroscopeSection.propagate_ray` can iterate over all elements including the Source without special-casing it.
 
-### `Source.field(self)` / `Source.aperture_field(self, radius)` / `Source.scaled_field(self, aperture_radius=None)`
+### `Source.field(self)` / `Source.aperture_field(self, radius)` / `Source.scaled_field(self)`
 
-Initial-wavefield builders on the source's grid (`field_shape`/`field_extent`,
-wavelength from `voltage`). `field()` builds plane/gaussian/point fields;
-`aperture_field(radius)` builds the hard-aperture wave Θ(a−r) (handoff Eq 9);
-`scaled_field()` seeds scaled propagation with s = 1, R = ∞, τ = 0 so U₀ = ψ₀
-(Eqs 10–11), optionally through `aperture_field`. `Source.propagate_wave` and
-`propagate_wave_scaled` are passthroughs (drivers seed from the builders).
+The source holds **one wavefunction generator**: `field()` builds the initial
+wave on the source's grid (`field_shape`/`field_extent`, wavelength from
+`voltage`) of the kind selected by `field_kind` —
+`'plane' | 'gaussian' | 'point' | 'aperture'`, where `'aperture'` is the
+flat-intensity hard-aperture wave Θ(a−r) at `aperture_radius` (handoff Eq 9,
+implemented by the `aperture_field(radius)` builder). `scaled_field()` seeds
+scaled propagation from that same `field()` with s = 1, R = ∞, τ = 0 so
+U₀ = ψ₀ (Eqs 10–11). `Source.propagate_wave` and `propagate_wave_scaled` are
+passthroughs (drivers seed from the generator).
 
 ---
 
