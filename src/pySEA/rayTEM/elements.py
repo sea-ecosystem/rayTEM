@@ -7,7 +7,6 @@ import numpy as xp
 flag_gpu = False
 import traceback,inspect
 from warnings import warn
-from abc import abstractmethod
 
 from .seashells import SEASerializable
 
@@ -171,7 +170,7 @@ def _check_screen_sampling(chi, name:str):
 class Element(SEASerializable):
 	def __init__(self, name:str='', kind:str=None ) -> SEASerializable:
 		"""General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional attributed can be defined at the inheriting class level. e.g. a Lens has a "strength", but a Drift section does not.
-		Inheriting classes are required to define a transfer_matrix (enforced via abstractmethod), and *may* define a custom propagate_ray function if the standard "[ x₂ xθ₂ y₂ yθ₂ ....] = [7x7] @ [ x₁ xθ₁ y₁ yθ₁....]" is not applicable
+		The base class carries a working transparent default for every propagation kind (identity transfer_matrix, phase shift of nothing), so inheriting classes only override what their physics requires: transfer_matrix and/or phase_shift, and *may* define a custom propagate_ray function if the standard "[ x₂ xθ₂ y₂ yθ₂ ....] = [6x6] @ [ x₁ xθ₁ y₁ yθ₁....]" is not applicable
 
 		Parameters
 		----------
@@ -182,6 +181,7 @@ class Element(SEASerializable):
 		"""
 		self.name = name
 		self.kind = kind
+		self.length = 0		# transparent default: zero physical extent (subclasses overwrite)
 
 	#####################################
     # region: Dunders
@@ -282,13 +282,27 @@ class Element(SEASerializable):
 	# endregion
 	#####################################
 
-	@abstractmethod # abstractmethod means a class which inherits Element will be required to define this function
 	def transfer_matrix(self) -> xp.ndarray:
-		r"""Transfer matrix for ray propogation: https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis
-		This will typically be defined in terms of ray position x,y, and ray angles xt,yt.
-		inheriting class only needs to define with the relevant parameters, then inflate using fix_mat_dims
+		r"""Transfer matrix for ray propagation: https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis
+
+		The ray-side element contract. The base ``Element`` returns the
+		**identity** — a transparent element that transports rays (and moments)
+		unchanged — so every propagation kind works on any element by default.
+		Subclasses with ray physics override this, typically defining the
+		relevant 2×2 block(s) and inflating with :func:`fix_mat_dims`.
+
+		Returns
+		-------
+		xp.ndarray
+			The ``len(convention) × len(convention)`` transfer matrix (identity
+			on the base class).
+
+		Related
+		-------
+		phase_shift : The wave-side counterpart (transparent on the base class).
+		propagate_ray, propagate_moments : Consumers of this matrix.
 		"""
-		pass
+		return xp.eye(len(convention))
 
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
 		r"""Wave-side element contract: the phase this element imprints on a wave.
@@ -327,19 +341,27 @@ class Element(SEASerializable):
 			``scaled=False``: list of phase Signals in application order.
 			``scaled=True``: ``(power, screen_or_None)``.
 
-		Raises
-		------
-		NotImplementedError
-			The base ``Element`` has no wave definition; each element class must
-			state its own (``Lens``, ``Quadrapole``, ``Dipole``, ``Drift`` do).
-
 		Related
 		-------
-		transfer_matrix : The ray-side counterpart.
+		transfer_matrix : The ray-side counterpart (identity on the base class).
 		propagate_wave, propagate_wave_scaled : Consumers of this contract.
+
+		Notes
+		-----
+		The base ``Element`` is **transparent** — the wave analog of the
+		identity transfer matrix: a phase of nothing, plus free-space transport
+		over the element's ``length`` (the fixed path returns a single
+		full-length kernel, or an empty program for zero length; the scaled
+		path returns ``(0.0, None)`` — its drivers already run the free
+		segments). Element classes with wave physics (``Lens``, ``Quadrapole``,
+		``Dipole``, ``Drift``) override this with their explicit phase;
+		non-phase elements (``Source``, ``Aperture``, ``Prism``) override it to
+		fail loudly because their wave action lives elsewhere.
 		"""
-		raise NotImplementedError(f"{type(self).__name__} does not define phase_shift; "
-								  "each element class must state its wave physics explicitly.")
+		if scaled:
+			return 0.0, None
+		return self._phase_program(dimensions, wavelength, None,
+								   self.name or type(self).__name__)
 
 	def _phase_program(self, dimensions, wavelength:float, chi, name:str):
 		"""Assemble the fixed-grid phase program ``[kernel(L/2), screen, kernel(L/2)]``.
@@ -674,6 +696,18 @@ class Source(Element):
 			``wavelength`` (used by wave-optics/envelope propagation) and populates the
 			per-ray ``E`` (beam energy, keV) column. When ``None`` (default), ``E``
 			stays 0 and no wavelength is defined, preserving purely geometric behavior.
+		field_shape : tuple, optional
+			Wave-optics grid ``(ny, nx)``, by default ``(128, 128)``.
+		field_extent : float, optional
+			Wave-optics grid physical size (metres); ``None`` (default) derives
+			``8 * max(size)``.
+		field_kind : {'plane', 'gaussian', 'point', 'aperture'}, optional
+			Which initial wavefunction :meth:`field` generates, by default
+			``'gaussian'``. ``'aperture'`` is the flat-intensity hard-aperture
+			wave Θ(a−r) and requires ``aperture_radius``.
+		aperture_radius : float, optional
+			Aperture radius ``a`` (metres) for ``field_kind='aperture'``; must
+			fit inside the grid half-extent.
 
 		Attributes
 		----------
@@ -692,7 +726,8 @@ class Source(Element):
 			voltage:float=None,
 			field_shape:tuple=(128,128),	# wave-optics grid (ny, nx)
 			field_extent:float=None,		# wave-optics grid physical size (m); None -> derived from size
-			field_kind:Literal['plane','gaussian','point']='gaussian') -> SEASerializable:
+			field_kind:Literal['plane','gaussian','point','aperture']='gaussian',
+			aperture_radius:float=None) -> SEASerializable:	# radius (m) for field_kind='aperture'
 		super().__init__(name=name, kind='Source')
 
 		self.size = size
@@ -711,6 +746,7 @@ class Source(Element):
 		self.field_shape = field_shape
 		self.field_extent = field_extent
 		self.field_kind = field_kind
+		self.aperture_radius = aperture_radius
 
 	# Source term, initialize rays at sweep of angles and positions
 	def rays(self):
@@ -791,11 +827,14 @@ class Source(Element):
 	def field(self):
 		"""Build the initial complex wavefield for wave-optics propagation.
 
-		The wave-mode analog of :meth:`rays` and :meth:`moments`. Constructs a 2D
-		scalar field on a calibrated grid whose physical extent is ``field_extent``
-		(or ``8 * max(size)`` when unset) sampled at ``field_shape`` points, of the
-		kind given by ``field_kind`` (``'plane'``, ``'gaussian'`` sized by ``size``,
-		or ``'point'``). Requires a defined wavelength (set ``voltage``).
+		The wave-mode analog of :meth:`rays` and :meth:`moments` — the source's
+		one wavefunction generator. Constructs a 2D scalar field on a calibrated
+		grid whose physical extent is ``field_extent`` (or ``8 * max(size)``
+		when unset) sampled at ``field_shape`` points, of the kind given by
+		``field_kind``: ``'plane'``, ``'gaussian'`` sized by ``size``,
+		``'point'``, or ``'aperture'`` (a flat-intensity plane wave clipped at
+		``aperture_radius``, via :meth:`aperture_field`). Requires a defined
+		wavelength (set ``voltage``).
 
 		Returns
 		-------
@@ -806,11 +845,14 @@ class Source(Element):
 		------
 		ValueError
 			If no wavelength is defined (``voltage`` unset), if the grid extent
-			cannot be derived (zero source ``size`` and no ``field_extent``), or if
-			``field_kind`` is not recognized.
+			cannot be derived (zero source ``size`` and no ``field_extent``), if
+			``field_kind`` is not recognized, or if ``field_kind='aperture'``
+			with no ``aperture_radius`` set (or one that does not fit the grid).
 
 		Related
 		-------
+		aperture_field : The Θ(a−r) builder behind ``field_kind='aperture'``.
+		scaled_field : Seeds scaled-Fresnel propagation from this field.
 		Element.propagate_wave : Transports this field through an element.
 		seashells.make_wavefield_signal : Wraps the array as a calibrated Signal.
 		"""
@@ -818,6 +860,10 @@ class Source(Element):
 		from .seashells import make_wavefield_signal
 		if self.wavelength is None:
 			raise ValueError("Source.field requires a wavelength; construct Source(voltage=<kV>).")
+		if self.field_kind == 'aperture':
+			if self.aperture_radius is None:
+				raise ValueError("field_kind='aperture' requires aperture_radius (metres).")
+			return self.aperture_field(self.aperture_radius)
 		ny, nx = self.field_shape
 		extent = self.field_extent if self.field_extent is not None else 8 * max(self.size)
 		if extent <= 0:
@@ -830,7 +876,7 @@ class Source(Element):
 		elif self.field_kind == 'point':
 			data = point_source((ny, nx))
 		else:
-			raise ValueError(f"Unknown field_kind {self.field_kind!r}; expected 'plane', 'gaussian', or 'point'.")
+			raise ValueError(f"Unknown field_kind {self.field_kind!r}; expected 'plane', 'gaussian', 'point', or 'aperture'.")
 		z0 = self._position if self._position is not None else 0.0
 		return make_wavefield_signal(data, dx, dy, self.wavelength, z=z0,
 									 name=(self.name or 'source') + ' wavefield')
@@ -916,20 +962,15 @@ class Source(Element):
 		"""
 		return signal
 
-	def scaled_field(self, aperture_radius:float=None):
+	def scaled_field(self):
 		r"""Build the initial scaled-Fresnel state from this source.
 
 		Seeds scaled propagation (handoff Eqs 10–11): the initial chart is
 		``s = 1``, ``R = ∞``, ``τ = 0``, so the reduced field is the physical one,
-		``U₀ = ψ₀``, with ``Δξ = Δx``. The physical field comes from
-		:meth:`aperture_field` when ``aperture_radius`` is given, else from
-		:meth:`field` (plane/gaussian/point per the source's ``field_kind``).
-
-		Parameters
-		----------
-		aperture_radius : float, optional
-			Build the hard-aperture initial wave Θ(a−r) of this radius (metres);
-			``None`` (default) uses the source's ordinary field builder.
+		``U₀ = ψ₀``, with ``Δξ = Δx``. The physical field always comes from
+		:meth:`field` — the source's one wavefunction generator — so the kind
+		(plane/gaussian/point/aperture) is selected by ``field_kind`` exactly as
+		for the fixed-grid path.
 
 		Returns
 		-------
@@ -939,16 +980,16 @@ class Source(Element):
 		Raises
 		------
 		ValueError
-			Propagated from the underlying field builder (no wavelength, or an
-			aperture radius that does not fit the grid).
+			Propagated from :meth:`field` (no wavelength, unknown ``field_kind``,
+			or a missing/oversized ``aperture_radius``).
 
 		Related
 		-------
-		field, aperture_field : The physical initial-field builders wrapped here.
+		field : The physical initial-field builder wrapped here.
 		Element.propagate_wave_scaled : Consumes the state built here.
 		"""
 		from .seashells import make_scaled_wavefield_signal, read_wavefield
-		psi = self.aperture_field(aperture_radius) if aperture_radius is not None else self.field()
+		psi = self.field()
 		data, dx, dy, wavelength, z = read_wavefield(psi)
 		return make_scaled_wavefield_signal(data, dx, dy, wavelength, s=1.0, R=xp.inf, tau=0.0,
 											z=z, name=(self.name or 'source') + ' scaled wavefield')

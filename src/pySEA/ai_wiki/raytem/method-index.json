@@ -642,7 +642,7 @@
     "signature": "columnByName(name)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 29,
+    "source_lineno": 28,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 79,
     "wiki_method_lineno": null
@@ -654,7 +654,7 @@
     "signature": "fix_mat_dims(m, columnNames)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 32,
+    "source_lineno": 31,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 83,
     "wiki_method_lineno": null
@@ -666,7 +666,7 @@
     "signature": "fix_ray_dims(rays, columnNames)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 39,
+    "source_lineno": 38,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 87,
     "wiki_method_lineno": null
@@ -678,10 +678,10 @@
     "signature": "__init__(self, name, radius, calibration, position)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1002,
+    "source_lineno": 1043,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 180,
-    "wiki_method_lineno": 184
+    "wiki_lineno": 187,
+    "wiki_method_lineno": 191
   },
   {
     "class": "Aperture",
@@ -690,10 +690,10 @@
     "signature": "propagate_ray(self, r0, z, z0)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1050,
+    "source_lineno": 1091,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 180,
-    "wiki_method_lineno": 188
+    "wiki_lineno": 187,
+    "wiki_method_lineno": 195
   },
   {
     "class": "Aperture",
@@ -702,9 +702,9 @@
     "signature": "apply_intensity(self, I, r0)",
     "doc": "Attenuate intensity by the fraction of beam area the aperture passes.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1061,
+    "source_lineno": 1102,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 180,
+    "wiki_lineno": 187,
     "wiki_method_lineno": null
   },
   {
@@ -714,9 +714,9 @@
     "signature": "propagate_moments(self, mu, Sigma)",
     "doc": "Pass moments through unchanged (aperture is treated as non-truncating here).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1083,
+    "source_lineno": 1124,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 180,
+    "wiki_lineno": 187,
     "wiki_method_lineno": null
   },
   {
@@ -726,10 +726,10 @@
     "signature": "propagate_wave(self, signal)",
     "doc": "Apply a hard circular aperture to the wavefield.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1107,
+    "source_lineno": 1148,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 180,
-    "wiki_method_lineno": 192
+    "wiki_lineno": 187,
+    "wiki_method_lineno": 199
   },
   {
     "class": "Aperture",
@@ -738,9 +738,9 @@
     "signature": "propagate_wave_scaled(self, signal, s_min)",
     "doc": "Apply the hard circular aperture to the scaled field U.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1135,
+    "source_lineno": 1176,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 180,
+    "wiki_lineno": 187,
     "wiki_method_lineno": null
   },
   {
@@ -750,9 +750,9 @@
     "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
     "doc": "An aperture is an amplitude mask, not a phase (not part of this contract).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1169,
+    "source_lineno": 1210,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 180,
+    "wiki_lineno": 187,
     "wiki_method_lineno": null
   },
   {
@@ -762,10 +762,10 @@
     "signature": "__init__(self, name, position, length, strength, calibration, axis)",
     "doc": "Dipole.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1451,
+    "source_lineno": 1492,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 229,
-    "wiki_method_lineno": 233
+    "wiki_lineno": 236,
+    "wiki_method_lineno": 240
   },
   {
     "class": "Dipole",
@@ -774,9 +774,9 @@
     "signature": "effective_tilts(self)",
     "doc": "Return the calibration-scaled deflection angles ``(tilt_x, tilt_y)``.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1505,
+    "source_lineno": 1546,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 229,
+    "wiki_lineno": 236,
     "wiki_method_lineno": null
   },
   {
@@ -786,10 +786,10 @@
     "signature": "transfer_matrix(self)",
     "doc": "Transfer matrix for ray propogation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1536,
+    "source_lineno": 1577,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 229,
-    "wiki_method_lineno": 237
+    "wiki_lineno": 236,
+    "wiki_method_lineno": 244
   },
   {
     "class": "Dipole",
@@ -798,9 +798,9 @@
     "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
     "doc": "Dipole phase: the linear tilt :math:`\\chi = k(\\theta_x x + \\theta_y y)`.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1576,
+    "source_lineno": 1617,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 229,
+    "wiki_lineno": 236,
     "wiki_method_lineno": null
   },
   {
@@ -810,10 +810,10 @@
     "signature": "__init__(self, name, length, calibration, position)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1219,
+    "source_lineno": 1260,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 201,
-    "wiki_method_lineno": 205
+    "wiki_lineno": 208,
+    "wiki_method_lineno": 212
   },
   {
     "class": "Drift",
@@ -822,10 +822,10 @@
     "signature": "transfer_matrix(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1226,
+    "source_lineno": 1267,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 201,
-    "wiki_method_lineno": 209
+    "wiki_lineno": 208,
+    "wiki_method_lineno": 216
   },
   {
     "class": "Drift",
@@ -834,9 +834,9 @@
     "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
     "doc": "Free-space phase: the reciprocal-space Fresnel kernel over ``length``.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1243,
+    "source_lineno": 1284,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 201,
+    "wiki_lineno": 208,
     "wiki_method_lineno": null
   },
   {
@@ -846,7 +846,7 @@
     "signature": "__init__(self, name, kind)",
     "doc": "General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional attributed can be defined at the inheriting class level. e.g. a Lens has a \"strength\", but a Drift section does not.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 172,
+    "source_lineno": 171,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 93,
     "wiki_method_lineno": 97
@@ -928,9 +928,9 @@
     "method": "transfer_matrix",
     "kind": "method",
     "signature": "transfer_matrix(self)",
-    "doc": "Transfer matrix for ray propogation: https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis",
+    "doc": "Transfer matrix for ray propagation: https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 286,
+    "source_lineno": 285,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 93,
     "wiki_method_lineno": 101
@@ -942,7 +942,7 @@
     "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
     "doc": "Wave-side element contract: the phase this element imprints on a wave.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 293,
+    "source_lineno": 307,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 93,
     "wiki_method_lineno": 111
@@ -954,7 +954,7 @@
     "signature": "propagate_ray(self, r0, z, z0)",
     "doc": "propagate an array through an element.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 383,
+    "source_lineno": 405,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 93,
     "wiki_method_lineno": 105
@@ -966,7 +966,7 @@
     "signature": "apply_intensity(self, I, r0)",
     "doc": "Return the beam intensity after passing through this element.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 412,
+    "source_lineno": 434,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 93,
     "wiki_method_lineno": null
@@ -978,7 +978,7 @@
     "signature": "apply_rotation(self, R)",
     "doc": "Return the cumulative Larmor rotation after this element.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 439,
+    "source_lineno": 461,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 93,
     "wiki_method_lineno": null
@@ -990,7 +990,7 @@
     "signature": "propagate_moments(self, mu, Sigma)",
     "doc": "Propagate the beam's first and second moments through this element.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 463,
+    "source_lineno": 485,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 93,
     "wiki_method_lineno": null
@@ -1002,10 +1002,10 @@
     "signature": "propagate_wave(self, signal)",
     "doc": "Propagate a paraxial scalar wavefield through this element (fixed grid).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 505,
+    "source_lineno": 527,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 93,
-    "wiki_method_lineno": 128
+    "wiki_method_lineno": 132
   },
   {
     "class": "Element",
@@ -1014,10 +1014,10 @@
     "signature": "propagate_wave_scaled(self, signal, s_min)",
     "doc": "Propagate a scaled-Fresnel wavefield through this element.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 547,
+    "source_lineno": 569,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 93,
-    "wiki_method_lineno": 134
+    "wiki_method_lineno": 138
   },
   {
     "class": "Element",
@@ -1026,10 +1026,10 @@
     "signature": "propagate(self, *args, kind, **kwargs)",
     "doc": "Unified propagation dispatcher across the three modes.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 620,
+    "source_lineno": 642,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 93,
-    "wiki_method_lineno": 143
+    "wiki_method_lineno": 147
   },
   {
     "class": "Lens",
@@ -1038,10 +1038,10 @@
     "signature": "__init__(self, name, length, strength, calibration, position)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1689,
+    "source_lineno": 1730,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 247,
-    "wiki_method_lineno": 251
+    "wiki_lineno": 254,
+    "wiki_method_lineno": 258
   },
   {
     "class": "Lens",
@@ -1050,9 +1050,9 @@
     "signature": "focal_power(self)",
     "doc": "Return the focusing power ``1/f`` of this lens.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1733,
+    "source_lineno": 1774,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 247,
+    "wiki_lineno": 254,
     "wiki_method_lineno": null
   },
   {
@@ -1062,10 +1062,10 @@
     "signature": "transfer_matrix(self)",
     "doc": "Transfer matrix for ray propogation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1756,
+    "source_lineno": 1797,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 247,
-    "wiki_method_lineno": 259
+    "wiki_lineno": 254,
+    "wiki_method_lineno": 266
   },
   {
     "class": "Lens",
@@ -1074,9 +1074,9 @@
     "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
     "doc": "Round-lens phase: :math:`\\chi = -k(x^2+y^2)/(2f)` (handoff Eq 12).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1813,
+    "source_lineno": 1854,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 247,
+    "wiki_lineno": 254,
     "wiki_method_lineno": null
   },
   {
@@ -1086,10 +1086,10 @@
     "signature": "calibration_from_f_and_I(self, f, I, rotationPerAmp)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1848,
+    "source_lineno": 1889,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 247,
-    "wiki_method_lineno": 266
+    "wiki_lineno": 254,
+    "wiki_method_lineno": 273
   },
   {
     "class": "Prism",
@@ -1098,10 +1098,10 @@
     "signature": "__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)",
     "doc": "Prism.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1889,
+    "source_lineno": 1930,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 272,
-    "wiki_method_lineno": 276
+    "wiki_lineno": 279,
+    "wiki_method_lineno": 283
   },
   {
     "class": "Prism",
@@ -1110,10 +1110,10 @@
     "signature": "focus_matrix(self)",
     "doc": "Transfer matrix for the entrance/exit surfaces of the spectrometer used for ray propogation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1942,
+    "source_lineno": 1983,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 272,
-    "wiki_method_lineno": 280
+    "wiki_lineno": 279,
+    "wiki_method_lineno": 287
   },
   {
     "class": "Prism",
@@ -1122,10 +1122,10 @@
     "signature": "bending_matrix(self, s)",
     "doc": "Transfer matrix for the bending of the spectrometer used for ray propogation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1961,
+    "source_lineno": 2002,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 272,
-    "wiki_method_lineno": 284
+    "wiki_lineno": 279,
+    "wiki_method_lineno": 291
   },
   {
     "class": "Prism",
@@ -1134,10 +1134,10 @@
     "signature": "transfer_matrix(self)",
     "doc": "Transfer matrix for ray propogation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1980,
+    "source_lineno": 2021,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 272,
-    "wiki_method_lineno": 288
+    "wiki_lineno": 279,
+    "wiki_method_lineno": 295
   },
   {
     "class": "Prism",
@@ -1146,9 +1146,9 @@
     "signature": "propagate_wave(self, signal)",
     "doc": "Wave-optics propagation through a prism/spectrometer (not implemented).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1992,
+    "source_lineno": 2033,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 272,
+    "wiki_lineno": 279,
     "wiki_method_lineno": null
   },
   {
@@ -1158,9 +1158,9 @@
     "signature": "propagate_wave_scaled(self, signal, s_min)",
     "doc": "Scaled wave-optics propagation through a prism/spectrometer (not implemented).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2015,
+    "source_lineno": 2056,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 272,
+    "wiki_lineno": 279,
     "wiki_method_lineno": null
   },
   {
@@ -1170,10 +1170,10 @@
     "signature": "__init__(self, name, position, length, strength, calibration)",
     "doc": "Quadripole.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1275,
+    "source_lineno": 1316,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 215,
-    "wiki_method_lineno": 219
+    "wiki_lineno": 222,
+    "wiki_method_lineno": 226
   },
   {
     "class": "Quadrapole",
@@ -1182,9 +1182,9 @@
     "signature": "focal_powers(self)",
     "doc": "Return the astigmatic focusing powers ``(1/f_x, 1/f_y)``.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1336,
+    "source_lineno": 1377,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 215,
+    "wiki_lineno": 222,
     "wiki_method_lineno": null
   },
   {
@@ -1194,10 +1194,10 @@
     "signature": "transfer_matrix(self)",
     "doc": "Transfer matrix for ray propogation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1362,
+    "source_lineno": 1403,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 215,
-    "wiki_method_lineno": 223
+    "wiki_lineno": 222,
+    "wiki_method_lineno": 230
   },
   {
     "class": "Quadrapole",
@@ -1206,22 +1206,22 @@
     "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
     "doc": "Quadrupole phase: the astigmatic saddle :math:`\\chi = -k(P_x x^2 + P_y y^2)/2`.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1408,
+    "source_lineno": 1449,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 215,
+    "wiki_lineno": 222,
     "wiki_method_lineno": null
   },
   {
     "class": "Source",
     "method": "__init__",
     "kind": "method",
-    "signature": "__init__(self, name, size, np_xy, angle, na_xy, position, voltage, field_shape, field_extent, field_kind)",
+    "signature": "__init__(self, name, size, np_xy, angle, na_xy, position, voltage, field_shape, field_extent, field_kind, aperture_radius)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 686,
+    "source_lineno": 720,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 150,
-    "wiki_method_lineno": 154
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 158
   },
   {
     "class": "Source",
@@ -1230,10 +1230,10 @@
     "signature": "rays(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 716,
+    "source_lineno": 752,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 150,
-    "wiki_method_lineno": 161
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 165
   },
   {
     "class": "Source",
@@ -1242,10 +1242,10 @@
     "signature": "propagate_ray(self, r0, **kwargs)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 737,
+    "source_lineno": 773,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 150,
-    "wiki_method_lineno": 165
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 169
   },
   {
     "class": "Source",
@@ -1254,9 +1254,9 @@
     "signature": "moments(self)",
     "doc": "Seed the initial mean and covariance for beam-envelope propagation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 740,
+    "source_lineno": 776,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 150,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -1266,9 +1266,9 @@
     "signature": "propagate_moments(self, mu, Sigma)",
     "doc": "Pass moments through unchanged (the source only originates the beam).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 770,
+    "source_lineno": 806,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 150,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -1278,10 +1278,10 @@
     "signature": "field(self)",
     "doc": "Build the initial complex wavefield for wave-optics propagation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 791,
+    "source_lineno": 827,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 150,
-    "wiki_method_lineno": 169
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 173
   },
   {
     "class": "Source",
@@ -1290,9 +1290,9 @@
     "signature": "aperture_field(self, radius)",
     "doc": "Build a hard-aperture initial wavefield :math:`\\psi_0 = \\Theta(a - r)`.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 838,
+    "source_lineno": 884,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 150,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -1302,9 +1302,9 @@
     "signature": "propagate_wave(self, signal)",
     "doc": "Pass the wavefield through unchanged (the source only originates the beam).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 881,
+    "source_lineno": 927,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 150,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -1314,21 +1314,21 @@
     "signature": "propagate_wave_scaled(self, signal, s_min)",
     "doc": "Pass the scaled wavefield through unchanged (the source only originates the beam).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 899,
+    "source_lineno": 945,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 150,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
     "class": "Source",
     "method": "scaled_field",
     "kind": "method",
-    "signature": "scaled_field(self, aperture_radius)",
+    "signature": "scaled_field(self)",
     "doc": "Build the initial scaled-Fresnel state from this source.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 919,
+    "source_lineno": 965,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 150,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -1338,9 +1338,9 @@
     "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
     "doc": "A source originates fields; it imprints no phase (not part of this contract).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 956,
+    "source_lineno": 997,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 150,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -2490,7 +2490,7 @@
     "signature": "test_aperture_lens_system_scaled_vs_ordinary()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 236,
+    "source_lineno": 237,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
     "wiki_lineno": 96,
     "wiki_method_lineno": null
@@ -2502,7 +2502,7 @@
     "signature": "test_aperture_lens_system_converges_with_resolvable_edge()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 258,
+    "source_lineno": 259,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
     "wiki_lineno": 101,
     "wiki_method_lineno": null
@@ -2514,7 +2514,7 @@
     "signature": "test_grid_scaling_and_normalization()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 280,
+    "source_lineno": 281,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
     "wiki_lineno": 106,
     "wiki_method_lineno": null
@@ -2526,7 +2526,7 @@
     "signature": "test_entrance_plane_equivalence_on_target_grid()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 296,
+    "source_lineno": 297,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
     "wiki_lineno": 111,
     "wiki_method_lineno": null
@@ -2538,7 +2538,7 @@
     "signature": "test_electron_scale_invariants_and_guard()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 315,
+    "source_lineno": 316,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
     "wiki_lineno": 116,
     "wiki_method_lineno": null
@@ -2550,7 +2550,7 @@
     "signature": "test_scaled_wavefield_signal_roundtrip()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 344,
+    "source_lineno": 345,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
     "wiki_lineno": 121,
     "wiki_method_lineno": null
@@ -2562,7 +2562,7 @@
     "signature": "test_column_integration_scaled()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 381,
+    "source_lineno": 383,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
     "wiki_lineno": 126,
     "wiki_method_lineno": null
@@ -2574,9 +2574,33 @@
     "signature": "test_scaled_guard_through_column()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 428,
+    "source_lineno": 429,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
     "wiki_lineno": 131,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_base_element_is_transparent_in_every_kind",
+    "kind": "method",
+    "signature": "test_base_element_is_transparent_in_every_kind()",
+    "doc": "",
+    "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 445,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_field_kind_aperture_matches_aperture_field",
+    "kind": "method",
+    "signature": "test_field_kind_aperture_matches_aperture_field()",
+    "doc": "",
+    "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 473,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
+    "wiki_lineno": null,
     "wiki_method_lineno": null
   },
   {
