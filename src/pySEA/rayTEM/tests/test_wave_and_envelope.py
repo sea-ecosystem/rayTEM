@@ -78,7 +78,7 @@ def test_covariance_matrix_is_a_signal():
 def test_show_plots_each_mode_headless():
 	import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 	mic = Microscope(sections=[MicroscopeSection(elements=[
-		Source(voltage=200, field_shape=(16,16), field_extent=2e-3, angle=(0.03,0.03)),
+		Source(voltage=200, wave_shape=(16,16), wave_extent=2e-3, angle=(0.03,0.03)),
 		Drift(length=0.05), Lens(strength=6.0, length=0.0), Drift(length=0.05)])])
 	# each kind should draw into a provided axis without raising
 	for kind in ("ray","moments","wave"):
@@ -140,8 +140,8 @@ def test_wave_plane_wave_focuses_at_focal_length():
 	# the on-axis intensity is maximal at z=f, and larger there than before/after.
 	N, L, lam, f = 512, 4e-3, 500e-9, 0.5
 	dx = dy = L/N
-	field0 = wo.plane_wave((N,N))
-	focused = wo.focal_phase(field0, dx, dy, lam, 1.0/f, 1.0/f)	# power = 1/f
+	wave0 = wo.plane_wave((N,N))
+	focused = wo.focal_phase(wave0, dx, dy, lam, 1.0/f, 1.0/f)	# power = 1/f
 	c = N//2
 	def central_intensity(z):
 		fz = wo.angular_spectrum_propagate(focused, dx, dy, lam, z)
@@ -160,7 +160,7 @@ def test_wave_fresnel_gaussian_spreading():
 	sigma = 300e-6						# amplitude field exp(-r^2/(2 sigma^2))
 	w0 = np.sqrt(2)*sigma				# 1/e^2 intensity radius
 	zR = np.pi*w0**2/lam
-	field0 = wo.gaussian_field((N,N), dx, dy, sigma, sigma)
+	wave0 = wo.gaussian_field((N,N), dx, dy, sigma, sigma)
 
 	def rms_width_x(field):
 		I = np.abs(field)**2
@@ -172,16 +172,16 @@ def test_wave_fresnel_gaussian_spreading():
 	# at z=0 the measured RMS equals sigma/sqrt(2): the intensity marginal exp(-x^2/sigma^2)
 	# has variance sigma^2/2.
 	rms0_expected = sigma/np.sqrt(2)
-	assert abs(rms_width_x(field0) - rms0_expected)/rms0_expected < 0.02
+	assert abs(rms_width_x(wave0) - rms0_expected)/rms0_expected < 0.02
 	# at z=zR the beam should widen by ~sqrt(2)
-	fz = wo.angular_spectrum_propagate(field0, dx, dy, lam, zR)
-	ratio = rms_width_x(fz)/rms_width_x(field0)
+	fz = wo.angular_spectrum_propagate(wave0, dx, dy, lam, zR)
+	ratio = rms_width_x(fz)/rms_width_x(wave0)
 	assert abs(ratio - np.sqrt(2))/np.sqrt(2) < 0.05, f"width ratio {ratio}, expected ~{np.sqrt(2)}"
 
 def test_wave_microscope_stack_and_sea_roundtrip(tmp_path):
 	from pySEA.rayTEM import Source,Lens,Drift,MicroscopeSection,Microscope
 	section1 = MicroscopeSection(elements=[
-		Source(voltage=200, field_shape=(64,64), field_extent=2e-3, field_kind='gaussian'),
+		Source(voltage=200, wave_shape=(64,64), wave_extent=2e-3, wave_kind='gaussian'),
 		Drift(length=0.05), Lens(strength=8.0, length=0.0), Drift(length=0.05)])
 	section2 = MicroscopeSection(elements=[Drift(length=0.05)])
 	microscope = Microscope(sections=[section1, section2])
@@ -238,7 +238,7 @@ def test_rays_signalset_view():
 def test_propagate_dispatcher_routes_to_each_mode():
 	from pySEA.rayTEM import Source,Lens,Drift,MicroscopeSection
 	section = MicroscopeSection(elements=[
-		Source(voltage=200, field_shape=(32,32), field_extent=2e-3, angle=(0.02,0.02)),
+		Source(voltage=200, wave_shape=(32,32), wave_extent=2e-3, angle=(0.02,0.02)),
 		Drift(length=0.05), Lens(strength=6.0, length=0.0), Drift(length=0.05)])
 
 	# ray mode: propagate(kind="ray") matches propagate_ray

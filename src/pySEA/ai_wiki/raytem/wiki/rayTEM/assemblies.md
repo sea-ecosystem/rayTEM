@@ -14,8 +14,8 @@
 |   `MicroscopeSection.wobble(self, r0, elementIndex, func, kwargName, valRange, numSteps)` | 91 |
 |   `MicroscopeSection.named_positions` | 95 |
 |   `MicroscopeSection.propagate_ray(self, r0, z, verbose)` | 99 |
-|   `MicroscopeSection.propagate_wave(self, field0=None)` | 105 |
-|   `MicroscopeSection.propagate_wave_scaled(self, field0=None, s_min=1e-3)` | 114 |
+|   `MicroscopeSection.propagate_wave(self, wave0=None)` | 105 |
+|   `MicroscopeSection.propagate_wave_scaled(self, wave0=None, s_min=1e-3)` | 114 |
 |   `MicroscopeSection.propagate(self, *args, kind='ray', **kwargs)` | 125 |
 |   `MicroscopeSection.show(self, filename, title, ylims, zlims, regenerate)` | 130 |
 |   `MicroscopeSection.save(self, filename)` | 134 |
@@ -27,7 +27,7 @@
 |   `Microscope.adjust_element_length(self, element, newlength)` | 162 |
 |   `Microscope.named_positions` | 166 |
 |   `Microscope.propagate_ray(self, r0, z, verbose)` | 170 |
-|   `Microscope.propagate_wave(self, field0=None)` / `Microscope.propagate_wave_scaled(self, field0=None, s_min=1e-3)` | 174 |
+|   `Microscope.propagate_wave(self, wave0=None)` / `Microscope.propagate_wave_scaled(self, wave0=None, s_min=1e-3)` | 174 |
 |   `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)` | 181 |
 |   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 191 |
 |   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 196 |
@@ -102,16 +102,16 @@ Iterates through `self.elements` in order, passing the output of each element as
 
 If `r0=None` and the first element is a `Source`, calls `Source.rays()` to generate starting rays.
 
-### `MicroscopeSection.propagate_wave(self, field0=None)`
+### `MicroscopeSection.propagate_wave(self, wave0=None)`
 
 Fixed-grid wave driver: threads a 2D complex wavefield through
 `Element.propagate_wave`, logging a plane after each finite-length element or
 aperture (same append/replace logic as the ray path). Stacks per-plane fields
 into a calibrated `(n_planes, ny, nx)` Signal on `self.wave`; per-plane
 Signals stay on `self._wave_planes` for `Microscope` chaining. Seeds from
-`Source.field()` when `field0=None`.
+`Source.wave()` when `wave0=None`.
 
-### `MicroscopeSection.propagate_wave_scaled(self, field0=None, s_min=1e-3)`
+### `MicroscopeSection.propagate_wave_scaled(self, wave0=None, s_min=1e-3)`
 
 Scaled-Fresnel driver (same element loop and plane logging): threads the
 reduced field U + chart state (s, R, τ) through
@@ -119,7 +119,7 @@ reduced field U + chart state (s, R, τ) through
 — U `(n_planes, nη, nξ)` main Signal plus companion 1-D `s(z)`/`R(z)`/`tau(z)`
 Signals on the shared unstructured plane-z axis (built by
 `_stack_scaled_wavefields` → `seashells.make_scaled_wave_signalset`).
-Seeds from `Source.scaled_field()` when `field0=None`. Raises with the
+Seeds from `Source.wave_scaled()` when `wave0=None`. Raises with the
 crossover position if the chart approaches s = 0 (Eq 52).
 
 ### `MicroscopeSection.propagate(self, *args, kind='ray', **kwargs)`
@@ -171,7 +171,7 @@ Property. Aggregates `named_positions` from all sections, offsetting each elemen
 
 Iterates through sections in order. The exit rays of each section become the entry rays for the next. The flattened ray history across all sections is stored as `self.rays` and returned.
 
-### `Microscope.propagate_wave(self, field0=None)` / `Microscope.propagate_wave_scaled(self, field0=None, s_min=1e-3)`
+### `Microscope.propagate_wave(self, wave0=None)` / `Microscope.propagate_wave_scaled(self, wave0=None, s_min=1e-3)`
 
 Wave drivers with eager re-chain: each section's exit state seeds the next;
 all per-plane states flatten into `self.wave` (stacked wavefield Signal) /

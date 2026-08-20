@@ -1018,15 +1018,6 @@
   },
   {
     "kind": "function",
-    "name": "test_field_kind_aperture_matches_aperture_field",
-    "qualname": "test_field_kind_aperture_matches_aperture_field",
-    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 473,
-    "signature": "test_field_kind_aperture_matches_aperture_field()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
     "name": "test_fixed_path_refactor_regression",
     "qualname": "test_fixed_path_refactor_regression",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -1212,6 +1203,15 @@
     "path": "src/pySEA/rayTEM/tests/test_wave_and_envelope.py",
     "source_lineno": 156,
     "signature": "test_wave_fresnel_gaussian_spreading()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_wave_kind_aperture_matches__aperture_wave",
+    "qualname": "test_wave_kind_aperture_matches__aperture_wave",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 473,
+    "signature": "test_wave_kind_aperture_matches__aperture_wave()",
     "doc": ""
   },
   {

@@ -527,7 +527,7 @@ class MicroscopeSection(SEASerializable):
 														convention, name=(self.name or 'section') + ' covariance')
 		return self.covariance_matrix
 
-	def propagate_wave(self, field0=None):
+	def propagate_wave(self, wave0=None):
 		"""Propagate a paraxial wavefield through every element in the section.
 
 		The wave-optics analog of :meth:`propagate_ray`. Threads a 2D complex
@@ -538,9 +538,9 @@ class MicroscopeSection(SEASerializable):
 
 		Parameters
 		----------
-		field0 : Signal or seashells._Wavefield, optional
+		wave0 : Signal or seashells._Wavefield, optional
 			Initial wavefield. If ``None`` and the first element is a ``Source``, it
-			is generated from :meth:`Source.field`.
+			is generated from :meth:`Source.wave`.
 
 		Returns
 		-------
@@ -551,14 +551,14 @@ class MicroscopeSection(SEASerializable):
 		Raises
 		------
 		UserWarning
-			If ``field0`` is ``None`` and the first element is not a ``Source``.
+			If ``wave0`` is ``None`` and the first element is not a ``Source``.
 		"""
-		if field0 is None:
+		if wave0 is None:
 			if isinstance(self.elements[0], Source):
-				field0 = self.elements[0].field()
+				wave0 = self.elements[0].wave()
 			else:
-				raise UserWarning("First element is not a Source, and no field0 provided to propagate_wave. Please provide an initial wavefield or ensure first element is a Source.")
-		fi=[field0]
+				raise UserWarning("First element is not a Source, and no wave0 provided to propagate_wave. Please provide an initial wavefield or ensure first element is a Source.")
+		fi=[wave0]
 		for ele in self.elements:
 			f = ele.propagate_wave(fi[-1])
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
@@ -569,7 +569,7 @@ class MicroscopeSection(SEASerializable):
 		self.wave = _stack_wavefields(fi, name=(self.name or 'section') + ' wave')
 		return self.wave
 
-	def propagate_wave_scaled(self, field0=None, s_min:float=1e-3):
+	def propagate_wave_scaled(self, wave0=None, s_min:float=1e-3):
 		r"""Propagate a scaled-Fresnel wavefield through every element in the section.
 
 		The scaled counterpart of :meth:`propagate_wave` (handoff Eqs 23–48):
@@ -583,9 +583,9 @@ class MicroscopeSection(SEASerializable):
 
 		Parameters
 		----------
-		field0 : Signal or seashells._ScaledWavefield, optional
+		wave0 : Signal or seashells._ScaledWavefield, optional
 			Initial scaled wavefield. If ``None`` and the first element is a
-			``Source``, it is generated from :meth:`Source.scaled_field`.
+			``Source``, it is generated from :meth:`Source.wave_scaled`.
 		s_min : float, optional
 			Crossover guard forwarded to every element (handoff Eq 52), by
 			default ``1e-3``.
@@ -601,18 +601,18 @@ class MicroscopeSection(SEASerializable):
 		Raises
 		------
 		UserWarning
-			If ``field0`` is ``None`` and the first element is not a ``Source``.
+			If ``wave0`` is ``None`` and the first element is not a ``Source``.
 		ValueError
 			If the chart approaches its ``s = 0`` crossover inside a segment —
 			stop the section before the crossover or reset the chart (automatic
 			chart switching is a tracked follow-up).
 		"""
-		if field0 is None:
+		if wave0 is None:
 			if isinstance(self.elements[0], Source):
-				field0 = self.elements[0].scaled_field()
+				wave0 = self.elements[0].wave_scaled()
 			else:
-				raise UserWarning("First element is not a Source, and no field0 provided to propagate_wave_scaled. Please provide an initial scaled wavefield or ensure first element is a Source.")
-		fi=[field0]
+				raise UserWarning("First element is not a Source, and no wave0 provided to propagate_wave_scaled. Please provide an initial scaled wavefield or ensure first element is a Source.")
+		fi=[wave0]
 		for ele in self.elements:
 			f = ele.propagate_wave_scaled(fi[-1], s_min=s_min)
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
@@ -1153,7 +1153,7 @@ class Microscope(SEASerializable):
 														convention, name=(self.name or 'microscope') + ' covariance')
 		return self.covariance_matrix
 
-	def propagate_wave(self, field0=None):
+	def propagate_wave(self, wave0=None):
 		"""Propagate a paraxial wavefield through every section, chaining boundaries.
 
 		Wave-optics analog of :meth:`propagate_ray`. Each section's exit wavefield
@@ -1163,7 +1163,7 @@ class Microscope(SEASerializable):
 
 		Parameters
 		----------
-		field0 : Signal or seashells._Wavefield, optional
+		wave0 : Signal or seashells._Wavefield, optional
 			Initial wavefield fed to the first section; generated from its ``Source``
 			when ``None``.
 
@@ -1172,16 +1172,16 @@ class Microscope(SEASerializable):
 		Signal or seashells._Wavefield
 			The stacked wavefield for the whole instrument (also on ``self.wave``).
 		"""
-		f = field0
+		f = wave0
 		planes=[]
 		for s in self.sections:
-			s.propagate_wave(field0=f)
+			s.propagate_wave(wave0=f)
 			planes.extend(s._wave_planes)
 			f = s._wave_planes[-1]
 		self.wave = _stack_wavefields(planes, name=(self.name or 'microscope') + ' wave')
 		return self.wave
 
-	def propagate_wave_scaled(self, field0=None, s_min:float=1e-3):
+	def propagate_wave_scaled(self, wave0=None, s_min:float=1e-3):
 		r"""Propagate a scaled-Fresnel wavefield through every section, chaining boundaries.
 
 		Scaled counterpart of :meth:`propagate_wave`: each section's exit scaled
@@ -1191,9 +1191,9 @@ class Microscope(SEASerializable):
 
 		Parameters
 		----------
-		field0 : Signal or seashells._ScaledWavefield, optional
+		wave0 : Signal or seashells._ScaledWavefield, optional
 			Initial scaled wavefield fed to the first section; generated from its
-			``Source`` (:meth:`Source.scaled_field`) when ``None``.
+			``Source`` (:meth:`Source.wave_scaled`) when ``None``.
 		s_min : float, optional
 			Crossover guard forwarded to every element (handoff Eq 52), by
 			default ``1e-3``.
@@ -1214,10 +1214,10 @@ class Microscope(SEASerializable):
 		-------
 		wavefield_at : Reconstruct the physical wave at a requested plane.
 		"""
-		f = field0
+		f = wave0
 		planes=[]
 		for s in self.sections:
-			s.propagate_wave_scaled(field0=f, s_min=s_min)
+			s.propagate_wave_scaled(wave0=f, s_min=s_min)
 			planes.extend(s._wave_scaled_planes)
 			f = s._wave_scaled_planes[-1]
 		self._wave_scaled_planes = planes

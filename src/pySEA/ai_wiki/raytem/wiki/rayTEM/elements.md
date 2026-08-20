@@ -18,7 +18,7 @@
 |   `Source.__init__(self, name, size, np_xy, angle, na_xy, position)` | 158 |
 |   `Source.rays(self)` | 165 |
 |   `Source.propagate_ray(self, r0, **kwargs)` | 169 |
-|   `Source.field(self)` / `Source.aperture_field(self, radius)` / `Source.scaled_field(self)` | 173 |
+|   `Source.wave(self)` / `Source._aperture_wave(self, radius)` / `Source.wave_scaled(self)` | 173 |
 | Aperture | 187 |
 |   `Aperture.__init__(self, name, radius, calibration, position)` | 191 |
 |   `Aperture.propagate_ray(self, r0, z, z0)` | 195 |
@@ -170,15 +170,15 @@ Constructs a full 2D grid of (position × angle) rays via `meshgrid`-style broad
 
 No-op: passes `r0` through unchanged. Exists so `MicroscopeSection.propagate_ray` can iterate over all elements including the Source without special-casing it.
 
-### `Source.field(self)` / `Source.aperture_field(self, radius)` / `Source.scaled_field(self)`
+### `Source.wave(self)` / `Source._aperture_wave(self, radius)` / `Source.wave_scaled(self)`
 
-The source holds **one wavefunction generator**: `field()` builds the initial
-wave on the source's grid (`field_shape`/`field_extent`, wavelength from
-`voltage`) of the kind selected by `field_kind` —
+The source holds **one wavefunction generator**: `wave()` builds the initial
+wave on the source's grid (`wave_shape`/`wave_extent`, wavelength from
+`voltage`) of the kind selected by `wave_kind` —
 `'plane' | 'gaussian' | 'point' | 'aperture'`, where `'aperture'` is the
 flat-intensity hard-aperture wave Θ(a−r) at `aperture_radius` (handoff Eq 9,
-implemented by the `aperture_field(radius)` builder). `scaled_field()` seeds
-scaled propagation from that same `field()` with s = 1, R = ∞, τ = 0 so
+implemented by the `_aperture_wave(radius)` builder). `wave_scaled()` seeds
+scaled propagation from that same `wave()` with s = 1, R = ∞, τ = 0 so
 U₀ = ψ₀ (Eqs 10–11). `Source.propagate_wave` and `propagate_wave_scaled` are
 passthroughs (drivers seed from the generator).
 

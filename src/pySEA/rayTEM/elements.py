@@ -585,7 +585,7 @@ class Element(SEASerializable):
 		signal : Signal or seashells._ScaledWavefield
 			Incoming scaled wavefield (from
 			:func:`seashells.make_scaled_wavefield_signal`, e.g. via
-			:meth:`Source.scaled_field`).
+			:meth:`Source.wave_scaled`).
 		s_min : float, optional
 			Crossover guard forwarded to the free-segment propagator: ``|s|``
 			must stay above this through every segment (handoff Eq 52), by
@@ -696,17 +696,17 @@ class Source(Element):
 			``wavelength`` (used by wave-optics/envelope propagation) and populates the
 			per-ray ``E`` (beam energy, keV) column. When ``None`` (default), ``E``
 			stays 0 and no wavelength is defined, preserving purely geometric behavior.
-		field_shape : tuple, optional
+		wave_shape : tuple, optional
 			Wave-optics grid ``(ny, nx)``, by default ``(128, 128)``.
-		field_extent : float, optional
+		wave_extent : float, optional
 			Wave-optics grid physical size (metres); ``None`` (default) derives
 			``8 * max(size)``.
-		field_kind : {'plane', 'gaussian', 'point', 'aperture'}, optional
-			Which initial wavefunction :meth:`field` generates, by default
+		wave_kind : {'plane', 'gaussian', 'point', 'aperture'}, optional
+			Which initial wavefunction :meth:`wave` generates, by default
 			``'gaussian'``. ``'aperture'`` is the flat-intensity hard-aperture
 			wave Θ(a−r) and requires ``aperture_radius``.
 		aperture_radius : float, optional
-			Aperture radius ``a`` (metres) for ``field_kind='aperture'``; must
+			Aperture radius ``a`` (metres) for ``wave_kind='aperture'``; must
 			fit inside the grid half-extent.
 
 		Attributes
@@ -724,10 +724,10 @@ class Source(Element):
 			na_xy:tuple=(3,3),		# number of angles. (0,0) --> parallel rays. (1,1) --> ray at xt,yt=angle only
 			position:float=None,
 			voltage:float=None,
-			field_shape:tuple=(128,128),	# wave-optics grid (ny, nx)
-			field_extent:float=None,		# wave-optics grid physical size (m); None -> derived from size
-			field_kind:Literal['plane','gaussian','point','aperture']='gaussian',
-			aperture_radius:float=None) -> SEASerializable:	# radius (m) for field_kind='aperture'
+			wave_shape:tuple=(128,128),	# wave-optics grid (ny, nx)
+			wave_extent:float=None,		# wave-optics grid physical size (m); None -> derived from size
+			wave_kind:Literal['plane','gaussian','point','aperture']='gaussian',
+			aperture_radius:float=None) -> SEASerializable:	# radius (m) for wave_kind='aperture'
 		super().__init__(name=name, kind='Source')
 
 		self.size = size
@@ -742,10 +742,10 @@ class Source(Element):
 		# derived: relativistic wavelength (metres); None when voltage is unset
 		from .utilities import relativistic_wavelength
 		self.wavelength = relativistic_wavelength(voltage) if voltage is not None else None
-		# wave-optics initial-field parameters
-		self.field_shape = field_shape
-		self.field_extent = field_extent
-		self.field_kind = field_kind
+		# wave-optics initial-wave parameters
+		self.wave_shape = wave_shape
+		self.wave_extent = wave_extent
+		self.wave_kind = wave_kind
 		self.aperture_radius = aperture_radius
 
 	# Source term, initialize rays at sweep of angles and positions
@@ -827,16 +827,16 @@ class Source(Element):
 		"""
 		return mu, Sigma
 
-	def field(self):
+	def wave(self):
 		"""Build the initial complex wavefield for wave-optics propagation.
 
 		The wave-mode analog of :meth:`rays` and :meth:`moments` — the source's
 		one wavefunction generator. Constructs a 2D scalar field on a calibrated
-		grid whose physical extent is ``field_extent`` (or ``8 * max(size)``
-		when unset) sampled at ``field_shape`` points, of the kind given by
-		``field_kind``: ``'plane'``, ``'gaussian'`` sized by ``size``,
+		grid whose physical extent is ``wave_extent`` (or ``8 * max(size)``
+		when unset) sampled at ``wave_shape`` points, of the kind given by
+		``wave_kind``: ``'plane'``, ``'gaussian'`` sized by ``size``,
 		``'point'``, or ``'aperture'`` (a flat-intensity plane wave clipped at
-		``aperture_radius``, via :meth:`aperture_field`). Requires a defined
+		``aperture_radius``, via :meth:`_aperture_wave`). Requires a defined
 		wavelength (set ``voltage``).
 
 		Returns
@@ -848,48 +848,48 @@ class Source(Element):
 		------
 		ValueError
 			If no wavelength is defined (``voltage`` unset), if the grid extent
-			cannot be derived (zero source ``size`` and no ``field_extent``), if
-			``field_kind`` is not recognized, or if ``field_kind='aperture'``
+			cannot be derived (zero source ``size`` and no ``wave_extent``), if
+			``wave_kind`` is not recognized, or if ``wave_kind='aperture'``
 			with no ``aperture_radius`` set (or one that does not fit the grid).
 
 		Related
 		-------
-		aperture_field : The Θ(a−r) builder behind ``field_kind='aperture'``.
-		scaled_field : Seeds scaled-Fresnel propagation from this field.
-		Element.propagate_wave : Transports this field through an element.
+		_aperture_wave : The Θ(a−r) builder behind ``wave_kind='aperture'``.
+		wave_scaled : Seeds scaled-Fresnel propagation from this wave.
+		Element.propagate_wave : Transports this wave through an element.
 		seashells.make_wavefield_signal : Wraps the array as a calibrated Signal.
 		"""
 		from .waveoptics import plane_wave, gaussian_field, point_source
 		from .seashells import make_wavefield_signal
 		if self.wavelength is None:
-			raise ValueError("Source.field requires a wavelength; construct Source(voltage=<kV>).")
-		if self.field_kind == 'aperture':
+			raise ValueError("Source.wave requires a wavelength; construct Source(voltage=<kV>).")
+		if self.wave_kind == 'aperture':
 			if self.aperture_radius is None:
-				raise ValueError("field_kind='aperture' requires aperture_radius (metres).")
-			return self.aperture_field(self.aperture_radius)
-		ny, nx = self.field_shape
-		extent = self.field_extent if self.field_extent is not None else 8 * max(self.size)
+				raise ValueError("wave_kind='aperture' requires aperture_radius (metres).")
+			return self._aperture_wave(self.aperture_radius)
+		ny, nx = self.wave_shape
+		extent = self.wave_extent if self.wave_extent is not None else 8 * max(self.size)
 		if extent <= 0:
-			raise ValueError("Cannot derive a wavefield grid extent from a zero source size; pass field_extent (metres).")
+			raise ValueError("Cannot derive a wavefield grid extent from a zero source size; pass wave_extent (metres).")
 		dx = extent / nx ; dy = extent / ny
-		if self.field_kind == 'plane':
+		if self.wave_kind == 'plane':
 			data = plane_wave((ny, nx))
-		elif self.field_kind == 'gaussian':
+		elif self.wave_kind == 'gaussian':
 			data = gaussian_field((ny, nx), dx, dy, self.size[0], self.size[1])
-		elif self.field_kind == 'point':
+		elif self.wave_kind == 'point':
 			data = point_source((ny, nx))
 		else:
-			raise ValueError(f"Unknown field_kind {self.field_kind!r}; expected 'plane', 'gaussian', 'point', or 'aperture'.")
+			raise ValueError(f"Unknown wave_kind {self.wave_kind!r}; expected 'plane', 'gaussian', 'point', or 'aperture'.")
 		z0 = self._position if self._position is not None else 0.0
 		return make_wavefield_signal(data, dx, dy, self.wavelength, z=z0,
 									 name=(self.name or 'source') + ' wavefield')
 
-	def aperture_field(self, radius:float):
+	def _aperture_wave(self, radius:float):
 		r"""Build a hard-aperture initial wavefield :math:`\psi_0 = \Theta(a - r)`.
 
 		The handoff's reference initial wave (Eq 9): a unit-amplitude plane wave
 		clipped by a circular aperture of radius ``radius``, on the source's
-		wave grid (``field_shape``/``field_extent``). Composes the existing
+		wave grid (``wave_shape``/``wave_extent``). Composes the existing
 		``plane_wave`` and ``aperture_mask`` builders. Requires a defined
 		wavelength (set ``voltage``).
 
@@ -910,17 +910,17 @@ class Source(Element):
 
 		Related
 		-------
-		field : The plane/gaussian/point initial-field builder.
+		wave : The wave generator that dispatches here for wave_kind='aperture'.
 		"""
 		from .waveoptics import plane_wave, aperture_mask
 		from .seashells import make_wavefield_signal
 		if self.wavelength is None:
-			raise ValueError("Source.aperture_field requires a wavelength; construct Source(voltage=<kV>).")
-		ny, nx = self.field_shape
-		extent = self.field_extent if self.field_extent is not None else 8 * max(self.size)
+			raise ValueError("Source._aperture_wave requires a wavelength; construct Source(voltage=<kV>).")
+		ny, nx = self.wave_shape
+		extent = self.wave_extent if self.wave_extent is not None else 8 * max(self.size)
 		if extent <= 0 or radius >= extent / 2:
 			raise ValueError(f"Aperture radius {radius} m does not fit on the grid half-extent {extent/2} m; "
-							 "increase field_extent.")
+							 "increase wave_extent.")
 		dx = extent / nx ; dy = extent / ny
 		data = aperture_mask(plane_wave((ny, nx)), dx, dy, radius)
 		z0 = self._position if self._position is not None else 0.0
@@ -931,7 +931,7 @@ class Source(Element):
 		"""Pass the wavefield through unchanged (the source only originates the beam).
 
 		Mirrors :meth:`propagate_ray`/:meth:`propagate_moments`: the driver seeds the
-		field from :meth:`field`, so the source's own step is a no-op.
+		wave from :meth:`wave`, so the source's own step is a no-op.
 
 		Parameters
 		----------
@@ -949,7 +949,7 @@ class Source(Element):
 		"""Pass the scaled wavefield through unchanged (the source only originates the beam).
 
 		Mirrors :meth:`propagate_wave`: the driver seeds the scaled state from
-		:meth:`scaled_field`, so the source's own step is a no-op.
+		:meth:`wave_scaled`, so the source's own step is a no-op.
 
 		Parameters
 		----------
@@ -965,14 +965,14 @@ class Source(Element):
 		"""
 		return signal
 
-	def scaled_field(self):
+	def wave_scaled(self):
 		r"""Build the initial scaled-Fresnel state from this source.
 
 		Seeds scaled propagation (handoff Eqs 10–11): the initial chart is
 		``s = 1``, ``R = ∞``, ``τ = 0``, so the reduced field is the physical one,
 		``U₀ = ψ₀``, with ``Δξ = Δx``. The physical field always comes from
-		:meth:`field` — the source's one wavefunction generator — so the kind
-		(plane/gaussian/point/aperture) is selected by ``field_kind`` exactly as
+		:meth:`wave` — the source's one wavefunction generator — so the kind
+		(plane/gaussian/point/aperture) is selected by ``wave_kind`` exactly as
 		for the fixed-grid path.
 
 		Returns
@@ -983,26 +983,26 @@ class Source(Element):
 		Raises
 		------
 		ValueError
-			Propagated from :meth:`field` (no wavelength, unknown ``field_kind``,
+			Propagated from :meth:`wave` (no wavelength, unknown ``wave_kind``,
 			or a missing/oversized ``aperture_radius``).
 
 		Related
 		-------
-		field : The physical initial-field builder wrapped here.
+		wave : The physical initial-wave generator wrapped here.
 		Element.propagate_wave_scaled : Consumes the state built here.
 		"""
 		from .seashells import make_scaled_wavefield_signal, read_wavefield
-		psi = self.field()
+		psi = self.wave()
 		data, dx, dy, wavelength, z = read_wavefield(psi)
 		return make_scaled_wavefield_signal(data, dx, dy, wavelength, s=1.0, R=xp.inf, tau=0.0,
 											z=z, name=(self.name or 'source') + ' scaled wavefield')
 
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
-		"""A source originates fields; it imprints no phase (not part of this contract).
+		"""A source originates waves; it imprints no phase (not part of this contract).
 
 		Overrides :meth:`Element.phase_shift` to fail loudly: the source's wave
-		role is building initial fields (:meth:`field`, :meth:`aperture_field`,
-		:meth:`scaled_field`), and its propagation step is a passthrough.
+		role is generating the initial wave (:meth:`wave`,
+		:meth:`wave_scaled`), and its propagation step is a passthrough.
 
 		Parameters
 		----------
@@ -1025,7 +1025,7 @@ class Source(Element):
 		NotImplementedError
 			Always.
 		"""
-		raise NotImplementedError("Source originates fields (field/aperture_field/scaled_field); "
+		raise NotImplementedError("Source originates waves (wave/wave_scaled); "
 								  "it has no phase_shift.")
 
 class Aperture(Element):
