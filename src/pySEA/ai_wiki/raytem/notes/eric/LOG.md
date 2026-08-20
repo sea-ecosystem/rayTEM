@@ -7,12 +7,14 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
-## 2026-08-20 — [Under Construction] Unify wave-mode naming on "wave"
+## 2026-08-20 — [Done] Unify wave-mode naming on "wave"
 **Goal:** The wave signal is the object everywhere; rename the Source "field" API and driver kwargs to wave terminology (wave/wave_scaled/wave_shape/wave_kind/wave0).
 **Why:** Eric's review: "field" was an undefined synonym for the wave signal, inconsistent with rays()/moments() and the .wave/.wave_scaled containers.
-- [ ] Source API rename (field->wave family)
-- [ ] driver field0->wave0 + regenerate basic_column.sea
-- [ ] tests/examples/wiki sync
+- [x] Source API rename (field->wave family)
+- [x] driver field0->wave0 + regenerate basic_column.sea
+- [x] tests/examples/wiki sync
+
+**Outcome:** The seeding API now matches the mode names one-to-one: Source.rays()/moments()/wave()/wave_scaled(); the aperture builder became the private _aperture_wave() behind wave_kind='aperture'; ctor/attrs are wave_shape/wave_extent/wave_kind (+aperture_radius); the Section/Microscope driver kwarg is wave0. basic_column.sea regenerated (the stored Source attribute names changed — NOTE: Sources in .sea files saved before this rename fall back to default wave grid/kind on reload since safeReinstantiate filters unknown kwargs; regenerate old files if their wave parameters matter). 48 tests green, demo unchanged.
 
 ## 2026-08-20 — [Done] Transparent Element defaults + aperture field_kind
 **Goal:** Every propagation kind works as identity on the root Element class, and the aperture initial wave becomes a `field_kind` instead of a separate seeding path.
