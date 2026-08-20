@@ -233,15 +233,19 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 <!-- REPO-MAP-END -->
 ## Core invariants
 
-- **Ray columns are fixed**: [x, xθ, y, yθ, z, I, E, R] — index 0–7 as returned by `columnByName()`. R is cumulative Larmor rotation accumulated by thick lenses. Do not reorder without updating every Element and all `columnByName` callers.
-- **Transfer matrices are 8×8**: Produced by `fix_mat_dims()`. Never pass a raw 2×2 matrix directly to `propagate_ray`.
+- **Ray columns are geometric**: `convention = ["x","xt","y","yt","z","E"]` — index 0–5 as returned by `columnByName()`. The ray vector is *purely geometric*; do not reorder without updating every Element and all `columnByName` callers.
+- **Intensity (I) and rotation (R) are NOT ray columns**: they travel as separate parallel arrays on `MicroscopeSection`/`Microscope` (`.I` and `.R`, shape `(n_planes, n_rays)`). Elements update them via `apply_intensity`/`apply_rotation` (R is cumulative Larmor rotation accumulated by thick lenses). Postprocessing helpers that need them (`convert_to_rotating_reference_frame`, `findPlanes`, `measureAtZ`, `plot2D`) take `R`/`I` explicitly. Any code reading `columnByName("I")`/`("R")` is stale (some `microscopes/` instrument scripts still do — update them to `.I`/`.R`).
+- **Transfer matrices are 6×6**: Produced by `fix_mat_dims()` (sized off `len(convention)`). Never pass a raw 2×2 matrix directly to `propagate_ray`.
+- **Four propagation modes, one geometry**: `propagate_ray` (geometric rays), `propagate_moments` (beam-envelope covariance, `Σ'=MΣMᵀ`, stored on `.mu`/`.covariance_matrix`), `propagate_wave` (paraxial 2D complex wavefield on a fixed grid, stored on `.wave` as a calibrated sea_eco `Signal`), and `propagate_wave_scaled` (scaled-Fresnel wave, `ψ=(1/s)·U·e^{ikr²/2R}`, stored on `.wave_scaled` as a `SignalSet` of U + s/R/τ companions; reconstruct physical planes via `Microscope.wavefield_at`). Ray/moments share the transfer matrices; both wave paths share the per-element `phase_shift` contract. All run through the same bottom-up hierarchy (dispatcher `propagate(kind=...)`).
 - **Element → MicroscopeSection → Microscope hierarchy**: Rays propagate strictly bottom-up. Microscope never reaches inside an Element; MicroscopeSection never reaches inside a Microscope.
-- **seashells is the sea_eco seam**: All serialization goes through `seashells.SEASerializable`, which gracefully degrades if sea_eco is absent. Do not import from sea_eco directly in framework code.
+- **seashells is the sea_eco seam**: All serialization *and* wavefield-Signal construction (`make_wavefield_signal`/`read_wavefield`) go through `seashells`, which gracefully degrades if sea_eco is absent. Do not import from sea_eco directly in framework code.
+- **Wavelength**: `Source(voltage=<kV>)` sets `Source.wavelength` (via `utilities.relativistic_wavelength`) and fills the per-ray `E` column. Default `voltage=None` keeps `E=0` and no wavelength, so ray-only behavior is unchanged.
 
 ## High-risk areas
 
 - `elements.py` — `columnByName()` and `fix_mat_dims()` are referenced everywhere; changes break all Elements
-- `seashells.py` — conditional import logic; changing import path or attribute names breaks sea_eco round-trips
+- `seashells.py` — conditional import logic; changing import path or attribute names breaks sea_eco round-trips and wavefield-Signal construction
+- `waveoptics.py` — paraxial FFT math; grid centering (`transverse_coordinates`) and the angular-spectrum transfer function must stay consistent or focus/aperture positions drift
 - `AS2.py` — talks to a live instrument; errors here can send bad values to real hardware
 
 ## AI workflow

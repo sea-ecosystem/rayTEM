@@ -4,7 +4,7 @@
 **Plan:** none (small follow-up to
 [TODO_DONE_scaled-fresnel-wave.md](TODO_DONE_scaled-fresnel-wave.md))
 
-- [ ] Step 1 — fix stale wiki ray-mode sections (elements.md/assemblies.md
+- [x] Step 1 — fix stale wiki ray-mode sections (elements.md/assemblies.md
       still describe the pre-refactor 8-column convention with I/R as ray
       columns and 8×8 matrices); align to `convention = [x,xt,y,yt,z,E]`,
       6×6 matrices, separate `.I`/`.R`; regenerate ecosystem index.md if the

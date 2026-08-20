@@ -98,7 +98,7 @@ Property. Returns `{element.name: element.position}` for all non-None-named elem
 
 ### `MicroscopeSection.propagate_ray(self, r0, z, verbose)`
 
-Iterates through `self.elements` in order, passing the output of each element as input to the next. Elements with zero length (thin lenses, Source) don't add a new entry to the ray history — their output overwrites the previous entry, keeping the ray array compact. After propagation, `self.rays` is stored as a `(n_elements, n_rays, 8)` array. Returns `self.rays`.
+Iterates through `self.elements` in order, passing the output of each element as input to the next. Elements with zero length (thin lenses, Source) don't add a new entry to the ray history — their output overwrites the previous entry, keeping the ray array compact. Per element the driver calls `apply_intensity` (before the ray transform) and `apply_rotation` (after), maintaining the parallel `.I` and `.R` arrays. After propagation, `self.rays` is `(n_planes, n_rays, 6)` (the geometric convention columns) with `self.I`/`self.R` `(n_planes, n_rays)`. Returns `self.rays`.
 
 If `r0=None` and the first element is a `Source`, calls `Source.rays()` to generate starting rays.
 

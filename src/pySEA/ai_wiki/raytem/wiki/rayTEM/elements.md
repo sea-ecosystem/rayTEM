@@ -2,46 +2,46 @@
 | Section | Line |
 |---------|------|
 | Overview | 50 |
-| Module-level functions | 71 |
-|   `columnByName(name)` | 73 |
-|   `fix_mat_dims(m, columnNames)` | 77 |
-|   `fix_ray_dims(rays, columnNames)` | 81 |
-| Element | 87 |
-|   `Element.__init__(self, name, kind)` | 91 |
-|   `Element.transfer_matrix(self)` | 95 |
-|   `Element.propagate_ray(self, r0, z, z0)` | 99 |
-|   `Element.phase_shift(self, dimensions, wavelength, scaled=False, s=1.0)` | 105 |
-|   `Element.propagate_wave(self, signal)` | 122 |
-|   `Element.propagate_wave_scaled(self, signal, s_min=1e-3)` | 128 |
-|   `Element.propagate(self, *args, kind='ray', **kwargs)` | 137 |
-| Source | 144 |
-|   `Source.__init__(self, name, size, np_xy, angle, na_xy, position)` | 148 |
-|   `Source.rays(self)` | 155 |
-|   `Source.propagate_ray(self, r0, **kwargs)` | 159 |
-|   `Source.field(self)` / `Source.aperture_field(self, radius)` / `Source.scaled_field(self, aperture_radius=None)` | 163 |
-| Aperture | 174 |
-|   `Aperture.__init__(self, name, radius, calibration, position)` | 178 |
-|   `Aperture.propagate_ray(self, r0, z, z0)` | 182 |
-|   `Aperture.propagate_wave(self, signal)` / `Aperture.propagate_wave_scaled(self, signal, s_min=1e-3)` | 186 |
-| Drift | 195 |
-|   `Drift.__init__(self, name, length, calibration, position)` | 199 |
-|   `Drift.transfer_matrix(self)` | 203 |
-| Quadrapole | 209 |
-|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 213 |
-|   `Quadrapole.transfer_matrix(self)` | 217 |
-| Dipole | 223 |
-|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 227 |
-|   `Dipole.transfer_matrix(self)` | 231 |
-|   `Dipole.propagate_ray(self, r0, z, z0)` | 235 |
-| Lens | 241 |
-|   `Lens.__init__(self, name, length, strength, calibration, position)` | 245 |
-|   `Lens.transfer_matrix(self)` | 253 |
-|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 260 |
-| Prism | 266 |
-|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 270 |
-|   `Prism.focus_matrix(self)` | 274 |
-|   `Prism.bending_matrix(self, s)` | 278 |
-|   `Prism.transfer_matrix(self)` | 282 |
+| Module-level functions | 77 |
+|   `columnByName(name)` | 79 |
+|   `fix_mat_dims(m, columnNames)` | 83 |
+|   `fix_ray_dims(rays, columnNames)` | 87 |
+| Element | 93 |
+|   `Element.__init__(self, name, kind)` | 97 |
+|   `Element.transfer_matrix(self)` | 101 |
+|   `Element.propagate_ray(self, r0, z, z0)` | 105 |
+|   `Element.phase_shift(self, dimensions, wavelength, scaled=False, s=1.0)` | 111 |
+|   `Element.propagate_wave(self, signal)` | 128 |
+|   `Element.propagate_wave_scaled(self, signal, s_min=1e-3)` | 134 |
+|   `Element.propagate(self, *args, kind='ray', **kwargs)` | 143 |
+| Source | 150 |
+|   `Source.__init__(self, name, size, np_xy, angle, na_xy, position)` | 154 |
+|   `Source.rays(self)` | 161 |
+|   `Source.propagate_ray(self, r0, **kwargs)` | 165 |
+|   `Source.field(self)` / `Source.aperture_field(self, radius)` / `Source.scaled_field(self, aperture_radius=None)` | 169 |
+| Aperture | 180 |
+|   `Aperture.__init__(self, name, radius, calibration, position)` | 184 |
+|   `Aperture.propagate_ray(self, r0, z, z0)` | 188 |
+|   `Aperture.propagate_wave(self, signal)` / `Aperture.propagate_wave_scaled(self, signal, s_min=1e-3)` | 192 |
+| Drift | 201 |
+|   `Drift.__init__(self, name, length, calibration, position)` | 205 |
+|   `Drift.transfer_matrix(self)` | 209 |
+| Quadrapole | 215 |
+|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 219 |
+|   `Quadrapole.transfer_matrix(self)` | 223 |
+| Dipole | 229 |
+|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 233 |
+|   `Dipole.transfer_matrix(self)` | 237 |
+|   `Dipole.propagate_ray(self, r0, z, z0)` | 241 |
+| Lens | 247 |
+|   `Lens.__init__(self, name, length, strength, calibration, position)` | 251 |
+|   `Lens.transfer_matrix(self)` | 259 |
+|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 266 |
+| Prism | 272 |
+|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 276 |
+|   `Prism.focus_matrix(self)` | 280 |
+|   `Prism.bending_matrix(self, s)` | 284 |
+|   `Prism.transfer_matrix(self)` | 288 |
 <!-- END AUTO-GENERATED TOC -->
 
 # elements.py
@@ -49,9 +49,9 @@
 
 ## Overview
 
-`elements.py` defines the ray convention, the column utility functions, and all concrete element types used in ray-tracing simulations. Every optic — lenses, drifts, apertures, dipoles, quadrupoles, prisms — is an `Element` subclass that implements a `transfer_matrix()`. The base class `propagate_ray()` applies the matrix via `einsum` and additively updates the z and R (rotation) columns. This module is the foundation: everything in `assemblies.py` depends on it.
+`elements.py` defines the ray convention, the column utility functions, and all concrete element types used in ray-tracing simulations. Every optic — lenses, drifts, apertures, dipoles, quadrupoles, prisms — is an `Element` subclass that implements a `transfer_matrix()` (ray side) and a `phase_shift()` (wave side). The base class `propagate_ray()` applies the matrix via `einsum` and additively updates z and the affine shift/tilt terms. This module is the foundation: everything in `assemblies.py` depends on it.
 
-**Ray column convention** (8 columns, index 0–7):
+**Ray column convention** (6 purely geometric columns, index 0–5):
 
 | Index | Name | Meaning |
 |-------|------|---------|
@@ -60,11 +60,17 @@
 | 2 | `y` | lateral position in y |
 | 3 | `yt` | angle in y (yθ) |
 | 4 | `z` | position along the optical axis |
-| 5 | `I` | beam intensity (1.0 initially; apertures reduce it) |
-| 6 | `E` | electron energy |
-| 7 | `R` | cumulative beam rotation (radians) |
+| 5 | `E` | electron energy (keV; 0 when `Source.voltage` unset) |
 
 The column ordering is frozen — `columnByName()` is the only safe way to access a column by name. Never hard-code column indices.
+
+**Intensity (I) and cumulative Larmor rotation (R) are NOT ray columns.** They
+travel as separate parallel `(n_planes, n_rays)` arrays on
+`MicroscopeSection`/`Microscope` (`.I`/`.R`), updated per element via
+`Element.apply_intensity` (before `propagate_ray` — e.g. `Aperture` attenuates
+by the cropped-area fraction) and `Element.apply_rotation` (after — thick
+lenses accumulate `self.rotation`). Any code reading `columnByName("I")`/`("R")`
+is stale.
 
 ---
 
@@ -76,11 +82,11 @@ Returns the integer index of the named column in the `convention` list. The one 
 
 ### `fix_mat_dims(m, columnNames)`
 
-Inflates a smaller physics matrix (e.g. a 2×2 thin-lens matrix operating on [x, xt]) into the full 8×8 convention matrix. Off-diagonal entries for unspecified columns remain zero; diagonal entries remain 1 (identity). Every element's `transfer_matrix()` should call this before returning.
+Inflates a smaller physics matrix (e.g. a 2×2 thin-lens matrix operating on [x, xt]) into the full 6×6 convention matrix (sized off `len(convention)`). Off-diagonal entries for unspecified columns remain zero; diagonal entries remain 1 (identity). Every element's `transfer_matrix()` should call this before returning.
 
 ### `fix_ray_dims(rays, columnNames)`
 
-Same idea as `fix_mat_dims` but for ray arrays. Given a compact `(N, k)` array whose columns correspond to `columnNames`, returns a full `(N, 8)` array in convention order, with unspecified columns zero. Used by `Source.rays()` to build the initial ray set.
+Same idea as `fix_mat_dims` but for ray arrays. Given a compact `(N, k)` array whose columns correspond to `columnNames`, returns a full `(N, 6)` array in convention order, with unspecified columns zero. Used by `Source.rays()` to build the initial ray set.
 
 ---
 
@@ -94,11 +100,11 @@ Stores `name` and `kind` only. Concrete element subclasses call `super().__init_
 
 ### `Element.transfer_matrix(self)` *(abstract)*
 
-Must return an 8×8 numpy array (use `fix_mat_dims` to build it). The base class marks this abstract — any subclass omitting it will raise `TypeError` at instantiation.
+Must return a 6×6 numpy array (use `fix_mat_dims` to build it). The base class marks this abstract — any subclass omitting it will raise `TypeError` at instantiation.
 
 ### `Element.propagate_ray(self, r0, z, z0)`
 
-Applies `transfer_matrix()` to the input ray array via `einsum('mn,in->im', M, r0)`, then adds `self.length` to the `z` column and `self.rotation` to the `R` column. The z and R updates are additive, not part of the matrix — this keeps the matrix physics clean. Returns `(N, 8)` ray array.
+Applies `transfer_matrix()` to the input ray array via `einsum('mn,in->im', M, r0)`, then additively applies `self.length` to the `z` column and any affine `shift_x`/`shift_y`/`tilt_x`/`tilt_y` terms. These updates are additive, not part of the matrix — this keeps the matrix physics clean. Rotation is NOT applied here: the drivers call `apply_rotation` separately (R is a parallel array, not a ray column). Returns `(N, 6)` ray array.
 
 `Dipole` overrides this because it uses an augmented (affine) matrix form.
 
@@ -154,7 +160,7 @@ A pseudo-element that generates the initial ray set. Placed first in a `Microsco
 
 ### `Source.rays(self)`
 
-Constructs a full 2D grid of (position × angle) rays via `meshgrid`-style broadcasting. Returns shape `(np_xy[0] × np_xy[1] × na_xy[0] × na_xy[1], 8)`. All I values are 1.0.
+Constructs a full 2D grid of (position × angle) rays via `meshgrid`-style broadcasting. Returns shape `(np_xy[0] × np_xy[1] × na_xy[0] × na_xy[1], 6)`; the `E` column is filled with `voltage` when set. Intensity is not a ray column — the section/microscope drivers seed the separate `.I` array with ones.
 
 ### `Source.propagate_ray(self, r0, **kwargs)`
 
@@ -181,7 +187,7 @@ Models a circular aperture by scaling down rays proportionally when the beam exc
 
 ### `Aperture.propagate_ray(self, r0, z, z0)`
 
-Finds `xmax = max(|x|)` and `ymax = max(|y|)` across all rays. If either exceeds `self.radius`, scales all x, xt, y, yt by `radius/xmax` or `radius/ymax` respectively. Intensity I is reduced by the product of both scale factors (area reduction). The aperture has no `transfer_matrix` — it overrides `propagate_ray` entirely.
+Finds `xmax = max(|x|)` and `ymax = max(|y|)` across all rays. If either exceeds `self.radius`, scales all x, xt, y, yt by `radius/xmax` or `radius/ymax` respectively (`_aperture_scales`). Intensity is reduced separately: `Aperture.apply_intensity` multiplies the parallel `I` array by the product of both scale factors (area reduction). The aperture has no `transfer_matrix` — it overrides `propagate_ray` entirely.
 
 ### `Aperture.propagate_wave(self, signal)` / `Aperture.propagate_wave_scaled(self, signal, s_min=1e-3)`
 

@@ -644,7 +644,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 29,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 73,
+    "wiki_lineno": 79,
     "wiki_method_lineno": null
   },
   {
@@ -656,7 +656,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 32,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 77,
+    "wiki_lineno": 83,
     "wiki_method_lineno": null
   },
   {
@@ -668,7 +668,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 39,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 81,
+    "wiki_lineno": 87,
     "wiki_method_lineno": null
   },
   {
@@ -680,8 +680,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1002,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 174,
-    "wiki_method_lineno": 178
+    "wiki_lineno": 180,
+    "wiki_method_lineno": 184
   },
   {
     "class": "Aperture",
@@ -692,8 +692,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1050,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 174,
-    "wiki_method_lineno": 182
+    "wiki_lineno": 180,
+    "wiki_method_lineno": 188
   },
   {
     "class": "Aperture",
@@ -704,7 +704,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1061,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 174,
+    "wiki_lineno": 180,
     "wiki_method_lineno": null
   },
   {
@@ -716,7 +716,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1083,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 174,
+    "wiki_lineno": 180,
     "wiki_method_lineno": null
   },
   {
@@ -728,8 +728,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1107,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 174,
-    "wiki_method_lineno": 186
+    "wiki_lineno": 180,
+    "wiki_method_lineno": 192
   },
   {
     "class": "Aperture",
@@ -740,7 +740,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1135,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 174,
+    "wiki_lineno": 180,
     "wiki_method_lineno": null
   },
   {
@@ -752,7 +752,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1169,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 174,
+    "wiki_lineno": 180,
     "wiki_method_lineno": null
   },
   {
@@ -764,8 +764,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1451,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 223,
-    "wiki_method_lineno": 227
+    "wiki_lineno": 229,
+    "wiki_method_lineno": 233
   },
   {
     "class": "Dipole",
@@ -776,7 +776,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1505,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 223,
+    "wiki_lineno": 229,
     "wiki_method_lineno": null
   },
   {
@@ -788,8 +788,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1536,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 223,
-    "wiki_method_lineno": 231
+    "wiki_lineno": 229,
+    "wiki_method_lineno": 237
   },
   {
     "class": "Dipole",
@@ -800,7 +800,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1576,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 223,
+    "wiki_lineno": 229,
     "wiki_method_lineno": null
   },
   {
@@ -812,8 +812,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1219,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 195,
-    "wiki_method_lineno": 199
+    "wiki_lineno": 201,
+    "wiki_method_lineno": 205
   },
   {
     "class": "Drift",
@@ -824,8 +824,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1226,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 195,
-    "wiki_method_lineno": 203
+    "wiki_lineno": 201,
+    "wiki_method_lineno": 209
   },
   {
     "class": "Drift",
@@ -836,7 +836,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1243,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 195,
+    "wiki_lineno": 201,
     "wiki_method_lineno": null
   },
   {
@@ -848,8 +848,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 172,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
-    "wiki_method_lineno": 91
+    "wiki_lineno": 93,
+    "wiki_method_lineno": 97
   },
   {
     "class": "Element",
@@ -860,7 +860,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 190,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
+    "wiki_lineno": 93,
     "wiki_method_lineno": null
   },
   {
@@ -872,7 +872,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 209,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
+    "wiki_lineno": 93,
     "wiki_method_lineno": null
   },
   {
@@ -884,7 +884,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 216,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
+    "wiki_lineno": 93,
     "wiki_method_lineno": null
   },
   {
@@ -896,7 +896,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 223,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
+    "wiki_lineno": 93,
     "wiki_method_lineno": null
   },
   {
@@ -908,7 +908,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 251,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
+    "wiki_lineno": 93,
     "wiki_method_lineno": null
   },
   {
@@ -920,7 +920,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 276,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
+    "wiki_lineno": 93,
     "wiki_method_lineno": null
   },
   {
@@ -932,8 +932,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 286,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
-    "wiki_method_lineno": 95
+    "wiki_lineno": 93,
+    "wiki_method_lineno": 101
   },
   {
     "class": "Element",
@@ -944,8 +944,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 293,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
-    "wiki_method_lineno": 105
+    "wiki_lineno": 93,
+    "wiki_method_lineno": 111
   },
   {
     "class": "Element",
@@ -956,8 +956,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 383,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
-    "wiki_method_lineno": 99
+    "wiki_lineno": 93,
+    "wiki_method_lineno": 105
   },
   {
     "class": "Element",
@@ -968,7 +968,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 412,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
+    "wiki_lineno": 93,
     "wiki_method_lineno": null
   },
   {
@@ -980,7 +980,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 439,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
+    "wiki_lineno": 93,
     "wiki_method_lineno": null
   },
   {
@@ -992,7 +992,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 463,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
+    "wiki_lineno": 93,
     "wiki_method_lineno": null
   },
   {
@@ -1004,8 +1004,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 505,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
-    "wiki_method_lineno": 122
+    "wiki_lineno": 93,
+    "wiki_method_lineno": 128
   },
   {
     "class": "Element",
@@ -1016,8 +1016,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 547,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
-    "wiki_method_lineno": 128
+    "wiki_lineno": 93,
+    "wiki_method_lineno": 134
   },
   {
     "class": "Element",
@@ -1028,8 +1028,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 620,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
-    "wiki_method_lineno": 137
+    "wiki_lineno": 93,
+    "wiki_method_lineno": 143
   },
   {
     "class": "Lens",
@@ -1040,8 +1040,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1689,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 241,
-    "wiki_method_lineno": 245
+    "wiki_lineno": 247,
+    "wiki_method_lineno": 251
   },
   {
     "class": "Lens",
@@ -1052,7 +1052,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1733,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 241,
+    "wiki_lineno": 247,
     "wiki_method_lineno": null
   },
   {
@@ -1064,8 +1064,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1756,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 241,
-    "wiki_method_lineno": 253
+    "wiki_lineno": 247,
+    "wiki_method_lineno": 259
   },
   {
     "class": "Lens",
@@ -1076,7 +1076,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1813,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 241,
+    "wiki_lineno": 247,
     "wiki_method_lineno": null
   },
   {
@@ -1088,8 +1088,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1848,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 241,
-    "wiki_method_lineno": 260
+    "wiki_lineno": 247,
+    "wiki_method_lineno": 266
   },
   {
     "class": "Prism",
@@ -1100,8 +1100,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1889,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 266,
-    "wiki_method_lineno": 270
+    "wiki_lineno": 272,
+    "wiki_method_lineno": 276
   },
   {
     "class": "Prism",
@@ -1112,8 +1112,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1942,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 266,
-    "wiki_method_lineno": 274
+    "wiki_lineno": 272,
+    "wiki_method_lineno": 280
   },
   {
     "class": "Prism",
@@ -1124,8 +1124,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1961,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 266,
-    "wiki_method_lineno": 278
+    "wiki_lineno": 272,
+    "wiki_method_lineno": 284
   },
   {
     "class": "Prism",
@@ -1136,8 +1136,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1980,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 266,
-    "wiki_method_lineno": 282
+    "wiki_lineno": 272,
+    "wiki_method_lineno": 288
   },
   {
     "class": "Prism",
@@ -1148,7 +1148,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1992,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 266,
+    "wiki_lineno": 272,
     "wiki_method_lineno": null
   },
   {
@@ -1160,7 +1160,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 2015,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 266,
+    "wiki_lineno": 272,
     "wiki_method_lineno": null
   },
   {
@@ -1172,8 +1172,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1275,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 209,
-    "wiki_method_lineno": 213
+    "wiki_lineno": 215,
+    "wiki_method_lineno": 219
   },
   {
     "class": "Quadrapole",
@@ -1184,7 +1184,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1336,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 209,
+    "wiki_lineno": 215,
     "wiki_method_lineno": null
   },
   {
@@ -1196,8 +1196,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1362,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 209,
-    "wiki_method_lineno": 217
+    "wiki_lineno": 215,
+    "wiki_method_lineno": 223
   },
   {
     "class": "Quadrapole",
@@ -1208,7 +1208,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 1408,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 209,
+    "wiki_lineno": 215,
     "wiki_method_lineno": null
   },
   {
@@ -1220,8 +1220,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 686,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 144,
-    "wiki_method_lineno": 148
+    "wiki_lineno": 150,
+    "wiki_method_lineno": 154
   },
   {
     "class": "Source",
@@ -1232,8 +1232,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 716,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 144,
-    "wiki_method_lineno": 155
+    "wiki_lineno": 150,
+    "wiki_method_lineno": 161
   },
   {
     "class": "Source",
@@ -1244,8 +1244,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 737,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 144,
-    "wiki_method_lineno": 159
+    "wiki_lineno": 150,
+    "wiki_method_lineno": 165
   },
   {
     "class": "Source",
@@ -1256,7 +1256,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 740,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 144,
+    "wiki_lineno": 150,
     "wiki_method_lineno": null
   },
   {
@@ -1268,7 +1268,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 770,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 144,
+    "wiki_lineno": 150,
     "wiki_method_lineno": null
   },
   {
@@ -1280,8 +1280,8 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 791,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 144,
-    "wiki_method_lineno": 163
+    "wiki_lineno": 150,
+    "wiki_method_lineno": 169
   },
   {
     "class": "Source",
@@ -1292,7 +1292,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 838,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 144,
+    "wiki_lineno": 150,
     "wiki_method_lineno": null
   },
   {
@@ -1304,7 +1304,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 881,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 144,
+    "wiki_lineno": 150,
     "wiki_method_lineno": null
   },
   {
@@ -1316,7 +1316,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 899,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 144,
+    "wiki_lineno": 150,
     "wiki_method_lineno": null
   },
   {
@@ -1328,7 +1328,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 919,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 144,
+    "wiki_lineno": 150,
     "wiki_method_lineno": null
   },
   {
@@ -1340,7 +1340,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 956,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 144,
+    "wiki_lineno": 150,
     "wiki_method_lineno": null
   },
   {
