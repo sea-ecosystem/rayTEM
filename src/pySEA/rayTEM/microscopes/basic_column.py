@@ -187,8 +187,8 @@ def build_basic_column(voltage: float = 200.0) -> Microscope:
 		Source(name="G", voltage=voltage,
 			   size=(beam_size, beam_size), np_xy=(5, 5),
 			   angle=(beam_angle, beam_angle), na_xy=(3, 3),
-			   field_shape=(256, 256), field_extent=8 * beam_size,
-			   field_kind="gaussian"),
+			   wave_shape=(256, 256), wave_extent=8 * beam_size,
+			   wave_kind="gaussian"),
 		Drift(length=0.12),
 	])
 

@@ -4,7 +4,7 @@
   "version": "0.0.1beta",
   "wiki_schema_version": "1.0",
   "last_updated": "2026-08-20",
-  "source_commit": "e069ca0",
+  "source_commit": "5dff3db",
   "entry_point": "index.md",
   "depends_on": []
 }

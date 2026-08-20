@@ -2,7 +2,7 @@
 
 Demonstrates ``propagate_wave_scaled`` on ``microscopes/basic_column.sea``:
 a flat-intensity hard-aperture wavefunction Θ(a−r) (200 kV; the source's
-``field_kind`` is set to ``'aperture'``) is carried through the
+``wave_kind`` is set to ``'aperture'``) is carried through the
 accelerator drift and the C1 condenser lens on the zooming (ξ, η) grid — the lens is
 absorbed into the curvature state R, so its centimetre-scale focal phase never
 touches the sampled array (the fixed-grid mode cannot sample it; see
@@ -74,10 +74,10 @@ def propagate_until_crossover(scope):
 	"""
 	source = scope.sections[0].elements[0]
 	# select the flat-intensity aperture wavefunction on the source's one
-	# field generator (the stored template defaults to field_kind='gaussian')
-	source.field_kind = "aperture"
+	# field generator (the stored template defaults to wave_kind='gaussian')
+	source.wave_kind = "aperture"
 	source.aperture_radius = APERTURE_RADIUS
-	state = source.scaled_field()
+	state = source.wave_scaled()
 	planes = [state]
 	markers = {}
 	guard_message = None
