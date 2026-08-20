@@ -51,6 +51,7 @@ _PROPAGATE_KINDS = {
 	"envelope":   "propagate_moments",
 	"covariance": "propagate_moments",
 	"wave":       "propagate_wave",
+	"wave-scaled": "propagate_wave_scaled",
 }
 def _propagate_method_name(kind:str) -> str:
 	"""Resolve a propagation-mode keyword to its method name.
@@ -129,6 +130,42 @@ def _screen_item(chi, dx:float, dy:float, name:str):
 	"""
 	from .seashells import make_screen_phase_signal
 	return make_screen_phase_signal(chi, dx, dy, name=name)
+
+
+def _check_screen_sampling(chi, name:str):
+	"""Guard against an aliased phase screen applied to the scaled field U.
+
+	The scaled path applies non-absorbable element phases (quadrupole saddle,
+	dipole tilt, future aberrations) explicitly to U; a screen whose phase steps
+	more than π between neighbouring samples aliases silently. This check fails
+	loudly instead (handoff Eqs 47–48 sampling requirement ``|∂χ/∂ξ| < π/Δξ``).
+
+	Parameters
+	----------
+	chi : xp.ndarray
+		Real phase screen χ (radians), shape ``(ny, nx)``.
+	name : str
+		Element/screen name for the error message.
+
+	Returns
+	-------
+	None
+		Passes silently when adequately sampled.
+
+	Raises
+	------
+	ValueError
+		If the per-pixel phase step reaches π anywhere on the screen.
+	"""
+	step = 0.0
+	if chi.shape[1] > 1:
+		step = max(step, float(xp.abs(xp.diff(chi, axis=1)).max()))
+	if chi.shape[0] > 1:
+		step = max(step, float(xp.abs(xp.diff(chi, axis=0)).max()))
+	if step >= xp.pi:
+		raise ValueError(f"Phase screen {name!r} is under-sampled on the scaled grid "
+						 f"(max per-pixel phase step {step:.2f} rad >= pi): reduce the element "
+						 "strength, refine the wave grid, or enlarge the field of view.")
 
 
 class Element(SEASerializable):
@@ -507,7 +544,80 @@ class Element(SEASerializable):
 		return make_wavefield_signal(data, dx, dy, wavelength, z=z_out,
 									 name=getattr(signal, "name", "wavefield"))
 
-	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave"]="ray", **kwargs):
+	def propagate_wave_scaled(self, signal, s_min:float=1e-3):
+		r"""Propagate a scaled-Fresnel wavefield through this element.
+
+		The scaled counterpart of :meth:`propagate_wave` (handoff Eqs 23–48):
+		the state is the reduced field ``U(ξ, η)`` of the factorization
+		``ψ = (1/s)·U·exp[ik(x²+y²)/2R]`` plus the chart scalars ``(s, R, τ)``,
+		carried by a scaled-wavefield Signal. A finite element length is split as
+		free ``L/2`` → element action → free ``L/2`` (thin-equivalent). The
+		element action consumes :meth:`phase_shift(scaled=True)`: the returned
+		focusing ``power`` is absorbed into the curvature (``1/R⁺ = 1/R⁻ −
+		power``, Eq 45; U untouched), and the returned ``screen`` — a
+		non-absorbable phase — is applied explicitly to U after a sampling guard
+		(Eqs 47–48).
+
+		Parameters
+		----------
+		signal : Signal or seashells._ScaledWavefield
+			Incoming scaled wavefield (from
+			:func:`seashells.make_scaled_wavefield_signal`, e.g. via
+			:meth:`Source.scaled_field`).
+		s_min : float, optional
+			Crossover guard forwarded to the free-segment propagator: ``|s|``
+			must stay above this through every segment (handoff Eq 52), by
+			default ``1e-3``.
+
+		Returns
+		-------
+		Signal or seashells._ScaledWavefield
+			Scaled wavefield at the element exit (same ξ/η grid, updated
+			``s``/``R``/``τ``/``z``).
+
+		Raises
+		------
+		ValueError
+			If the chart approaches its ``s = 0`` singularity inside the element
+			(from the free-segment guard), or an explicit screen is under-sampled
+			on the scaled grid.
+		NotImplementedError
+			For element classes without a wave definition (base
+			:meth:`phase_shift`).
+
+		Related
+		-------
+		phase_shift : The per-element (power, screen) split consumed here.
+		waveoptics.propagate_free_scaled, waveoptics.apply_thin_lens_scaled
+
+		Notes
+		-----
+		Larmor rotation of thick lenses is not applied to the wavefield (same
+		documented approximation as the fixed-grid path), and a thick element is
+		treated as thin between two half-length free segments.
+		"""
+		from .waveoptics import propagate_free_scaled, apply_thin_lens_scaled, apply_phase
+		from .seashells import (make_scaled_wavefield_signal, read_scaled_wavefield,
+								phase_space_of)
+		U, dxi, deta, wavelength, s, R, tau, z = read_scaled_wavefield(signal)
+		L = getattr(self, "length", 0)
+		if L != 0:
+			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, L / 2, s, R, s_min=s_min)
+			tau += dt
+		power, screen = self.phase_shift((U.shape, dxi, deta), wavelength, scaled=True, s=s)
+		if power != 0:
+			s, R = apply_thin_lens_scaled(s, R, power)
+		if screen is not None:
+			_check_screen_sampling(screen.data, self.name or type(self).__name__)
+			U = apply_phase(U, screen.data, phase_space_of(screen))
+		if L != 0:
+			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, L / 2, s, R, s_min=s_min)
+			tau += dt
+		return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
+											z=(z if z is not None else 0.0) + L,
+											name=getattr(signal, "name", "scaled wavefield"))
+
+	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled"]="ray", **kwargs):
 		"""Unified propagation dispatcher across the three modes.
 
 		Routes to :meth:`propagate_ray`, :meth:`propagate_moments`, or
@@ -786,6 +896,63 @@ class Source(Element):
 		"""
 		return signal
 
+	def propagate_wave_scaled(self, signal, s_min:float=1e-3):
+		"""Pass the scaled wavefield through unchanged (the source only originates the beam).
+
+		Mirrors :meth:`propagate_wave`: the driver seeds the scaled state from
+		:meth:`scaled_field`, so the source's own step is a no-op.
+
+		Parameters
+		----------
+		signal : Signal or seashells._ScaledWavefield
+			Incoming scaled wavefield.
+		s_min : float, optional
+			Unused (accepted for driver-signature uniformity), by default ``1e-3``.
+
+		Returns
+		-------
+		Signal or seashells._ScaledWavefield
+			The input ``signal`` unchanged.
+		"""
+		return signal
+
+	def scaled_field(self, aperture_radius:float=None):
+		r"""Build the initial scaled-Fresnel state from this source.
+
+		Seeds scaled propagation (handoff Eqs 10–11): the initial chart is
+		``s = 1``, ``R = ∞``, ``τ = 0``, so the reduced field is the physical one,
+		``U₀ = ψ₀``, with ``Δξ = Δx``. The physical field comes from
+		:meth:`aperture_field` when ``aperture_radius`` is given, else from
+		:meth:`field` (plane/gaussian/point per the source's ``field_kind``).
+
+		Parameters
+		----------
+		aperture_radius : float, optional
+			Build the hard-aperture initial wave Θ(a−r) of this radius (metres);
+			``None`` (default) uses the source's ordinary field builder.
+
+		Returns
+		-------
+		Signal or seashells._ScaledWavefield
+			The initial scaled wavefield (``U``, Δξ/Δη, ``s=1``, ``R=∞``, ``τ=0``).
+
+		Raises
+		------
+		ValueError
+			Propagated from the underlying field builder (no wavelength, or an
+			aperture radius that does not fit the grid).
+
+		Related
+		-------
+		field, aperture_field : The physical initial-field builders wrapped here.
+		Element.propagate_wave_scaled : Consumes the state built here.
+		"""
+		from .seashells import make_scaled_wavefield_signal, read_wavefield
+		psi = self.aperture_field(aperture_radius) if aperture_radius is not None else self.field()
+		data, dx, dy, wavelength, z = read_wavefield(psi)
+		return make_scaled_wavefield_signal(data, dx, dy, wavelength, s=1.0, R=xp.inf, tau=0.0,
+											z=z, name=(self.name or 'source') + ' scaled wavefield')
+
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
 		"""A source originates fields; it imprints no phase (not part of this contract).
 
@@ -964,6 +1131,40 @@ class Aperture(Element):
 		data = aperture_mask(data, dx, dy, self.radius)
 		return make_wavefield_signal(data, dx, dy, wavelength, z=(z if z is not None else 0.0),
 									 name=getattr(signal, "name", "wavefield"))
+
+	def propagate_wave_scaled(self, signal, s_min:float=1e-3):
+		r"""Apply the hard circular aperture to the scaled field U.
+
+		Overrides :meth:`Element.propagate_wave_scaled` (an aperture is an
+		amplitude mask, not a phase). The physical radius maps to the scaled
+		coordinates as ``ξ ≤ radius/|s|``, so U is masked at the scaled radius;
+		the chart state ``(s, R, τ)`` and the plane position are unchanged
+		(zero length).
+
+		Parameters
+		----------
+		signal : Signal or seashells._ScaledWavefield
+			Incoming scaled wavefield.
+		s_min : float, optional
+			Unused (accepted for driver-signature uniformity), by default ``1e-3``.
+
+		Returns
+		-------
+		Signal or seashells._ScaledWavefield
+			Masked scaled wavefield on the same ξ/η grid.
+
+		Related
+		-------
+		propagate_wave : The fixed-grid masking override.
+		waveoptics.aperture_mask : The masking operator applied here.
+		"""
+		from .waveoptics import aperture_mask
+		from .seashells import make_scaled_wavefield_signal, read_scaled_wavefield
+		U, dxi, deta, wavelength, s, R, tau, z = read_scaled_wavefield(signal)
+		U = aperture_mask(U, dxi, deta, self.radius / abs(s))
+		return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
+											z=(z if z is not None else 0.0),
+											name=getattr(signal, "name", "scaled wavefield"))
 
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
 		"""An aperture is an amplitude mask, not a phase (not part of this contract).
@@ -1810,6 +2011,32 @@ class Prism(Element):
 			Always; wave-optics propagation is not implemented for ``Prism``.
 		"""
 		raise NotImplementedError("Wave-optics propagation is not implemented for Prism (spectrometer).")
+
+	def propagate_wave_scaled(self, signal, s_min:float=1e-3):
+		"""Scaled wave-optics propagation through a prism/spectrometer (not implemented).
+
+		Overrides :meth:`Element.propagate_wave_scaled` for the same reason as
+		:meth:`propagate_wave`: a dispersive bending prism is not a thin phase
+		screen plus drift.
+
+		Parameters
+		----------
+		signal : Signal or seashells._ScaledWavefield
+			Incoming scaled wavefield.
+		s_min : float, optional
+			Unused.
+
+		Returns
+		-------
+		Signal or seashells._ScaledWavefield
+			Never returns.
+
+		Raises
+		------
+		NotImplementedError
+			Always; scaled wave-optics propagation is not implemented for ``Prism``.
+		"""
+		raise NotImplementedError("Scaled wave-optics propagation is not implemented for Prism (spectrometer).")
 
 
 element_list = ["Element"] + [subclass.__name__ for subclass in Element.__subclasses__()]
