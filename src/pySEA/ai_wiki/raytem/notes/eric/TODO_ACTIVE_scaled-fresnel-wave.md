@@ -21,7 +21,7 @@
       electron-scale invariants (200 kV, 20 µm, f=45 mm) + s_min guard
 - [x] Step 6 — Fourier band-limited target-grid reconstruction (Eq 44);
       entrance-plane equivalence test
-- [ ] Step 7 — `propagate_wave_scaled` drivers + `.wave_scaled` SignalSet +
+- [x] Step 7 — `propagate_wave_scaled` drivers + `.wave_scaled` SignalSet +
       `Microscope.wavefield_at` + dispatcher `kind="wave-scaled"`; column test;
       full suite green
 - [ ] Step 8 — docs (`wave-optics-sampling.md` update), wiki refresh +

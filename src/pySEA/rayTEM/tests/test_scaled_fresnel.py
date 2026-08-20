@@ -362,3 +362,74 @@ def test_scaled_wavefield_signal_roundtrip():
 		assert sset["U"].data.shape == (3, 32, 32)
 		assert np.allclose(sset["s"].data, [1.0, 0.5, 0.25])
 		assert all(sset[nm].dimensions[0].size == 3 for nm in ("U", "s", "R", "tau"))
+
+
+# --- test 10: column integration ----------------------------------------------
+
+from pySEA.rayTEM import Microscope
+from pySEA.rayTEM.seashells import sea_available
+
+
+def _scaled_column():
+	"""Source (200 kV, 10 um aperture) -> drift -> f=45 mm lens -> drift."""
+	K = np.sqrt(1 / 45e-3)		# thin-lens power = K^2 = 1/f
+	return [Source(voltage=200, field_shape=(64, 64), field_extent=64 * 2.5e-7),
+			Drift(length=1e-3), Lens(strength=K, length=0.0, name="OL"),
+			Drift(length=20e-3)]
+
+
+def test_column_integration_scaled():
+	radius = 5e-6
+	sec = MicroscopeSection(elements=_scaled_column())
+	out = sec.propagate_wave_scaled(field0=sec.elements[0].scaled_field(radius))
+
+	# standalone chained element calls must match the driver bit-for-bit
+	f = sec.elements[0].scaled_field(radius)
+	for ele in sec.elements:
+		f = ele.propagate_wave_scaled(f)
+	U_end, dxi, deta, lam, s_end, R_end, tau_end, z_end = read_scaled_wavefield(f)
+	U_drv, *_, s_drv, R_drv, tau_drv, z_drv = read_scaled_wavefield(sec._wave_scaled_planes[-1])
+	assert np.allclose(U_drv, U_end) and s_drv == s_end and R_drv == R_end
+	assert np.isclose(tau_drv, tau_end) and np.isclose(z_drv, z_end)
+	# physics: s = 1 - d2/f after the lens, R updated, z at the column end
+	assert np.isclose(s_end, 1 - 20e-3 / 45e-3) and np.isclose(R_end, -45e-3 + 20e-3)
+	assert np.isclose(z_end, 21e-3)
+
+	# .wave_scaled is a SignalSet whose companions share the plane-z axis
+	if sea_available:
+		assert out is sec.wave_scaled
+		assert out.get_dataset_names() == ["U", "s", "R", "tau"]
+		n_planes = out["U"].data.shape[0]
+		assert all(out[nm].dimensions[0].size == n_planes for nm in ("U", "s", "R", "tau"))
+		assert np.isclose(out["s"].data[-1], s_end) and np.isclose(out["tau"].data[-1], tau_end)
+
+	# dispatcher routes kind="wave-scaled" (element, section, and microscope)
+	sec2 = MicroscopeSection(elements=_scaled_column())
+	sec2.propagate(field0=sec2.elements[0].scaled_field(radius), kind="wave-scaled")
+	U2 = read_scaled_wavefield(sec2._wave_scaled_planes[-1])[0]
+	assert np.allclose(U2, U_drv)
+
+	# Microscope driver + physical-wave reconstruction at a requested plane
+	mic = Microscope(sections=[MicroscopeSection(elements=_scaled_column())])
+	mic.propagate_wave_scaled(field0=mic.sections[0].elements[0].scaled_field(radius))
+	psi_sig = mic.wavefield_at(21e-3)
+	data, dx, dy, lam_out, z_out = read_wavefield(psi_sig)
+	assert np.isclose(z_out, 21e-3) and np.isclose(lam_out, lam)
+	assert np.isclose(dx, abs(s_end) * dxi)		# native grid: dx = |s| dxi
+	# reconstruction preserves energy (Eq 54)
+	assert np.isclose((np.abs(data)**2).sum() * dx * dy,
+					  (np.abs(U_end)**2).sum() * dxi * deta, rtol=1e-12)
+	# and a prescribed target grid is honored (Eq 44)
+	psi_t = mic.wavefield_at(21e-3, target_dx=2.5e-7, target_shape=(64, 64))
+	data_t, dx_t, *_ = read_wavefield(psi_t)
+	assert np.isclose(dx_t, 2.5e-7) and data_t.shape == (64, 64)
+
+
+def test_scaled_guard_through_column():
+	# a drift long enough to reach the crossover must raise the actionable error
+	K = np.sqrt(1 / 45e-3)
+	sec = MicroscopeSection(elements=[
+		Source(voltage=200, field_shape=(64, 64), field_extent=64 * 2.5e-7),
+		Lens(strength=K, length=0.0), Drift(length=44.96e-3)])
+	with pytest.raises(ValueError, match="crossover"):
+		sec.propagate_wave_scaled(field0=sec.elements[0].scaled_field(5e-6))
