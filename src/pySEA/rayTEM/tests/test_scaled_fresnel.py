@@ -116,3 +116,249 @@ def test_fixed_path_refactor_regression():
 	ref = wo.tilt_phase(ref, dx, dy, lam, *dip.effective_tilts())
 	ref = wo.angular_spectrum_propagate(ref, dx, dy, lam, 0.05)
 	assert np.allclose(data[-1], ref, atol=1e-12)
+
+# --- scaled-Fresnel core (handoff tests 1-9) -----------------------------------
+
+from pySEA.rayTEM.seashells import (make_scaled_wavefield_signal, read_scaled_wavefield,
+									make_scaled_wave_signalset)
+
+RNG = np.random.default_rng(7)
+
+
+def _align_global_phase(a, b):
+	"""Return ``a`` rotated by the global phase that best matches ``b``."""
+	return a * np.exp(1j * np.angle(np.vdot(a, b)))
+
+
+def _gaussian_state(n=128, dx=5e-6, lam=500e-9, sigma=4e-5):
+	"""A smooth band-limited test wave: centred Gaussian on an n x n grid."""
+	field = wo.gaussian_field((n, n), dx, dx, sigma, sigma)
+	return field, dx, lam
+
+
+def test_eq29_delta_tau_vs_numerical_integral():
+	# closed form (Eq 29) vs numerical integral of dz/s^2 with s(z) = s0 (1 + z/R0)
+	for _ in range(20):
+		s0 = RNG.uniform(0.2, 3.0) * RNG.choice([-1, 1])
+		R0 = RNG.uniform(0.05, 2.0) * RNG.choice([-1, 1])
+		# keep the segment on one side of the crossover (1 + dz/R0 > 0)
+		dz = RNG.uniform(0.0, 0.9 * abs(R0)) if R0 < 0 else RNG.uniform(0.0, 5.0)
+		zg = np.linspace(0.0, dz, 200001)
+		numeric = np.trapezoid(1.0 / (s0 * (1 + zg / R0))**2, zg)
+		assert np.isclose(wo.scaled_delta_tau(dz, s0, R0), numeric, rtol=1e-6)
+	# flat chart (Eq 31)
+	assert wo.scaled_delta_tau(0.7, 2.0, np.inf) == 0.7 / 4.0
+	# in-segment crossover must raise, and name the crossover position
+	with pytest.raises(ValueError, match="crossover"):
+		wo.scaled_delta_tau(0.2, 1.0, -0.1)
+
+
+def test_factor_reconstruct_identity():
+	# Eq 55 factorization then Eq 37 reconstruction is exact to machine precision
+	psi0, dx, lam = _gaussian_state()
+	psi0 = psi0 * np.exp(1j * RNG.uniform(-np.pi, np.pi, psi0.shape))	# arbitrary field
+	for s, R in [(1.0, np.inf), (0.7, 0.3), (-1.3, -0.08), (2.5, np.inf)]:
+		U, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, s, R)
+		assert np.isclose(dxi, dx / s) and np.isclose(deta, dx / s)
+		psi, dx_out, dy_out = wo.reconstruct_physical_wave(U, dxi, deta, lam, s, R)
+		assert np.isclose(dx_out, abs(s) * dxi) and np.isclose(dy_out, abs(s) * deta)
+		assert np.allclose(psi, psi0, atol=1e-13)
+
+
+def test_free_propagation_flat_chart_matches_ordinary():
+	# s=1, R=inf: the scaled propagator IS the carrier-free ordinary propagator
+	psi0, dx, lam = _gaussian_state()
+	dz = 5e-3
+	U, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, 1.0, np.inf)
+	U1, s1, R1, dtau = wo.propagate_free_scaled(U, dxi, deta, lam, dz, 1.0, np.inf)
+	assert s1 == 1.0 and np.isinf(R1) and dtau == dz
+	psi1, dx1, _ = wo.reconstruct_physical_wave(U1, dxi, deta, lam, s1, R1)
+	ref = wo.angular_spectrum_propagate(psi0, dx, dx, lam, dz, include_carrier=False)
+	assert np.isclose(dx1, dx)
+	assert np.allclose(psi1, ref, atol=1e-12)
+
+
+def test_free_propagation_curved_chart_matches_ordinary():
+	# arbitrary curved chart (s0=1, finite R0): reconstruct on the reference grid
+	psi0, dx, lam = _gaussian_state()
+	n = psi0.shape[0]
+	dz, R0 = 5e-3, 0.05
+	U, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, 1.0, R0)
+	U1, s1, R1, _ = wo.propagate_free_scaled(U, dxi, deta, lam, dz, 1.0, R0)
+	assert np.isclose(s1, 1 + dz / R0) and np.isclose(R1, R0 + dz)
+	psi1, dx1, _ = wo.reconstruct_physical_wave(U1, dxi, deta, lam, s1, R1,
+												target_dx=dx, target_shape=(n, n))
+	assert np.isclose(dx1, dx)
+	ref = wo.angular_spectrum_propagate(psi0, dx, dx, lam, dz, include_carrier=False)
+	err = np.linalg.norm(_align_global_phase(psi1, ref) - ref) / np.linalg.norm(ref)
+	assert err < 1e-3
+
+
+def test_thin_lens_scaled_matches_focal_phase():
+	# Eq 56 (explicit lens phase) vs Eqs 57-58 (R absorption, U untouched)
+	psi0, dx, lam = _gaussian_state()
+	f = 0.5
+	ref = wo.focal_phase(psi0, dx, dx, lam, 1 / f, 1 / f)		# exp(-ik r^2/2f)
+	U, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, 1.0, np.inf)
+	s, R = wo.apply_thin_lens_scaled(1.0, np.inf, 1 / f)
+	assert s == 1.0 and np.isclose(R, -f)
+	psi, dx_out, _ = wo.reconstruct_physical_wave(U, dxi, deta, lam, s, R)
+	assert np.isclose(dx_out, dx)
+	assert np.allclose(psi, ref, atol=1e-12)
+
+
+def _run_aperture_lens_system():
+	"""Aperture -> free -> thin lens -> free, scaled chain; returns both paths."""
+	lam, n, dx = 633e-9, 256, 1e-5
+	radius, f, d1, d2 = 8e-4, 0.5, 0.02, 0.05
+	# initial wave built by the Source method the plan mandates (Eq 9, hard edge);
+	# the system regime itself uses an optical wavelength so the fixed-grid
+	# reference is valid for comparison (electron scale is covered separately).
+	src = Source(voltage=200, field_shape=(n, n), field_extent=n * dx)
+	psi0, dx_src, dy_src, _, _ = read_wavefield(src.aperture_field(radius))
+	assert np.isclose(dx_src, dx) and np.isclose(dy_src, dx)
+	assert np.allclose(psi0, wo.aperture_mask(wo.plane_wave((n, n)), dx, dx, radius))
+	# ordinary fixed-grid reference (valid regime for these parameters)
+	ref = wo.angular_spectrum_propagate(psi0, dx, dx, lam, d1, include_carrier=False)
+	ref = wo.focal_phase(ref, dx, dx, lam, 1 / f, 1 / f)
+	ref = wo.angular_spectrum_propagate(ref, dx, dx, lam, d2, include_carrier=False)
+	# scaled chain
+	U, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, 1.0, np.inf)
+	planes = [(1.0, np.inf, 0.0)]
+	U, s, R, dtau = wo.propagate_free_scaled(U, dxi, deta, lam, d1, *planes[-1][:2])
+	planes.append((s, R, planes[-1][2] + dtau))
+	s, R = wo.apply_thin_lens_scaled(s, R, 1 / f)
+	U, s, R, dtau = wo.propagate_free_scaled(U, dxi, deta, lam, d2, s, R)
+	planes.append((s, R, planes[-1][2] + dtau))
+	return psi0, ref, U, dxi, deta, lam, dx, n, planes
+
+
+def test_aperture_lens_system_scaled_vs_ordinary():
+	psi0, ref, U, dxi, deta, lam, dx, n, planes = _run_aperture_lens_system()
+	s, R, _ = planes[-1]
+	# after the lens the beam contracts: s = 1 - d2/f on the converging chart
+	assert np.isclose(s, 1 - 0.05 / 0.5) and np.isclose(R, -0.5 + 0.05)
+	psi, dx_out, _ = wo.reconstruct_physical_wave(U, dxi, deta, lam, s, R,
+												  target_dx=dx, target_shape=(n, n))
+	assert np.isclose(dx_out, dx)
+	a = _align_global_phase(psi, ref)
+	# total intensity and the cumulative radial energy profile must match tightly;
+	# pointwise L2 is bounded but dominated by mutual discretization error at the
+	# hard (non-band-limited) aperture edge, on both propagators alike.
+	assert np.isclose((np.abs(psi)**2).sum(), (np.abs(ref)**2).sum(), rtol=1e-2)
+	X, Y = wo.transverse_coordinates((n, n), dx, dx)
+	r = np.hypot(X, Y)
+	edges = np.linspace(0, r.max(), 60)
+	cum = np.array([(np.abs(a)**2)[r <= e].sum() for e in edges])
+	cum_ref = np.array([(np.abs(ref)**2)[r <= e].sum() for e in edges])
+	assert np.max(np.abs(cum - cum_ref)) / cum_ref[-1] < 1e-2
+	assert np.linalg.norm(a - ref) / np.linalg.norm(ref) < 0.15
+
+
+def test_aperture_lens_system_converges_with_resolvable_edge():
+	# the residual disagreement above is edge aliasing, not the propagator: with a
+	# band-limited (cosine-tapered) aperture the same system agrees to < 5e-3
+	lam, n, dx = 633e-9, 256, 1e-5
+	radius, taper, f, d1, d2 = 8e-4, 16 * 1e-5, 0.5, 0.02, 0.05
+	X, Y = wo.transverse_coordinates((n, n), dx, dx)
+	r = np.hypot(X, Y)
+	psi0 = (0.5 * (1 + np.cos(np.pi * np.clip((r - radius + taper) / taper, 0, 1)))).astype(complex)
+	ref = wo.angular_spectrum_propagate(psi0, dx, dx, lam, d1, include_carrier=False)
+	ref = wo.focal_phase(ref, dx, dx, lam, 1 / f, 1 / f)
+	ref = wo.angular_spectrum_propagate(ref, dx, dx, lam, d2, include_carrier=False)
+	U, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, 1.0, np.inf)
+	U, s, R, _ = wo.propagate_free_scaled(U, dxi, deta, lam, d1, 1.0, np.inf)
+	s, R = wo.apply_thin_lens_scaled(s, R, 1 / f)
+	U, s, R, _ = wo.propagate_free_scaled(U, dxi, deta, lam, d2, s, R)
+	psi, _, _ = wo.reconstruct_physical_wave(U, dxi, deta, lam, s, R,
+											 target_dx=dx, target_shape=(n, n))
+	a = _align_global_phase(psi, ref)
+	assert np.linalg.norm(a - ref) / np.linalg.norm(ref) < 5e-3
+	assert np.linalg.norm(np.abs(a) - np.abs(ref)) / np.linalg.norm(np.abs(ref)) < 5e-3
+
+
+def test_grid_scaling_and_normalization():
+	# Eqs 59-60 (pixel scaling) and Eq 54 (discrete norm) at every logged plane
+	psi0, ref, U, dxi, deta, lam, dx, n, planes = _run_aperture_lens_system()
+	E0 = (np.abs(psi0)**2).sum() * dx * dx
+	for s, R, _tau in planes[1:]:
+		assert s != 0
+	# final plane: native reconstruction pixel is |s| * dxi ...
+	s, R, _ = planes[-1]
+	psi, dx_out, dy_out = wo.reconstruct_physical_wave(U, dxi, deta, lam, s, R)
+	assert np.isclose(dx_out, abs(s) * dxi) and np.isclose(dy_out, abs(s) * deta)
+	# ... and sum |psi|^2 dx dy = sum |U|^2 dxi deta = initial energy (unitary kernel)
+	assert np.isclose((np.abs(psi)**2).sum() * dx_out * dy_out,
+					  (np.abs(U)**2).sum() * dxi * deta, rtol=1e-12)
+	assert np.isclose((np.abs(U)**2).sum() * dxi * deta, E0, rtol=1e-9)
+
+
+def test_entrance_plane_equivalence_on_target_grid():
+	# Eq 44: reconstruct onto a prescribed physical grid (the "entrance plane"
+	# an external multislice package would consume) and compare to the ordinary
+	# reference on that same grid.
+	psi0, dx, lam = _gaussian_state()
+	n = psi0.shape[0]
+	dz, R0 = 4e-3, 0.08
+	U, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, 1.0, R0)
+	U1, s1, R1, _ = wo.propagate_free_scaled(U, dxi, deta, lam, dz, 1.0, R0)
+	# target grid: same shape, the reference pixel size (not the native |s| dxi)
+	psi1, dx1, dy1 = wo.reconstruct_physical_wave(U1, dxi, deta, lam, s1, R1,
+												  target_dx=dx, target_shape=(n, n))
+	assert np.isclose(dx1, dx) and np.isclose(dy1, dx)
+	ref = wo.angular_spectrum_propagate(psi0, dx, dx, lam, dz, include_carrier=False)
+	a = _align_global_phase(psi1, ref)
+	assert np.linalg.norm(np.abs(a) - np.abs(ref)) / np.linalg.norm(np.abs(ref)) < 1e-3
+	assert np.linalg.norm(a - ref) / np.linalg.norm(ref) < 1e-3
+
+
+def test_electron_scale_invariants_and_guard():
+	# 200 kV, 20 um aperture, f = 45 mm -- the case the fixed grid cannot sample
+	lam = LAM
+	n, dx = 256, 2.5e-7		# 64 um field of view
+	f, radius = 45e-3, 10e-6
+	psi0 = wo.aperture_mask(wo.plane_wave((n, n)), dx, dx, radius)
+	E0 = (np.abs(psi0)**2).sum() * dx * dx
+	U, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, 1.0, np.inf)
+	s, R = wo.apply_thin_lens_scaled(1.0, np.inf, 1 / f)		# R = -f
+	# contraction toward focus: s(zeta) = 1 - zeta/f, checked across two segments
+	U1, s1, R1, _ = wo.propagate_free_scaled(U, dxi, deta, lam, 15e-3, s, R)
+	assert np.isclose(s1, 1 - 15e-3 / f)
+	U2, s2, R2, _ = wo.propagate_free_scaled(U1, dxi, deta, lam, 25e-3, s1, R1)
+	assert np.isclose(s2, 1 - 40e-3 / f)		# linear s composes across segments
+	# energy conserved, beam physically contracted by s
+	psi2, dx2, dy2 = wo.reconstruct_physical_wave(U2, dxi, deta, lam, s2, R2)
+	assert np.isclose((np.abs(psi2)**2).sum() * dx2 * dy2, E0, rtol=1e-9)
+	assert np.isclose(dx2, abs(s2) * dxi)
+	# rms radius contracts ~ geometrically (large Fresnel number)
+	X, Y = wo.transverse_coordinates((n, n), 1.0, 1.0)		# pixel units
+	def rms_px(field):
+		w = np.abs(field)**2
+		return np.sqrt(((X**2 + Y**2) * w).sum() / w.sum())
+	assert np.isclose(rms_px(psi2) * dx2, rms_px(psi0) * dx * abs(s2), rtol=0.05)
+	# the s_min guard raises with the crossover position before s hits 0
+	with pytest.raises(ValueError, match="crossover"):
+		wo.propagate_free_scaled(U2, dxi, deta, lam, 4.99e-3, s2, R2)
+
+
+def test_scaled_wavefield_signal_roundtrip():
+	# seashells seam: single-plane factory <-> reader, and the stacked SignalSet
+	U = (RNG.normal(size=(32, 32)) + 1j * RNG.normal(size=(32, 32)))
+	sig = make_scaled_wavefield_signal(U, 2e-9, 3e-9, LAM, s=0.5, R=-0.05, tau=1.2e-3, z=0.1)
+	U2, dxi, deta, lam, s, R, tau, z = read_scaled_wavefield(sig)
+	assert np.allclose(U2, U)
+	assert (dxi, deta, lam) == (2e-9, 3e-9, LAM)
+	assert (s, R, tau, z) == (0.5, -0.05, 1.2e-3, 0.1)
+	if hasattr(sig, "dimensions"):		# real sea_eco Signal: dims carry the scaled pitch
+		dims = list(sig.dimensions)
+		assert np.isclose(dims[-1].scale, 2e-9) and np.isclose(dims[-2].scale, 3e-9)
+	# stacked result: U stack + s/R/tau companions on the shared plane-z axis
+	stack = np.stack([U, 2 * U, 3 * U])
+	sset = make_scaled_wave_signalset(stack, 2e-9, 3e-9, LAM,
+									  s=[1.0, 0.5, 0.25], R=[np.inf, -0.05, -0.03],
+									  tau=[0.0, 1e-3, 2e-3], z=[0.0, 0.1, 0.2])
+	if sset is not None:
+		assert sset.get_dataset_names() == ["U", "s", "R", "tau"]
+		assert sset["U"].data.shape == (3, 32, 32)
+		assert np.allclose(sset["s"].data, [1.0, 0.5, 0.25])
+		assert all(sset[nm].dimensions[0].size == 3 for nm in ("U", "s", "R", "tau"))
