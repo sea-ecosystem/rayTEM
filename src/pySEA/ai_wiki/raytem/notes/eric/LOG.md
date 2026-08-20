@@ -7,17 +7,19 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
-## 2026-08-19 — [Under Construction] Scaled Fresnel propagation (propagate_wave_scaled)
+## 2026-08-19 — [Done] Scaled Fresnel propagation (propagate_wave_scaled)
 **Goal:** Implement Eric's scaled-Fresnel handoff — factor ψ = (1/s)·U(ξ,η,τ)·exp[ikr²/2R] so the grid rides the beam (Δx = |s|Δξ), with a per-element `phase_shift` contract shared by the fixed and scaled wave paths and reconstruction back to physical x,y at any plane.
 **Why:** The fixed-grid wave mode cannot cross a real column (lens phases 10–100× over grid Nyquist; ~10⁶ transverse-scale range — see docs/wave-optics-sampling.md); this removes the reference curvature and scale from the sampled array analytically.
-- [ ] phase_shift contract + fixed-path refactor (regression-safe)
-- [ ] scaled Signal seam + factor/reconstruct identity
-- [ ] scaled free propagation (constant then linear s; Δτ closed form verified)
-- [ ] scaled element consumption (lens→R; quad/dipole→phase on U, guarded)
-- [ ] target-grid Fourier reconstruction; entrance-plane equivalence
-- [ ] drivers + .wave_scaled SignalSet + wavefield_at + dispatcher kind
-- [ ] docs/wiki; crossover chart-switching follow-up issue
+- [x] phase_shift contract + fixed-path refactor (regression-safe)
+- [x] scaled Signal seam + factor/reconstruct identity
+- [x] scaled free propagation (constant then linear s; Δτ closed form verified)
+- [x] scaled element consumption (lens→R; quad/dipole→phase on U, guarded)
+- [x] target-grid Fourier reconstruction; entrance-plane equivalence
+- [x] drivers + .wave_scaled SignalSet + wavefield_at + dispatcher kind
+- [x] docs/wiki; crossover chart-switching follow-up issue
 Note: PLAN_2026-08-19_scaled-fresnel-wave.md was rewritten — the earlier pilot-Gaussian/ABCD draft it held was rejected in favor of the handoff's pure phase-factorization formulation.
+
+**Outcome:** `propagate_wave_scaled` on Element/Section/Microscope (dispatcher `kind="wave-scaled"`), built on a per-element `phase_shift(dimensions, wavelength, scaled=False, s=1)` contract that both wave paths share: `scaled=False` returns the fixed path's space-tagged phase program (Lens −k r²/2f, Quadrapole saddle, Dipole tilt, Drift reciprocal kernel; the fixed `propagate_wave` was refactored onto it, regression-proven at atol=1e-12); `scaled=True` returns the (power-absorbed-into-R, screen-applied-to-U) split (Eqs 45–48) with a per-pixel |Δχ|<π guard on U screens. Scaled math lives in `waveoptics` (`scaled_delta_tau` — Eq 29 verified vs the numeric integral, `factor_wave`/`reconstruct_physical_wave` — exact round-trip, `fourier_resample` — exact separable trig interpolation at any pitch ratio, `apply_thin_lens_scaled`, `propagate_free_scaled` with the s_min crossover guard). State rides sea_eco: Δξ/Δη on the ξ/η Dimensions, s/R/τ in metadata in flight and as companion Signals in the `.wave_scaled` SignalSet (`seashells.make_scaled_wavefield_signal`/`read_scaled_wavefield`/`make_scaled_wave_signalset`); `Source.aperture_field(radius)`/`scaled_field()` seed it and `Microscope.wavefield_at(z_or_name, target_dx=, target_shape=)` reconstructs the physical wave at any logged plane (native Eq 41 grid or Eq 44 target grid) for external consumers. Validation: 20 new tests (46 total green) including free-prop equivalence vs the ordinary propagator (flat + curved charts), thin-lens R-absorption vs `focal_phase`, an aperture→free→lens→free system, Eq 54 normalization, Δx=|s|Δξ grid scaling, the electron-scale 200 kV / 20 µm / f=45 mm case the fixed grid cannot sample, and the actionable crossover error. docs/wave-optics-sampling.md updated (scaled Fresnel → implemented); crossover chart-switching filed as issue #2 (refs #1). Known limits (documented): crossovers need a chart switch (issue #2); thick elements are thin-equivalent between half-length free segments; quadrupoles valid at stigmator-scale strengths under the guard; Larmor rotation not applied to the wavefield.
 
 ## 2026-08-08 — [Done] Signal-backed results and new propagation modes
 **Goal:** Add `propagate_moments` (beam-envelope covariance) and `propagate_wave` (paraxial wave optics, sea_eco Signal-backed), each with its own result container, on a cleaned geometric ray vector.

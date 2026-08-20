@@ -24,5 +24,5 @@
 - [x] Step 7 — `propagate_wave_scaled` drivers + `.wave_scaled` SignalSet +
       `Microscope.wavefield_at` + dispatcher `kind="wave-scaled"`; column test;
       full suite green
-- [ ] Step 8 — docs (`wave-optics-sampling.md` update), wiki refresh +
+- [x] Step 8 — docs (`wave-optics-sampling.md` update), wiki refresh +
       hand-edits, crossover chart-switching follow-up issue; finish protocol
