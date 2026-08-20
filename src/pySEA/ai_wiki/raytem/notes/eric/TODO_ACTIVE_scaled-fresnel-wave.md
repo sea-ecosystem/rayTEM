@@ -3,7 +3,7 @@
 **Branch/worktree:** `Signal_and_propagation_additions` (rayTEM)
 **Plan:** [PLAN_2026-08-19_scaled-fresnel-wave.md](PLAN_2026-08-19_scaled-fresnel-wave.md)
 
-- [ ] Step 1 — `Element.phase_shift(dimensions, wavelength, scaled=False, s=1)`:
+- [x] Step 1 — `Element.phase_shift(dimensions, wavelength, scaled=False, s=1)`:
       explicit per-element χ (Lens round, Quadrapole saddle, Dipole tilt, Drift
       kernel), space-tagged phase Signals, waveoptics χ builders +
       `include_carrier` kwarg; refactor fixed `propagate_wave` to consume it;
