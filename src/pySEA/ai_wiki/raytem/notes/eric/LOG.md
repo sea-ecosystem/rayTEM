@@ -7,6 +7,12 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-20 — [Under Construction] Stale ray-doc fixes + scaled-wave basic_column demo
+**Goal:** Correct the wiki's pre-refactor 8-column ray descriptions and demonstrate `propagate_wave_scaled` end-to-end on the basic_column template (saved result + cross-section and x-y slice plots).
+**Why:** elements.md/assemblies.md still document I/R as ray columns and 8x8 matrices (misleading after the 6-col refactor), and the new scaled mode has no worked column example.
+- [ ] wiki ray-doc fixes (+ ecosystem index if env allows)
+- [ ] scaled-wave demo: propagate basic_column, save, cross-section + x-y slices
+
 ## 2026-08-19 — [Done] Scaled Fresnel propagation (propagate_wave_scaled)
 **Goal:** Implement Eric's scaled-Fresnel handoff — factor ψ = (1/s)·U(ξ,η,τ)·exp[ikr²/2R] so the grid rides the beam (Δx = |s|Δξ), with a per-element `phase_shift` contract shared by the fixed and scaled wave paths and reconstruction back to physical x,y at any plane.
 **Why:** The fixed-grid wave mode cannot cross a real column (lens phases 10–100× over grid Nyquist; ~10⁶ transverse-scale range — see docs/wave-optics-sampling.md); this removes the reference curvature and scale from the sampled array analytically.
