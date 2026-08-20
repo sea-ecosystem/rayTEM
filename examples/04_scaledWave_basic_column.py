@@ -1,8 +1,9 @@
 """Scaled-Fresnel wave propagation through the basic_column template.
 
 Demonstrates ``propagate_wave_scaled`` on ``microscopes/basic_column.sea``:
-the source's 200 kV Gaussian wavefunction is carried through the accelerator
-drift and the C1 condenser lens on the zooming (ξ, η) grid — the lens is
+a flat-intensity hard-aperture wavefunction Θ(a−r) from
+``Source.scaled_field(aperture_radius=...)`` (200 kV) is carried through the
+accelerator drift and the C1 condenser lens on the zooming (ξ, η) grid — the lens is
 absorbed into the curvature state R, so its centimetre-scale focal phase never
 touches the sampled array (the fixed-grid mode cannot sample it; see
 ``docs/wave-optics-sampling.md``). Long drifts are subdivided so the beam's
@@ -38,7 +39,8 @@ from pySEA.rayTEM import waveoptics as wo
 from pySEA.rayTEM.seashells import (read_scaled_wavefield, make_scaled_wave_signalset,
 									sea_available)
 
-S_STOP = 0.02		# log the last plane at |s| = S_STOP, just before the crossover guard
+S_STOP = 0.02			# log the last plane at |s| = S_STOP, just before the crossover guard
+APERTURE_RADIUS = 5e-6	# flat-intensity initial wave: theta(a - r), a = 5 um (grid extent 20 um)
 DZ_STEP = 5e-3		# drift subdivision for dense s(z) logging (m)
 
 
@@ -71,7 +73,7 @@ def propagate_until_crossover(scope):
 		returned as ``guard_message``.
 	"""
 	source = scope.sections[0].elements[0]
-	state = source.scaled_field()
+	state = source.scaled_field(aperture_radius=APERTURE_RADIUS)
 	planes = [state]
 	markers = {}
 	guard_message = None
