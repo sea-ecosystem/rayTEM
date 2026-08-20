@@ -479,6 +479,204 @@ def read_wavefield(signal):
 	return signal.data, dx, dy, wavelength, z
 
 
+class _ScaledWavefield:
+	"""Lightweight fallback scaled-wavefield container used when sea_eco is unavailable.
+
+	Mirrors the read surface of a scaled-wavefield ``Signal`` produced by
+	:func:`make_scaled_wavefield_signal`: the reduced field ``U(ξ, η)`` of the
+	scaled-Fresnel factorization ``ψ = (1/s)·U·exp[ik(x²+y²)/2R]`` plus its scaled
+	sampling and the chart state ``(s, R, τ)``, so scaled propagation still runs
+	and round-trips in-memory without the calibrated-Signal machinery.
+
+	Parameters
+	----------
+	data : numpy.ndarray
+		Complex reduced field ``U``, shape ``(neta, nxi)``.
+	dxi, deta : float
+		Scaled transverse sample spacings Δξ, Δη (metres).
+	wavelength : float
+		Wavelength (metres).
+	s : float
+		Scale factor at this plane (physical pixel size is ``|s|·Δξ``).
+	R : float
+		Wavefront radius of curvature (metres); ``numpy.inf`` for a flat chart.
+	tau : float
+		Reduced propagation coordinate ``τ = ∫ dz/s²`` accumulated so far.
+	z : float or None
+		Physical plane position (metres).
+
+	Attributes
+	----------
+	data : numpy.ndarray
+		The complex reduced field ``U``.
+	dxi, deta : float
+		Scaled sample spacings (metres).
+	wavelength : float
+		Wavelength (metres).
+	s, R, tau : float
+		Chart state at this plane.
+	z : float or None
+		Physical plane position (metres).
+	"""
+	def __init__(self, data, dxi, deta, wavelength, s, R, tau, z):
+		self.data = data
+		self.dxi = dxi
+		self.deta = deta
+		self.wavelength = wavelength
+		self.s = s
+		self.R = R
+		self.tau = tau
+		self.z = z
+
+
+def make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=None,
+								 name="scaled wavefield"):
+	"""Wrap a reduced field ``U(ξ, η)`` as a single-plane scaled-wavefield ``Signal``.
+
+	Builds the in-flight state of scaled-Fresnel propagation: the reduced field of
+	the factorization ``ψ = (1/s)·U(ξ, η)·exp[ik(x²+y²)/2R]`` on a ``Signal`` whose
+	ξ/η axes carry the *scaled* sampling Δξ/Δη as their calibration, with the chart
+	scalars ``(s, R, τ)``, the wavelength, and the physical plane position in
+	metadata. When sea_eco is unavailable a :class:`_ScaledWavefield` fallback is
+	returned instead (with a warning).
+
+	Parameters
+	----------
+	U : numpy.ndarray
+		Complex reduced field, shape ``(neta, nxi)``.
+	dxi, deta : float
+		Scaled transverse sample spacings Δξ, Δη (metres). The physical pixel size
+		at this plane is ``|s|·Δξ``.
+	wavelength : float
+		Wavelength (metres).
+	s : float
+		Scale factor at this plane.
+	R : float
+		Wavefront radius of curvature (metres); ``numpy.inf`` for a flat chart.
+	tau : float
+		Accumulated reduced propagation coordinate ``τ = ∫ dz/s²``.
+	z : float or None, optional
+		Physical plane position (metres), stored in metadata.
+	name : str, optional
+		Signal name, by default ``"scaled wavefield"``.
+
+	Returns
+	-------
+	Signal or _ScaledWavefield
+		A calibrated complex ``Signal`` when sea_eco is present, otherwise a
+		:class:`_ScaledWavefield` fallback.
+
+	Related
+	-------
+	read_scaled_wavefield : Inverse accessor.
+	make_scaled_wave_signalset : Stacked multi-plane variant.
+	make_wavefield_signal : The physical (unscaled) wavefield factory.
+	"""
+	import numpy as _np
+	U = _np.asarray(U)
+	if not sea_available:
+		warn("sea_eco is not installed; make_scaled_wavefield_signal returns a "
+			 "lightweight _ScaledWavefield fallback (no .sea serialization).")
+		return _ScaledWavefield(U, dxi, deta, wavelength, s, R, tau, z)
+	neta, nxi = U.shape[-2], U.shape[-1]
+	xidim = _Dimension(name="xi", space="position", scale=dxi, offset=-(nxi // 2) * dxi, size=nxi, units="m")
+	etadim = _Dimension(name="eta", space="position", scale=deta, offset=-(neta // 2) * deta, size=neta, units="m")
+	# chart scalars mirrored into metadata for robust, parse-free read-back
+	meta = {"wavelength_m": float(wavelength), "dxi_m": float(dxi), "deta_m": float(deta),
+			"s": float(s), "R_m": float(R), "tau": float(tau),
+			"z_m": float(z) if z is not None else 0.0}
+	return _Signal(data=U, name=name, dimensions=[etadim, xidim], metadata=meta, signal_type="Image")
+
+
+def read_scaled_wavefield(signal):
+	"""Read ``(U, dxi, deta, wavelength, s, R, tau, z)`` from a scaled wavefield.
+
+	Inverse of :func:`make_scaled_wavefield_signal`. Reads the scaled sampling and
+	the chart state from metadata (mirrored there by the factory) so it does not
+	depend on parsing ``Dimension`` objects, and works for both a real sea_eco
+	``Signal`` and the :class:`_ScaledWavefield` fallback.
+
+	Parameters
+	----------
+	signal : Signal or _ScaledWavefield
+		A scaled wavefield produced by :func:`make_scaled_wavefield_signal`.
+
+	Returns
+	-------
+	tuple
+		``(U, dxi, deta, wavelength, s, R, tau, z)`` where ``U`` is the complex
+		reduced field and the remaining entries are floats.
+
+	Related
+	-------
+	make_scaled_wavefield_signal, read_wavefield
+	"""
+	if isinstance(signal, _ScaledWavefield):
+		return (signal.data, signal.dxi, signal.deta, signal.wavelength,
+				signal.s, signal.R, signal.tau, signal.z)
+	meta = signal.metadata.to_dict() if signal.metadata is not None else {}
+	return (signal.data, meta.get("dxi_m"), meta.get("deta_m"), meta.get("wavelength_m"),
+			meta.get("s"), meta.get("R_m"), meta.get("tau"), meta.get("z_m", None))
+
+
+def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, name="scaled wave"):
+	"""Wrap a stack of reduced fields and their chart state as a sea_eco ``SignalSet``.
+
+	Assembles the stacked result of a scaled-Fresnel run: the reduced field
+	``U(z, η, ξ)`` on an unstructured plane-``z`` axis plus calibrated ξ/η axes
+	(the ξ,η grid is fixed for the whole run), with companion 1-D Signals ``s(z)``,
+	``R(z)``, ``tau(z)`` sharing the same plane-z axis — the same pattern as
+	:func:`make_rays_signalset`. Returns ``None`` (with a warning) when sea_eco
+	is absent.
+
+	Parameters
+	----------
+	U : numpy.ndarray
+		Reduced-field stack, shape ``(n_planes, neta, nxi)``.
+	dxi, deta : float
+		Scaled transverse sample spacings Δξ, Δη (metres), shared by every plane.
+	wavelength : float
+		Wavelength (metres), stored in metadata.
+	s, R, tau : Sequence[float]
+		Chart state per plane, each of length ``n_planes``. Physical pixel size at
+		plane ``i`` is ``|s[i]|·Δξ``; ``R`` may contain ``numpy.inf``.
+	z : Sequence[float]
+		The ``n_planes`` physical plane positions (metres) for the unstructured
+		z axis.
+	name : str, optional
+		Name for the SignalSet, by default ``"scaled wave"``.
+
+	Returns
+	-------
+	SignalSet or None
+		A SignalSet of ``[U, s, R, tau]`` (main Signal ``U``) when sea_eco is
+		present, else ``None``.
+
+	Related
+	-------
+	make_scaled_wavefield_signal, make_rays_signalset
+	"""
+	import numpy as _np
+	if not sea_available:
+		warn("sea_eco is not installed; make_scaled_wave_signalset requires sea_eco and returns None.")
+		return None
+	U = _np.asarray(U)
+	n_planes, neta, nxi = U.shape
+	zvals = _np.asarray(z, dtype=float)
+	zscale = float(zvals[1] - zvals[0]) if len(zvals) > 1 else 1.0
+	zdim = _Dimension(name="plane_z", space="position", scale=zscale, offset=float(zvals[0]),
+					  size=n_planes, values=zvals, units="m", unstructured=True)
+	xidim = _Dimension(name="xi", space="position", scale=dxi, offset=-(nxi // 2) * dxi, size=nxi, units="m")
+	etadim = _Dimension(name="eta", space="position", scale=deta, offset=-(neta // 2) * deta, size=neta, units="m")
+	meta = {"wavelength_m": float(wavelength), "dxi_m": float(dxi), "deta_m": float(deta)}
+	U_sig = _Signal(data=U, name="U", dimensions=[zdim, etadim, xidim], metadata=meta,
+					signal_type="Image")
+	s_sig = _Signal(data=_np.asarray(s, dtype=float), name="s", dimensions=[zdim])
+	R_sig = _Signal(data=_np.asarray(R, dtype=float), name="R", dimensions=[zdim])
+	tau_sig = _Signal(data=_np.asarray(tau, dtype=float), name="tau", dimensions=[zdim])
+	return _SignalSet(signals=[U_sig, s_sig, R_sig, tau_sig], main_signal=0, name=name)
+
+
 #SEASerializable.from_sea will create a purely-SEASerializable object. rayTEM objects (Element, MicroscopeSection, Microscope, etc) will have inherited from SEASerializable, so we may need to reinstantiate rayTEM objects to ensure they have the rayTEM-specific functionality (e.g. "scope=Microscope(); scope.from_sea" will find scope.sections is a list of purely-SEASerializable objects without functions like "propagate_ray").
 def safeReinstantiate(source,cls):
 	from .elements import Drift,Lens,Source,Dipole,Quadrapole
