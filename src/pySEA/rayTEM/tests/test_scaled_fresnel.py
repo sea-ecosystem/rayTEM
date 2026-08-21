@@ -763,3 +763,37 @@ def test_padded_grid_hybrid_completes():
 	zs = [read_scaled_wavefield(p)[7] for p in scope._wave_scaled_planes]
 	assert np.isclose(max(zs), 1.264, atol=1e-6)
 	assert len(scope.crossovers) >= 4
+
+
+# --- direct frame jumps (crossover='jump') ----------------------------------------
+
+def test_jump_policy_through_focus_optical():
+	# mild-crossover regime: the direct mirror jump (R_o=-d -> R_n=+d, one
+	# switch, no flat window) matches the ordinary reference comparably to the
+	# flat policy (measured: jump 1.3e-2 vs flat 1.0e-2). At tight electron
+	# crossovers the jump's 2x-deeper ride lets the diffraction-limited focal
+	# structure outgrow the FOV, so 'flat' remains the default (see docstring).
+	lam, n, dx = 633e-9, 256, 1e-5
+	radius, taper, f, d1 = 8e-4, 16e-5, 0.05, 0.01
+	X, Y = wo.transverse_coordinates((n, n), dx, dx)
+	r = np.hypot(X, Y)
+	psi0 = (0.5 * (1 + np.cos(np.pi * np.clip((r - radius + taper) / taper, 0, 1)))).astype(complex)
+	U, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, 1.0, np.inf)
+	U, s, R, dt, z, zc, lg = wo.propagate_free_scaled_hybrid(
+		U, dxi, deta, lam, d1, 1.0, np.inf, 0.0, crossover="jump")
+	s, R = wo.apply_thin_lens_scaled(s, R, 1 / f)
+	U, s, R, dt, z, zc, lg = wo.propagate_free_scaled_hybrid(
+		U, dxi, deta, lam, 0.09, s, R, z=d1, crossover="jump")
+	assert [e[0] for e in lg] == ["jump", "crossover"]		# one switch, focal plane logged
+	assert np.isclose(lg[1][5], d1 + f)						# crossover at the focus
+	assert R > 0 and zc is None
+	# energy conserved (no absorber at the math level by default)
+	assert np.isclose((np.abs(U)**2).sum() * dxi * deta,
+					  (np.abs(psi0)**2).sum() * dx * dx, rtol=1e-9)
+	ref = wo.angular_spectrum_propagate(psi0, dx, dx, lam, d1, include_carrier=False)
+	ref = wo.focal_phase(ref, dx, dx, lam, 1 / f, 1 / f)
+	ref = wo.angular_spectrum_propagate(ref, dx, dx, lam, z - d1, include_carrier=False)
+	psi, dxo, _ = wo.reconstruct_physical_wave(U, dxi, deta, lam, s, R,
+											   target_dx=dx, target_shape=(n, n))
+	a = _align_global_phase(psi, ref)
+	assert np.linalg.norm(a - ref) / np.linalg.norm(ref) < 3e-2
