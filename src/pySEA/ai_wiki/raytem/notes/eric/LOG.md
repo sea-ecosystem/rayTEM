@@ -7,6 +7,12 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-21 — [Under Construction] Conjugate planes: image AND diffraction families
+**Goal:** `Microscope.conjugate_planes(axis)` returning both the image and diffraction (back-focal) plane positions in metres, reusing the ray side's `findPlanes`, and annotating both in the scaled cross-section.
+**Why:** Eric asked which family the hybrid engine finds; measured answer is only the diffraction family (the frame is seeded flat = a parallel wavefront = findPlanes' diffraction ray), so image planes are currently invisible even though they are reconstructable.
+- [ ] conjugate_planes via findPlanes on a copy
+- [ ] cross-section annotation + docs + tests
+
 ## 2026-08-21 — [Done] Dense z sampling for show (subdivided + zpts)
 **Goal:** `Microscope.subdivided(zpts)` (copy with unnamed drifts split by max-spacing dz or at explicit z) and `show(..., zpts=)` that plots the scaled cross-section from a temporary subdivided copy, leaving the original's state untouched.
 **Why:** The cross-section's z resolution follows the column's logged planes (predictable but chunky); Eric wants seamless propagation and arbitrary-z plotting through show without hand-editing the column.
