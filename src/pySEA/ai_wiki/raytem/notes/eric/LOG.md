@@ -7,6 +7,11 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-21 — [Note] Plan handed over: closed-form conjugate planes from the transfer matrices
+**Goal:** Proposal for the ray-side owner — locate both plane families from the accumulated 2x2 matrix in closed form instead of pairwise ray-difference interpolation.
+**Why:** Confirmed `findPlanes` finds planes by interpolating where two reference rays' difference is zero *between logged planes*; that is algebraically the same criterion (A=0 for diffraction, B=0 for image) but sampled, so it is inexact inside thick lens bodies — which is exactly where our wave-vs-ray offsets show up on basic_column (0.4-4.8 mm, vs 0 nm on thin lenses).
+**Plan:** [PLAN_2026-08-21_matrix-conjugate-planes.md](PLAN_2026-08-21_matrix-conjugate-planes.md) — includes the equivalence derivation, the free-space and thick-lens (tan/tanh) roots, verification cases, and two incidental bug findings (`focus_error`'s `findPlanes(self.rays,"x")` positional-argument slip; `whereCrossesZero` used only by `findPlanes4`). No code changed.
+
 ## 2026-08-21 — [Done] Conjugate planes: image AND diffraction families
 **Goal:** `Microscope.conjugate_planes(axis)` returning both the image and diffraction (back-focal) plane positions in metres, reusing the ray side's `findPlanes`, and annotating both in the scaled cross-section.
 **Why:** Eric asked which family the hybrid engine finds; measured answer is only the diffraction family (the frame is seeded flat = a parallel wavefront = findPlanes' diffraction ray), so image planes are currently invisible even though they are reconstructable.
