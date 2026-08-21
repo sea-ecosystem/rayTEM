@@ -402,24 +402,68 @@ def scaled_delta_tau(dz: float, s0: float, R0: float) -> float:
 	return dz / (s0**2 * growth)
 
 
+def beam_support_radius(U: np.ndarray, dxi: float, deta: float,
+						threshold: float = 1e-6) -> float:
+	r"""Per-axis half-width of the beam's support on the ξ grid.
+
+	The largest per-axis scaled coordinate (``max(|ξ|, |η|)``) at which ``|U|``
+	still exceeds ``threshold`` times its maximum. The per-pixel step of a
+	quadratic reference phase along an axis is set by that axis's coordinate,
+	so this half-width — not the corner radius — is what the sampling criteria
+	need. Frame-change phases applied where the field is essentially zero are
+	harmless, so measuring at the support instead of the (possibly much larger,
+	empty) grid lets frames switch at the earliest plane representable for the
+	*actual beam*; a beam filling the grid reproduces the grid-edge criterion
+	exactly.
+
+	Parameters
+	----------
+	U : np.ndarray
+		Scaled field ``(ny, nx)``.
+	dxi, deta : float
+		Scaled-coordinate sample spacings.
+	threshold : float, optional
+		Amplitude fraction defining the support, by default ``1e-6``.
+
+	Returns
+	-------
+	float
+		Support half-width in ξ units (at least one pixel).
+
+	Related
+	-------
+	min_representable_curvature : Consumes this as its ``x_max``.
+	"""
+	amp = np.abs(U)
+	mask = amp > threshold * amp.max()
+	X, Y = transverse_coordinates(U.shape, abs(dxi), abs(deta))
+	ext = max(float(np.abs(X[mask]).max()), float(np.abs(Y[mask]).max()))
+	return max(ext, abs(dxi))
+
+
 def min_representable_curvature(n: int, dxi: float, wavelength: float, s: float,
-								safety: float = 0.5) -> float:
+								safety: float = 0.5, x_max: float = None) -> float:
 	r"""Smallest reference-curvature radius a scaled frame can absorb or release.
 
 	A frame change moves the quadratic reference phase
 	:math:`k\,x^2/2 \cdot (1/R_o - 1/R_n)` into or out of the sampled field U.
 	That phase is representable only while its per-pixel step stays below
-	``safety * pi`` at the grid edge, which bounds the curvature radius:
+	``safety * pi`` at the outermost point that matters, which bounds the
+	curvature radius:
 
 	.. math::
 
 		|R|_{\min} = \frac{k\, x_{\max}\, \Delta x}{\text{safety}\,\pi}
-		= \frac{k\, s^2\, (n/2)\, \Delta\xi^2}{\text{safety}\,\pi}
+		= \frac{k\, s^2\, \xi_{\max}\, \Delta\xi}{\text{safety}\,\pi}
 
-	with physical pixel :math:`\Delta x = |s|\Delta\xi` and half field of view
-	:math:`x_{\max} = |s|(n/2)\Delta\xi`. Used by :func:`change_scaled_frame`
-	as its sampling guard and by the hybrid crossover policy to place the
-	flatten/re-diverge planes.
+	with physical pixel :math:`\Delta x = |s|\Delta\xi` and
+	:math:`x_{\max} = |s|\,\xi_{\max}`. By default :math:`\xi_{\max}` is the
+	grid half-width ``(n/2)·Δξ``; pass the beam-support radius
+	(:func:`beam_support_radius`) to measure at the beam instead — phase
+	applied to empty grid is harmless, and the beam-based bound lets frames
+	switch earlier (larger s, larger pixels). Used by
+	:func:`change_scaled_frame` as its sampling guard and by the hybrid
+	crossover policy to place the flatten/re-diverge planes.
 
 	Parameters
 	----------
@@ -434,6 +478,9 @@ def min_representable_curvature(n: int, dxi: float, wavelength: float, s: float,
 	safety : float, optional
 		Fraction of the π-per-pixel Nyquist step reserved for the reference
 		phase (the rest is headroom for U's own spectrum), by default 0.5.
+	x_max : float, optional
+		ξ radius at which to evaluate the criterion (e.g. the beam-support
+		radius); ``None`` (default) uses the grid half-width ``(n//2)·Δξ``.
 
 	Returns
 	-------
@@ -442,11 +489,13 @@ def min_representable_curvature(n: int, dxi: float, wavelength: float, s: float,
 
 	Related
 	-------
+	beam_support_radius : The beam-based ``x_max``.
 	change_scaled_frame : Enforces this bound.
 	propagate_free_scaled_hybrid : Uses it to place frame switches.
 	"""
 	k = 2 * np.pi / wavelength
-	return k * s**2 * (n // 2) * dxi**2 / (safety * np.pi)
+	xi_max = (n // 2) * abs(dxi) if x_max is None else abs(x_max)
+	return k * s**2 * xi_max * abs(dxi) / (safety * np.pi)
 
 
 def change_scaled_frame(U: np.ndarray, dxi: float, deta: float, wavelength: float,
@@ -533,15 +582,18 @@ def change_scaled_frame(U: np.ndarray, dxi: float, deta: float, wavelength: floa
 		k = 2 * np.pi / wavelength
 		chi = k * (X**2 + Y**2) / 2 * (c_old - c_new)
 		if safety is not None:
-			step = max(float(np.abs(np.diff(chi, axis=0)).max()),
-					   float(np.abs(np.diff(chi, axis=1)).max()))
+			# measure the per-pixel step over the beam's support only — phase
+			# applied where the field is essentially zero is harmless
+			r_supp = beam_support_radius(U, dxi, deta)
+			step = k * abs(s_old)**2 * max(abs(dxi), abs(deta)) * r_supp * abs(c_old - c_new)
 			if step > safety * np.pi:
-				R_min = min_representable_curvature(U.shape[0], dxi, wavelength, s_old, safety)
+				R_min = min_representable_curvature(U.shape[0], dxi, wavelength, s_old,
+													safety, x_max=r_supp)
 				raise ValueError(f"Frame change from R={R_old} m to R={R_new} m is not representable "
-								 f"on this grid (per-pixel phase step {step:.2f} rad > "
-								 f"{safety:.2g}*pi): the curvature moved into U must satisfy "
-								 f"|R| >= {R_min:.3e} m. Switch frames closer to the plane where "
-								 "the reference curvature is weaker, or refine the grid.")
+								 f"on this grid (per-pixel phase step {step:.2f} rad at the beam "
+								 f"support > {safety:.2g}*pi): the curvature moved into U must "
+								 f"satisfy |R| >= {R_min:.3e} m. Switch frames closer to the plane "
+								 "where the reference curvature is weaker, or refine the grid.")
 		U_out = U_out * np.exp(1j * chi)
 	return U_out, dxi * s_old / s_new, deta * s_old / s_new
 
@@ -851,8 +903,11 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 	closed forms because s and R are linear in z within a frame:
 
 	- flatten where :math:`|R| = R^2/(A s^2)` (an invariant of the frame),
-	  with :math:`A = k\,(n/2)\,\Delta\xi^2/(\text{safety}\,\pi)` — i.e. where
-	  :func:`min_representable_curvature` is first satisfied;
+	  with :math:`A = k\,\xi_{supp}\,\Delta\xi/(\text{safety}\,\pi)`
+	  evaluated at the **beam-support radius**
+	  (:func:`beam_support_radius`, with a 1.2× spreading margin) — i.e. where
+	  :func:`min_representable_curvature` is first satisfied for the actual
+	  beam, not the (possibly much larger, empty) grid;
 	- the **crossover plane** ``z_cross = z + |R|`` (recorded at the flatten)
 	  is split out and logged — it is the focal / back-focal plane;
 	- re-diverge at :math:`d = z - z_{cross} \ge A s^2` with ``R_new = +d``.
@@ -879,8 +934,11 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 	safety : float, optional
 		Sampling-guard fraction for the frame changes, by default 0.5.
 	s_min : float, optional
-		Backstop guard forwarded to :func:`propagate_free_scaled` (should
-		never trigger under this policy), by default ``1e-3``.
+		Retained for signature compatibility with the single-frame path; the
+		engine's closed-form splits are its own guard (a converging frame
+		always flattens strictly before its crossover), so internal legs run
+		unguarded and a legitimately deep flatten cannot trip the backstop,
+		by default ``1e-3``.
 	absorb : float, optional
 		Absorbing-boundary margin fraction forwarded to
 		:func:`propagate_free_scaled` (see there), by default 0.
@@ -913,15 +971,16 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 	while the diffracted wave stays finite. Flattening simply steps onto a
 	coordinate basis that remains useful through the focus.
 	"""
-	n = U.shape[0]
 	k = 2 * np.pi / wavelength
-	A = k * (n // 2) * dxi**2 / (safety * np.pi)		# min_representable_curvature / s^2
 	remaining = float(dz)
 	dtau_total = 0.0
 	logged = []
 	U = U.astype(complex, copy=True)
 	tol = 1e-9 * (abs(dz) + abs(z) + 1.0)		# float tolerance on split positions
 	while remaining > tol:
+		# switch criterion at the beam's support (1.2x margin for spreading
+		# within the leg; the frame-change guard re-checks the exact support)
+		A = k * 1.2 * beam_support_radius(U, dxi, deta) * abs(dxi) / (safety * np.pi)
 		if not np.isinf(R) and R < 0:
 			# converging frame: flatten where the residual curvature first
 			# becomes representable (|R_flat| = R^2/(A s^2), frame-invariant)
@@ -934,14 +993,14 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 				logged.append(("flatten", U, s, R, dtau_total, z, z_cross))
 				continue
 			step = min(remaining, abs(R) - R_flat)
-			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=s_min, absorb=absorb)
+			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=0.0, absorb=absorb)
 			dtau_total += dt ; z += step ; remaining -= step
 			continue
 		if np.isinf(R) and z_cross is not None:
 			if z < z_cross - tol:
 				# flat frame heading into the focus: split at the crossover
 				step = min(remaining, z_cross - z)
-				U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=s_min, absorb=absorb)
+				U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=0.0, absorb=absorb)
 				dtau_total += dt ; z += step ; remaining -= step
 				if z >= z_cross - tol:
 					logged.append(("crossover", U, s, R, dtau_total, z, z_cross))
@@ -957,11 +1016,11 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 				logged.append(("rediverge", U, s, R, dtau_total, z, z_cross))
 				continue
 			step = min(remaining, d_min - d)
-			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=s_min, absorb=absorb)
+			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=0.0, absorb=absorb)
 			dtau_total += dt ; z += step ; remaining -= step
 			continue
 		# flat with no crossover ahead, or diverging: plain scaled propagation
-		U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, remaining, s, R, s_min=s_min, absorb=absorb)
+		U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, remaining, s, R, s_min=0.0, absorb=absorb)
 		dtau_total += dt ; z += remaining ; remaining = 0.0
 	return U, s, R, dtau_total, z, z_cross, logged
 
