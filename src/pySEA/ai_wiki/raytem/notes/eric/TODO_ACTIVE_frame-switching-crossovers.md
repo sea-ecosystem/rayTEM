@@ -3,7 +3,7 @@
 **Branch/worktree:** `Signal_and_propagation_additions` (rayTEM)
 **Plan:** [PLAN_2026-08-20_frame-switching-crossovers.md](PLAN_2026-08-20_frame-switching-crossovers.md)
 
-- [ ] Step 1 — `change_scaled_frame` (Eric's Eq 5, physical-grid-continuous,
+- [x] Step 1 — `change_scaled_frame` (Eric's Eq 5, physical-grid-continuous,
       pointwise; optional band-limited resample for explicit s_new) +
       `min_representable_curvature`; `factor_wave`/`reconstruct_physical_wave`
       delegate as the (1,∞) special cases; frame terminology in errors;

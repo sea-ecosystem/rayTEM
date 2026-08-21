@@ -390,16 +390,160 @@ def scaled_delta_tau(dz: float, s0: float, R0: float) -> float:
 	------
 	ValueError
 		If the linear scaling crosses zero inside the segment
-		(``1 + dz/R0 <= 0``) — the coordinate chart is singular there
-		(handoff Eq 52); stop before the crossover or reset the chart.
+		(``1 + dz/R0 <= 0``) — the scaled frame is singular there
+		(handoff Eq 52); stop before the crossover or switch frames.
 	"""
 	if np.isinf(R0):
 		return dz / s0**2
 	growth = 1.0 + dz / R0
 	if growth <= 0:
-		raise ValueError(f"Scaled chart crosses s=0 inside this segment (crossover at dz = {-R0} m "
-						 f"of {dz} m); stop before the crossover or reset the scaling chart.")
+		raise ValueError(f"Scaled frame crosses s=0 inside this segment (crossover at dz = {-R0} m "
+						 f"of {dz} m); stop before the crossover or switch to a new frame.")
 	return dz / (s0**2 * growth)
+
+
+def min_representable_curvature(n: int, dxi: float, wavelength: float, s: float,
+								safety: float = 0.5) -> float:
+	r"""Smallest reference-curvature radius a scaled frame can absorb or release.
+
+	A frame change moves the quadratic reference phase
+	:math:`k\,x^2/2 \cdot (1/R_o - 1/R_n)` into or out of the sampled field U.
+	That phase is representable only while its per-pixel step stays below
+	``safety * pi`` at the grid edge, which bounds the curvature radius:
+
+	.. math::
+
+		|R|_{\min} = \frac{k\, x_{\max}\, \Delta x}{\text{safety}\,\pi}
+		= \frac{k\, s^2\, (n/2)\, \Delta\xi^2}{\text{safety}\,\pi}
+
+	with physical pixel :math:`\Delta x = |s|\Delta\xi` and half field of view
+	:math:`x_{\max} = |s|(n/2)\Delta\xi`. Used by :func:`change_scaled_frame`
+	as its sampling guard and by the hybrid crossover policy to place the
+	flatten/re-diverge planes.
+
+	Parameters
+	----------
+	n : int
+		Samples per side of the (square) grid.
+	dxi : float
+		Scaled-coordinate sample spacing Δξ (metres).
+	wavelength : float
+		Wavelength (metres).
+	s : float
+		Transverse scale of the frame at the plane in question.
+	safety : float, optional
+		Fraction of the π-per-pixel Nyquist step reserved for the reference
+		phase (the rest is headroom for U's own spectrum), by default 0.5.
+
+	Returns
+	-------
+	float
+		The minimum representable curvature radius ``|R|_min`` (metres).
+
+	Related
+	-------
+	change_scaled_frame : Enforces this bound.
+	propagate_free_scaled_hybrid : Uses it to place frame switches.
+	"""
+	k = 2 * np.pi / wavelength
+	return k * s**2 * (n // 2) * dxi**2 / (safety * np.pi)
+
+
+def change_scaled_frame(U: np.ndarray, dxi: float, deta: float, wavelength: float,
+						s_old: float, R_old: float, R_new: float,
+						s_new: float = None, safety: float = 0.5) -> tuple:
+	r"""Re-express the same physical wave in a different scaled frame (Eq 5).
+
+	A *frame* is a choice of factorization
+	:math:`\psi = (1/s)\,U(x/s, y/s)\,e^{ik(x^2+y^2)/2R}`; this primitive
+	transforms :math:`(s_o, R_o, U_o) \to (s_n, R_n, U_n)` while keeping ψ
+	identical:
+
+	.. math::
+
+		U_n = \frac{s_n}{s_o}\, U_o \,
+		\exp\!\left[\frac{ik\,(x^2+y^2)}{2}
+		\left(\frac{1}{R_o} - \frac{1}{R_n}\right)\right]
+
+	using the **physical-grid-continuous convention**: the new pitch is
+	:math:`\Delta\xi_n = \Delta\xi_o\, s_o/s_n`, so the samples sit at the same
+	physical points and the operation is pointwise — no interpolation. The
+	physical representation is the special frame ``(s=1, R=inf)``, making
+	:func:`factor_wave` and :func:`reconstruct_physical_wave` special cases.
+
+	Parameters
+	----------
+	U : np.ndarray
+		Scaled field ``(n, n)`` in the old frame.
+	dxi, deta : float
+		Old-frame sample spacings Δξ/Δη.
+	wavelength : float
+		Wavelength (metres).
+	s_old : float
+		Old-frame transverse scale (nonzero).
+	R_old : float
+		Old-frame reference curvature radius (metres); ``numpy.inf`` = flat.
+	R_new : float
+		New-frame reference curvature radius (metres); ``numpy.inf`` = flat.
+	s_new : float, optional
+		New-frame scale (nonzero); ``None`` (default) keeps ``s_old`` (pitch
+		unchanged — the flatten/re-diverge cases).
+	safety : float, optional
+		Sampling-guard fraction passed to the per-pixel phase-step check, by
+		default 0.5. ``None`` disables the guard (pure-converter use).
+
+	Returns
+	-------
+	tuple
+		``(U_new, dxi_new, deta_new)``.
+
+	Raises
+	------
+	ValueError
+		If the reference-phase difference is not representable on this grid —
+		the error names the minimum representable ``|R|`` — or if ``s_new``
+		is zero.
+
+	Related
+	-------
+	min_representable_curvature : The guard's threshold.
+	factor_wave, reconstruct_physical_wave : The (1, inf) special cases.
+
+	Notes
+	-----
+	The singularity of a converging frame at its crossover (``s -> 0``)
+	belongs to the frame, not to the wave; this operation is how propagation
+	steps onto a better frame before that happens (the hybrid policy in
+	:func:`propagate_free_scaled_hybrid`). A sign flip between ``s_old`` and
+	``s_new`` applies the signed amplitude ratio of Eq 5; the implied ξ-grid
+	inversion is exact for the (even) quadratic reference phase and is the
+	caller's relabeling to track.
+	"""
+	if s_new is None:
+		s_new = s_old
+	if s_new == 0:
+		raise ValueError("change_scaled_frame requires a nonzero s_new; the frame is "
+						 "singular at s = 0 (switch frames before the crossover).")
+	c_old = 0.0 if np.isinf(R_old) else 1.0 / R_old
+	c_new = 0.0 if np.isinf(R_new) else 1.0 / R_new
+	U_out = (s_new / s_old) * U.astype(complex)
+	if c_old != c_new:
+		# physical coordinates of the (shared) sample points
+		X, Y = transverse_coordinates(U.shape, abs(s_old) * dxi, abs(s_old) * deta)
+		k = 2 * np.pi / wavelength
+		chi = k * (X**2 + Y**2) / 2 * (c_old - c_new)
+		if safety is not None:
+			step = max(float(np.abs(np.diff(chi, axis=0)).max()),
+					   float(np.abs(np.diff(chi, axis=1)).max()))
+			if step > safety * np.pi:
+				R_min = min_representable_curvature(U.shape[0], dxi, wavelength, s_old, safety)
+				raise ValueError(f"Frame change from R={R_old} m to R={R_new} m is not representable "
+								 f"on this grid (per-pixel phase step {step:.2f} rad > "
+								 f"{safety:.2g}*pi): the curvature moved into U must satisfy "
+								 f"|R| >= {R_min:.3e} m. Switch frames closer to the plane where "
+								 "the reference curvature is weaker, or refine the grid.")
+		U_out = U_out * np.exp(1j * chi)
+	return U_out, dxi * s_old / s_new, deta * s_old / s_new
 
 
 def factor_wave(psi: np.ndarray, dx: float, dy: float, wavelength: float,
@@ -437,12 +581,15 @@ def factor_wave(psi: np.ndarray, dx: float, dy: float, wavelength: float,
 	Related
 	-------
 	reconstruct_physical_wave : Exact inverse (handoff Eq 37).
+	change_scaled_frame : The general frame change this is a special case of.
+
+	Notes
+	-----
+	Delegates to :func:`change_scaled_frame` as the transform from the
+	physical frame ``(1, inf)`` to ``(s, R)``, guard-free (a pure converter).
 	"""
-	U = s * psi.astype(complex)
-	if not np.isinf(R):
-		X, Y = transverse_coordinates(psi.shape, dx, dy)
-		k = 2 * np.pi / wavelength
-		U = U * np.exp(-1j * k * (X**2 + Y**2) / (2 * R))
+	U, _, _ = change_scaled_frame(psi, dx, dy, wavelength, s_old=1.0, R_old=np.inf,
+								  R_new=R, s_new=s, safety=None)
 	return U, dx / s, dy / s
 
 
@@ -605,9 +752,9 @@ def propagate_free_scaled(U: np.ndarray, dxi: float, deta: float, wavelength: fl
 	Raises
 	------
 	ValueError
-		If the chart crosses ``s = 0`` inside the segment, or the exit scale
+		If the frame crosses ``s = 0`` inside the segment, or the exit scale
 		violates ``|s_out| > s_min`` — with the crossover position named, since
-		the singularity belongs to the chart, not the physical wave.
+		the singularity belongs to the frame, not the physical wave.
 	"""
 	if dz == 0:
 		return U.astype(complex, copy=True), s, R, 0.0
@@ -615,9 +762,9 @@ def propagate_free_scaled(U: np.ndarray, dxi: float, deta: float, wavelength: fl
 	s_out = s if np.isinf(R) else s * (1.0 + dz / R)
 	if abs(s_out) <= s_min:
 		z_cross = -R if not np.isinf(R) else np.inf
-		raise ValueError(f"Scaled chart reaches |s| = {abs(s_out):.3e} <= s_min = {s_min} at the segment "
-						 f"end (chart crossover at dz = {z_cross} m); stop before the crossover, "
-						 "reset the scaling chart, or lower s_min knowingly.")
+		raise ValueError(f"Scaled frame reaches |s| = {abs(s_out):.3e} <= s_min = {s_min} at the segment "
+						 f"end (frame crossover at dz = {z_cross} m); stop before the crossover, "
+						 "switch frames (hybrid mode), or lower s_min knowingly.")
 	R_out = R + dz if not np.isinf(R) else np.inf
 	U_out = angular_spectrum_propagate(U, dxi, deta, wavelength, dtau, include_carrier=False)
 	return U_out, s_out, R_out, dtau
