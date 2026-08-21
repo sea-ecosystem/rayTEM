@@ -7,11 +7,13 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
-## 2026-08-21 — [Under Construction] Microscope.show for scaled/hybrid wave results
+## 2026-08-21 — [Done] Microscope.show for scaled/hybrid wave results
 **Goal:** Wire `show(kind="wave-scaled"/"wave-hybrid")`: cross-section |ψ(x,0,z)| with element/crossover annotations by default, per-plane |ψ|² via the reconstructed Signal's own `.show()` when a plane is named.
-**Why:** The kinds are accepted by the signature but raise; the demo's figures live only in examples/04 — Eric wants the scaled result to plot through the standard `show`.
-- [ ] cross-section + per-plane show paths
-- [ ] headless test + wiki
+**Why:** The kinds were accepted by the signature but raised; the demo's figures lived only in examples/04 — Eric wants the scaled result to plot through the standard `show`.
+- [x] cross-section + per-plane show paths
+- [x] headless test + wiki
+
+**Outcome:** `Microscope.show(kind="wave-scaled"/"wave-hybrid")` works. No `plane` → the |ψ(x, y=0, z)| cross-section (new module helper `_scaled_wave_cross_section`): each logged plane reconstructed on its native `Δx=|s|Δξ` grid, peak-normalized centre rows resampled onto one x axis, element positions (white dashed + labels) and crossovers (cyan dotted) overlaid — the wave analog of the ray diagram. `plane=` (int index into `_wave_scaled_planes`, float z in metres via `wavefield_at`'s nearest-plane pick, or a named position string like "sample") → the reconstructed physical |ψ|² imaged by delegating to the wavefield Signal's own `.show()` — same composition pattern as `kind="wave"`/`"moments"` (Microscope does not inherit from Signal; it builds a calibrated Signal and calls its show). `plane` default changed −1 → None (None still means last plane for wave/moments, so old calls behave identically). Notes: cross-section z resolution follows the logged planes — a column with subdivided drifts plots smoother (examples/04 does this); planes are peak-normalized (shape, not absolute intensity). 68 tests green (headless show test: pcolormesh drawn for the cross-section, Signal imshow for plane by z and by index).
 
 ## 2026-08-21 — [Done] Radial absorbing boundary (fourfold fringe fix)
 **Goal:** Replace the square separable absorbing-boundary window with a radially symmetric one so the absorber stops imprinting a fourfold, pixel-aligned fringe pattern on the beam.
