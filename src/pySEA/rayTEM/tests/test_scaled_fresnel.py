@@ -218,7 +218,8 @@ def _run_aperture_lens_system():
 				 wave_kind="aperture", aperture_radius=radius)
 	psi0, dx_src, dy_src, _, _ = read_wavefield(src.wave())
 	assert np.isclose(dx_src, dx) and np.isclose(dy_src, dx)
-	assert np.allclose(psi0, wo.aperture_mask(wo.plane_wave((n, n)), dx, dx, radius))
+	# alias-free sampling of the sharp disk (band-limited projection of theta(a-r))
+	assert np.allclose(psi0, wo.bandlimited_disk((n, n), dx, dx, radius))
 	# ordinary fixed-grid reference (valid regime for these parameters)
 	ref = wo.angular_spectrum_propagate(psi0, dx, dx, lam, d1, include_carrier=False)
 	ref = wo.focal_phase(ref, dx, dx, lam, 1 / f, 1 / f)
@@ -476,7 +477,16 @@ def test_wave_kind_aperture_matches__aperture_wave():
 	via_kind, dx, dy, *_ = read_wavefield(src.wave())
 	via_builder, *_ = read_wavefield(src._aperture_wave(5e-6))
 	assert np.allclose(via_kind, via_builder)
-	assert np.allclose(np.unique(np.abs(via_kind)), [0.0, 1.0])	# flat intensity
+	# default is the alias-free band-limited projection of the sharp disk:
+	# unit interior, zero exterior, bounded Gibbs ripple confined to the edge
+	X, Y = wo.transverse_coordinates((64, 64), dx, dy)
+	r = np.hypot(X, Y)
+	assert np.allclose(np.abs(via_kind[r < 0.7 * 5e-6]), 1.0, atol=0.05)
+	assert np.abs(via_kind[r > 1.4 * 5e-6]).max() < 0.05
+	assert np.abs(via_kind).max() < 1.15		# Gibbs overshoot ~9%, never more
+	# the exact point-sampled binary mask stays available for comparison
+	binary, *_ = read_wavefield(src._aperture_wave(5e-6, antialias=False))
+	assert np.allclose(np.unique(np.abs(binary)), [0.0, 1.0])
 	with pytest.raises(ValueError, match="aperture_radius"):
 		Source(voltage=200, wave_shape=(64, 64), wave_extent=16e-6,
 			   wave_kind="aperture").wave()
@@ -655,3 +665,61 @@ def test_full_column_hybrid_source_to_detector():
 	foc = scope.wavefield_at(scope.crossovers[0])
 	fdata, fdx, *_ = read_wavefield(foc)
 	assert np.isfinite(fdata).all() and fdx < 1e-8		# focal-plane pixel is nm-scale
+
+
+# --- alias-free aperture sampling + absorbing boundary ---------------------------
+
+def test_bandlimited_disk_is_alias_free_sharp_disk():
+	n, dx, a = 256, 78.125e-9, 5e-6
+	d = wo.bandlimited_disk((n, n), dx, dx, a).real
+	X, Y = wo.transverse_coordinates((n, n), dx, dx)
+	r = np.hypot(X, Y)
+	assert np.allclose(d[r < 0.7 * a], 1.0, atol=0.01)		# unit interior
+	assert np.abs(d[r > 1.5 * a]).max() < 0.01				# zero exterior
+	assert d.max() < 1.15 and d.min() > -0.15				# bounded Gibbs at the edge
+	# exact area: the k=0 spectral sample is pi a^2 by construction
+	assert np.isclose(d.sum() * dx * dx, np.pi * a**2, rtol=1e-9)
+
+
+def test_absorbing_boundary_removes_wraparound():
+	# a packet aimed at the boundary: periodic propagation wraps it back in;
+	# the absorbing boundary removes it instead (physically: lost electrons)
+	n, dxi, lam = 128, 1e-7, LAM
+	X, Y = wo.transverse_coordinates((n, n), dxi, dxi)
+	# tilted gaussian packet: carrier at 0.6x Nyquist, travelling toward +x edge
+	f_c = 0.6 / (2 * dxi)
+	U0 = (wo.gaussian_field((n, n), dxi, dxi, 8 * dxi, 8 * dxi)
+		  * np.exp(2j * np.pi * f_c * X))
+	dtau = 2.0 * (n * dxi / 2) / (lam * f_c)		# enough tau to cross the whole grid
+	E0 = (np.abs(U0)**2).sum()
+	U_per, *_ = wo.propagate_free_scaled(U0, dxi, dxi, lam, dtau, 1.0, np.inf)
+	U_abs, *_ = wo.propagate_free_scaled(U0, dxi, dxi, lam, dtau, 1.0, np.inf, absorb=0.1)
+	# periodic: energy conserved (the packet wrapped); absorbing: nearly all removed
+	assert np.isclose((np.abs(U_per)**2).sum(), E0, rtol=1e-9)
+	assert (np.abs(U_abs)**2).sum() < 0.05 * E0
+	# and a beam that never reaches the boundary is untouched (loss ~ 0)
+	U_c = wo.gaussian_field((n, n), dxi, dxi, 6 * dxi, 6 * dxi)
+	U_out, *_ = wo.propagate_free_scaled(U_c, dxi, dxi, lam, 1e-4, 1.0, np.inf, absorb=0.1)
+	assert np.isclose((np.abs(U_out)**2).sum(), (np.abs(U_c)**2).sum(), rtol=1e-6)
+
+
+def test_full_column_aperture_interior_is_clean():
+	# the fix Eric asked for: band-limited sharp disk + absorbing boundary give
+	# flat interiors (real Fresnel rings kept) instead of the aliased grid plaid
+	import os
+	from pySEA.rayTEM.assemblies import load_microscope
+	if not sea_available:
+		pytest.skip("basic_column.sea requires sea_eco")
+	here = os.path.dirname(os.path.abspath(__file__))
+	scope = load_microscope(os.path.join(here, "..", "microscopes", "basic_column.sea"))
+	src = scope.sections[0].elements[0]
+	src.wave_kind = "aperture"
+	src.aperture_radius = 5e-6
+	scope.propagate_wave(mode="hybrid")
+	for z in (scope.named_positions["sample"], 1.264):
+		data, dx, *_ = read_wavefield(scope.wavefield_at(z))
+		I = np.abs(data)**2
+		n = I.shape[0]
+		core = I[int(n*0.42):int(n*0.58), int(n*0.42):int(n*0.58)]
+		assert core.std() / core.mean() < 0.01		# was ~0.04 with the plaid
+		assert core.min() / core.max() > 0.95

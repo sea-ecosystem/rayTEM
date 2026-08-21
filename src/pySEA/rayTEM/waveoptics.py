@@ -717,8 +717,48 @@ def apply_thin_lens_scaled(s: float, R: float, power: float) -> tuple:
 	return s, R_out
 
 
+def boundary_window(shape: tuple, margin: float = 0.1) -> np.ndarray:
+	r"""Absorbing-boundary window: 1 in the interior, cosine → 0 at the edge.
+
+	The FFT propagator is periodic: field that diffracts out of the modeled
+	field of view re-enters coherently from the opposite side and interferes
+	with the beam (an axis-aligned artifact, since the wrap distance is
+	shortest along the square grid's axes). Physically those electrons leave
+	the beam and never return, so the boundary should absorb them: this
+	separable window ramps from 1 to 0 over the outer ``margin`` fraction of
+	each axis (raised cosine).
+
+	Parameters
+	----------
+	shape : tuple of int
+		Field shape ``(ny, nx)``.
+	margin : float, optional
+		Fraction of each axis occupied by the absorbing band on each side,
+		by default 0.1.
+
+	Returns
+	-------
+	np.ndarray
+		Real window, shape ``(ny, nx)``, values in [0, 1].
+
+	Related
+	-------
+	propagate_free_scaled : Applies it between τ sub-steps when ``absorb > 0``.
+	"""
+	def ramp(n):
+		m = max(1, int(round(margin * n)))
+		w = np.ones(n)
+		t = (np.arange(m) + 1) / m					# 0 -> 1 toward the edge
+		w[n - m:] = 0.5 * (1 + np.cos(np.pi * t))
+		w[:m] = w[n - m:][::-1]
+		return w
+	ny, nx = shape
+	return np.outer(ramp(ny), ramp(nx))
+
+
 def propagate_free_scaled(U: np.ndarray, dxi: float, deta: float, wavelength: float,
-						  dz: float, s: float, R: float, s_min: float = 1e-3) -> tuple:
+						  dz: float, s: float, R: float, s_min: float = 1e-3,
+						  absorb: float = 0.0) -> tuple:
 	r"""Propagate the scaled field U through one free segment of length ``dz``.
 
 	Handoff Eqs 23–33: the scale evolves linearly, ``s(z) = s₀[1 + Δz/R₀]``
@@ -743,11 +783,20 @@ def propagate_free_scaled(U: np.ndarray, dxi: float, deta: float, wavelength: fl
 	s_min : float, optional
 		Crossover guard: the segment must keep ``|s| > s_min`` (handoff Eq 52),
 		by default ``1e-3``.
+	absorb : float, optional
+		Absorbing-boundary margin fraction (:func:`boundary_window`), by
+		default 0 (pure periodic propagation). When > 0 the segment is
+		sub-stepped in τ so that no spectral component can traverse the
+		absorbing band within one FFT step, and the window is applied between
+		steps — field diffracting out of the modeled field of view is removed
+		(physically: those electrons leave the beam) instead of wrapping
+		around and interfering.
 
 	Returns
 	-------
 	tuple
-		``(U_out, s_out, R_out, dtau)``.
+		``(U_out, s_out, R_out, dtau)``. With ``absorb > 0`` the total
+		``|U|²`` decreases by the power lost through the boundary.
 
 	Raises
 	------
@@ -766,6 +815,21 @@ def propagate_free_scaled(U: np.ndarray, dxi: float, deta: float, wavelength: fl
 						 f"end (frame crossover at dz = {z_cross} m); stop before the crossover, "
 						 "switch frames (hybrid mode), or lower s_min knowingly.")
 	R_out = R + dz if not np.isinf(R) else np.inf
+	if absorb and absorb > 0:
+		# absorbing boundary: sub-step in tau so no spectral component can
+		# traverse the absorbing band unattenuated within one FFT step
+		# (max transverse travel per step = lambda * f_Nyquist * dtau_step)
+		n = U.shape[0]
+		band = absorb * n * abs(dxi)					# absorber width in xi
+		dtau_step = 2 * band * abs(dxi) / wavelength	# travel at Nyquist = band
+		n_steps = max(1, int(np.ceil(abs(dtau) / dtau_step)))
+		W = boundary_window(U.shape, margin=absorb)
+		U_out = U.astype(complex, copy=True) * W
+		for _ in range(n_steps):
+			U_out = angular_spectrum_propagate(U_out, dxi, deta, wavelength,
+											   dtau / n_steps, include_carrier=False)
+			U_out = U_out * W
+		return U_out, s_out, R_out, dtau
 	U_out = angular_spectrum_propagate(U, dxi, deta, wavelength, dtau, include_carrier=False)
 	return U_out, s_out, R_out, dtau
 
@@ -773,7 +837,8 @@ def propagate_free_scaled(U: np.ndarray, dxi: float, deta: float, wavelength: fl
 def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 								 wavelength: float, dz: float, s: float, R: float,
 								 z: float, z_cross: float = None,
-								 safety: float = 0.5, s_min: float = 1e-3) -> tuple:
+								 safety: float = 0.5, s_min: float = 1e-3,
+								 absorb: float = 0.0) -> tuple:
 	r"""Propagate one free segment with automatic frame switching at crossovers.
 
 	The hybrid crossover policy: far from a focus the wave rides its scaled
@@ -816,6 +881,9 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 	s_min : float, optional
 		Backstop guard forwarded to :func:`propagate_free_scaled` (should
 		never trigger under this policy), by default ``1e-3``.
+	absorb : float, optional
+		Absorbing-boundary margin fraction forwarded to
+		:func:`propagate_free_scaled` (see there), by default 0.
 
 	Returns
 	-------
@@ -866,14 +934,14 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 				logged.append(("flatten", U, s, R, dtau_total, z, z_cross))
 				continue
 			step = min(remaining, abs(R) - R_flat)
-			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=s_min)
+			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=s_min, absorb=absorb)
 			dtau_total += dt ; z += step ; remaining -= step
 			continue
 		if np.isinf(R) and z_cross is not None:
 			if z < z_cross - tol:
 				# flat frame heading into the focus: split at the crossover
 				step = min(remaining, z_cross - z)
-				U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=s_min)
+				U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=s_min, absorb=absorb)
 				dtau_total += dt ; z += step ; remaining -= step
 				if z >= z_cross - tol:
 					logged.append(("crossover", U, s, R, dtau_total, z, z_cross))
@@ -889,17 +957,25 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 				logged.append(("rediverge", U, s, R, dtau_total, z, z_cross))
 				continue
 			step = min(remaining, d_min - d)
-			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=s_min)
+			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=s_min, absorb=absorb)
 			dtau_total += dt ; z += step ; remaining -= step
 			continue
 		# flat with no crossover ahead, or diverging: plain scaled propagation
-		U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, remaining, s, R, s_min=s_min)
+		U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, remaining, s, R, s_min=s_min, absorb=absorb)
 		dtau_total += dt ; z += remaining ; remaining = 0.0
 	return U, s, R, dtau_total, z, z_cross, logged
 
 
-def aperture_mask(field: np.ndarray, dx: float, dy: float, radius: float) -> np.ndarray:
-	"""Apply a hard circular aperture, zeroing the field outside ``radius``.
+def aperture_mask(field: np.ndarray, dx: float, dy: float, radius: float,
+				  antialias: bool = True) -> np.ndarray:
+	r"""Apply a hard circular aperture to a field.
+
+	The physical model is the sharp mask :math:`\Theta(a - r)`; by default it
+	is applied **anti-aliased**: edge pixels carry their area-coverage fraction
+	(a linear ramp over one pixel — the projection of the sharp mask onto the
+	grid), so the mask's above-Nyquist edge content does not fold back and
+	propagate as a spurious axis-aligned interference pattern. Every
+	representable Fresnel fringe of the sharp edge is unaffected.
 
 	Parameters
 	----------
@@ -909,11 +985,89 @@ def aperture_mask(field: np.ndarray, dx: float, dy: float, radius: float) -> np.
 		Sample spacings (metres).
 	radius : float
 		Aperture radius (metres).
+	antialias : bool, optional
+		Apply the edge-coverage (alias-suppressed) mask, by default True.
+		``False`` restores the point-sampled binary mask.
 
 	Returns
 	-------
 	np.ndarray
 		Masked complex field, shape ``(ny, nx)``.
+
+	Related
+	-------
+	bandlimited_disk : The exactly alias-free initial disk (Source path).
 	"""
 	X, Y = transverse_coordinates(field.shape, dx, dy)
-	return field * ((X**2 + Y**2) <= radius**2)
+	r = np.sqrt(X**2 + Y**2)
+	if not antialias:
+		return field * (r <= radius)
+	px = max(abs(dx), abs(dy))
+	return field * np.clip(0.5 + (radius - r) / px, 0.0, 1.0)
+
+
+def bandlimited_disk(shape: tuple, dx: float, dy: float, radius: float) -> np.ndarray:
+	r"""Exactly alias-free sampling of the sharp disk :math:`\Theta(a - r)`.
+
+	A point-sampled binary disk carries the edge's above-Nyquist frequencies
+	folded onto wrong low frequencies; propagated coherently they interfere as
+	an axis-aligned grid texture inside the beam. This builder instead
+	synthesizes the **band-limited projection** of the same sharp disk from its
+	analytic spectrum,
+
+	.. math::
+
+		\tilde\Theta(k_r) = 2\pi a^2 \, \frac{J_1(a k_r)}{a k_r}
+		\qquad (\pi a^2 \text{ at } k_r = 0),
+
+	sampled on the discrete frequency grid up to Nyquist and inverse-FFT'd:
+	every representable frequency is exact and nothing folds. The physical
+	Fresnel edge diffraction is fully preserved; only the numerical aliasing
+	is removed. The band limit itself shows as Gibbs ripple at the edge — the
+	honest sampled representation of a discontinuity.
+
+	Parameters
+	----------
+	shape : tuple of int
+		Field shape ``(ny, nx)``.
+	dx, dy : float
+		Sample spacings (metres).
+	radius : float
+		Disk radius ``a`` (metres).
+
+	Returns
+	-------
+	np.ndarray
+		Complex disk field, shape ``(ny, nx)``, centred per
+		:func:`transverse_coordinates` (unit interior, zero exterior, Gibbs
+		ripple at the edge).
+
+	Related
+	-------
+	aperture_mask : The anti-aliased *mask* form for fields mid-column.
+
+	Notes
+	-----
+	Uses ``scipy.special.j1`` when available; otherwise falls back to an
+	8×-supersampled area-coverage mask (aliasing attenuated rather than
+	exactly zero).
+	"""
+	ny, nx = shape
+	try:
+		from scipy.special import j1
+	except ImportError:
+		# fallback: 8x-supersampled coverage, block-averaged (sinc^2-attenuated folding)
+		ss = 8
+		Xf, Yf = transverse_coordinates((ny * ss, nx * ss), dx / ss, dy / ss)
+		fine = (np.sqrt(Xf**2 + Yf**2) <= radius).astype(float)
+		return fine.reshape(ny, ss, nx, ss).mean(axis=(1, 3)).astype(complex)
+	kx = 2 * np.pi * np.fft.fftfreq(nx, d=dx)
+	ky = 2 * np.pi * np.fft.fftfreq(ny, d=dy)
+	KX, KY = np.meshgrid(kx, ky)
+	KR = np.sqrt(KX**2 + KY**2)
+	with np.errstate(invalid="ignore", divide="ignore"):
+		F = np.where(KR == 0, np.pi * radius**2,
+					 2 * np.pi * radius**2 * j1(radius * KR) / (radius * KR))
+	# continuous inverse FT -> DFT samples on the centred grid
+	disk = np.fft.fftshift(np.fft.ifft2(F)) / (abs(dx) * abs(dy))
+	return disk.real.astype(complex)
