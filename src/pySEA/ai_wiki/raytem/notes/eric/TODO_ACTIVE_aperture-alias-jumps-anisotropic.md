@@ -11,7 +11,7 @@
 - [x] Step 2 — beam-support frame policy: guard + flatten/re-diverge
       thresholds measured over the beam's actual support instead of the empty
       grid edge (fixes the padded-grid s_min crash; flattens earlier)
-- [ ] Step 3 — direct converging→diverging frame jumps (crossover='jump'):
+- [x] Step 3 — direct converging→diverging frame jumps (crossover='jump'):
       mirror R_o=−d → R_n=+d at half the flatten threshold, no flat window;
       parametrized equivalence tests; default chosen from measured error
 - [ ] Step 4 — anisotropic frames (s_x, s_y, R_x, R_y, τ_x, τ_y): quadrupoles

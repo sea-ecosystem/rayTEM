@@ -890,7 +890,8 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 								 wavelength: float, dz: float, s: float, R: float,
 								 z: float, z_cross: float = None,
 								 safety: float = 0.5, s_min: float = 1e-3,
-								 absorb: float = 0.0) -> tuple:
+								 absorb: float = 0.0,
+								 crossover: str = 'flat') -> tuple:
 	r"""Propagate one free segment with automatic frame switching at crossovers.
 
 	The hybrid crossover policy: far from a focus the wave rides its scaled
@@ -942,6 +943,24 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 	absorb : float, optional
 		Absorbing-boundary margin fraction forwarded to
 		:func:`propagate_free_scaled` (see there), by default 0.
+	crossover : {'flat', 'jump'}, optional
+		Crossover-traversal policy, by default ``'flat'`` (flatten → ordinary
+		Fresnel through the focus → re-diverge). ``'jump'`` switches the
+		converging frame **directly** onto its mirror-image diverging frame
+		(``R_o = -d → R_n = +d``): the moved reference phase is twice the
+		flatten phase, so the jump plane sits at half the flatten threshold
+		(``|R_jump| = R²/(2 A s²)``, still closed-form); U then diffracts
+		through its own focus inside the expanding frame, the crossover plane
+		is still split out and logged, and there is no flat window at all
+		(one switch instead of two). **Measured guidance**: the double phase
+		budget makes the jump ride the converging frame twice as deep, and at
+		tight crossovers the diffraction-limited focal structure in ξ (which
+		grows as Airy/s) can outrun the field of view before the jump plane is
+		reached — the electron-scale ``basic_column`` loses most of its beam
+		this way, while the optical-regime through-focus test matches the flat
+		policy (1.3e-2 vs 1.0e-2). ``'flat'`` is therefore the robust default;
+		use ``'jump'`` only for mild crossovers (focal spot ≪ field of view at
+		the jump depth).
 
 	Returns
 	-------
@@ -982,17 +1001,27 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 		# within the leg; the frame-change guard re-checks the exact support)
 		A = k * 1.2 * beam_support_radius(U, dxi, deta) * abs(dxi) / (safety * np.pi)
 		if not np.isinf(R) and R < 0:
-			# converging frame: flatten where the residual curvature first
-			# becomes representable (|R_flat| = R^2/(A s^2), frame-invariant)
+			# converging frame: switch where the moved reference phase first
+			# becomes representable (frame-invariant thresholds)
 			R_flat = R**2 / (A * s**2)
-			if abs(R) <= R_flat + tol:
-				U, dxi, deta = change_scaled_frame(U, dxi, deta, wavelength, s, R, np.inf,
-												   safety=safety)
-				z_cross = z + abs(R)
-				R = np.inf
-				logged.append(("flatten", U, s, R, dtau_total, z, z_cross))
+			R_switch = R_flat if crossover == 'flat' else R_flat / 2
+			if abs(R) <= R_switch + tol:
+				if crossover == 'flat':
+					U, dxi, deta = change_scaled_frame(U, dxi, deta, wavelength, s, R, np.inf,
+													   safety=safety)
+					z_cross = z + abs(R)
+					R = np.inf
+					logged.append(("flatten", U, s, R, dtau_total, z, z_cross))
+				else:
+					# direct jump onto the mirror-image diverging frame
+					d = abs(R)
+					U, dxi, deta = change_scaled_frame(U, dxi, deta, wavelength, s, R, d,
+													   safety=safety)
+					z_cross = z + d
+					R = d
+					logged.append(("jump", U, s, R, dtau_total, z, z_cross))
 				continue
-			step = min(remaining, abs(R) - R_flat)
+			step = min(remaining, abs(R) - R_switch)
 			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=0.0, absorb=absorb)
 			dtau_total += dt ; z += step ; remaining -= step
 			continue
@@ -1018,6 +1047,16 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 			step = min(remaining, d_min - d)
 			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=0.0, absorb=absorb)
 			dtau_total += dt ; z += step ; remaining -= step
+			continue
+		if z_cross is not None and not np.isinf(R) and R > 0 and z < z_cross - tol:
+			# jump policy: diverging frame carrying the beam through its focus —
+			# split at the crossover so the focal plane is logged
+			step = min(remaining, z_cross - z)
+			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=0.0, absorb=absorb)
+			dtau_total += dt ; z += step ; remaining -= step
+			if z >= z_cross - tol:
+				logged.append(("crossover", U, s, R, dtau_total, z, z_cross))
+				z_cross = None
 			continue
 		# flat with no crossover ahead, or diverging: plain scaled propagation
 		U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, remaining, s, R, s_min=0.0, absorb=absorb)
