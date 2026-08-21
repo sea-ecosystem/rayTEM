@@ -1018,3 +1018,53 @@ def test_show_scaled_wave_kinds():
 	mic.show(kind="wave_scaled", plane=-1, regenerate=False, plt_ax=ax)
 	assert len(ax.images) > 0
 	plt.close(fig)
+
+
+def test_subdivided_preserves_geometry():
+	# subdivided() gives finer z sampling without changing the optics: same
+	# named positions, same total length, original object untouched
+	def named(scope):		# unnamed elements all share one blank key; ignore it
+		return {k: v for k, v in scope.named_positions.items() if k}
+	mic = Microscope(sections=[MicroscopeSection(elements=_scaled_column())])
+	before = named(mic)
+	length = mic.sections[0].length
+	dense = mic.subdivided(2e-3)			# a plane every <= 2 mm
+	assert dense is not mic and dense.sections[0] is not mic.sections[0]
+	assert named(dense) == before					# named geometry preserved exactly
+	assert np.isclose(dense.sections[0].length, length)		# and total length
+	assert named(mic) == before						# original untouched
+	n_ele = len(mic.sections[0].elements)
+	assert len(dense.sections[0].elements) > n_ele	# and it really did subdivide
+	assert len(mic.sections[0].elements) == n_ele
+	# explicit cut positions become element boundaries
+	cut = Microscope(sections=[MicroscopeSection(elements=_scaled_column())]).subdivided([5e-3])
+	zs = [e.position for e in cut.sections[0].elements]
+	assert any(np.isclose(z, 5e-3) for z in zs)
+	# a non-positive spacing is an actionable error
+	with pytest.raises(ValueError, match="positive drift spacing"):
+		mic.subdivided(0.0)
+
+
+@pytest.mark.skipif(not sea_available, reason="Signal.show delegation requires sea_eco")
+def test_show_zpts_uses_temporary_dense_copy():
+	# show(zpts=...) plots from a subdivided copy and must not disturb the
+	# result stored on self (nor require it to exist)
+	import matplotlib
+	matplotlib.use("Agg")
+	import matplotlib.pyplot as plt
+	mic = Microscope(sections=[MicroscopeSection(elements=_scaled_column())])
+	mic.propagate_wave(mode="hybrid")
+	n_own = len(mic._wave_scaled_planes)
+	fig, ax = plt.subplots()
+	mic.show(kind="wave-hybrid", zpts=2e-3, plt_ax=ax)
+	assert len(ax.collections) > 0							# drew the dense section
+	assert len(mic._wave_scaled_planes) == n_own			# self's result untouched
+	plt.close(fig)
+	# a float plane with explicit cuts is logged exactly (no nearest-plane snap)
+	fig, ax = plt.subplots()
+	mic.show(kind="wave-hybrid", zpts=[10e-3], plane=10e-3, plt_ax=ax)
+	assert len(ax.images) > 0
+	plt.close(fig)
+	# zpts is rejected where it has no meaning
+	with pytest.raises(ValueError, match="only supported for the scaled wave kinds"):
+		mic.show(kind="ray", zpts=1e-3)

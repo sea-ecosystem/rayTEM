@@ -154,10 +154,11 @@ def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None
 	ax.set_ylabel("x (µm)")
 	if named_positions:
 		for label, zp in named_positions.items():
+			if not label:			# unnamed elements share one blank key; skip them
+				continue
 			ax.axvline(zp * 1e3, color="w", lw=0.6, ls="--", alpha=0.6)
-			if label:
-				ax.text(zp * 1e3, half * 1e6 * 0.95, label, color="w", rotation=90,
-						ha="right", va="top", fontsize=7)
+			ax.text(zp * 1e3, half * 1e6 * 0.95, label, color="w", rotation=90,
+					ha="right", va="top", fontsize=7)
 	if crossovers:
 		for zc in crossovers:
 			ax.axvline(zc * 1e3, color="cyan", lw=0.8, ls=":", alpha=0.9)
@@ -1136,6 +1137,92 @@ class Microscope(SEASerializable):
 			l = l | ls
 		return l
 
+	def subdivided(self, zpts):
+		"""Return a copy of this column with its plain drifts split for dense sampling.
+
+		Propagation logs one plane per element exit (plus the frame events of a
+		hybrid wave run), so the z sampling of any result — and of the
+		cross-section drawn by :meth:`show` — is whatever the column's element
+		list defines. This helper builds a **new** ``Microscope`` whose unnamed
+		drifts are cut into shorter drifts, giving finer z resolution without
+		changing the optics: element order, lengths, section positions and
+		therefore every entry of :attr:`named_positions` are preserved exactly
+		(the cut drifts sum to the original length, and the copy's elements are
+		restacked sequentially by ``MicroscopeSection``). This object is left
+		untouched, including any propagation result already stored on it.
+
+		Parameters
+		----------
+		zpts : float or Sequence[float]
+			``float`` — maximum drift length (metres); every unnamed drift
+			longer than this is split into equal chunks. ``Sequence`` —
+			absolute z positions (metres) at which to cut; each unnamed drift
+			is split at the positions falling strictly inside it, so those z
+			values become logged planes.
+
+		Returns
+		-------
+		Microscope
+			The subdivided copy (no propagation results).
+
+		Raises
+		------
+		ValueError
+			If ``zpts`` is a non-positive spacing.
+
+		Related
+		-------
+		show : Accepts ``zpts`` and plots from a temporary subdivided copy.
+		crossovers : Focal planes, always logged exactly by the hybrid engine
+			regardless of drift subdivision.
+
+		Notes
+		-----
+		Only **unnamed** drifts are split — a named drift marks a plane a user
+		asked for, so its identity (and its entry in ``named_positions``) is
+		kept intact. Crossover planes never need subdivision: the hybrid
+		engine splits its own propagation at the analytic focus
+		``z_cross = z + |R|`` and logs that plane exactly.
+
+		Examples
+		--------
+		>>> dense = scope.subdivided(5e-3)          # a plane every <= 5 mm
+		>>> dense.propagate_wave(mode='hybrid')     # doctest: +SKIP
+		>>> scope.subdivided([0.3, 0.45]).propagate_wave(mode='hybrid')  # doctest: +SKIP
+		"""
+		scope = deepcopy(self)
+		if xp.ndim(zpts) == 0:
+			dz = float(zpts)
+			if dz <= 0:
+				raise ValueError(f"subdivided(zpts={zpts}) needs a positive drift spacing in metres, "
+								 "or a sequence of absolute z positions to cut at.")
+			cuts = None
+		else:
+			dz = None
+			cuts = sorted(float(z) for z in zpts)
+		sections = []
+		for sec in scope.sections:
+			z = sec.position
+			elements = []
+			for ele in sec.elements:
+				L = getattr(ele, "length", 0) or 0
+				if isinstance(ele, Drift) and L > 0 and not ele.name:
+					if dz is not None:
+						n = max(1, int(xp.ceil(L / dz - 1e-9)))
+						lengths = [L / n] * n
+					else:
+						tol = 1e-12 + 1e-9 * L
+						edges = [z] + [c for c in cuts if z + tol < c < z + L - tol] + [z + L]
+						lengths = [b - a for a, b in zip(edges[:-1], edges[1:])]
+					elements += [Drift(length=l) for l in lengths]
+				else:
+					ele._position = None		# restack sequentially in the new section
+					elements.append(ele)
+				z += L
+			sections.append(MicroscopeSection(name=sec.name, elements=elements,
+											  position=sec.position))
+		return Microscope(name=scope.name, sections=sections)
+
 	def propagate_ray(self, r0:xp.ndarray=None, z: float = None, verbose=False):
 		"""Propagate rays through every section, carrying intensity/rotation across boundaries.
 
@@ -1405,7 +1492,7 @@ class Microscope(SEASerializable):
 
 	def show(self, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray",
 			 filename=None, title=None, ylims=None, zlims=None, regenerate=True, plt_ax=None,
-			 plane:int|float|str=None):
+			 plane:int|float|str=None, zpts=None):
 		"""Visualize a propagation result.
 
 		``kind="ray"`` draws the usual ray diagram (with element/plane overlays).
@@ -1440,7 +1527,17 @@ class Microscope(SEASerializable):
 			z-plane index, ``None`` (default) meaning the last plane. The
 			scaled kinds: ``None`` draws the cross-section; an integer indexes
 			the logged planes, a float selects the nearest plane to that z
-			(metres), and a string a named position (e.g. ``"sample"``).
+			(metres), and a string a named position (e.g. ``"sample"``) or a
+			crossover z from :attr:`crossovers`.
+		zpts : float or Sequence[float], optional
+			Scaled kinds only: plot from a temporary :meth:`subdivided` copy of
+			this column, for denser z sampling than the stored element list
+			gives (a max drift spacing in metres, or explicit absolute z
+			positions to cut at). A float ``plane`` is added to the cut set so
+			that plane is logged exactly instead of snapping to the nearest
+			existing one. The copy is propagated on the spot and discarded —
+			this object's own stored result is never touched (so ``regenerate``
+			does not apply to it).
 
 		Returns
 		-------
@@ -1449,13 +1546,25 @@ class Microscope(SEASerializable):
 		Raises
 		------
 		ValueError
-			If ``kind`` is not one of the documented values.
+			If ``kind`` is not one of the documented values, or ``zpts`` is
+			given for a kind that does not support it.
 
 		Related
 		-------
 		propagate_ray, propagate_moments, propagate_wave, wavefield_at
+		subdivided : Builds the denser column ``zpts`` propagates.
 		_scaled_wave_cross_section : The cross-section renderer.
+
+		Examples
+		--------
+		>>> scope.show(kind='wave-hybrid')                       # doctest: +SKIP
+		>>> scope.show(kind='wave-hybrid', zpts=5e-3)            # doctest: +SKIP
+		>>> scope.show(kind='wave-hybrid', plane='sample')       # doctest: +SKIP
+		>>> scope.show(kind='wave-hybrid', plane=scope.crossovers[0])  # doctest: +SKIP
 		"""
+		if zpts is not None and kind not in ("wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"):
+			raise ValueError(f"zpts is only supported for the scaled wave kinds, not {kind!r}; "
+							 "call subdivided(zpts) and propagate that copy for other kinds.")
 		# --- ray diagram (unchanged behavior) ---
 		if kind in ("ray","rays"):
 			if self.rays is None or regenerate:
@@ -1490,25 +1599,33 @@ class Microscope(SEASerializable):
 				ax.set_title(title)
 		elif kind in ("wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"):
 			mode = 'hybrid' if 'hybrid' in kind else 'scaled'
-			if getattr(self, "_wave_scaled_planes", None) is None or regenerate:
+			scope = self
+			if zpts is not None:
+				# denser sampling: propagate a temporary copy, leave self alone
+				cuts = zpts
+				if xp.ndim(zpts) > 0 and isinstance(plane, float):
+					cuts = list(zpts) + [plane]			# log the requested plane exactly
+				scope = self.subdivided(cuts)
+				scope.propagate_wave(mode=mode)
+			elif getattr(self, "_wave_scaled_planes", None) is None or regenerate:
 				self.propagate_wave(mode=mode)
 			if plane is None:
 				# the wave analog of the ray diagram, with the same overlays
 				_scaled_wave_cross_section(
-					self._wave_scaled_planes, ax,
-					named_positions=self.named_positions,
-					crossovers=getattr(self, "crossovers", None),
+					scope._wave_scaled_planes, ax,
+					named_positions=scope.named_positions,
+					crossovers=getattr(scope, "crossovers", None),
 					title=title or (self.name or 'microscope') + f" {mode} wave |ψ(x, 0, z)|")
 			else:
 				if isinstance(plane, (int, xp.integer)) and not isinstance(plane, bool):
 					from .seashells import read_scaled_wavefield
 					from .waveoptics import reconstruct_physical_wave
 					U, dxi, deta, wavelength, s, R, tau, zval = \
-						read_scaled_wavefield(self._wave_scaled_planes[plane])
+						read_scaled_wavefield(scope._wave_scaled_planes[plane])
 					psi, dx, dy = reconstruct_physical_wave(U, dxi, deta, wavelength, s, R)
 				else:
 					# named position or z in metres -> nearest logged plane
-					psi, dx, dy, wavelength, zval = read_wavefield(self.wavefield_at(plane))
+					psi, dx, dy, wavelength, zval = read_wavefield(scope.wavefield_at(plane))
 				make_wavefield_signal(xp.abs(psi)**2, dx, dy, wavelength, z=zval,
 									  name="wavefield |ψ|^2").show(ax=ax)
 				if title:
