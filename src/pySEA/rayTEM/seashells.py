@@ -518,7 +518,7 @@ class _ScaledWavefield:
 	z : float or None
 		Physical plane position (metres).
 	"""
-	def __init__(self, data, dxi, deta, wavelength, s, R, tau, z):
+	def __init__(self, data, dxi, deta, wavelength, s, R, tau, z, z_cross=None):
 		self.data = data
 		self.dxi = dxi
 		self.deta = deta
@@ -527,10 +527,11 @@ class _ScaledWavefield:
 		self.R = R
 		self.tau = tau
 		self.z = z
+		self.z_cross = z_cross
 
 
 def make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=None,
-								 name="scaled wavefield"):
+								 z_cross=None, name="scaled wavefield"):
 	"""Wrap a reduced field ``U(ξ, η)`` as a single-plane scaled-wavefield ``Signal``.
 
 	Builds the in-flight state of scaled-Fresnel propagation: the reduced field of
@@ -557,6 +558,10 @@ def make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=None,
 		Accumulated reduced propagation coordinate ``τ = ∫ dz/s²``.
 	z : float or None, optional
 		Physical plane position (metres), stored in metadata.
+	z_cross : float or None, optional
+		Position of the crossover a flat frame is currently traversing
+		(set by the hybrid frame-switching policy; ``None`` otherwise).
+		Stored in metadata as ``z_cross_m`` only when set.
 	name : str, optional
 		Signal name, by default ``"scaled wavefield"``.
 
@@ -577,7 +582,7 @@ def make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=None,
 	if not sea_available:
 		warn("sea_eco is not installed; make_scaled_wavefield_signal returns a "
 			 "lightweight _ScaledWavefield fallback (no .sea serialization).")
-		return _ScaledWavefield(U, dxi, deta, wavelength, s, R, tau, z)
+		return _ScaledWavefield(U, dxi, deta, wavelength, s, R, tau, z, z_cross)
 	neta, nxi = U.shape[-2], U.shape[-1]
 	xidim = _Dimension(name="xi", space="position", scale=dxi, offset=-(nxi // 2) * dxi, size=nxi, units="m")
 	etadim = _Dimension(name="eta", space="position", scale=deta, offset=-(neta // 2) * deta, size=neta, units="m")
@@ -585,6 +590,8 @@ def make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=None,
 	meta = {"wavelength_m": float(wavelength), "dxi_m": float(dxi), "deta_m": float(deta),
 			"s": float(s), "R_m": float(R), "tau": float(tau),
 			"z_m": float(z) if z is not None else 0.0}
+	if z_cross is not None:
+		meta["z_cross_m"] = float(z_cross)
 	return _Signal(data=U, name=name, dimensions=[etadim, xidim], metadata=meta, signal_type="Image")
 
 
@@ -617,6 +624,36 @@ def read_scaled_wavefield(signal):
 	meta = signal.metadata.to_dict() if signal.metadata is not None else {}
 	return (signal.data, meta.get("dxi_m"), meta.get("deta_m"), meta.get("wavelength_m"),
 			meta.get("s"), meta.get("R_m"), meta.get("tau"), meta.get("z_m", None))
+
+
+def scaled_frame_crossover(signal):
+	"""Read the crossover marker of a scaled wavefield's flat frame, if any.
+
+	The hybrid frame-switching policy records the position of the crossover a
+	flat frame is currently traversing so the marker survives element
+	boundaries; this accessor reads it back from either a real sea_eco
+	``Signal`` (metadata key ``z_cross_m``) or the :class:`_ScaledWavefield`
+	fallback.
+
+	Parameters
+	----------
+	signal : Signal or _ScaledWavefield
+		A scaled wavefield produced by :func:`make_scaled_wavefield_signal`.
+
+	Returns
+	-------
+	float or None
+		The crossover position ``z_cross`` (metres), or ``None`` when the
+		frame is not traversing a crossover.
+
+	Related
+	-------
+	make_scaled_wavefield_signal : Stores the marker.
+	"""
+	if isinstance(signal, _ScaledWavefield):
+		return signal.z_cross
+	meta = signal.metadata.to_dict() if signal.metadata is not None else {}
+	return meta.get("z_cross_m", None)
 
 
 def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, name="scaled wave"):
