@@ -531,7 +531,7 @@ class Element(SEASerializable):
 		return mu_out, Sigma_out
 
 	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
-					   s_min:float=1e-3, log:list=None):
+					   s_min:float=1e-3, log:list=None, absorb:float=0.1):
 		r"""Propagate a wavefield through this element in the selected wave mode.
 
 		The one wave-optics analog of :meth:`propagate_ray`, covering all three
@@ -569,6 +569,13 @@ class Element(SEASerializable):
 			appended to this list as scaled Signals (tags ``flatten`` /
 			``crossover`` / ``rediverge`` in metadata). ``None`` (default)
 			discards them.
+		absorb : float, optional
+			Scaled/hybrid only: absorbing-boundary margin fraction (default
+			0.1). Field diffracting out of the modeled field of view is
+			absorbed (physically: those electrons leave the beam) instead of
+			wrapping around the periodic grid and interfering with the beam
+			as an axis-aligned artifact. ``0`` restores pure periodic
+			propagation (exact energy conservation).
 
 		Returns
 		-------
@@ -597,7 +604,7 @@ class Element(SEASerializable):
 			return self._propagate_wave_fixed(signal)
 		if mode in ('scaled', 'hybrid'):
 			return self._propagate_wave_scaled(signal, hybrid=(mode == 'hybrid'),
-											   s_min=s_min, log=log)
+											   s_min=s_min, log=log, absorb=absorb)
 		raise ValueError(f"Unknown wave mode {mode!r}; expected 'fixed', 'scaled', or 'hybrid'.")
 
 	def _propagate_wave_fixed(self, signal):
@@ -630,7 +637,7 @@ class Element(SEASerializable):
 									 name=getattr(signal, "name", "wavefield"))
 
 	def _propagate_wave_scaled(self, signal, hybrid:bool=False, s_min:float=1e-3,
-							   log:list=None):
+							   log:list=None, absorb:float=0.1):
 		"""Scaled-frame wave step: free L/2 → element action → free L/2.
 
 		Parameters
@@ -671,7 +678,8 @@ class Element(SEASerializable):
 				return U, s, R, tau, z, z_cross
 			if hybrid:
 				U, s, R, dt, z, z_cross, logged = propagate_free_scaled_hybrid(
-					U, dxi, deta, wavelength, dz, s, R, z, z_cross, s_min=s_min)
+					U, dxi, deta, wavelength, dz, s, R, z, z_cross, s_min=s_min,
+					absorb=absorb)
 				if log is not None:
 					for tag, U_l, s_l, R_l, dt_l, z_l, zc_l in logged:
 						log.append(make_scaled_wavefield_signal(
@@ -680,7 +688,7 @@ class Element(SEASerializable):
 				tau += dt
 			else:
 				U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R,
-													s_min=s_min)
+													s_min=s_min, absorb=absorb)
 				tau += dt ; z += dz
 			return U, s, R, tau, z, z_cross
 
@@ -958,19 +966,26 @@ class Source(Element):
 		return make_wavefield_signal(data, dx, dy, self.wavelength, z=z0,
 									 name=(self.name or 'source') + ' wavefield')
 
-	def _aperture_wave(self, radius:float):
+	def _aperture_wave(self, radius:float, antialias:bool=True):
 		r"""Build a hard-aperture initial wavefield :math:`\psi_0 = \Theta(a - r)`.
 
-		The handoff's reference initial wave (Eq 9): a unit-amplitude plane wave
-		clipped by a circular aperture of radius ``radius``, on the source's
-		wave grid (``wave_shape``/``wave_extent``). Composes the existing
-		``plane_wave`` and ``aperture_mask`` builders. Requires a defined
+		The handoff's reference initial wave (Eq 9): a unit-amplitude sharp
+		disk of radius ``radius`` on the source's wave grid
+		(``wave_shape``/``wave_extent``). By default the grid holds the
+		**band-limited projection** of the sharp disk
+		(:func:`waveoptics.bandlimited_disk`): every representable Fresnel
+		fringe of the hard edge is preserved exactly, while the above-Nyquist
+		edge content — which a point-sampled binary mask folds back and
+		propagates as a spurious grid texture — is removed. Requires a defined
 		wavelength (set ``voltage``).
 
 		Parameters
 		----------
 		radius : float
 			Aperture radius (metres); must fit inside the grid half-extent.
+		antialias : bool, optional
+			Use the alias-free band-limited disk, by default True. ``False``
+			restores the point-sampled binary mask (comparison/regression use).
 
 		Returns
 		-------
@@ -985,8 +1000,9 @@ class Source(Element):
 		Related
 		-------
 		wave : The wave generator that dispatches here for wave_kind='aperture'.
+		waveoptics.bandlimited_disk : The alias-free sharp-disk builder.
 		"""
-		from .waveoptics import plane_wave, aperture_mask
+		from .waveoptics import plane_wave, aperture_mask, bandlimited_disk
 		from .seashells import make_wavefield_signal
 		if self.wavelength is None:
 			raise ValueError("Source._aperture_wave requires a wavelength; construct Source(voltage=<kV>).")
@@ -996,13 +1012,16 @@ class Source(Element):
 			raise ValueError(f"Aperture radius {radius} m does not fit on the grid half-extent {extent/2} m; "
 							 "increase wave_extent.")
 		dx = extent / nx ; dy = extent / ny
-		data = aperture_mask(plane_wave((ny, nx)), dx, dy, radius)
+		if antialias:
+			data = bandlimited_disk((ny, nx), dx, dy, radius)
+		else:
+			data = aperture_mask(plane_wave((ny, nx)), dx, dy, radius, antialias=False)
 		z0 = self._position if self._position is not None else 0.0
 		return make_wavefield_signal(data, dx, dy, self.wavelength, z=z0,
 									 name=(self.name or 'source') + ' aperture wavefield')
 
 	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
-					   s_min:float=1e-3, log:list=None):
+					   s_min:float=1e-3, log:list=None, absorb:float=0.1):
 		"""Pass the wavefield through unchanged (the source only originates the beam).
 
 		Mirrors :meth:`propagate_ray`/:meth:`propagate_moments`: the driver
@@ -1179,7 +1198,7 @@ class Aperture(Element):
 		return mu, Sigma
 
 	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
-					   s_min:float=1e-3, log:list=None):
+					   s_min:float=1e-3, log:list=None, absorb:float=0.1):
 		r"""Apply the hard circular aperture to the wavefield in any wave mode.
 
 		Overrides :meth:`Element.propagate_wave` (an aperture is an amplitude
@@ -2080,7 +2099,7 @@ class Prism(Element):
 		return fix_mat_dims(m,["x","xt","y","yt","z","E"])
 
 	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
-					   s_min:float=1e-3, log:list=None):
+					   s_min:float=1e-3, log:list=None, absorb:float=0.1):
 		"""Wave-optics propagation through a prism/spectrometer (not implemented).
 
 		Overrides :meth:`Element.propagate_wave` for every mode. A dispersive

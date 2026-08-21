@@ -3,7 +3,7 @@
 **Branch/worktree:** `Signal_and_propagation_additions` (rayTEM)
 **Plan:** [PLAN_2026-08-21_aperture-alias-jumps-anisotropic.md](PLAN_2026-08-21_aperture-alias-jumps-anisotropic.md)
 
-- [ ] Step 1 — alias-free sampling of the exact hard aperture Θ(a−r): the
+- [x] Step 1 — alias-free sampling of the exact hard aperture Θ(a−r): the
       "gridding" Eric spotted at the sample/detector is folded above-Nyquist
       edge content (real Fresnel fringes stay — Eric: keep the physics);
       `bandlimited_disk` from the analytic J1 spectrum (+ supersampled
