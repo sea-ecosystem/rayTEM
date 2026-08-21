@@ -178,7 +178,13 @@ texture was periodic-FFT wraparound of the edge halo: free segments now carry
 an **absorbing boundary** (`absorb=0.1` margin, raised-cosine window applied
 between τ sub-steps) — electrons that diffract out of the modeled field of
 view are removed, as they are physically lost from the beam, so total |U|²
-honestly decreases by what leaves.
+honestly decreases by what leaves. The window is **radially symmetric** (it
+ends at the inscribed circle): a square window clips the halo anisotropically
+— corners √2 farther out than edges — and the fourfold-modulated surviving
+halo interferes back into the beam as a pixel-axis-aligned fringe pattern at
+every downstream plane (fourfold harmonic c4 ≈ 1e-3 square vs ≈ 0 radial at
+the basic_column sample and detector; only the isotropic concentric Fresnel
+rings remain).
 
 **Anisotropic frames (s_x ≠ s_y).** The frame generalizes per axis,
 `ψ = (s_x s_y)^{-1/2}·U(x/s_x, y/s_y)·exp[ik(x²/2R_x + y²/2R_y)]`, so a

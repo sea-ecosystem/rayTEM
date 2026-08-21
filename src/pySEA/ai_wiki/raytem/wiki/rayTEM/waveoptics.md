@@ -16,19 +16,19 @@
 |   `aperture_mask(field, dx, dy, radius, antialias=True)` | 93 |
 |   `bandlimited_disk(shape, dx, dy, radius)` | 100 |
 |   `boundary_window(shape, margin=0.1)` | 107 |
-| Scaled-Fresnel core (handoff Eqs 23–55) | 114 |
-|   `scaled_delta_tau(dz, s0, R0)` | 120 |
-|   `factor_wave(psi, dx, dy, wavelength, s, R)` | 125 |
-|   `fourier_resample(field, d_in, n_out, d_out)` | 129 |
-|   `reconstruct_physical_wave(U, dxi, deta, wavelength, s, R, target_dx=None, target_shape=None)` | 135 |
-|   `axis_components(value)` / `join_axes(vx, vy)` | 140 |
-|   `apply_thin_lens_scaled(s, R, power)` | 148 |
-|   `beam_support_radius(U, dxi, deta, threshold=1e-6)` / `beam_support_extents(...)` | 154 |
-|   `propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min=1e-3, absorb=0.0)` | 162 |
-| Frame switching (crossover traversal) | 171 |
-|   `min_representable_curvature(n, dxi, wavelength, s, safety=0.5, x_max=None)` | 176 |
-|   `change_scaled_frame(U, dxi, deta, wavelength, s_old, R_old, R_new, s_new=None, safety=0.5)` | 183 |
-|   `propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross=None, safety=0.5, s_min=1e-3, absorb=0.0, crossover='flat')` | 194 |
+| Scaled-Fresnel core (handoff Eqs 23–55) | 118 |
+|   `scaled_delta_tau(dz, s0, R0)` | 124 |
+|   `factor_wave(psi, dx, dy, wavelength, s, R)` | 129 |
+|   `fourier_resample(field, d_in, n_out, d_out)` | 133 |
+|   `reconstruct_physical_wave(U, dxi, deta, wavelength, s, R, target_dx=None, target_shape=None)` | 139 |
+|   `axis_components(value)` / `join_axes(vx, vy)` | 144 |
+|   `apply_thin_lens_scaled(s, R, power)` | 152 |
+|   `beam_support_radius(U, dxi, deta, threshold=1e-6)` / `beam_support_extents(...)` | 158 |
+|   `propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min=1e-3, absorb=0.0)` | 166 |
+| Frame switching (crossover traversal) | 175 |
+|   `min_representable_curvature(n, dxi, wavelength, s, safety=0.5, x_max=None)` | 180 |
+|   `change_scaled_frame(U, dxi, deta, wavelength, s_old, R_old, R_new, s_new=None, safety=0.5)` | 187 |
+|   `propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross=None, safety=0.5, s_min=1e-3, absorb=0.0, crossover='flat')` | 198 |
 <!-- END AUTO-GENERATED TOC -->
 
 # waveoptics.py
@@ -105,11 +105,15 @@ nothing folds; the band limit shows as Gibbs ripple at the edge (the honest
 sampled discontinuity). Used by `Source._aperture_wave` (`wave_kind='aperture'`).
 
 ### `boundary_window(shape, margin=0.1)`
-Absorbing-boundary window (1 in the interior, raised-cosine → 0 over the outer
-`margin` fraction). The FFT propagator is periodic — field leaving the FOV
-re-enters and interferes (axis-aligned artifact); physically those electrons
-leave the beam, so `propagate_free_scaled(absorb>0)` applies this window
-between τ sub-steps sized so nothing can cross the band in one step.
+Absorbing-boundary window, **radially symmetric** (1 inside the inscribed
+circle minus the band, raised-cosine → 0 at the inscribed-circle edge). The
+FFT propagator is periodic — field leaving the FOV re-enters and interferes;
+physically those electrons leave the beam, so `propagate_free_scaled(absorb>0)`
+applies this window between τ sub-steps sized so nothing can cross the band in
+one step. Isotropy is a hard requirement: a separable (square) window clips
+the halo anisotropically (corners √2 farther than edges) and imprints a
+fourfold, pixel-aligned fringe pattern on the beam (measured c4 ~1e-3 at the
+basic_column sample/detector; ~0 radial — enforced by a regression test).
 
 ## Scaled-Fresnel core (handoff Eqs 23–55)
 
