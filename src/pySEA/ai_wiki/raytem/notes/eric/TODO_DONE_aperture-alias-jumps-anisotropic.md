@@ -20,4 +20,5 @@
       companions); isotropic fast path keeps round-lens columns bit-for-bit;
       astigmatic Gaussian matches analytic q-parameter widths at both line
       foci; strong stigmators (old guard-blocked) now run
-- [ ] Step 5 — docs + wiki sync; finish protocol
+- [x] Step 5 — docs + wiki sync (waveoptics/elements/assemblies/seashells wiki,
+      docs/wave-optics-sampling.md, ecosystem index); protocol finished
