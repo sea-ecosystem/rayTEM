@@ -19,5 +19,5 @@
 - [x] Step 4 — driver wiring: `log` threading so flatten/crossover/rediverge
       planes land in `.wave_scaled` (with a per-plane `frame` companion +
       tags), `Microscope.crossovers`; full-column basic_column test; suite
-- [ ] Step 5 — full-column demo (focal-plane x-y slices), docs + wiki
+- [x] Step 5 — full-column demo (focal-plane x-y slices), docs + wiki
       terminology sweep, close GitHub issue #2, finish protocol

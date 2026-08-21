@@ -99,11 +99,12 @@ at `z = f` and Fresnel Gaussian spreading); the realistic `basic_column`
 template is valid at the source plane but not through its cm-focal-length
 lenses.
 
-## Scaled Fresnel propagation (implemented): `propagate_wave_scaled`
+## Scaled Fresnel propagation (implemented): `propagate_wave(mode='scaled'|'hybrid')`
 
-The co-moving / scaled-coordinates remedy is now implemented as a sibling wave
-mode, `propagate_wave_scaled` (dispatcher `kind="wave-scaled"`). The wave is
-factored as
+The co-moving / scaled-coordinates remedy is now implemented inside the one
+wave method: `propagate_wave(..., mode='scaled')` for a single scaled frame and
+`mode='hybrid'` for automatic frame switching through crossovers (dispatcher
+kinds `"wave-scaled"` / `"wave-hybrid"`). The wave is factored as
 
 ```
 ψ(x, y, z) = (1/s(z)) · U(ξ, η, τ) · exp[i k (x² + y²) / 2R(z)],
@@ -129,19 +130,33 @@ and is propagated by the *same* angular-spectrum kernel over `Δτ`
   strengths pass; over-strong settings fail loudly instead of aliasing.
 - **Reconstruction back to physical x, y** at any logged plane:
   `Microscope.wavefield_at(z_or_name, target_dx=..., target_shape=...)`
+  (crossover planes included — the back-focal wavefield of each lens)
   returns a standard calibrated wavefield Signal — on the native `|s|·Δξ`
   grid, or band-limited-resampled onto a prescribed grid for an external
   package (e.g. multislice) to consume.
 
 State lives in the sea_eco architecture: `Δξ/Δη` on the ξ/η `Dimension`
-calibration, the chart scalars `(s, R, τ)` in metadata (single plane) and as
+calibration, the frame scalars `(s, R, τ)` in metadata (single plane) and as
 companion Signals in the `.wave_scaled` `SignalSet` (stacked result, sharing
 the plane-z axis with the U stack).
 
-**Remaining limit — crossovers.** The chart is singular where `s → 0` (the
-beam crossover). Propagation stops with an actionable error naming the
-crossover position before `|s|` falls below `s_min` (default `1e-3`);
-switching to a fresh chart through a crossover is a tracked follow-up.
+**Crossovers — solved by frame switching (`mode='hybrid'`).** A *frame* is a
+factorization choice (s, R, τ); a converging frame is singular where `s → 0`
+(the beam crossover) — the reference wavefront collapses to a point while the
+diffracted wave stays finite. `propagate_wave(mode='hybrid')` switches frames
+automatically (`waveoptics.change_scaled_frame`, the general re-expression of
+the same physical wave in another frame): the converging frame **flattens**
+where its reference curvature first becomes representable on the shrinking
+grid (`|R_flat| = R²/(A·s²)`, a frame invariant with a closed-form split
+point), the wave crosses the real focus by ordinary carrier-free Fresnel
+propagation — the crossover (back-focal / diffraction) plane is logged and
+listed on `Microscope.crossovers` — and re-factors onto a diverging frame at
+the mirror-image distance past it. One ξ/η calibration serves the entire
+column while `s(z)` dips and recovers at each focus; the `basic_column`
+template runs source → detector (five crossovers) with energy conserved at
+every plane and the physical pixel spanning sub-nm (foci) to µm (detector).
+`mode='scaled'` keeps the single-frame behavior (an actionable error before
+the crossover); `s_min` remains as a backstop guard.
 
 ## Other remedies (roadmap)
 
@@ -172,4 +187,4 @@ switching to a fresh chart through a crossover is a tracked follow-up.
 - Sziklas, E. A. & Siegman, A. E., "Mode calculations in unstable resonators
   with flowing saturable gain. 2: Fast Fourier transform method,"
   *Appl. Opt.* **14**, 1874 (1975) (the coordinate-scaling transform behind
-  `propagate_wave_scaled`).
+  `propagate_wave(mode='scaled'|'hybrid')`).

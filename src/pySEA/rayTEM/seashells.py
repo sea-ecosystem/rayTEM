@@ -485,7 +485,7 @@ class _ScaledWavefield:
 	Mirrors the read surface of a scaled-wavefield ``Signal`` produced by
 	:func:`make_scaled_wavefield_signal`: the reduced field ``U(ξ, η)`` of the
 	scaled-Fresnel factorization ``ψ = (1/s)·U·exp[ik(x²+y²)/2R]`` plus its scaled
-	sampling and the chart state ``(s, R, τ)``, so scaled propagation still runs
+	sampling and the frame state ``(s, R, τ)``, so scaled propagation still runs
 	and round-trips in-memory without the calibrated-Signal machinery.
 
 	Parameters
@@ -499,7 +499,7 @@ class _ScaledWavefield:
 	s : float
 		Scale factor at this plane (physical pixel size is ``|s|·Δξ``).
 	R : float
-		Wavefront radius of curvature (metres); ``numpy.inf`` for a flat chart.
+		Wavefront radius of curvature (metres); ``numpy.inf`` for a flat frame.
 	tau : float
 		Reduced propagation coordinate ``τ = ∫ dz/s²`` accumulated so far.
 	z : float or None
@@ -553,7 +553,7 @@ def make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=None,
 	s : float
 		Scale factor at this plane.
 	R : float
-		Wavefront radius of curvature (metres); ``numpy.inf`` for a flat chart.
+		Wavefront radius of curvature (metres); ``numpy.inf`` for a flat frame.
 	tau : float
 		Accumulated reduced propagation coordinate ``τ = ∫ dz/s²``.
 	z : float or None, optional
@@ -592,7 +592,7 @@ def make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=None,
 	neta, nxi = U.shape[-2], U.shape[-1]
 	xidim = _Dimension(name="xi", space="position", scale=dxi, offset=-(nxi // 2) * dxi, size=nxi, units="m")
 	etadim = _Dimension(name="eta", space="position", scale=deta, offset=-(neta // 2) * deta, size=neta, units="m")
-	# chart scalars mirrored into metadata for robust, parse-free read-back
+	# frame scalars mirrored into metadata for robust, parse-free read-back
 	meta = {"wavelength_m": float(wavelength), "dxi_m": float(dxi), "deta_m": float(deta),
 			"s": float(s), "R_m": float(R), "tau": float(tau),
 			"z_m": float(z) if z is not None else 0.0}
@@ -607,7 +607,7 @@ def read_scaled_wavefield(signal):
 	"""Read ``(U, dxi, deta, wavelength, s, R, tau, z)`` from a scaled wavefield.
 
 	Inverse of :func:`make_scaled_wavefield_signal`. Reads the scaled sampling and
-	the chart state from metadata (mirrored there by the factory) so it does not
+	the frame state from metadata (mirrored there by the factory) so it does not
 	depend on parsing ``Dimension`` objects, and works for both a real sea_eco
 	``Signal`` and the :class:`_ScaledWavefield` fallback.
 
@@ -694,7 +694,7 @@ def scaled_frame_tag(signal):
 
 def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None,
 							   name="scaled wave"):
-	"""Wrap a stack of reduced fields and their chart state as a sea_eco ``SignalSet``.
+	"""Wrap a stack of reduced fields and their frame state as a sea_eco ``SignalSet``.
 
 	Assembles the stacked result of a scaled-Fresnel run: the reduced field
 	``U(z, η, ξ)`` on an unstructured plane-``z`` axis plus calibrated ξ/η axes
