@@ -7,14 +7,16 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
-## 2026-08-20 — [Under Construction] Scaled-frame switching through crossovers
+## 2026-08-20 — [Done] Scaled-frame switching through crossovers
 **Goal:** Full-column scaled propagation: a general frame-change primitive (Eric's Eq 5) plus a hybrid crossover policy (scaled -> flatten near focus -> ordinary Fresnel through it -> re-diverge), consolidated as propagate_wave(mode='fixed'|'scaled'|'hybrid').
 **Why:** The scaled run stops at C1's crossover (the frame's s->0 singularity), and the focal/back-focal/image planes — which sit AT the crossovers — are the most important planes.
-- [ ] change_scaled_frame + min_representable_curvature + delegation (tests)
-- [ ] hybrid engine + z_cross metadata (through-focus + Airy tests)
-- [ ] API consolidation propagate_wave(mode=...) / Source.wave(mode=...)
-- [ ] driver wiring (log, frame companion, Microscope.crossovers) + column test
-- [ ] demo + docs/wiki + close issue #2
+- [x] change_scaled_frame + min_representable_curvature + delegation (tests)
+- [x] hybrid engine + z_cross metadata (through-focus + Airy tests)
+- [x] API consolidation propagate_wave(mode=...) / Source.wave(mode=...)
+- [x] driver wiring (log, frame companion, Microscope.crossovers) + column test
+- [x] demo + docs/wiki + close issue #2
+
+**Outcome:** Full-column scaled propagation works: basic_column runs source -> detector (z = 1.264 m) through five crossovers with energy conserved at all planes and the physical pixel spanning 0.1 nm (foci) to 6.3 um (detector) on one xi-grid calibration. Built per Eric's handoff: waveoptics.change_scaled_frame (Eq 5, pointwise under the physical-grid-continuous convention, guarded by min_representable_curvature; factor_wave delegates as the (1, inf) special case) and propagate_free_scaled_hybrid (converging frame flattens at |R_flat| = R^2/(A s^2), a frame invariant with closed-form splits; ordinary carrier-free Fresnel through the real focus with the crossover/back-focal plane split out and logged; re-diverge at d = A s^2; predictive switching, s_min only a backstop). API consolidated per Eric: one propagate_wave(..., mode='fixed'|'scaled'|'hybrid') on Element/Section/Microscope (propagate_wave_scaled removed), Source.wave(mode=...), dispatcher kinds wave/wave-scaled/wave-hybrid via (method, forced-kwargs) mapping. The .wave_scaled SignalSet keeps its single shared xi/eta calibration (all switches are pointwise, s continuous) and gains a 'frame' companion + per-plane tags; z_cross rides the in-flight Signal metadata; Microscope.crossovers lists the focal planes and wavefield_at reconstructs them (electron-scale focal plane = Airy: first zero < 5e-3 of peak, 83.8% encircled energy; through-focus equivalence vs the ordinary propagator 6.3e-3 at safety=0.5 — error grows with flat-window length, confirming the default). 54 tests green; demo shows physical + scaled-coordinate cross-sections and x-y slices at source/C1-back-focal/sample/objective-focus/projector-focus/detector; issue #2 closed. Note: "chart" wording replaced by "frame" throughout per Eric.
 
 ## 2026-08-20 — [Done] Unify wave-mode naming on "wave"
 **Goal:** The wave signal is the object everywhere; rename the Source "field" API and driver kwargs to wave terminology (wave/wave_scaled/wave_shape/wave_kind/wave0).
