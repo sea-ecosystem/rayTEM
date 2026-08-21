@@ -15,22 +15,22 @@
 |   `MicroscopeSection.named_positions` | 94 |
 |   `MicroscopeSection.propagate_ray(self, r0, z, verbose)` | 98 |
 |   `MicroscopeSection.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 104 |
-|   `MicroscopeSection.propagate(self, *args, kind='ray', **kwargs)` | 120 |
-|   `MicroscopeSection.show(self, filename, title, ylims, zlims, regenerate)` | 125 |
-|   `MicroscopeSection.save(self, filename)` | 129 |
-| Microscope | 135 |
-|   `Microscope.__init__(self, name, sections)` | 139 |
-|   `Microscope.index(self, item)` | 143 |
-|   `Microscope.__getitem__` | 147 |
-|   `Microscope.insert(self, index, elementOrSection)` | 153 |
-|   `Microscope.adjust_element_length(self, element, newlength)` | 157 |
-|   `Microscope.named_positions` | 161 |
-|   `Microscope.propagate_ray(self, r0, z, verbose)` | 165 |
-|   `Microscope.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 169 |
-|   `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)` | 178 |
-|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 188 |
-|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 193 |
-|   `Microscope.save(self, filename)` | 197 |
+|   `MicroscopeSection.propagate(self, *args, kind='ray', **kwargs)` | 123 |
+|   `MicroscopeSection.show(self, filename, title, ylims, zlims, regenerate)` | 128 |
+|   `MicroscopeSection.save(self, filename)` | 132 |
+| Microscope | 138 |
+|   `Microscope.__init__(self, name, sections)` | 142 |
+|   `Microscope.index(self, item)` | 146 |
+|   `Microscope.__getitem__` | 150 |
+|   `Microscope.insert(self, index, elementOrSection)` | 156 |
+|   `Microscope.adjust_element_length(self, element, newlength)` | 160 |
+|   `Microscope.named_positions` | 164 |
+|   `Microscope.propagate_ray(self, r0, z, verbose)` | 168 |
+|   `Microscope.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 172 |
+|   `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)` | 183 |
+|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 193 |
+|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 198 |
+|   `Microscope.save(self, filename)` | 202 |
 <!-- END AUTO-GENERATED TOC -->
 
 # assemblies.py
@@ -111,11 +111,14 @@ per-plane fields into a calibrated `(n_planes, ny, nx)` Signal on `self.wave`
 and stacks onto `self.wave_scaled` as a `SignalSet` — U `(n_planes, nη, nξ)`
 main Signal plus companion 1-D `s(z)`/`R(z)`/`tau(z)` (and, on hybrid runs,
 `frame`) Signals on the shared unstructured plane-z axis (built by
-`_stack_scaled_wavefields` → `seashells.make_scaled_wave_signalset`). On
-`'hybrid'` the interior flatten/crossover/rediverge planes logged by the
-engine are inserted in z order. Seeds from `Source.wave(mode=...)` when
-`wave0=None`. `'scaled'` raises before a crossover (Eq 52); `'hybrid'`
-switches frames through it.
+`_stack_scaled_wavefields` → `seashells.make_scaled_wave_signalset`); on an
+**anisotropic** run (a quadrupole absorbed per-axis powers) the companions
+become `s_x`/`s_y`, `R_x`/`R_y`, `tau_x`/`tau_y`. On `'hybrid'` the interior
+flatten/crossover/rediverge planes logged by the engine are inserted in z
+order (per-axis line foci carry axis-suffixed tags). Seeds from
+`Source.wave(mode=...)` when `wave0=None`. `'scaled'` raises before a
+crossover (Eq 52); `'hybrid'` switches frames through it. `absorb` (default
+0.1) and `crossover` (`'flat'`/`'jump'`) are threaded down to every element.
 
 ### `MicroscopeSection.propagate(self, *args, kind='ray', **kwargs)`
 
@@ -173,6 +176,8 @@ next; all per-plane states flatten into `self.wave` (fixed) /
 `self.wave_scaled` (scaled/hybrid SignalSet of U + s/R/tau/frame companions).
 Per-plane lists on `self._wave_planes` / `self._wave_scaled_planes`. Hybrid
 runs also collect `self.crossovers` — the focal-plane z positions found by
+the hybrid engine (per-axis line foci included: any tag starting with
+`crossover`) —
 the frame-switching engine (the back-focal / image planes).
 
 ### `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)`

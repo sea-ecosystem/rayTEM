@@ -156,7 +156,42 @@ column while `s(z)` dips and recovers at each focus; the `basic_column`
 template runs source → detector (five crossovers) with energy conserved at
 every plane and the physical pixel spanning sub-nm (foci) to µm (detector).
 `mode='scaled'` keeps the single-frame behavior (an actionable error before
-the crossover); `s_min` remains as a backstop guard.
+the crossover); `s_min` remains as a backstop guard. Switch planes and the
+frame-change sampling guard are measured at the **beam's support** (the
+bounding half-width where |U| > 10⁻⁶·max), not the grid edge — phase applied
+where the field is essentially zero is harmless, so a beam smaller than its
+grid flattens earlier (larger s, larger pixels) and padded grids cannot trip
+the backstop. A `crossover='jump'` policy is also available (direct
+converging → diverging mirror frame change, no flat window); measured on the
+electron-scale column it rides the converging frame twice as deep and loses
+the beam when the focal structure (Airy/s in ξ) outruns the field of view, so
+`'flat'` stays the default — use `'jump'` only for mild crossovers.
+
+**Apertures are sampled alias-free.** The physical model stays the sharp disk
+Θ(a−r) (Fresnel edge diffraction is real and kept); the grid holds its
+**band-limited projection**, synthesized from the analytic J₁ spectrum
+(`waveoptics.bandlimited_disk`), so the edge's above-Nyquist content no longer
+folds back and propagates as a spurious axis-aligned "gridding" texture.
+Mid-column `Aperture` masks use the 1-pixel area-coverage edge for the same
+reason (`antialias=False` restores binary masks). The second half of that
+texture was periodic-FFT wraparound of the edge halo: free segments now carry
+an **absorbing boundary** (`absorb=0.1` margin, raised-cosine window applied
+between τ sub-steps) — electrons that diffract out of the modeled field of
+view are removed, as they are physically lost from the beam, so total |U|²
+honestly decreases by what leaves.
+
+**Anisotropic frames (s_x ≠ s_y).** The frame generalizes per axis,
+`ψ = (s_x s_y)^{-1/2}·U(x/s_x, y/s_y)·exp[ik(x²/2R_x + y²/2R_y)]`, so a
+**quadrupole absorbs its (P, −P) powers into (R_x, R_y)** exactly like a
+round lens absorbs one power into R — no saddle phase screen, no sampling
+limit, arbitrarily strong stigmators run. Each axis flattens, crosses, and
+re-diverges at its own **line focus** (hybrid tags `flatten-x`,
+`crossover-y`, …; both listed on `Microscope.crossovers`), the seam stores
+per-axis metadata (`s_x`/`s_y`, `R_x_m`/`R_y_m`, `tau_x`/`tau_y`) and
+per-axis SignalSet companions only when the axes differ, and reconstruction
+uses rectangular native pixels (dx = |s_x|Δξ, dy = |s_y|Δη). Frame
+quantities travel as scalars wherever the axes agree, so round-lens columns
+keep their scalar state and outputs bit-for-bit.
 
 ## Other remedies (roadmap)
 
