@@ -550,18 +550,22 @@ def make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=None,
 		at this plane is ``|s|·Δξ``.
 	wavelength : float
 		Wavelength (metres).
-	s : float
-		Scale factor at this plane.
-	R : float
-		Wavefront radius of curvature (metres); ``numpy.inf`` for a flat frame.
-	tau : float
-		Accumulated reduced propagation coordinate ``τ = ∫ dz/s²``.
+	s : float or Sequence[float]
+		Scale factor at this plane; an ``(s_x, s_y)`` pair on an anisotropic
+		frame (stored as per-axis metadata keys ``s_x``/``s_y``).
+	R : float or Sequence[float]
+		Wavefront radius of curvature (metres); ``numpy.inf`` for a flat frame;
+		per-axis pair on an anisotropic frame (keys ``R_x_m``/``R_y_m``).
+	tau : float or Sequence[float]
+		Accumulated reduced propagation coordinate ``τ = ∫ dz/s²``; per-axis
+		pair on an anisotropic frame (keys ``tau_x``/``tau_y``).
 	z : float or None, optional
 		Physical plane position (metres), stored in metadata.
-	z_cross : float or None, optional
+	z_cross : float, Sequence, or None, optional
 		Position of the crossover a flat frame is currently traversing
 		(set by the hybrid frame-switching policy; ``None`` otherwise).
-		Stored in metadata as ``z_cross_m`` only when set.
+		Stored in metadata as ``z_cross_m`` only when set; a per-axis pair
+		(entries ``None`` where inactive) stores ``z_cross_x_m``/``z_cross_y_m``.
 	tag : str or None, optional
 		Frame-event tag for interior planes logged by the hybrid policy
 		(``'flatten'``/``'crossover'``/``'rediverge'``); stored in metadata as
@@ -592,12 +596,28 @@ def make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=None,
 	neta, nxi = U.shape[-2], U.shape[-1]
 	xidim = _Dimension(name="xi", space="position", scale=dxi, offset=-(nxi // 2) * dxi, size=nxi, units="m")
 	etadim = _Dimension(name="eta", space="position", scale=deta, offset=-(neta // 2) * deta, size=neta, units="m")
-	# frame scalars mirrored into metadata for robust, parse-free read-back
+	# frame scalars mirrored into metadata for robust, parse-free read-back;
+	# isotropic frames keep the scalar keys (old files load unchanged), an
+	# anisotropic frame stores per-axis keys instead
 	meta = {"wavelength_m": float(wavelength), "dxi_m": float(dxi), "deta_m": float(deta),
-			"s": float(s), "R_m": float(R), "tau": float(tau),
 			"z_m": float(z) if z is not None else 0.0}
+	if _np.ndim(s) == 0 and _np.ndim(R) == 0 and _np.ndim(tau) == 0:
+		meta.update({"s": float(s), "R_m": float(R), "tau": float(tau)})
+	else:
+		from .waveoptics import axis_components
+		s_x, s_y = axis_components(s)
+		R_x, R_y = axis_components(R)
+		t_x, t_y = axis_components(tau)
+		meta.update({"s_x": s_x, "s_y": s_y, "R_x_m": R_x, "R_y_m": R_y,
+					 "tau_x": t_x, "tau_y": t_y})
 	if z_cross is not None:
-		meta["z_cross_m"] = float(z_cross)
+		if _np.ndim(z_cross) == 0:
+			meta["z_cross_m"] = float(z_cross)
+		else:
+			if z_cross[0] is not None:
+				meta["z_cross_x_m"] = float(z_cross[0])
+			if z_cross[1] is not None:
+				meta["z_cross_y_m"] = float(z_cross[1])
 	if tag is not None:
 		meta["frame_tag"] = str(tag)
 	return _Signal(data=U, name=name, dimensions=[etadim, xidim], metadata=meta, signal_type="Image")
@@ -620,7 +640,8 @@ def read_scaled_wavefield(signal):
 	-------
 	tuple
 		``(U, dxi, deta, wavelength, s, R, tau, z)`` where ``U`` is the complex
-		reduced field and the remaining entries are floats.
+		reduced field and the remaining entries are floats — ``s``/``R``/``tau``
+		come back as ``(x, y)`` pairs when the plane was stored anisotropic.
 
 	Related
 	-------
@@ -630,6 +651,10 @@ def read_scaled_wavefield(signal):
 		return (signal.data, signal.dxi, signal.deta, signal.wavelength,
 				signal.s, signal.R, signal.tau, signal.z)
 	meta = signal.metadata.to_dict() if signal.metadata is not None else {}
+	if "s_x" in meta:		# anisotropic frame: per-axis keys
+		return (signal.data, meta.get("dxi_m"), meta.get("deta_m"), meta.get("wavelength_m"),
+				(meta["s_x"], meta["s_y"]), (meta["R_x_m"], meta["R_y_m"]),
+				(meta["tau_x"], meta["tau_y"]), meta.get("z_m", None))
 	return (signal.data, meta.get("dxi_m"), meta.get("deta_m"), meta.get("wavelength_m"),
 			meta.get("s"), meta.get("R_m"), meta.get("tau"), meta.get("z_m", None))
 
@@ -650,9 +675,10 @@ def scaled_frame_crossover(signal):
 
 	Returns
 	-------
-	float or None
-		The crossover position ``z_cross`` (metres), or ``None`` when the
-		frame is not traversing a crossover.
+	float, tuple, or None
+		The crossover position ``z_cross`` (metres), ``None`` when the frame
+		is not traversing a crossover, or a per-axis ``(x, y)`` pair (entries
+		``None`` where inactive) on an anisotropic frame.
 
 	Related
 	-------
@@ -661,6 +687,8 @@ def scaled_frame_crossover(signal):
 	if isinstance(signal, _ScaledWavefield):
 		return signal.z_cross
 	meta = signal.metadata.to_dict() if signal.metadata is not None else {}
+	if "z_cross_x_m" in meta or "z_cross_y_m" in meta:		# per-axis markers
+		return (meta.get("z_cross_x_m", None), meta.get("z_cross_y_m", None))
 	return meta.get("z_cross_m", None)
 
 
@@ -711,9 +739,10 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None
 		Scaled transverse sample spacings Δξ, Δη (metres), shared by every plane.
 	wavelength : float
 		Wavelength (metres), stored in metadata.
-	s, R, tau : Sequence[float]
-		Chart state per plane, each of length ``n_planes``. Physical pixel size at
-		plane ``i`` is ``|s[i]|·Δξ``; ``R`` may contain ``numpy.inf``.
+	s, R, tau : Sequence
+		Chart state per plane, each of length ``n_planes``; entries are scalars
+		or per-axis ``(x, y)`` pairs (anisotropic planes). Physical pixel size
+		at plane ``i`` is ``|s[i]|·Δξ``; ``R`` may contain ``numpy.inf``.
 	z : Sequence[float]
 		The ``n_planes`` physical plane positions (metres) for the unstructured
 		z axis.
@@ -729,8 +758,10 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None
 	Returns
 	-------
 	SignalSet or None
-		A SignalSet of ``[U, s, R, tau]`` (plus ``frame`` when ``tags`` is
-		given; main Signal ``U``) when sea_eco is present, else ``None``.
+		A SignalSet of ``[U, s, R, tau]`` (per-axis companions ``s_x``/``s_y``,
+		``R_x``/``R_y``, ``tau_x``/``tau_y`` replace a companion whose axes
+		differ anywhere; plus ``frame`` when ``tags`` is given; main Signal
+		``U``) when sea_eco is present, else ``None``.
 
 	Related
 	-------
@@ -753,13 +784,26 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None
 		meta["plane_tags"] = ",".join(tag or "" for tag in tags)
 	U_sig = _Signal(data=U, name="U", dimensions=[zdim, etadim, xidim], metadata=meta,
 					signal_type="Image")
-	s_sig = _Signal(data=_np.asarray(s, dtype=float), name="s", dimensions=[zdim])
-	R_sig = _Signal(data=_np.asarray(R, dtype=float), name="R", dimensions=[zdim])
-	tau_sig = _Signal(data=_np.asarray(tau, dtype=float), name="tau", dimensions=[zdim])
-	signals = [U_sig, s_sig, R_sig, tau_sig]
+	signals = [U_sig]
+
+	def _axes(seq):
+		# per-plane scalar-or-pair sequence -> per-axis float arrays
+		xs = _np.array([v if _np.ndim(v) == 0 else v[0] for v in seq], dtype=float)
+		ys = _np.array([v if _np.ndim(v) == 0 else v[1] for v in seq], dtype=float)
+		return xs, ys
+
+	for label, seq in (("s", s), ("R", R), ("tau", tau)):
+		xs, ys = _axes(seq)
+		if _np.array_equal(xs, ys):		# isotropic run: one scalar companion
+			signals.append(_Signal(data=xs, name=label, dimensions=[zdim]))
+		else:							# anisotropic: per-axis companions
+			signals.append(_Signal(data=xs, name=label + "_x", dimensions=[zdim]))
+			signals.append(_Signal(data=ys, name=label + "_y", dimensions=[zdim]))
 	if tags is not None:
-		# integer frame index: increments at each frame switch
-		frame = _np.cumsum([1 if tag in ("flatten", "rediverge") else 0 for tag in tags])
+		# integer frame index: increments at each frame switch (per-axis
+		# switches like 'flatten-x' count too)
+		frame = _np.cumsum([1 if (tag or "").startswith(("flatten", "rediverge", "jump"))
+							else 0 for tag in tags])
 		signals.append(_Signal(data=frame.astype(float), name="frame", dimensions=[zdim]))
 	return _SignalSet(signals=signals, main_signal=0, name=name)
 

@@ -1190,7 +1190,7 @@ class Microscope(SEASerializable):
 		if mode == 'hybrid':
 			from .seashells import read_scaled_wavefield, scaled_frame_tag as _scaled_plane_tag
 			self.crossovers = [read_scaled_wavefield(p)[7] for p in planes
-							   if _scaled_plane_tag(p) == "crossover"]
+							   if (_scaled_plane_tag(p) or "").startswith("crossover")]
 		self.wave_scaled = _stack_scaled_wavefields(planes, name=(self.name or 'microscope') + ' scaled wave')
 		return self.wave_scaled
 
