@@ -919,42 +919,47 @@ def apply_thin_lens_scaled(s, R, power) -> tuple:
 
 
 def boundary_window(shape: tuple, margin: float = 0.1) -> np.ndarray:
-	r"""Absorbing-boundary window: 1 in the interior, cosine → 0 at the edge.
+	r"""Absorbing-boundary window: 1 in the interior, radial cosine → 0 at the edge.
 
 	The FFT propagator is periodic: field that diffracts out of the modeled
 	field of view re-enters coherently from the opposite side and interferes
-	with the beam (an axis-aligned artifact, since the wrap distance is
-	shortest along the square grid's axes). Physically those electrons leave
-	the beam and never return, so the boundary should absorb them: this
-	separable window ramps from 1 to 0 over the outer ``margin`` fraction of
-	each axis (raised cosine).
+	with the beam. Physically those electrons leave the beam and never
+	return, so the boundary should absorb them — and it must do so
+	**azimuthally isotropically**: a separable (square) window puts its
+	corners :math:`\sqrt{2}` farther out than its edges, so it clips the
+	beam's diffraction halo anisotropically at every step and the surviving
+	halo interferes back into the beam as a fourfold, pixel-axis-aligned
+	fringe pattern. This window is therefore radially symmetric: 1 inside
+	the inscribed circle minus the band, raised-cosine to 0 at the
+	inscribed-circle edge (corners beyond it are fully absorbed).
 
 	Parameters
 	----------
 	shape : tuple of int
 		Field shape ``(ny, nx)``.
 	margin : float, optional
-		Fraction of each axis occupied by the absorbing band on each side,
+		Fraction of the shorter axis occupied by the absorbing band,
 		by default 0.1.
 
 	Returns
 	-------
 	np.ndarray
-		Real window, shape ``(ny, nx)``, values in [0, 1].
+		Real window, shape ``(ny, nx)``, values in [0, 1]; a function of
+		radius only.
 
 	Related
 	-------
 	propagate_free_scaled : Applies it between τ sub-steps when ``absorb > 0``.
 	"""
-	def ramp(n):
-		m = max(1, int(round(margin * n)))
-		w = np.ones(n)
-		t = (np.arange(m) + 1) / m					# 0 -> 1 toward the edge
-		w[n - m:] = 0.5 * (1 + np.cos(np.pi * t))
-		w[:m] = w[n - m:][::-1]
-		return w
 	ny, nx = shape
-	return np.outer(ramp(ny), ramp(nx))
+	x = np.arange(nx) - nx // 2
+	y = np.arange(ny) - ny // 2
+	X, Y = np.meshgrid(x, y)
+	r = np.sqrt(X**2 + Y**2)
+	edge = min(nx, ny) // 2						# inscribed-circle radius
+	m = max(1, int(round(margin * min(nx, ny))))
+	t = np.clip((r - (edge - m)) / m, 0.0, 1.0)	# 0 interior -> 1 at the edge
+	return 0.5 * (1 + np.cos(np.pi * t))
 
 
 def propagate_free_scaled(U: np.ndarray, dxi: float, deta: float, wavelength: float,

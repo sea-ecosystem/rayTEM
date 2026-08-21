@@ -703,6 +703,28 @@ def test_absorbing_boundary_removes_wraparound():
 	assert np.isclose((np.abs(U_out)**2).sum(), (np.abs(U_c)**2).sum(), rtol=1e-6)
 
 
+def test_boundary_window_is_radially_symmetric():
+	# the absorber must be azimuthally isotropic: a separable (square) window
+	# clips the halo anisotropically (corners sqrt(2) farther than the edges)
+	# and imprints a fourfold, pixel-aligned fringe pattern on the beam
+	n = 128
+	W = wo.boundary_window((n, n), margin=0.1)
+	c = n // 2
+	# axis vs diagonal at (nearly) equal radius, inside the absorbing band:
+	# a separable window is ~1 on the diagonal where the on-axis value has
+	# already dropped (difference ~0.9); a radial window agrees to within the
+	# half-pixel discretization of the ramp (slope ~ pi/2m per pixel)
+	for r_test in (c - 3, c - 7, c - 12):
+		d = int(round(r_test / np.sqrt(2)))
+		w_axis = W[c, c + r_test]
+		w_diag = W[c + d, c + d]
+		assert abs(w_axis - w_diag) < 0.15, f"window is anisotropic at r={r_test}"
+	assert W[c, n - 3] == pytest.approx(W[n - 3, c])	# x vs y axis
+	# interior is 1, inscribed-circle edge is ~0
+	assert W[c, c] == 1.0
+	assert W[c, -1] < 0.05
+
+
 def test_full_column_aperture_interior_is_clean():
 	# the fix Eric asked for: band-limited sharp disk + absorbing boundary give
 	# flat interiors (real Fresnel rings kept) instead of the aliased grid plaid
@@ -716,13 +738,29 @@ def test_full_column_aperture_interior_is_clean():
 	src.wave_kind = "aperture"
 	src.aperture_radius = 5e-6
 	scope.propagate_wave(mode="hybrid")
-	for z, mod_max in ((scope.named_positions["sample"], 0.01), (1.264, 0.02)):
+	# core std/mean is isotropic ring contrast only (the radial absorber edge
+	# adds weak concentric ringlets: ~0.012 at the sample, ~0.023 at the
+	# detector; no fourfold — that is what c4 below enforces)
+	for z, mod_max, flat_min in ((scope.named_positions["sample"], 0.015, 0.9),
+								 (1.264, 0.03, 0.85)):
 		data, dx, *_ = read_wavefield(scope.wavefield_at(z))
 		I = np.abs(data)**2
 		n = I.shape[0]
 		core = I[int(n*0.42):int(n*0.58), int(n*0.42):int(n*0.58)]
 		assert core.std() / core.mean() < mod_max	# was ~0.04/0.03 with the plaid
-		assert core.min() / core.max() > 0.9
+		assert core.min() / core.max() > flat_min
+		# and no fourfold (pixel-axis-aligned) fringe pattern in the disc: the
+		# c4 angular harmonic of the interior intensity is ~1e-3 when the
+		# absorber window is square, ~0 when it is radially symmetric
+		x = np.arange(n) - n // 2
+		X, Y = np.meshgrid(x, x)
+		r = np.sqrt(X**2 + Y**2)
+		amp = np.sqrt(I)
+		rd = r[amp > 0.5 * amp.max()].max()
+		inner = r < 0.6 * rd
+		dev = I[inner] - I[inner].mean()
+		c4 = abs(np.sum(dev * np.exp(4j * np.arctan2(Y, X)[inner]))) / np.sum(I[inner])
+		assert c4 < 5e-4
 
 
 
