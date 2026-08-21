@@ -14,7 +14,10 @@
 - [x] Step 3 — direct converging→diverging frame jumps (crossover='jump'):
       mirror R_o=−d → R_n=+d at half the flatten threshold, no flat window;
       parametrized equivalence tests; default chosen from measured error
-- [ ] Step 4 — anisotropic frames (s_x, s_y, R_x, R_y, τ_x, τ_y): quadrupoles
+- [x] Step 4 — anisotropic frames (s_x, s_y, R_x, R_y, τ_x, τ_y): quadrupoles
       absorb (P, −P) into curvature like round lenses; per-axis line-focus
-      crossovers; isotropic behavior bit-for-bit
+      crossovers (tags flatten-x/crossover-y/…, per-axis metadata + SignalSet
+      companions); isotropic fast path keeps round-lens columns bit-for-bit;
+      astigmatic Gaussian matches analytic q-parameter widths at both line
+      foci; strong stigmators (old guard-blocked) now run
 - [ ] Step 5 — docs + wiki sync; finish protocol
