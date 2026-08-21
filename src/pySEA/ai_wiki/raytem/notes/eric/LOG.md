@@ -7,11 +7,13 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
-## 2026-08-21 — [Under Construction] Dense z sampling for show (subdivided + zpts)
+## 2026-08-21 — [Done] Dense z sampling for show (subdivided + zpts)
 **Goal:** `Microscope.subdivided(zpts)` (copy with unnamed drifts split by max-spacing dz or at explicit z) and `show(..., zpts=)` that plots the scaled cross-section from a temporary subdivided copy, leaving the original's state untouched.
 **Why:** The cross-section's z resolution follows the column's logged planes (predictable but chunky); Eric wants seamless propagation and arbitrary-z plotting through show without hand-editing the column.
-- [ ] subdivided(zpts) helper
-- [ ] show zpts wiring + tests + wiki
+- [x] subdivided(zpts) helper
+- [x] show zpts wiring + tests + wiki
+
+**Outcome:** `Microscope.subdivided(zpts)` returns a NEW column whose unnamed drifts are cut — `float` = max drift length (metres), `Sequence` = absolute z positions to cut at — preserving element order, lengths, section positions and every named position exactly (cut drifts sum to the original length; the copy restacks sequentially via `MicroscopeSection.__init__`, which is why `_position=None` is set on carried-over elements). The original object and any result on it are untouched, so this is a pure "denser sampling" knob rather than a mutate-and-restore. Named drifts are left whole (a name marks a plane someone asked for). `show(kind='wave-scaled'/'wave-hybrid', zpts=...)` propagates such a copy on the spot and plots from it; a float `plane=` joins the cut set so that plane is logged exactly instead of snapping to the nearest existing one; `zpts` on any other kind raises with a pointer to `subdivided`. Verified on basic_column: `show(kind='wave-hybrid', zpts=5e-3)` gives a smooth envelope (~15 s, vs the chunky element-exit sampling) with all five crossovers still logged exactly. Also documented (Eric asked how crossovers are found — they are NOT a numerical search): in a converging frame `R(z)=R₀+Δz`, so the focus is the closed-form `z_cross = z + |R|`; the hybrid engine records it at the flatten, splits propagation exactly there, tags the plane `crossover`, and `propagate_wave` collects them into `self.crossovers` — hence `show(plane=scope.crossovers[i])` always lands exactly on the i-th focal plane regardless of drift subdivision. Small cosmetic fix: the cross-section no longer draws a line for `named_positions`' blank key (all unnamed elements collapse into it). 70 tests green.
 
 ## 2026-08-21 — [Done] Microscope.show for scaled/hybrid wave results
 **Goal:** Wire `show(kind="wave-scaled"/"wave-hybrid")`: cross-section |ψ(x,0,z)| with element/crossover annotations by default, per-plane |ψ|² via the reconstructed Signal's own `.show()` when a plane is named.
