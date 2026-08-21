@@ -12,11 +12,11 @@
       (converging → flatten at |R_flat| = R²/(A·s²) → flat through the real
       focus, crossover plane logged → re-diverge at d = A·s²); `z_cross_m`
       metadata; through-focus equivalence + electron-scale Airy tests
-- [ ] Step 3 — API consolidation: one `propagate_wave(..., mode=
+- [x] Step 3 — API consolidation: one `propagate_wave(..., mode=
       'fixed'|'scaled'|'hybrid')` on Element/Section/Microscope (remove
       propagate_wave_scaled), `Source.wave(mode=...)`, dispatcher kinds
       wave / wave-scaled / wave-hybrid via forced kwargs
-- [ ] Step 4 — driver wiring: `log` threading so flatten/crossover/rediverge
+- [x] Step 4 — driver wiring: `log` threading so flatten/crossover/rediverge
       planes land in `.wave_scaled` (with a per-plane `frame` companion +
       tags), `Microscope.crossovers`; full-column basic_column test; suite
 - [ ] Step 5 — full-column demo (focal-plane x-y slices), docs + wiki

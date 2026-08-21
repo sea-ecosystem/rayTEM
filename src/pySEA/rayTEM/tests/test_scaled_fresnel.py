@@ -382,12 +382,12 @@ def _scaled_column():
 
 def test_column_integration_scaled():
 	sec = MicroscopeSection(elements=_scaled_column())
-	out = sec.propagate_wave_scaled()		# driver seeds from Source.wave_scaled()
+	out = sec.propagate_wave(mode="scaled")		# driver seeds from Source.wave(mode='scaled')
 
 	# standalone chained element calls must match the driver bit-for-bit
-	f = sec.elements[0].wave_scaled()
+	f = sec.elements[0].wave(mode="scaled")
 	for ele in sec.elements:
-		f = ele.propagate_wave_scaled(f)
+		f = ele.propagate_wave(f, mode="scaled")
 	U_end, dxi, deta, lam, s_end, R_end, tau_end, z_end = read_scaled_wavefield(f)
 	U_drv, *_, s_drv, R_drv, tau_drv, z_drv = read_scaled_wavefield(sec._wave_scaled_planes[-1])
 	assert np.allclose(U_drv, U_end) and s_drv == s_end and R_drv == R_end
@@ -399,9 +399,9 @@ def test_column_integration_scaled():
 	# .wave_scaled is a SignalSet whose companions share the plane-z axis
 	if sea_available:
 		assert out is sec.wave_scaled
-		assert out.get_dataset_names() == ["U", "s", "R", "tau"]
+		assert out.get_dataset_names() == ["U", "s", "R", "tau", "frame"]
 		n_planes = out["U"].data.shape[0]
-		assert all(out[nm].dimensions[0].size == n_planes for nm in ("U", "s", "R", "tau"))
+		assert all(out[nm].dimensions[0].size == n_planes for nm in ("U", "s", "R", "tau", "frame"))
 		assert np.isclose(out["s"].data[-1], s_end) and np.isclose(out["tau"].data[-1], tau_end)
 
 	# dispatcher routes kind="wave-scaled" (element, section, and microscope)
@@ -412,7 +412,7 @@ def test_column_integration_scaled():
 
 	# Microscope driver + physical-wave reconstruction at a requested plane
 	mic = Microscope(sections=[MicroscopeSection(elements=_scaled_column())])
-	mic.propagate_wave_scaled()
+	mic.propagate_wave(mode="scaled")
 	psi_sig = mic.wavefield_at(21e-3)
 	data, dx, dy, lam_out, z_out = read_wavefield(psi_sig)
 	assert np.isclose(z_out, 21e-3) and np.isclose(lam_out, lam)
@@ -434,7 +434,7 @@ def test_scaled_guard_through_column():
 			   wave_kind="aperture", aperture_radius=5e-6),
 		Lens(strength=K, length=0.0), Drift(length=44.96e-3)])
 	with pytest.raises(ValueError, match="crossover"):
-		sec.propagate_wave_scaled()
+		sec.propagate_wave(mode="scaled")
 
 
 # --- transparent base-element defaults ------------------------------------------
@@ -460,8 +460,8 @@ def test_base_element_is_transparent_in_every_kind():
 	assert np.allclose(w1.data, w0.data)
 	# scaled path: (0, None) split -> state unchanged
 	assert ele.phase_shift(GRID, LAM, scaled=True) == (0.0, None)
-	s0 = src.wave_scaled()
-	s1 = ele.propagate_wave_scaled(s0)
+	s0 = src.wave(mode='scaled')
+	s1 = ele.propagate_wave(s0, mode='scaled')
 	U0 = read_scaled_wavefield(s0)[0] ; U1 = read_scaled_wavefield(s1)[0]
 	assert np.allclose(U1, U0)
 	# a finite length makes the transparent element a pure free segment
@@ -614,3 +614,44 @@ def test_scaled_signal_carries_crossover_marker():
 	sig2 = make_scaled_wavefield_signal(np.ones((8, 8), complex), 1e-9, 1e-9, LAM,
 										s=1.0, R=np.inf, tau=0.0, z=0.0)
 	assert scaled_frame_crossover(sig2) is None
+
+
+# --- test 5: full column through every crossover ---------------------------------
+
+@pytest.mark.skipif(not sea_available, reason="basic_column.sea requires sea_eco")
+def test_full_column_hybrid_source_to_detector():
+	import os
+	from pySEA.rayTEM.assemblies import load_microscope
+	from pySEA.rayTEM.seashells import scaled_frame_tag
+	here = os.path.dirname(os.path.abspath(__file__))
+	scope = load_microscope(os.path.join(here, "..", "microscopes", "basic_column.sea"))
+	out = scope.propagate_wave(mode="hybrid")
+	planes = scope._wave_scaled_planes
+
+	# the run reaches the detector through every crossover
+	zs = [read_scaled_wavefield(p)[7] for p in planes]
+	assert np.isclose(max(zs), 1.264, atol=1e-6)
+	assert len(scope.crossovers) >= 4		# C1, condenser chain, objective, projectors
+	assert np.isclose(scope.crossovers[0], 0.175, atol=1e-3)		# C1 focus
+
+	# frame switches are balanced and s stays finite everywhere
+	tags = [scaled_frame_tag(p) for p in planes]
+	assert tags.count("flatten") == tags.count("crossover") == tags.count("rediverge")
+	ss = [read_scaled_wavefield(p)[4] for p in planes]
+	assert min(np.abs(ss)) > 1e-3 and max(np.abs(ss)) > 1		# contracts and re-expands
+
+	# energy conserved at every logged plane (all frames, all switches)
+	E = [(np.abs(read_scaled_wavefield(p)[0])**2).sum() for p in planes]
+	dxi = read_scaled_wavefield(planes[0])[1]
+	assert np.allclose(np.asarray(E) * dxi * dxi, E[0] * dxi * dxi, rtol=1e-6)
+
+	# the frame companion increments at every switch
+	assert out["frame"].data[-1] == 2 * tags.count("crossover")
+
+	# physical reconstruction at the named detector plane and at the C1 focus
+	det = scope.wavefield_at("detector")
+	data, dx, dy, lam, z_out = read_wavefield(det)
+	assert np.isclose(z_out, 1.264, atol=1e-6) and np.isfinite(data).all()
+	foc = scope.wavefield_at(scope.crossovers[0])
+	fdata, fdx, *_ = read_wavefield(foc)
+	assert np.isfinite(fdata).all() and fdx < 1e-8		# focal-plane pixel is nm-scale

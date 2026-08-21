@@ -41,31 +41,37 @@ def fix_ray_dims(rays,columnNames):
 		new[:,columnByName(name)]=rays[:,i]
 	return new
 
-# Canonical mapping from a propagation-mode keyword to the concrete method name.
-# Used by the unified `propagate(kind=...)` dispatcher on Element/MicroscopeSection/Microscope.
+# Canonical mapping from a propagation-mode keyword to (method name, forced kwargs).
+# Used by the unified `propagate(kind=...)` dispatcher on Element/MicroscopeSection/Microscope;
+# the wave kinds all route to the one propagate_wave method with its `mode` selector.
 _PROPAGATE_KINDS = {
-	"ray":        "propagate_ray",
-	"rays":       "propagate_ray",
-	"moments":    "propagate_moments",
-	"envelope":   "propagate_moments",
-	"covariance": "propagate_moments",
-	"wave":       "propagate_wave",
-	"wave-scaled": "propagate_wave_scaled",
+	"ray":         ("propagate_ray", {}),
+	"rays":        ("propagate_ray", {}),
+	"moments":     ("propagate_moments", {}),
+	"envelope":    ("propagate_moments", {}),
+	"covariance":  ("propagate_moments", {}),
+	"wave":        ("propagate_wave", {"mode": "fixed"}),
+	"wave-scaled": ("propagate_wave", {"mode": "scaled"}),
+	"wave_scaled": ("propagate_wave", {"mode": "scaled"}),
+	"wave-hybrid": ("propagate_wave", {"mode": "hybrid"}),
+	"wave_hybrid": ("propagate_wave", {"mode": "hybrid"}),
 }
-def _propagate_method_name(kind:str) -> str:
-	"""Resolve a propagation-mode keyword to its method name.
+def _propagate_method_name(kind:str) -> tuple:
+	"""Resolve a propagation-mode keyword to its method name and forced kwargs.
 
 	Parameters
 	----------
 	kind : str
-		Mode keyword: ``'ray'``/``'rays'``, ``'moments'``/``'envelope'``/``'covariance'``,
-		or ``'wave'``.
+		Mode keyword: ``'ray'``/``'rays'``, ``'moments'``/``'envelope'``/
+		``'covariance'``, ``'wave'``, ``'wave-scaled'``/``'wave_scaled'``, or
+		``'wave-hybrid'``/``'wave_hybrid'``.
 
 	Returns
 	-------
-	str
-		The concrete method name (``'propagate_ray'``, ``'propagate_moments'``, or
-		``'propagate_wave'``).
+	tuple
+		``(method_name, forced_kwargs)`` — the concrete method plus the
+		keyword overrides the kind implies (the wave kinds force the ``mode``
+		selector on ``propagate_wave``).
 
 	Raises
 	------
@@ -344,7 +350,7 @@ class Element(SEASerializable):
 		Related
 		-------
 		transfer_matrix : The ray-side counterpart (identity on the base class).
-		propagate_wave, propagate_wave_scaled : Consumers of this contract.
+		propagate_wave : Consumer of this contract in every wave mode.
 
 		Notes
 		-----
@@ -524,20 +530,83 @@ class Element(SEASerializable):
 		mu_out = self.propagate_ray(mu.reshape(1, -1))[0]
 		return mu_out, Sigma_out
 
-	def propagate_wave(self, signal):
-		r"""Propagate a paraxial scalar wavefield through this element (fixed grid).
+	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
+					   s_min:float=1e-3, log:list=None):
+		r"""Propagate a wavefield through this element in the selected wave mode.
 
-		The wave-optics analog of :meth:`propagate_ray`. Consumes the element's
-		:meth:`phase_shift` program — an ordered list of space-tagged phases —
-		applying real-space screens multiplicatively and reciprocal-space
-		free-segment kernels in the FFT domain. Round lenses, quadrupoles,
-		dipoles, and drifts are therefore all handled by their own explicit
-		phase definitions.
+		The one wave-optics analog of :meth:`propagate_ray`, covering all three
+		wave representations via ``mode``:
+
+		- ``'fixed'`` — paraxial wave on a fixed physical grid. Consumes the
+		  element's :meth:`phase_shift` program (space-tagged screens and
+		  free-segment kernels).
+		- ``'scaled'`` — scaled-Fresnel wave (handoff Eqs 23–48): the state is
+		  the reduced field ``U(ξ, η)`` of ``ψ = (1/s)·U·exp[ik(x²+y²)/2R]``
+		  plus the frame scalars ``(s, R, τ)``. A finite length is split as
+		  free ``L/2`` → element action → free ``L/2``;
+		  :meth:`phase_shift(scaled=True)` supplies the split into curvature
+		  (``1/R⁺ = 1/R⁻ − power``, Eq 45) and a residual screen applied to U
+		  under a sampling guard (Eqs 47–48). A single frame: propagation
+		  raises before a beam crossover (the frame's ``s = 0`` singularity).
+		- ``'hybrid'`` — the scaled representation with automatic frame
+		  switching (:func:`waveoptics.propagate_free_scaled_hybrid`):
+		  converging frames flatten before their crossover, the wave crosses
+		  the real focus on a flat frame — the crossover (back-focal) plane is
+		  logged — and re-factors onto a diverging frame past it.
+
+		Parameters
+		----------
+		signal : Signal or seashells._Wavefield or seashells._ScaledWavefield
+			Incoming wavefield: physical for ``'fixed'``, scaled for
+			``'scaled'``/``'hybrid'`` (from :meth:`Source.wave`).
+		mode : {'fixed', 'scaled', 'hybrid'}, optional
+			Wave representation, by default ``'fixed'``.
+		s_min : float, optional
+			Backstop crossover guard for the scaled/hybrid paths (handoff
+			Eq 52), by default ``1e-3``. Ignored for ``'fixed'``.
+		log : list, optional
+			Scaled/hybrid only: interior frame-switch and crossover planes are
+			appended to this list as scaled Signals (tags ``flatten`` /
+			``crossover`` / ``rediverge`` in metadata). ``None`` (default)
+			discards them.
+
+		Returns
+		-------
+		Signal or seashells._Wavefield or seashells._ScaledWavefield
+			Wavefield at the element exit in the same representation.
+
+		Raises
+		------
+		ValueError
+			Unknown ``mode``; from the scaled path: the single frame reaching
+			its crossover, or an under-sampled screen.
+
+		Related
+		-------
+		phase_shift : The per-element wave physics consumed by every mode.
+		waveoptics.propagate_free_scaled_hybrid : The hybrid crossover engine.
+		Source.wave : Seeds the matching initial state per mode.
+
+		Notes
+		-----
+		Larmor rotation of thick lenses is not applied to the wavefield
+		(documented approximation); on the scaled paths a thick element is
+		treated as thin between two half-length free segments.
+		"""
+		if mode == 'fixed':
+			return self._propagate_wave_fixed(signal)
+		if mode in ('scaled', 'hybrid'):
+			return self._propagate_wave_scaled(signal, hybrid=(mode == 'hybrid'),
+											   s_min=s_min, log=log)
+		raise ValueError(f"Unknown wave mode {mode!r}; expected 'fixed', 'scaled', or 'hybrid'.")
+
+	def _propagate_wave_fixed(self, signal):
+		"""Fixed-grid wave step: apply the element's phase program.
 
 		Parameters
 		----------
 		signal : Signal or seashells._Wavefield
-			Incoming wavefield (carrying its transverse calibration and wavelength).
+			Incoming physical wavefield.
 
 		Returns
 		-------
@@ -546,13 +615,7 @@ class Element(SEASerializable):
 
 		Related
 		-------
-		phase_shift : The per-element phase definitions consumed here.
-		waveoptics.apply_phase : The single application primitive.
-
-		Notes
-		-----
-		Paraxial and non-rotating: any Larmor rotation of a thick lens is not
-		applied to the wavefield (documented approximation).
+		propagate_wave : The mode-dispatching public method.
 		"""
 		from .waveoptics import apply_phase
 		from .seashells import make_wavefield_signal, read_wavefield, phase_space_of
@@ -566,80 +629,74 @@ class Element(SEASerializable):
 		return make_wavefield_signal(data, dx, dy, wavelength, z=z_out,
 									 name=getattr(signal, "name", "wavefield"))
 
-	def propagate_wave_scaled(self, signal, s_min:float=1e-3):
-		r"""Propagate a scaled-Fresnel wavefield through this element.
-
-		The scaled counterpart of :meth:`propagate_wave` (handoff Eqs 23–48):
-		the state is the reduced field ``U(ξ, η)`` of the factorization
-		``ψ = (1/s)·U·exp[ik(x²+y²)/2R]`` plus the chart scalars ``(s, R, τ)``,
-		carried by a scaled-wavefield Signal. A finite element length is split as
-		free ``L/2`` → element action → free ``L/2`` (thin-equivalent). The
-		element action consumes :meth:`phase_shift(scaled=True)`: the returned
-		focusing ``power`` is absorbed into the curvature (``1/R⁺ = 1/R⁻ −
-		power``, Eq 45; U untouched), and the returned ``screen`` — a
-		non-absorbable phase — is applied explicitly to U after a sampling guard
-		(Eqs 47–48).
+	def _propagate_wave_scaled(self, signal, hybrid:bool=False, s_min:float=1e-3,
+							   log:list=None):
+		"""Scaled-frame wave step: free L/2 → element action → free L/2.
 
 		Parameters
 		----------
 		signal : Signal or seashells._ScaledWavefield
-			Incoming scaled wavefield (from
-			:func:`seashells.make_scaled_wavefield_signal`, e.g. via
-			:meth:`Source.wave_scaled`).
+			Incoming scaled wavefield.
+		hybrid : bool, optional
+			Route the free segments through the frame-switching engine
+			(:func:`waveoptics.propagate_free_scaled_hybrid`), by default False
+			(single frame; raises before a crossover).
 		s_min : float, optional
-			Crossover guard forwarded to the free-segment propagator: ``|s|``
-			must stay above this through every segment (handoff Eq 52), by
-			default ``1e-3``.
+			Backstop crossover guard, by default ``1e-3``.
+		log : list, optional
+			Hybrid only: interior logged planes are appended here as scaled
+			Signals.
 
 		Returns
 		-------
 		Signal or seashells._ScaledWavefield
-			Scaled wavefield at the element exit (same ξ/η grid, updated
-			``s``/``R``/``τ``/``z``).
-
-		Raises
-		------
-		ValueError
-			If the chart approaches its ``s = 0`` singularity inside the element
-			(from the free-segment guard), or an explicit screen is under-sampled
-			on the scaled grid.
-		NotImplementedError
-			For element classes without a wave definition (base
-			:meth:`phase_shift`).
+			Scaled wavefield at the element exit (same ξ/η grid; updated
+			``s``/``R``/``τ``/``z`` and crossover marker).
 
 		Related
 		-------
-		phase_shift : The per-element (power, screen) split consumed here.
-		waveoptics.propagate_free_scaled, waveoptics.apply_thin_lens_scaled
-
-		Notes
-		-----
-		Larmor rotation of thick lenses is not applied to the wavefield (same
-		documented approximation as the fixed-grid path), and a thick element is
-		treated as thin between two half-length free segments.
+		propagate_wave : The mode-dispatching public method.
 		"""
-		from .waveoptics import propagate_free_scaled, apply_thin_lens_scaled, apply_phase
+		from .waveoptics import (propagate_free_scaled, propagate_free_scaled_hybrid,
+								 apply_thin_lens_scaled, apply_phase)
 		from .seashells import (make_scaled_wavefield_signal, read_scaled_wavefield,
-								phase_space_of)
+								scaled_frame_crossover, phase_space_of)
 		U, dxi, deta, wavelength, s, R, tau, z = read_scaled_wavefield(signal)
+		z = z if z is not None else 0.0
+		z_cross = scaled_frame_crossover(signal)
+		name = getattr(signal, "name", "scaled wavefield")
+
+		def free(U, s, R, tau, z, z_cross, dz):
+			if dz == 0:
+				return U, s, R, tau, z, z_cross
+			if hybrid:
+				U, s, R, dt, z, z_cross, logged = propagate_free_scaled_hybrid(
+					U, dxi, deta, wavelength, dz, s, R, z, z_cross, s_min=s_min)
+				if log is not None:
+					for tag, U_l, s_l, R_l, dt_l, z_l, zc_l in logged:
+						log.append(make_scaled_wavefield_signal(
+							U_l, dxi, deta, wavelength, s_l, R_l, tau + dt_l,
+							z=z_l, z_cross=zc_l, tag=tag, name=name))
+				tau += dt
+			else:
+				U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R,
+													s_min=s_min)
+				tau += dt ; z += dz
+			return U, s, R, tau, z, z_cross
+
 		L = getattr(self, "length", 0)
-		if L != 0:
-			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, L / 2, s, R, s_min=s_min)
-			tau += dt
+		U, s, R, tau, z, z_cross = free(U, s, R, tau, z, z_cross, L / 2 if L != 0 else 0)
 		power, screen = self.phase_shift((U.shape, dxi, deta), wavelength, scaled=True, s=s)
 		if power != 0:
 			s, R = apply_thin_lens_scaled(s, R, power)
 		if screen is not None:
 			_check_screen_sampling(screen.data, self.name or type(self).__name__)
 			U = apply_phase(U, screen.data, phase_space_of(screen))
-		if L != 0:
-			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, L / 2, s, R, s_min=s_min)
-			tau += dt
-		return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
-											z=(z if z is not None else 0.0) + L,
-											name=getattr(signal, "name", "scaled wavefield"))
+		U, s, R, tau, z, z_cross = free(U, s, R, tau, z, z_cross, L / 2 if L != 0 else 0)
+		return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=z,
+											z_cross=z_cross, name=name)
 
-	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled"]="ray", **kwargs):
+	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray", **kwargs):
 		"""Unified propagation dispatcher across the three modes.
 
 		Routes to :meth:`propagate_ray`, :meth:`propagate_moments`, or
@@ -672,7 +729,8 @@ class Element(SEASerializable):
 		>>> element.propagate(mu, Sigma, kind="moments") # doctest: +SKIP
 		>>> element.propagate(field, kind="wave")        # doctest: +SKIP
 		"""
-		return getattr(self, _propagate_method_name(kind))(*args, **kwargs)
+		method, forced = _propagate_method_name(kind)
+		return getattr(self, method)(*args, **{**kwargs, **forced})
 
 class Source(Element):
 	"""Source element class. Source element can be put in a MicroscopeSection and then propagating "through" the section will mean the starting rays r0 are generated by the Source (instead of requiring the user pass in starting rays)
@@ -824,8 +882,8 @@ class Source(Element):
 		"""
 		return mu, Sigma
 
-	def wave(self):
-		"""Build the initial complex wavefield for wave-optics propagation.
+	def wave(self, mode:Literal['fixed','scaled','hybrid']='fixed'):
+		"""Build the initial wavefield for wave-optics propagation.
 
 		The wave-mode analog of :meth:`rays` and :meth:`moments` — the source's
 		one wavefunction generator. Constructs a 2D scalar field on a calibrated
@@ -836,10 +894,21 @@ class Source(Element):
 		``aperture_radius``, via :meth:`_aperture_wave`). Requires a defined
 		wavelength (set ``voltage``).
 
+		Parameters
+		----------
+		mode : {'fixed', 'scaled', 'hybrid'}, optional
+			Which representation to seed (matching
+			:meth:`Element.propagate_wave`), by default ``'fixed'`` — the
+			physical wavefield Signal. ``'scaled'``/``'hybrid'`` seed the
+			scaled state (handoff Eqs 10–11): the initial frame is ``s = 1``,
+			``R = ∞``, ``τ = 0``, so the reduced field is the physical one,
+			``U₀ = ψ₀``, with ``Δξ = Δx``.
+
 		Returns
 		-------
-		Signal or seashells._Wavefield
-			A calibrated complex wavefield at the source plane.
+		Signal or seashells._Wavefield or seashells._ScaledWavefield
+			A calibrated wavefield at the source plane in the requested
+			representation.
 
 		Raises
 		------
@@ -852,12 +921,17 @@ class Source(Element):
 		Related
 		-------
 		_aperture_wave : The Θ(a−r) builder behind ``wave_kind='aperture'``.
-		wave_scaled : Seeds scaled-Fresnel propagation from this wave.
 		Element.propagate_wave : Transports this wave through an element.
 		seashells.make_wavefield_signal : Wraps the array as a calibrated Signal.
 		"""
 		from .waveoptics import plane_wave, gaussian_field, point_source
 		from .seashells import make_wavefield_signal
+		if mode in ('scaled', 'hybrid'):
+			from .seashells import make_scaled_wavefield_signal, read_wavefield
+			data, dx, dy, wavelength, z = read_wavefield(self.wave(mode='fixed'))
+			return make_scaled_wavefield_signal(data, dx, dy, wavelength, s=1.0,
+												R=xp.inf, tau=0.0, z=z,
+												name=(self.name or 'source') + ' scaled wavefield')
 		if self.wavelength is None:
 			raise ValueError("Source.wave requires a wavelength; construct Source(voltage=<kV>).")
 		if self.wave_kind == 'aperture':
@@ -924,82 +998,38 @@ class Source(Element):
 		return make_wavefield_signal(data, dx, dy, self.wavelength, z=z0,
 									 name=(self.name or 'source') + ' aperture wavefield')
 
-	def propagate_wave(self, signal):
+	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
+					   s_min:float=1e-3, log:list=None):
 		"""Pass the wavefield through unchanged (the source only originates the beam).
 
-		Mirrors :meth:`propagate_ray`/:meth:`propagate_moments`: the driver seeds the
-		wave from :meth:`wave`, so the source's own step is a no-op.
+		Mirrors :meth:`propagate_ray`/:meth:`propagate_moments`: the driver
+		seeds the wave from :meth:`wave` (in the matching representation), so
+		the source's own step is a no-op in every mode.
 
 		Parameters
 		----------
-		signal : Signal or seashells._Wavefield
+		signal : Signal or seashells._Wavefield or seashells._ScaledWavefield
 			Incoming wavefield.
-
-		Returns
-		-------
-		Signal or seashells._Wavefield
-			The input ``signal`` unchanged.
-		"""
-		return signal
-
-	def propagate_wave_scaled(self, signal, s_min:float=1e-3):
-		"""Pass the scaled wavefield through unchanged (the source only originates the beam).
-
-		Mirrors :meth:`propagate_wave`: the driver seeds the scaled state from
-		:meth:`wave_scaled`, so the source's own step is a no-op.
-
-		Parameters
-		----------
-		signal : Signal or seashells._ScaledWavefield
-			Incoming scaled wavefield.
+		mode : {'fixed', 'scaled', 'hybrid'}, optional
+			Unused (accepted for driver-signature uniformity).
 		s_min : float, optional
-			Unused (accepted for driver-signature uniformity), by default ``1e-3``.
+			Unused.
+		log : list, optional
+			Unused.
 
 		Returns
 		-------
-		Signal or seashells._ScaledWavefield
+		Signal or seashells._Wavefield or seashells._ScaledWavefield
 			The input ``signal`` unchanged.
 		"""
 		return signal
-
-	def wave_scaled(self):
-		r"""Build the initial scaled-Fresnel state from this source.
-
-		Seeds scaled propagation (handoff Eqs 10–11): the initial chart is
-		``s = 1``, ``R = ∞``, ``τ = 0``, so the reduced field is the physical one,
-		``U₀ = ψ₀``, with ``Δξ = Δx``. The physical field always comes from
-		:meth:`wave` — the source's one wavefunction generator — so the kind
-		(plane/gaussian/point/aperture) is selected by ``wave_kind`` exactly as
-		for the fixed-grid path.
-
-		Returns
-		-------
-		Signal or seashells._ScaledWavefield
-			The initial scaled wavefield (``U``, Δξ/Δη, ``s=1``, ``R=∞``, ``τ=0``).
-
-		Raises
-		------
-		ValueError
-			Propagated from :meth:`wave` (no wavelength, unknown ``wave_kind``,
-			or a missing/oversized ``aperture_radius``).
-
-		Related
-		-------
-		wave : The physical initial-wave generator wrapped here.
-		Element.propagate_wave_scaled : Consumes the state built here.
-		"""
-		from .seashells import make_scaled_wavefield_signal, read_wavefield
-		psi = self.wave()
-		data, dx, dy, wavelength, z = read_wavefield(psi)
-		return make_scaled_wavefield_signal(data, dx, dy, wavelength, s=1.0, R=xp.inf, tau=0.0,
-											z=z, name=(self.name or 'source') + ' scaled wavefield')
 
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
 		"""A source originates waves; it imprints no phase (not part of this contract).
 
 		Overrides :meth:`Element.phase_shift` to fail loudly: the source's wave
-		role is generating the initial wave (:meth:`wave`,
-		:meth:`wave_scaled`), and its propagation step is a passthrough.
+		role is generating the initial wave (:meth:`wave`), and its propagation
+		step is a passthrough.
 
 		Parameters
 		----------
@@ -1145,67 +1175,59 @@ class Aperture(Element):
 		"""
 		return mu, Sigma
 
-	def propagate_wave(self, signal):
-		"""Apply a hard circular aperture to the wavefield.
+	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
+					   s_min:float=1e-3, log:list=None):
+		r"""Apply the hard circular aperture to the wavefield in any wave mode.
 
-		Overrides :meth:`Element.propagate_wave` (an aperture has no transfer
-		matrix). Zeros the field outside ``radius`` and leaves the plane position
-		unchanged (zero length).
-
-		Parameters
-		----------
-		signal : Signal or seashells._Wavefield
-			Incoming wavefield.
-
-		Returns
-		-------
-		Signal or seashells._Wavefield
-			Masked wavefield on the same transverse grid.
-
-		Related
-		-------
-		waveoptics.aperture_mask : The masking operator applied here.
-		"""
-		from .waveoptics import aperture_mask
-		from .seashells import make_wavefield_signal, read_wavefield
-		data, dx, dy, wavelength, z = read_wavefield(signal)
-		data = aperture_mask(data, dx, dy, self.radius)
-		return make_wavefield_signal(data, dx, dy, wavelength, z=(z if z is not None else 0.0),
-									 name=getattr(signal, "name", "wavefield"))
-
-	def propagate_wave_scaled(self, signal, s_min:float=1e-3):
-		r"""Apply the hard circular aperture to the scaled field U.
-
-		Overrides :meth:`Element.propagate_wave_scaled` (an aperture is an
-		amplitude mask, not a phase). The physical radius maps to the scaled
-		coordinates as ``ξ ≤ radius/|s|``, so U is masked at the scaled radius;
-		the chart state ``(s, R, τ)`` and the plane position are unchanged
+		Overrides :meth:`Element.propagate_wave` (an aperture is an amplitude
+		mask, not a phase). On the fixed grid the field is zeroed outside
+		``radius``; on the scaled/hybrid paths the physical radius maps to the
+		scaled coordinates as ``ξ ≤ radius/|s|``, so U is masked at the scaled
+		radius. The plane position and (scaled) frame state are unchanged
 		(zero length).
 
 		Parameters
 		----------
-		signal : Signal or seashells._ScaledWavefield
-			Incoming scaled wavefield.
+		signal : Signal or seashells._Wavefield or seashells._ScaledWavefield
+			Incoming wavefield in the representation matching ``mode``.
+		mode : {'fixed', 'scaled', 'hybrid'}, optional
+			Wave representation, by default ``'fixed'``.
 		s_min : float, optional
-			Unused (accepted for driver-signature uniformity), by default ``1e-3``.
+			Unused (accepted for driver-signature uniformity).
+		log : list, optional
+			Unused (a zero-length element has no free segments).
 
 		Returns
 		-------
-		Signal or seashells._ScaledWavefield
-			Masked scaled wavefield on the same ξ/η grid.
+		Signal or seashells._Wavefield or seashells._ScaledWavefield
+			Masked wavefield on the same grid.
+
+		Raises
+		------
+		ValueError
+			Unknown ``mode``.
 
 		Related
 		-------
-		propagate_wave : The fixed-grid masking override.
 		waveoptics.aperture_mask : The masking operator applied here.
 		"""
 		from .waveoptics import aperture_mask
-		from .seashells import make_scaled_wavefield_signal, read_scaled_wavefield
-		U, dxi, deta, wavelength, s, R, tau, z = read_scaled_wavefield(signal)
-		U = aperture_mask(U, dxi, deta, self.radius / abs(s))
-		return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
-											z=(z if z is not None else 0.0),
-											name=getattr(signal, "name", "scaled wavefield"))
+		if mode == 'fixed':
+			from .seashells import make_wavefield_signal, read_wavefield
+			data, dx, dy, wavelength, z = read_wavefield(signal)
+			data = aperture_mask(data, dx, dy, self.radius)
+			return make_wavefield_signal(data, dx, dy, wavelength, z=(z if z is not None else 0.0),
+										 name=getattr(signal, "name", "wavefield"))
+		if mode in ('scaled', 'hybrid'):
+			from .seashells import (make_scaled_wavefield_signal, read_scaled_wavefield,
+									scaled_frame_crossover)
+			U, dxi, deta, wavelength, s, R, tau, z = read_scaled_wavefield(signal)
+			U = aperture_mask(U, dxi, deta, self.radius / abs(s))
+			return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
+												z=(z if z is not None else 0.0),
+												z_cross=scaled_frame_crossover(signal),
+												name=getattr(signal, "name", "scaled wavefield"))
+		raise ValueError(f"Unknown wave mode {mode!r}; expected 'fixed', 'scaled', or 'hybrid'.")
 
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
 		"""An aperture is an amplitude mask, not a phase (not part of this contract).
@@ -1236,7 +1258,7 @@ class Aperture(Element):
 			Always.
 		"""
 		raise NotImplementedError("Aperture is an amplitude mask, not a phase; its wave action "
-								  "is applied by its propagate_wave/propagate_wave_scaled overrides.")
+								  "is applied by its propagate_wave override (all modes).")
 
 class Drift(Element):
 	"""Drift element class for free-space propagation.
@@ -2030,20 +2052,28 @@ class Prism(Element):
 
 		return fix_mat_dims(m,["x","xt","y","yt","z","E"])
 
-	def propagate_wave(self, signal):
+	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
+					   s_min:float=1e-3, log:list=None):
 		"""Wave-optics propagation through a prism/spectrometer (not implemented).
 
-		Overrides :meth:`Element.propagate_wave`. A dispersive bending prism is not
-		a simple thin phase screen plus drift, so wave-optics support is deferred.
+		Overrides :meth:`Element.propagate_wave` for every mode. A dispersive
+		bending prism is not a simple thin phase screen plus drift, so
+		wave-optics support is deferred.
 
 		Parameters
 		----------
-		signal : Signal or seashells._Wavefield
+		signal : Signal or seashells._Wavefield or seashells._ScaledWavefield
 			Incoming wavefield.
+		mode : {'fixed', 'scaled', 'hybrid'}, optional
+			Unused.
+		s_min : float, optional
+			Unused.
+		log : list, optional
+			Unused.
 
 		Returns
 		-------
-		Signal or seashells._Wavefield
+		Signal
 			Never returns.
 
 		Raises
@@ -2052,32 +2082,6 @@ class Prism(Element):
 			Always; wave-optics propagation is not implemented for ``Prism``.
 		"""
 		raise NotImplementedError("Wave-optics propagation is not implemented for Prism (spectrometer).")
-
-	def propagate_wave_scaled(self, signal, s_min:float=1e-3):
-		"""Scaled wave-optics propagation through a prism/spectrometer (not implemented).
-
-		Overrides :meth:`Element.propagate_wave_scaled` for the same reason as
-		:meth:`propagate_wave`: a dispersive bending prism is not a thin phase
-		screen plus drift.
-
-		Parameters
-		----------
-		signal : Signal or seashells._ScaledWavefield
-			Incoming scaled wavefield.
-		s_min : float, optional
-			Unused.
-
-		Returns
-		-------
-		Signal or seashells._ScaledWavefield
-			Never returns.
-
-		Raises
-		------
-		NotImplementedError
-			Always; scaled wave-optics propagation is not implemented for ``Prism``.
-		"""
-		raise NotImplementedError("Scaled wave-optics propagation is not implemented for Prism (spectrometer).")
 
 
 element_list = ["Element"] + [subclass.__name__ for subclass in Element.__subclasses__()]

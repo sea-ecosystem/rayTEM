@@ -74,14 +74,15 @@ def _stack_scaled_wavefields(planes, name="scaled wave"):
 	-------
 	seashells.make_scaled_wave_signalset, seashells.read_scaled_wavefield
 	"""
-	from .seashells import read_scaled_wavefield, make_scaled_wave_signalset
-	datas=[] ; ss=[] ; Rs=[] ; taus=[] ; zs=[] ; dxi=deta=wavelength=None
+	from .seashells import read_scaled_wavefield, make_scaled_wave_signalset, scaled_frame_tag
+	datas=[] ; ss=[] ; Rs=[] ; taus=[] ; zs=[] ; tags=[] ; dxi=deta=wavelength=None
 	for p in planes:
 		U, dxi, deta, wavelength, s, R, tau, z = read_scaled_wavefield(p)
 		datas.append(U) ; ss.append(s) ; Rs.append(R) ; taus.append(tau)
 		zs.append(z if z is not None else 0.0)
+		tags.append(scaled_frame_tag(p))
 	return make_scaled_wave_signalset(xp.asarray(datas), dxi, deta, wavelength,
-									  s=ss, R=Rs, tau=taus, z=zs, name=name)
+									  s=ss, R=Rs, tau=taus, z=zs, tags=tags, name=name)
 
 
 class MicroscopeSection(SEASerializable):
@@ -484,98 +485,73 @@ class MicroscopeSection(SEASerializable):
 														convention, name=(self.name or 'section') + ' covariance')
 		return self.covariance_matrix
 
-	def propagate_wave(self, wave0=None):
-		"""Propagate a paraxial wavefield through every element in the section.
+	def propagate_wave(self, wave0=None, mode:Literal['fixed','scaled','hybrid']='fixed',
+					   s_min:float=1e-3):
+		r"""Propagate a wavefield through every element in the section.
 
-		The wave-optics analog of :meth:`propagate_ray`. Threads a 2D complex
-		wavefield element-by-element via :meth:`Element.propagate_wave`, logging a
-		plane after each finite-length element or aperture (same append/replace logic
-		as ray/moment propagation). The per-plane fields are stacked into a single
-		calibrated ``(n_planes, ny, nx)`` complex ``Signal`` stored on ``self.wave``.
+		The one wave-optics analog of :meth:`propagate_ray`, covering all three
+		wave representations via ``mode`` (see :meth:`Element.propagate_wave`).
+		Threads the wave element-by-element, logging a plane after each
+		finite-length element or aperture (same append/replace logic as
+		ray/moment propagation); on ``mode='hybrid'`` the interior frame-switch
+		and crossover (focal) planes logged by the engine are inserted in z
+		order as well.
 
-		Parameters
-		----------
-		wave0 : Signal or seashells._Wavefield, optional
-			Initial wavefield. If ``None`` and the first element is a ``Source``, it
-			is generated from :meth:`Source.wave`.
-
-		Returns
-		-------
-		Signal or seashells._Wavefield
-			The stacked wavefield (also stored on ``self.wave``). Per-plane wavefields
-			are kept on ``self._wave_planes`` for chaining by :class:`Microscope`.
-
-		Raises
-		------
-		UserWarning
-			If ``wave0`` is ``None`` and the first element is not a ``Source``.
-		"""
-		if wave0 is None:
-			if isinstance(self.elements[0], Source):
-				wave0 = self.elements[0].wave()
-			else:
-				raise UserWarning("First element is not a Source, and no wave0 provided to propagate_wave. Please provide an initial wavefield or ensure first element is a Source.")
-		fi=[wave0]
-		for ele in self.elements:
-			f = ele.propagate_wave(fi[-1])
-			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
-				fi.append(f)
-			else:
-				fi[-1]=f
-		self._wave_planes = fi
-		self.wave = _stack_wavefields(fi, name=(self.name or 'section') + ' wave')
-		return self.wave
-
-	def propagate_wave_scaled(self, wave0=None, s_min:float=1e-3):
-		r"""Propagate a scaled-Fresnel wavefield through every element in the section.
-
-		The scaled counterpart of :meth:`propagate_wave` (handoff Eqs 23–48):
-		threads the reduced field U plus its chart state ``(s, R, τ)``
-		element-by-element via :meth:`Element.propagate_wave_scaled`, logging a
-		plane after each finite-length element or aperture (same append/replace
-		logic as the other modes). The per-plane states are stacked into a
-		``SignalSet`` — U ``(n_planes, nη, nξ)`` plus companion ``s(z)``/``R(z)``/
-		``tau(z)`` Signals on the shared plane-z axis — stored on
-		``self.wave_scaled``.
+		Results are stored by representation: ``mode='fixed'`` stacks the
+		per-plane fields into a calibrated ``(n_planes, ny, nx)`` ``Signal`` on
+		``self.wave``; ``'scaled'``/``'hybrid'`` stack the per-plane states
+		into a ``SignalSet`` — U ``(n_planes, nη, nξ)`` plus companion
+		``s(z)``/``R(z)``/``tau(z)`` (and ``frame``) Signals on the shared
+		plane-z axis — on ``self.wave_scaled``.
 
 		Parameters
 		----------
-		wave0 : Signal or seashells._ScaledWavefield, optional
-			Initial scaled wavefield. If ``None`` and the first element is a
-			``Source``, it is generated from :meth:`Source.wave_scaled`.
+		wave0 : Signal or seashells._Wavefield or seashells._ScaledWavefield, optional
+			Initial wavefield in the representation matching ``mode``. If
+			``None`` and the first element is a ``Source``, it is generated
+			from :meth:`Source.wave` with the same ``mode``.
+		mode : {'fixed', 'scaled', 'hybrid'}, optional
+			Wave representation, by default ``'fixed'``.
 		s_min : float, optional
-			Crossover guard forwarded to every element (handoff Eq 52), by
-			default ``1e-3``.
+			Backstop crossover guard for the scaled/hybrid paths, by default
+			``1e-3``.
 
 		Returns
 		-------
-		SignalSet or None
-			The stacked scaled-wave SignalSet (also on ``self.wave_scaled``);
-			``None`` when sea_eco is absent — per-plane states are kept on
-			``self._wave_scaled_planes`` either way (used by :class:`Microscope`
-			for chaining and reconstruction).
+		Signal or SignalSet or None
+			The stacked result (also stored on ``self.wave`` /
+			``self.wave_scaled``). Per-plane states are kept on
+			``self._wave_planes`` / ``self._wave_scaled_planes`` for chaining
+			by :class:`Microscope` (and usable even when sea_eco is absent and
+			the SignalSet is ``None``).
 
 		Raises
 		------
 		UserWarning
 			If ``wave0`` is ``None`` and the first element is not a ``Source``.
 		ValueError
-			If the chart approaches its ``s = 0`` crossover inside a segment —
-			stop the section before the crossover or reset the chart (automatic
-			chart switching is a tracked follow-up).
+			``mode='scaled'`` only: a single frame reaching its ``s = 0``
+			crossover (use ``mode='hybrid'`` to switch frames through it).
 		"""
 		if wave0 is None:
 			if isinstance(self.elements[0], Source):
-				wave0 = self.elements[0].wave_scaled()
+				wave0 = self.elements[0].wave(mode=mode)
 			else:
-				raise UserWarning("First element is not a Source, and no wave0 provided to propagate_wave_scaled. Please provide an initial scaled wavefield or ensure first element is a Source.")
+				raise UserWarning("First element is not a Source, and no wave0 provided to propagate_wave. Please provide an initial wavefield or ensure first element is a Source.")
 		fi=[wave0]
 		for ele in self.elements:
-			f = ele.propagate_wave_scaled(fi[-1], s_min=s_min)
+			interior = [] if mode == 'hybrid' else None
+			f = ele.propagate_wave(fi[-1], mode=mode, s_min=s_min, log=interior)
+			if interior:
+				fi.extend(interior)		# frame switches / crossover planes, in z order
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
 				fi.append(f)
 			else:
 				fi[-1]=f
+		if mode == 'fixed':
+			self._wave_planes = fi
+			self.wave = _stack_wavefields(fi, name=(self.name or 'section') + ' wave')
+			return self.wave
 		self._wave_scaled_planes = fi
 		self.wave_scaled = _stack_scaled_wavefields(fi, name=(self.name or 'section') + ' scaled wave')
 		return self.wave_scaled
@@ -603,7 +579,7 @@ class MicroscopeSection(SEASerializable):
 		return make_rays_signalset(self.rays, self.I, self.R, convention,
 								   name=(self.name or 'section') + ' rays')
 
-	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled"]="ray", **kwargs):
+	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray", **kwargs):
 		"""Unified propagation dispatcher across the three modes.
 
 		Routes to :meth:`propagate_ray`, :meth:`propagate_moments`, or
@@ -629,7 +605,8 @@ class MicroscopeSection(SEASerializable):
 		ValueError
 			If ``kind`` is not a recognized propagation mode.
 		"""
-		return getattr(self, _propagate_method_name(kind))(*args, **kwargs)
+		method, forced = _propagate_method_name(kind)
+		return getattr(self, method)(*args, **{**kwargs, **forced})
 
 		#Include the initial ray. #TODO: Add conditional if source is included
 		#ri = xp.append(r0[:,None,:], ri, axis=1)
@@ -687,6 +664,7 @@ class Microscope(SEASerializable):
 		self.mu = None ; self.covariance_matrix = None	# beam-envelope mode results
 		self.wave = None								# wave-optics mode result (complex wavefield Signal)
 		self.wave_scaled = None							# scaled-Fresnel mode result (SignalSet: U + s/R/tau)
+		self.crossovers = None							# focal-plane z positions found by the hybrid wave run
 		if self.sections is not None and len(self.sections)>1: # check if consecutive sections are correct length. if not, insert drift at tail of first one
 			for s,s2 in zip(self.sections[:-1],self.sections[1:]):
 				if s.position+s.length<s2.position:
@@ -1036,74 +1014,64 @@ class Microscope(SEASerializable):
 														convention, name=(self.name or 'microscope') + ' covariance')
 		return self.covariance_matrix
 
-	def propagate_wave(self, wave0=None):
-		"""Propagate a paraxial wavefield through every section, chaining boundaries.
+	def propagate_wave(self, wave0=None, mode:Literal['fixed','scaled','hybrid']='fixed',
+					   s_min:float=1e-3):
+		r"""Propagate a wavefield through every section, chaining boundaries.
 
-		Wave-optics analog of :meth:`propagate_ray`. Each section's exit wavefield
-		seeds the next (eager re-chain), and all per-plane wavefields are flattened
-		into a single calibrated ``(n_planes, ny, nx)`` complex ``Signal`` on
-		``self.wave``.
-
-		Parameters
-		----------
-		wave0 : Signal or seashells._Wavefield, optional
-			Initial wavefield fed to the first section; generated from its ``Source``
-			when ``None``.
-
-		Returns
-		-------
-		Signal or seashells._Wavefield
-			The stacked wavefield for the whole instrument (also on ``self.wave``).
-		"""
-		f = wave0
-		planes=[]
-		for s in self.sections:
-			s.propagate_wave(wave0=f)
-			planes.extend(s._wave_planes)
-			f = s._wave_planes[-1]
-		self.wave = _stack_wavefields(planes, name=(self.name or 'microscope') + ' wave')
-		return self.wave
-
-	def propagate_wave_scaled(self, wave0=None, s_min:float=1e-3):
-		r"""Propagate a scaled-Fresnel wavefield through every section, chaining boundaries.
-
-		Scaled counterpart of :meth:`propagate_wave`: each section's exit scaled
-		state seeds the next (eager re-chain), and all per-plane states are
-		flattened into a single ``SignalSet`` (U stack + companion ``s``/``R``/
-		``tau`` Signals on the shared plane-z axis) on ``self.wave_scaled``.
+		The one wave-optics analog of :meth:`propagate_ray`, covering all three
+		wave representations via ``mode`` (see :meth:`Element.propagate_wave`).
+		Each section's exit state seeds the next (eager re-chain), and all
+		per-plane states are flattened by representation: ``mode='fixed'`` into
+		a single calibrated ``(n_planes, ny, nx)`` ``Signal`` on ``self.wave``;
+		``'scaled'``/``'hybrid'`` into the ``SignalSet`` (U stack + companion
+		``s``/``R``/``tau``/``frame`` Signals on the shared plane-z axis) on
+		``self.wave_scaled``. On ``mode='hybrid'`` the crossover (focal /
+		back-focal) planes logged by the frame-switching engine are included,
+		and their z positions are collected on ``self.crossovers``.
 
 		Parameters
 		----------
-		wave0 : Signal or seashells._ScaledWavefield, optional
-			Initial scaled wavefield fed to the first section; generated from its
-			``Source`` (:meth:`Source.wave_scaled`) when ``None``.
+		wave0 : Signal or seashells._Wavefield or seashells._ScaledWavefield, optional
+			Initial wavefield fed to the first section (representation matching
+			``mode``); generated from its ``Source`` when ``None``.
+		mode : {'fixed', 'scaled', 'hybrid'}, optional
+			Wave representation, by default ``'fixed'``.
 		s_min : float, optional
-			Crossover guard forwarded to every element (handoff Eq 52), by
-			default ``1e-3``.
+			Backstop crossover guard for the scaled/hybrid paths, by default
+			``1e-3``.
 
 		Returns
 		-------
-		SignalSet or None
-			The stacked scaled-wave SignalSet for the whole instrument (also on
-			``self.wave_scaled``); ``None`` when sea_eco is absent — per-plane
-			states are kept on ``self._wave_scaled_planes`` either way.
+		Signal or SignalSet or None
+			The stacked result for the whole instrument (also on ``self.wave``
+			/ ``self.wave_scaled``).
 
 		Raises
 		------
 		ValueError
-			If the chart approaches its ``s = 0`` crossover inside a segment.
+			``mode='scaled'`` only: a single frame reaching its ``s = 0``
+			crossover (use ``mode='hybrid'``).
 
 		Related
 		-------
 		wavefield_at : Reconstruct the physical wave at a requested plane.
+		crossovers : Focal-plane positions found by the hybrid run.
 		"""
 		f = wave0
 		planes=[]
 		for s in self.sections:
-			s.propagate_wave_scaled(wave0=f, s_min=s_min)
-			planes.extend(s._wave_scaled_planes)
-			f = s._wave_scaled_planes[-1]
+			s.propagate_wave(wave0=f, mode=mode, s_min=s_min)
+			sec_planes = s._wave_planes if mode == 'fixed' else s._wave_scaled_planes
+			planes.extend(sec_planes)
+			f = sec_planes[-1]
+		if mode == 'fixed':
+			self.wave = _stack_wavefields(planes, name=(self.name or 'microscope') + ' wave')
+			return self.wave
 		self._wave_scaled_planes = planes
+		if mode == 'hybrid':
+			from .seashells import read_scaled_wavefield, scaled_frame_tag as _scaled_plane_tag
+			self.crossovers = [read_scaled_wavefield(p)[7] for p in planes
+							   if _scaled_plane_tag(p) == "crossover"]
 		self.wave_scaled = _stack_scaled_wavefields(planes, name=(self.name or 'microscope') + ' scaled wave')
 		return self.wave_scaled
 
@@ -1145,13 +1113,13 @@ class Microscope(SEASerializable):
 
 		Related
 		-------
-		propagate_wave_scaled : Produces the per-plane scaled states read here.
+		propagate_wave : ``mode='scaled'/'hybrid'`` produces the states read here.
 		waveoptics.reconstruct_physical_wave : The Eq 37/41/44 core.
 		"""
 		from .seashells import read_scaled_wavefield, make_wavefield_signal
 		from .waveoptics import reconstruct_physical_wave
 		if getattr(self, "_wave_scaled_planes", None) is None:
-			self.propagate_wave_scaled()
+			self.propagate_wave(mode='hybrid')
 		if isinstance(z, str):
 			z = self.named_positions[z]
 		zs = []
@@ -1188,7 +1156,7 @@ class Microscope(SEASerializable):
 		return make_rays_signalset(self.rays, self.I, self.R, convention,
 								   name=(self.name or 'microscope') + ' rays')
 
-	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled"]="ray", **kwargs):
+	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray", **kwargs):
 		"""Unified propagation dispatcher across the three modes.
 
 		Routes to :meth:`propagate_ray`, :meth:`propagate_moments`, or
@@ -1214,7 +1182,8 @@ class Microscope(SEASerializable):
 		ValueError
 			If ``kind`` is not a recognized propagation mode.
 		"""
-		return getattr(self, _propagate_method_name(kind))(*args, **kwargs)
+		method, forced = _propagate_method_name(kind)
+		return getattr(self, method)(*args, **{**kwargs, **forced})
 
 	# property for planes ("microscope.planes" instead of "postprocessing.findPlanes(microscope)"), which avoids the need to recalculate planes a bunch of times.
 	@property
@@ -1233,7 +1202,7 @@ class Microscope(SEASerializable):
 	def named_sections(self):
 		return { s.name+" ("+str(i)+")":[s.position,s.position+s.length] for i,s in enumerate(self.sections) }
 
-	def show(self, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled"]="ray",
+	def show(self, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray",
 			 filename=None, title=None, ylims=None, zlims=None, regenerate=True, plt_ax=None,
 			 plane:int=-1):
 		"""Visualize a propagation result.
