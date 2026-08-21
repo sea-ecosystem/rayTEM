@@ -7,14 +7,16 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
-## 2026-08-21 — [Under Construction] Alias-free aperture + frame-policy refinements + anisotropic frames
+## 2026-08-21 — [Done] Alias-free aperture + frame-policy refinements + anisotropic frames
 **Goal:** Remove the numerical "gridding" from hard-aperture runs while keeping the real Fresnel fringes (band-limited sampling of the exact Theta(a-r)); make the frame policy beam-support based; add direct frame jumps and anisotropic (s_x != s_y) frames.
 **Why:** Eric spotted an axis-aligned grid texture at the sample/detector (diagnosed: aliased above-Nyquist edge content, not wraparound; physics must stay); the padded-grid control exposed the grid-edge flatten criterion crashing into s_min; the two handoff follow-ups (jumps, anisotropy) were queued next.
-- [ ] alias-free aperture sampling (bandlimited_disk + antialiased masks)
-- [ ] beam-support guard + flatten thresholds (padded-grid regression)
-- [ ] crossover='jump' policy + measured default
-- [ ] anisotropic frames (quads absorb into R; line-focus crossovers)
-- [ ] docs/wiki + protocol finish
+- [x] alias-free aperture sampling (bandlimited_disk + antialiased masks)
+- [x] beam-support guard + flatten thresholds (padded-grid regression)
+- [x] crossover='jump' policy + measured default
+- [x] anisotropic frames (quads absorb into R; line-focus crossovers)
+- [x] docs/wiki + protocol finish
+
+**Outcome:** (1) The "gridding" had two mechanisms, both fixed physically with the model unchanged (Theta(a-r) stays sharp): the initial sampling now holds the band-limited projection of the exact disk (`waveoptics.bandlimited_disk`, analytic J1 spectrum — every representable Fresnel fringe exact, nothing folds; mid-column `aperture_mask` gets a 1-px area-coverage edge, `antialias=False` restores binary), and free segments carry an absorbing boundary (`boundary_window` + `absorb=0.1` tau sub-stepping — periodic-FFT wraparound of the edge halo removed; those electrons physically leave the beam). Sample-plane interior modulation fell 0.0397 -> 0.0017 with ~1.3%% energy honestly absorbed. (2) Frame policy is beam-support based: guard and flatten/re-diverge thresholds measure the reference phase at the beam's per-axis support half-width (`beam_support_radius`/`beam_support_extents`), not the empty grid edge; the hybrid engine owns its internal guard (closed-form splits), so the padded 512^2/40 um column completes with defaults (regression test). (3) `crossover='jump'` implemented (mirror R=-d -> +d at half the flatten threshold, one switch, no flat window) and measured: optical through-focus matches flat (1.3e-2 vs 1.0e-2), but the doubled phase budget rides 2x deeper and at tight electron crossovers the focal structure (Airy/s in xi) outruns the FOV — basic_column loses ~95%% of the beam — so 'flat' stays the default and the guidance is documented. (4) Anisotropic frames: psi = (s_x s_y)^(-1/2) U(x/s_x, y/s_y) e^(ik(x^2/2R_x + y^2/2R_y)); frame quantities travel scalar-or-pair (`axis_components`/`join_axes`), `Quadrapole.phase_shift(scaled=True)` returns ((P_x, P_y), None) absorbed into (R_x, R_y) like a round lens (no saddle screen, no sampling limit — strong stigmators run), the hybrid engine runs a per-axis event loop with line-focus tags (flatten-x/crossover-y/...) behind an isotropic fast path (round-lens columns bit-for-bit), the seam stores per-axis metadata (s_x/s_y, R_x_m/R_y_m, tau_x/tau_y, z_cross_x_m/z_cross_y_m) and per-axis SignalSet companions only when the axes differ (old files load unchanged), and reconstruction uses rectangular native pixels. Astigmatic Gaussian matches the analytic q-parameter widths at both line foci and the exit to 1e-3; Microscope.crossovers lists per-axis line foci at the predicted per-axis focal lengths. 66 tests green (was 54).
 
 ## 2026-08-20 — [Done] Scaled-frame switching through crossovers
 **Goal:** Full-column scaled propagation: a general frame-change primitive (Eric's Eq 5) plus a hybrid crossover policy (scaled -> flatten near focus -> ordinary Fresnel through it -> re-diverge), consolidated as propagate_wave(mode='fixed'|'scaled'|'hybrid').
