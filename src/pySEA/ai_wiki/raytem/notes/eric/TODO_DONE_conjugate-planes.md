@@ -12,12 +12,12 @@ analytic compound values == ray diff family, to 0 nm (and NOT z_L2 + f2 =
 140 mm, so compound systems are handled right — R carries all upstream
 history). The image plane at 150.8621 mm is not logged.
 
-- [ ] `Microscope.conjugate_planes(axis)` -> {"diff": z[], "image": z[]} in
+- [x] `Microscope.conjugate_planes(axis)` -> {"diff": z[], "image": z[]} in
       METRES, by tracing the 4 reference rays on a copy and reusing
       `postprocessing.findPlanes` + `zFromFractional` (no new geometry code,
       no clobbering of self.rays)
-- [ ] annotate both families in the scaled cross-section (crossovers from the
+- [x] annotate both families in the scaled cross-section (crossovers from the
       wave run + image planes from the ray reference)
-- [ ] document precisely what `crossovers` is (and that zpts= can log the
+- [x] document precisely what `crossovers` is (and that zpts= can log the
       image planes exactly: `zpts=scope.conjugate_planes()["image"]`)
-- [ ] tests (thin 2-lens: both families exact) + wiki + protocol finish
+- [x] tests (thin 2-lens: both families exact) + wiki + protocol finish
