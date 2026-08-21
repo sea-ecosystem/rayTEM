@@ -128,6 +128,16 @@ and is propagated by the *same* angular-spectrum kernel over `Δτ`
   future aberrations), evaluated at physical coordinates `x = s·ξ` and
   protected by a per-pixel `|Δχ| < π` sampling guard — stigmator-scale
   strengths pass; over-strong settings fail loudly instead of aliasing.
+- **Plotting through the standard `show`.**
+  `scope.show(kind='wave-hybrid')` draws the |ψ(x, y=0, z)| cross-section —
+  the wave analog of the ray diagram, with element and crossover overlays —
+  and `show(kind='wave-hybrid', plane=...)` images one plane (a logged-plane
+  index, a z in metres, a named position, or a `scope.crossovers[i]` focal
+  plane) by delegating to the reconstructed wavefield Signal's own `.show()`.
+  A result's z sampling is one plane per element exit plus the hybrid run's
+  frame events, so `show(..., zpts=5e-3)` (or `scope.subdivided(5e-3)`)
+  propagates a temporary copy with finer drift steps when a smooth
+  cross-section is wanted. Crossovers need no subdivision — see below.
 - **Reconstruction back to physical x, y** at any logged plane:
   `Microscope.wavefield_at(z_or_name, target_dx=..., target_shape=...)`
   (crossover planes included — the back-focal wavefield of each lens)
@@ -150,7 +160,10 @@ where its reference curvature first becomes representable on the shrinking
 grid (`|R_flat| = R²/(A·s²)`, a frame invariant with a closed-form split
 point), the wave crosses the real focus by ordinary carrier-free Fresnel
 propagation — the crossover (back-focal / diffraction) plane is logged and
-listed on `Microscope.crossovers` — and re-factors onto a diverging frame at
+listed on `Microscope.crossovers` (the focus position is the closed-form
+`z_cross = z + |R|`, not a numerical search, so the engine splits its
+propagation exactly there and the focal plane is always logged exactly) — and
+re-factors onto a diverging frame at
 the mirror-image distance past it. One ξ/η calibration serves the entire
 column while `s(z)` dips and recovers at each focus; the `basic_column`
 template runs source → detector (five crossovers) with energy conserved at

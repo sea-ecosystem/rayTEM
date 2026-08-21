@@ -436,7 +436,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1448,
+    "source_lineno": 1565,
     "signature": "load_microscope(filename)",
     "doc": ""
   },
@@ -445,7 +445,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1438,
+    "source_lineno": 1555,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -553,7 +553,7 @@
     "name": "Microscope",
     "qualname": "Microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 730,
+    "source_lineno": 731,
     "signature": "class Microscope",
     "doc": "Microscope class represents a whole microscope, and is comprised of multiple MicroscopeSections. propagation through a Microscope results in propagation through individual MicroscopeSections"
   },
@@ -562,7 +562,7 @@
     "name": "MicroscopeSection",
     "qualname": "MicroscopeSection",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 170,
+    "source_lineno": 171,
     "signature": "class MicroscopeSection",
     "doc": "MicroscopeSection class represents a portion of a microscope, and contains multiple Elements. propagation through a Section results in propagation through individual Elements."
   },
@@ -1459,11 +1459,29 @@
   },
   {
     "kind": "function",
+    "name": "test_show_zpts_uses_temporary_dense_copy",
+    "qualname": "test_show_zpts_uses_temporary_dense_copy",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 1049,
+    "signature": "test_show_zpts_uses_temporary_dense_copy()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_strong_stigmator_absorbed_runs",
     "qualname": "test_strong_stigmator_absorbed_runs",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 941,
     "signature": "test_strong_stigmator_absorbed_runs()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_subdivided_preserves_geometry",
+    "qualname": "test_subdivided_preserves_geometry",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 1023,
+    "signature": "test_subdivided_preserves_geometry()",
     "doc": ""
   },
   {
