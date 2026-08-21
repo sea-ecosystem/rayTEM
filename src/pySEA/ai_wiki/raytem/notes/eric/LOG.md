@@ -7,6 +7,12 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-21 — [Under Construction] Dense z sampling for show (subdivided + zpts)
+**Goal:** `Microscope.subdivided(zpts)` (copy with unnamed drifts split by max-spacing dz or at explicit z) and `show(..., zpts=)` that plots the scaled cross-section from a temporary subdivided copy, leaving the original's state untouched.
+**Why:** The cross-section's z resolution follows the column's logged planes (predictable but chunky); Eric wants seamless propagation and arbitrary-z plotting through show without hand-editing the column.
+- [ ] subdivided(zpts) helper
+- [ ] show zpts wiring + tests + wiki
+
 ## 2026-08-21 — [Done] Microscope.show for scaled/hybrid wave results
 **Goal:** Wire `show(kind="wave-scaled"/"wave-hybrid")`: cross-section |ψ(x,0,z)| with element/crossover annotations by default, per-plane |ψ|² via the reconstructed Signal's own `.show()` when a plane is named.
 **Why:** The kinds were accepted by the signature but raised; the demo's figures lived only in examples/04 — Eric wants the scaled result to plot through the standard `show`.
