@@ -9,12 +9,12 @@ subdivided column, and (b) plotting at arbitrary z through show — "feed in a
 different set of z coordinates or redefine the z dimensions temporarily and
 then feed them back to their original state."
 
-- [ ] `Microscope.subdivided(zpts)` -> NEW Microscope (original untouched):
+- [x] `Microscope.subdivided(zpts)` -> NEW Microscope (original untouched):
       float dz = split unnamed drifts into <= dz chunks; sequence = cut the
       unnamed drifts at those absolute z positions
-- [ ] `show(kind="wave-scaled"/"wave-hybrid", zpts=...)`: propagate a
+- [x] `show(kind="wave-scaled"/"wave-hybrid", zpts=...)`: propagate a
       temporary subdivided copy and plot from its planes; self's stored
       result is never modified (cleaner than mutate-and-restore)
-- [ ] tests: geometry preserved (named_positions), explicit z planes logged,
+- [x] tests: geometry preserved (named_positions), explicit z planes logged,
       show(zpts=) leaves self untouched
-- [ ] wiki + protocol finish
+- [x] wiki + protocol finish
