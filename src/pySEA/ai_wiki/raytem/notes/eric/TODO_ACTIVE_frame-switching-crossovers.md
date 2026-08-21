@@ -8,7 +8,7 @@
       `min_representable_curvature`; `factor_wave`/`reconstruct_physical_wave`
       delegate as the (1,∞) special cases; frame terminology in errors;
       identity + guard tests
-- [ ] Step 2 — hybrid free-segment engine `propagate_free_scaled_hybrid`
+- [x] Step 2 — hybrid free-segment engine `propagate_free_scaled_hybrid`
       (converging → flatten at |R_flat| = R²/(A·s²) → flat through the real
       focus, crossover plane logged → re-diverge at d = A·s²); `z_cross_m`
       metadata; through-focus equivalence + electron-scale Airy tests

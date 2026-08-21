@@ -521,3 +521,96 @@ def test_change_scaled_frame_sampling_guard():
 	# and the pure-converter path (safety=None) never guards
 	out, _, _ = wo.change_scaled_frame(U, dxi, dxi, lam, s, -0.5 * R_min, np.inf, safety=None)
 	assert np.isfinite(out).all()
+
+
+# --- hybrid crossover engine ----------------------------------------------------
+
+def test_hybrid_through_focus_matches_ordinary():
+	# tapered aperture -> lens -> free THROUGH the focus: the hybrid engine
+	# (scaled -> flatten -> ordinary Fresnel through the crossover -> re-diverge)
+	# must match the ordinary fixed-grid reference past the focus
+	lam, n, dx = 633e-9, 256, 1e-5
+	radius, taper, f, d1, d2 = 8e-4, 16e-5, 0.05, 0.01, 0.09		# focus at d1 + f
+	X, Y = wo.transverse_coordinates((n, n), dx, dx)
+	r = np.hypot(X, Y)
+	psi0 = (0.5 * (1 + np.cos(np.pi * np.clip((r - radius + taper) / taper, 0, 1)))).astype(complex)
+
+	U, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, 1.0, np.inf)
+	U, s, R, dt, z, zc, logged = wo.propagate_free_scaled_hybrid(
+		U, dxi, deta, lam, d1, 1.0, np.inf, z=0.0)
+	assert logged == [] and s == 1.0 and np.isinf(R)
+	s, R = wo.apply_thin_lens_scaled(s, R, 1 / f)
+	U, s, R, dt, z, zc, logged = wo.propagate_free_scaled_hybrid(
+		U, dxi, deta, lam, d2, s, R, z=d1)
+	tags = [entry[0] for entry in logged]
+	assert tags == ["flatten", "crossover", "rediverge"]
+	# the crossover plane is logged exactly at the focus
+	assert np.isclose(logged[1][5], d1 + f)
+	# past the focus: diverging frame, no marker left, s finite and growing
+	assert R > 0 and zc is None and s > 0.05
+	# continue on the diverging frame until s returns to 1, so the native grid
+	# coincides with the reference grid (comparison free of resampling error)
+	extra = R * (1 / s - 1)
+	U, s, R, dt, z, zc, logged2 = wo.propagate_free_scaled_hybrid(
+		U, dxi, deta, lam, extra, s, R, z=z)
+	assert logged2 == [] and np.isclose(s, 1.0)
+	ref = wo.angular_spectrum_propagate(psi0, dx, dx, lam, d1, include_carrier=False)
+	ref = wo.focal_phase(ref, dx, dx, lam, 1 / f, 1 / f)
+	ref = wo.angular_spectrum_propagate(ref, dx, dx, lam, z - d1, include_carrier=False)
+	psi, dx_out, _ = wo.reconstruct_physical_wave(U, dxi, deta, lam, s, R)
+	assert np.isclose(dx_out, dx)
+	a = _align_global_phase(psi, ref)
+	# measured 6.3e-3 / 4.0e-3 at safety=0.5 (dominated by edge-halo wraparound
+	# in the flat window); thresholds carry margin
+	assert np.linalg.norm(a - ref) / np.linalg.norm(ref) < 1.5e-2
+	assert np.linalg.norm(np.abs(a) - np.abs(ref)) / np.linalg.norm(np.abs(ref)) < 1e-2
+	# energy conserved through both frame switches and the focus
+	assert np.isclose((np.abs(psi0)**2).sum() * dx * dx,
+					  (np.abs(U)**2).sum() * abs(dxi) * abs(deta), rtol=1e-9)
+
+
+def test_hybrid_electron_focal_plane_is_airy():
+	# 200 kV, a = 5 um, f = 45 mm: the logged crossover plane is the back-focal
+	# (diffraction) plane -- an Airy pattern with first zero at 0.61*lam*f/a
+	lam = LAM
+	n, dx = 256, 2.5e-7
+	a_r, f = 5e-6, 45e-3
+	psi0 = wo.aperture_mask(wo.plane_wave((n, n)), dx, dx, a_r)
+	E0 = (np.abs(psi0)**2).sum() * dx * dx
+	U, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, 1.0, np.inf)
+	s, R = wo.apply_thin_lens_scaled(1.0, np.inf, 1 / f)
+	U, s, R, dt, z, zc, logged = wo.propagate_free_scaled_hybrid(
+		U, dxi, deta, lam, 60e-3, s, R, z=0.0)		# straight through the focus
+	tags = [entry[0] for entry in logged]
+	assert tags == ["flatten", "crossover", "rediverge"]
+	assert np.isclose(logged[1][5], f)		# crossover logged at z = f
+	# physical pixel |s|*dxi is continuous at every switch (dxi never changes)
+	for entry in logged:
+		assert entry[2] > 0		# s stays finite and positive throughout
+	# focal-plane intensity: radial profile matches the Airy pattern
+	U_c, s_c = logged[1][1], logged[1][2]
+	psi_c, dx_c, _ = wo.reconstruct_physical_wave(U_c, dxi, deta, lam, s_c, np.inf)
+	I = np.abs(psi_c)**2
+	Xc, Yc = wo.transverse_coordinates((n, n), dx_c, dx_c)
+	rc = np.hypot(Xc, Yc)
+	r_zero = 0.61 * lam * f / a_r		# first Airy zero (13.7 nm)
+	# intensity at the first zero is deeply suppressed vs the peak
+	ring = (np.abs(rc - r_zero) < 0.02 * r_zero)
+	assert I[ring].max() < 5e-3 * I.max()
+	# and the central disk carries ~84% of the energy (Airy: 83.8%)
+	E_c = (I).sum() * dx_c * dx_c
+	frac = I[rc <= r_zero].sum() * dx_c * dx_c / E_c
+	assert np.isclose(frac, 0.838, atol=0.02)
+	# energy conserved at the focal plane and at the segment exit
+	assert np.isclose(E_c, E0, rtol=1e-9)
+	assert np.isclose((np.abs(U)**2).sum() * dxi * deta, E0, rtol=1e-9)
+
+
+def test_scaled_signal_carries_crossover_marker():
+	from pySEA.rayTEM.seashells import scaled_frame_crossover
+	sig = make_scaled_wavefield_signal(np.ones((8, 8), complex), 1e-9, 1e-9, LAM,
+									   s=0.1, R=np.inf, tau=0.0, z=0.1, z_cross=0.15)
+	assert scaled_frame_crossover(sig) == 0.15
+	sig2 = make_scaled_wavefield_signal(np.ones((8, 8), complex), 1e-9, 1e-9, LAM,
+										s=1.0, R=np.inf, tau=0.0, z=0.0)
+	assert scaled_frame_crossover(sig2) is None

@@ -770,6 +770,134 @@ def propagate_free_scaled(U: np.ndarray, dxi: float, deta: float, wavelength: fl
 	return U_out, s_out, R_out, dtau
 
 
+def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
+								 wavelength: float, dz: float, s: float, R: float,
+								 z: float, z_cross: float = None,
+								 safety: float = 0.5, s_min: float = 1e-3) -> tuple:
+	r"""Propagate one free segment with automatic frame switching at crossovers.
+
+	The hybrid crossover policy: far from a focus the wave rides its scaled
+	frame; when a converging frame's reference curvature becomes representable
+	on the (shrinking) grid, the frame is **flattened**
+	(:func:`change_scaled_frame` to ``R = inf`` with s kept — a pointwise
+	operation) and the wave crosses the real focus by ordinary carrier-free
+	Fresnel propagation, which has no difficulty there; once safely past, the
+	wave is re-factored onto a fresh **diverging** frame. All split points have
+	closed forms because s and R are linear in z within a frame:
+
+	- flatten where :math:`|R| = R^2/(A s^2)` (an invariant of the frame),
+	  with :math:`A = k\,(n/2)\,\Delta\xi^2/(\text{safety}\,\pi)` — i.e. where
+	  :func:`min_representable_curvature` is first satisfied;
+	- the **crossover plane** ``z_cross = z + |R|`` (recorded at the flatten)
+	  is split out and logged — it is the focal / back-focal plane;
+	- re-diverge at :math:`d = z - z_{cross} \ge A s^2` with ``R_new = +d``.
+
+	Parameters
+	----------
+	U : np.ndarray
+		Scaled field ``(n, n)``.
+	dxi, deta : float
+		Scaled-coordinate sample spacings (constant across all switches — the
+		physical pixel is always ``|s|·Δξ``).
+	wavelength : float
+		Wavelength (metres).
+	dz : float
+		Physical segment length (metres).
+	s, R : float
+		Frame state at the segment start (``R = numpy.inf`` = flat).
+	z : float
+		Physical position at the segment start (metres).
+	z_cross : float, optional
+		Position of the crossover a flat frame is currently traversing
+		(recorded by an earlier flatten; carried in the scaled Signal's
+		metadata between elements). ``None`` when not in a flat window.
+	safety : float, optional
+		Sampling-guard fraction for the frame changes, by default 0.5.
+	s_min : float, optional
+		Backstop guard forwarded to :func:`propagate_free_scaled` (should
+		never trigger under this policy), by default ``1e-3``.
+
+	Returns
+	-------
+	tuple
+		``(U, s, R, dtau, z, z_cross, logged)`` — the exit state, the total
+		scaled increment Δτ over the segment, the exit position, the updated
+		crossover marker (``None`` once re-diverged), and ``logged``: an
+		ordered list of interior states ``(tag, U, s, R, dtau_cum, z, z_cross)``
+		with ``tag`` in ``{'flatten', 'crossover', 'rediverge'}`` and
+		``dtau_cum`` the Δτ accumulated since the segment entry.
+
+	Raises
+	------
+	ValueError
+		Only from the backstop guards; the policy switches frames before the
+		singularity is approached.
+
+	Related
+	-------
+	change_scaled_frame : The frame-change primitive applied at each switch.
+	min_representable_curvature : Places the flatten/re-diverge planes.
+
+	Notes
+	-----
+	The frame — not the physical wave — is singular at a crossover: the linear
+	scaling follows a geometric reference wavefront that collapses to a point,
+	while the diffracted wave stays finite. Flattening simply steps onto a
+	coordinate basis that remains useful through the focus.
+	"""
+	n = U.shape[0]
+	k = 2 * np.pi / wavelength
+	A = k * (n // 2) * dxi**2 / (safety * np.pi)		# min_representable_curvature / s^2
+	remaining = float(dz)
+	dtau_total = 0.0
+	logged = []
+	U = U.astype(complex, copy=True)
+	tol = 1e-9 * (abs(dz) + abs(z) + 1.0)		# float tolerance on split positions
+	while remaining > tol:
+		if not np.isinf(R) and R < 0:
+			# converging frame: flatten where the residual curvature first
+			# becomes representable (|R_flat| = R^2/(A s^2), frame-invariant)
+			R_flat = R**2 / (A * s**2)
+			if abs(R) <= R_flat + tol:
+				U, dxi, deta = change_scaled_frame(U, dxi, deta, wavelength, s, R, np.inf,
+												   safety=safety)
+				z_cross = z + abs(R)
+				R = np.inf
+				logged.append(("flatten", U, s, R, dtau_total, z, z_cross))
+				continue
+			step = min(remaining, abs(R) - R_flat)
+			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=s_min)
+			dtau_total += dt ; z += step ; remaining -= step
+			continue
+		if np.isinf(R) and z_cross is not None:
+			if z < z_cross - tol:
+				# flat frame heading into the focus: split at the crossover
+				step = min(remaining, z_cross - z)
+				U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=s_min)
+				dtau_total += dt ; z += step ; remaining -= step
+				if z >= z_cross - tol:
+					logged.append(("crossover", U, s, R, dtau_total, z, z_cross))
+				continue
+			d = z - z_cross
+			d_min = A * s**2
+			if d >= d_min - tol:
+				# safely past the focus: re-factor onto a diverging frame
+				U, dxi, deta = change_scaled_frame(U, dxi, deta, wavelength, s, np.inf, d,
+												   safety=safety)
+				R = d
+				z_cross = None
+				logged.append(("rediverge", U, s, R, dtau_total, z, z_cross))
+				continue
+			step = min(remaining, d_min - d)
+			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=s_min)
+			dtau_total += dt ; z += step ; remaining -= step
+			continue
+		# flat with no crossover ahead, or diverging: plain scaled propagation
+		U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, remaining, s, R, s_min=s_min)
+		dtau_total += dt ; z += remaining ; remaining = 0.0
+	return U, s, R, dtau_total, z, z_cross, logged
+
+
 def aperture_mask(field: np.ndarray, dx: float, dy: float, radius: float) -> np.ndarray:
 	"""Apply a hard circular aperture, zeroing the field outside ``radius``.
 
