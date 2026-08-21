@@ -48,10 +48,10 @@ def _stack_wavefields(planes, name="wavefield"):
 
 
 def _stack_scaled_wavefields(planes, name="scaled wave"):
-	"""Stack per-plane scaled wavefields into one ``SignalSet`` with chart companions.
+	"""Stack per-plane scaled wavefields into one ``SignalSet`` with frame companions.
 
 	Reads each scaled plane (reduced field U plus its ``s``/``R``/``τ``/``z``
-	chart state) and assembles the Signal-backed result of a scaled-Fresnel run:
+	frame state) and assembles the Signal-backed result of a scaled-Fresnel run:
 	the ``(n_planes, nη, nξ)`` U stack as main Signal with companion 1-D Signals
 	``s(z)``, ``R(z)``, ``tau(z)`` sharing the unstructured plane-z axis — the
 	same pattern as :func:`seashells.make_rays_signalset`.
