@@ -85,6 +85,88 @@ def _stack_scaled_wavefields(planes, name="scaled wave"):
 									  s=ss, R=Rs, tau=taus, z=zs, tags=tags, name=name)
 
 
+def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None,
+							   title=None):
+	"""Draw the |ψ(x, y=0, z)| cross-section of a scaled-wave run into an axis.
+
+	The wave analog of the geometric ray diagram: each logged plane is
+	reconstructed to physical coordinates on its native grid (``Δx = |s|·Δξ``,
+	so the pixel spans nm at the foci to µm at the detector), its centre row
+	``|ψ(x, 0)|`` is normalized to its peak and resampled onto one common x
+	axis, and the planes are rendered as a z–x pcolormesh. Element positions
+	are annotated as white dashed lines with labels and crossover (focal)
+	planes as cyan dotted lines — the same overlays the ray diagram carries.
+
+	Parameters
+	----------
+	planes : Sequence
+		Per-plane scaled wavefields (Signals or ``_ScaledWavefield`` fallbacks)
+		from a scaled/hybrid run, in any z order.
+	ax : matplotlib axis
+		Axis to draw into.
+	named_positions : dict, optional
+		``{label: z}`` element annotations (white dashed), by default none.
+	crossovers : Sequence[float], optional
+		Crossover (focal-plane) z positions (cyan dotted), by default none.
+	title : str, optional
+		Axis title, by default none.
+
+	Returns
+	-------
+	None
+		Draws into ``ax``.
+
+	Related
+	-------
+	Microscope.show : Calls this for ``kind='wave-scaled'/'wave-hybrid'``
+		when no ``plane`` is selected.
+	waveoptics.reconstruct_physical_wave : The per-plane reconstruction.
+
+	Notes
+	-----
+	Planes are individually peak-normalized — the panel shows the beam's
+	shape and envelope, not absolute intensity (which spans many orders of
+	magnitude between a focus and the detector). A column built with finely
+	subdivided drifts yields a smoother section (see
+	``examples/04_scaledWave_basic_column.py``).
+	"""
+	from .seashells import read_scaled_wavefield
+	from .waveoptics import reconstruct_physical_wave
+	recon = []
+	for p in planes:
+		U, dxi, deta, lam, s, R, tau, z = read_scaled_wavefield(p)
+		psi, dx, dy = reconstruct_physical_wave(U, dxi, deta, lam, s, R)
+		recon.append((z if z is not None else 0.0, psi, dx))
+	recon.sort(key=lambda r: r[0])
+	zs = xp.array([r[0] for r in recon])
+	z_edges = xp.concatenate([[zs[0] - 1e-4], (zs[:-1] + zs[1:]) / 2, [zs[-1] + 1e-4]]) * 1e3
+	n = recon[0][1].shape[1]
+	half = max(abs(r[2]) * n / 2 for r in recon)
+	x_common = xp.linspace(-half, half, 600)
+	prof = xp.zeros((len(recon), x_common.size))
+	for i, (z, psi, dx) in enumerate(recon):
+		x = (xp.arange(n) - n // 2) * dx
+		row = xp.abs(psi[psi.shape[0] // 2, :])
+		prof[i] = xp.interp(x_common, x, row / row.max(), left=0, right=0)
+	x_edges = xp.linspace(-half, half, x_common.size + 1) * 1e6
+	ax.pcolormesh(z_edges, x_edges, prof.T, cmap="magma", shading="flat")
+	ax.set_xlabel("z (mm)")
+	ax.set_ylabel("x (µm)")
+	if named_positions:
+		for label, zp in named_positions.items():
+			ax.axvline(zp * 1e3, color="w", lw=0.6, ls="--", alpha=0.6)
+			if label:
+				ax.text(zp * 1e3, half * 1e6 * 0.95, label, color="w", rotation=90,
+						ha="right", va="top", fontsize=7)
+	if crossovers:
+		for zc in crossovers:
+			ax.axvline(zc * 1e3, color="cyan", lw=0.8, ls=":", alpha=0.9)
+			ax.text(zc * 1e3, -half * 1e6 * 0.95, "crossover", color="cyan",
+					rotation=90, ha="right", va="bottom", fontsize=7)
+	if title:
+		ax.set_title(title)
+
+
 class MicroscopeSection(SEASerializable):
 	"""MicroscopeSection class represents a portion of a microscope, and contains multiple Elements. propagation through a Section results in propagation through individual Elements.
 
@@ -1323,20 +1405,26 @@ class Microscope(SEASerializable):
 
 	def show(self, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray",
 			 filename=None, title=None, ylims=None, zlims=None, regenerate=True, plt_ax=None,
-			 plane:int=-1):
+			 plane:int|float|str=None):
 		"""Visualize a propagation result.
 
 		``kind="ray"`` draws the usual ray diagram (with element/plane overlays).
 		``kind="moments"`` and ``kind="wave"`` delegate to the result **Signal's own**
 		``.show()``: the covariance matrix at one plane, and the wavefield intensity
 		``|E|²`` at one plane, respectively (sea_eco's ``Signal.show`` renders ≤2D, so a
-		single z-plane is selected via ``plane``). These two do not yet overlay the
-		microscope elements/planes (that annotation is future work).
+		single z-plane is selected via ``plane``). ``kind="wave-scaled"`` /
+		``"wave-hybrid"`` show the scaled-Fresnel result: with no ``plane``, the
+		|ψ(x, y=0, z)| **cross-section** — the wave analog of the ray diagram,
+		with element and crossover annotations; with a ``plane`` (index into the
+		logged planes, a z in metres, or a named position like ``"sample"``),
+		the reconstructed physical |ψ|² at that plane via the wavefield
+		Signal's own ``.show()``.
 
 		Parameters
 		----------
-		kind : {'ray','rays','moments','envelope','covariance','wave'}, optional
-			Which propagation result to show, by default ``'ray'``.
+		kind : {'ray','rays','moments','envelope','covariance','wave','wave-scaled','wave-hybrid'}, optional
+			Which propagation result to show, by default ``'ray'``
+			(underscore aliases accepted).
 		filename : str, optional
 			If given, save the figure here instead of showing it.
 		title : str, optional
@@ -1347,17 +1435,26 @@ class Microscope(SEASerializable):
 			Re-propagate before plotting, by default ``True``.
 		plt_ax : matplotlib axis, optional
 			Draw into an existing axis instead of creating one.
-		plane : int, optional
-			For ``kind='wave'``, which z-plane's intensity to image, by default ``-1``
-			(the last plane).
+		plane : int, float, or str, optional
+			Which plane to image. ``kind='wave'``/``'moments'``: an integer
+			z-plane index, ``None`` (default) meaning the last plane. The
+			scaled kinds: ``None`` draws the cross-section; an integer indexes
+			the logged planes, a float selects the nearest plane to that z
+			(metres), and a string a named position (e.g. ``"sample"``).
 
 		Returns
 		-------
 		None
 
+		Raises
+		------
+		ValueError
+			If ``kind`` is not one of the documented values.
+
 		Related
 		-------
-		propagate_ray, propagate_moments, propagate_wave
+		propagate_ray, propagate_moments, propagate_wave, wavefield_at
+		_scaled_wave_cross_section : The cross-section renderer.
 		"""
 		# --- ray diagram (unchanged behavior) ---
 		if kind in ("ray","rays"):
@@ -1374,23 +1471,51 @@ class Microscope(SEASerializable):
 		from .seashells import read_wavefield, make_wavefield_signal
 		ax = plt_ax if plt_ax is not None else plt.subplots()[1]
 		if kind in ("moments","envelope","covariance"):
+			idx = -1 if plane is None else plane
 			if self.covariance_matrix is None or regenerate:
 				self.propagate_moments()
-			self.covariance_matrix[plane].show(ax=ax)			# 6x6 covariance at one plane
+			self.covariance_matrix[idx].show(ax=ax)			# 6x6 covariance at one plane
 			if title:
 				ax.set_title(title)
 		elif kind == "wave":
+			idx = -1 if plane is None else plane
 			if self.wave is None or regenerate:
 				self.propagate_wave()
 			data, dx, dy, wavelength, zvals = read_wavefield(self.wave)
-			zval = float(zvals[plane]) if hasattr(zvals, "__len__") else 0.0
+			zval = float(zvals[idx]) if hasattr(zvals, "__len__") else 0.0
 			# wavefield is complex; show |E|^2 as a calibrated 2D wavefield Signal
-			make_wavefield_signal(xp.abs(data[plane])**2, dx, dy, wavelength, z=zval,
+			make_wavefield_signal(xp.abs(data[idx])**2, dx, dy, wavelength, z=zval,
 								  name="wavefield |E|^2").show(ax=ax)
 			if title:
 				ax.set_title(title)
+		elif kind in ("wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"):
+			mode = 'hybrid' if 'hybrid' in kind else 'scaled'
+			if getattr(self, "_wave_scaled_planes", None) is None or regenerate:
+				self.propagate_wave(mode=mode)
+			if plane is None:
+				# the wave analog of the ray diagram, with the same overlays
+				_scaled_wave_cross_section(
+					self._wave_scaled_planes, ax,
+					named_positions=self.named_positions,
+					crossovers=getattr(self, "crossovers", None),
+					title=title or (self.name or 'microscope') + f" {mode} wave |ψ(x, 0, z)|")
+			else:
+				if isinstance(plane, (int, xp.integer)) and not isinstance(plane, bool):
+					from .seashells import read_scaled_wavefield
+					from .waveoptics import reconstruct_physical_wave
+					U, dxi, deta, wavelength, s, R, tau, zval = \
+						read_scaled_wavefield(self._wave_scaled_planes[plane])
+					psi, dx, dy = reconstruct_physical_wave(U, dxi, deta, wavelength, s, R)
+				else:
+					# named position or z in metres -> nearest logged plane
+					psi, dx, dy, wavelength, zval = read_wavefield(self.wavefield_at(plane))
+				make_wavefield_signal(xp.abs(psi)**2, dx, dy, wavelength, z=zval,
+									  name="wavefield |ψ|^2").show(ax=ax)
+				if title:
+					ax.set_title(title)
 		else:
-			raise ValueError(f"Unknown show kind {kind!r}; expected 'ray', 'moments', or 'wave'.")
+			raise ValueError(f"Unknown show kind {kind!r}; expected 'ray', 'moments', 'wave', "
+							 "'wave-scaled', or 'wave-hybrid'.")
 		if filename is not None:
 			plt.gcf().savefig(filename)
 		elif plt_ax is None:

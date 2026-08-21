@@ -990,3 +990,31 @@ def test_astigmatic_line_foci_in_column_hybrid():
 	U1, dxi, deta, *_ = read_scaled_wavefield(mic._wave_scaled_planes[-1])
 	ratio = (np.abs(U1)**2).sum() / (np.abs(U0)**2).sum()
 	assert 0.90 < ratio <= 1.0 + 1e-12
+
+
+@pytest.mark.skipif(not sea_available, reason="Signal.show delegation requires sea_eco")
+def test_show_scaled_wave_kinds():
+	# show(kind='wave-scaled'/'wave-hybrid'): no plane -> the |psi(x,0,z)|
+	# cross-section (wave analog of the ray diagram, annotated); a plane
+	# (index, z, or name) -> reconstructed physical |psi|^2 via the wavefield
+	# Signal's own .show()
+	import matplotlib
+	matplotlib.use("Agg")
+	import matplotlib.pyplot as plt
+	mic = Microscope(sections=[MicroscopeSection(elements=_scaled_column())])
+	# cross-section into a provided axis: something must actually be drawn
+	fig, ax = plt.subplots()
+	mic.show(kind="wave-scaled", plt_ax=ax)
+	assert len(ax.collections) > 0				# the pcolormesh
+	assert ax.get_xlabel() == "z (mm)"
+	plt.close(fig)
+	# per-plane by z (metres): delegates to the reconstructed Signal's .show()
+	fig, ax = plt.subplots()
+	mic.show(kind="wave-scaled", plane=21e-3, regenerate=False, plt_ax=ax)
+	assert len(ax.images) > 0					# Signal.show imshow
+	plt.close(fig)
+	# per-plane by index (last logged plane)
+	fig, ax = plt.subplots()
+	mic.show(kind="wave_scaled", plane=-1, regenerate=False, plt_ax=ax)
+	assert len(ax.images) > 0
+	plt.close(fig)
