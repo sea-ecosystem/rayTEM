@@ -108,6 +108,37 @@ FFD (front focal distance) = -D/C
   diff `[0.17458, 0.30519, 0.50249, 0.72929, 0.91715]`,
   image `[0.19828, 0.49380, 0.53089, 0.73033, 0.91963]`.
 
+## 5b. Already validated — `examples/05_planeComparison.py`
+
+Before touching anything, all three methods were run side by side on
+`basic_column` trimmed past PL4. The script prints the table below and plots the
+densely sampled physical cross-section with the four reference rays overlaid and
+every method's planes marked.
+
+```
+family  analytic (mm)     ray (mm)  d_ray (um)   wave (mm)  d_wave (um)
+  diff      174.57772    174.57772         0.0   175.00000        422.3
+  diff      305.19199    305.19199         0.0   310.00000       4808.0
+  diff      502.48759    502.48759         0.0   503.35027        862.7
+  diff      729.28633    729.28633         0.0   729.96285        676.5
+  diff      917.14737    917.14737         0.0   919.55285       2405.5
+ image      198.28347    198.28347         0.0          --           --
+ image      493.60771    493.79577       188.1          --           --
+ image      530.89392    530.89392         0.0          --           --
+ image      730.32816    730.32816         0.0          --           --
+ image      919.62720    919.62720         0.0          --           --
+```
+
+- **Analytic and `findPlanes` agree to 0.0 um on 9 of 10 planes** — as expected,
+  since linear interpolation is exact in a drift.
+- **The one disagreement (188.1 um, image plane at 493.60771 mm) falls inside
+  OL1's body (490-500 mm)** — precisely the predicted failure mode. The script
+  flags such planes automatically.
+- The wave-frame column is shown for completeness only; its 0.4-4.8 mm offsets
+  come from the scaled path treating thick elements as thin-equivalent between
+  half-length drifts, which is a separate (documented) approximation on our side
+  and not a question about this note.
+
 ## 6. Open questions
 
 1. Where should it live — `postprocessing`, next to `findPlanes`, or as a
