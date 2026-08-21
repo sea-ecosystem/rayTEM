@@ -7,6 +7,15 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-21 — [Under Construction] Alias-free aperture + frame-policy refinements + anisotropic frames
+**Goal:** Remove the numerical "gridding" from hard-aperture runs while keeping the real Fresnel fringes (band-limited sampling of the exact Theta(a-r)); make the frame policy beam-support based; add direct frame jumps and anisotropic (s_x != s_y) frames.
+**Why:** Eric spotted an axis-aligned grid texture at the sample/detector (diagnosed: aliased above-Nyquist edge content, not wraparound; physics must stay); the padded-grid control exposed the grid-edge flatten criterion crashing into s_min; the two handoff follow-ups (jumps, anisotropy) were queued next.
+- [ ] alias-free aperture sampling (bandlimited_disk + antialiased masks)
+- [ ] beam-support guard + flatten thresholds (padded-grid regression)
+- [ ] crossover='jump' policy + measured default
+- [ ] anisotropic frames (quads absorb into R; line-focus crossovers)
+- [ ] docs/wiki + protocol finish
+
 ## 2026-08-20 — [Done] Scaled-frame switching through crossovers
 **Goal:** Full-column scaled propagation: a general frame-change primitive (Eric's Eq 5) plus a hybrid crossover policy (scaled -> flatten near focus -> ordinary Fresnel through it -> re-diverge), consolidated as propagate_wave(mode='fixed'|'scaled'|'hybrid').
 **Why:** The scaled run stops at C1's crossover (the frame's s->0 singularity), and the focal/back-focal/image planes — which sit AT the crossovers — are the most important planes.
