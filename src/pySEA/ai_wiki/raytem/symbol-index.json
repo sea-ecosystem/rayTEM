@@ -22,7 +22,7 @@
     "name": "aperture_mask",
     "qualname": "aperture_mask",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1395,
+    "source_lineno": 1400,
     "signature": "aperture_mask(field, dx, dy, radius, antialias)",
     "doc": "Apply a hard circular aperture to a field."
   },
@@ -76,7 +76,7 @@
     "name": "bandlimited_disk",
     "qualname": "bandlimited_disk",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1435,
+    "source_lineno": 1440,
     "signature": "bandlimited_disk(shape, dx, dy, radius)",
     "doc": "Exactly alias-free sampling of the sharp disk :math:`\\Theta(a - r)`."
   },
@@ -114,7 +114,7 @@
     "path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 921,
     "signature": "boundary_window(shape, margin)",
-    "doc": "Absorbing-boundary window: 1 in the interior, cosine \u2192 0 at the edge."
+    "doc": "Absorbing-boundary window: 1 in the interior, radial cosine \u2192 0 at the edge."
   },
   {
     "kind": "function",
@@ -697,7 +697,7 @@
     "name": "propagate_free_scaled",
     "qualname": "propagate_free_scaled",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 960,
+    "source_lineno": 965,
     "signature": "propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min, absorb)",
     "doc": "Propagate the scaled field U through one free segment of length ``dz``."
   },
@@ -706,7 +706,7 @@
     "name": "propagate_free_scaled_hybrid",
     "qualname": "propagate_free_scaled_hybrid",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1056,
+    "source_lineno": 1061,
     "signature": "propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross, safety, s_min, absorb, crossover)",
     "doc": "Propagate one free segment with automatic frame switching at crossovers."
   },
@@ -922,7 +922,7 @@
     "name": "test_anisotropic_line_foci_match_gaussian_q",
     "qualname": "test_anisotropic_line_foci_match_gaussian_q",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 823,
+    "source_lineno": 861,
     "signature": "test_anisotropic_line_foci_match_gaussian_q()",
     "doc": ""
   },
@@ -931,7 +931,7 @@
     "name": "test_anisotropic_seam_roundtrip",
     "qualname": "test_anisotropic_seam_roundtrip",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 885,
+    "source_lineno": 923,
     "signature": "test_anisotropic_seam_roundtrip()",
     "doc": ""
   },
@@ -958,7 +958,7 @@
     "name": "test_astigmatic_line_foci_in_column_hybrid",
     "qualname": "test_astigmatic_line_foci_in_column_hybrid",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 923,
+    "source_lineno": 961,
     "signature": "test_astigmatic_line_foci_in_column_hybrid()",
     "doc": ""
   },
@@ -967,7 +967,7 @@
     "name": "test_axis_helpers_scalar_pair_convention",
     "qualname": "test_axis_helpers_scalar_pair_convention",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 804,
+    "source_lineno": 842,
     "signature": "test_axis_helpers_scalar_pair_convention()",
     "doc": ""
   },
@@ -1048,8 +1048,17 @@
     "name": "test_beam_support_extent_and_guard",
     "qualname": "test_beam_support_extent_and_guard",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 731,
+    "source_lineno": 769,
     "signature": "test_beam_support_extent_and_guard()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_boundary_window_is_radially_symmetric",
+    "qualname": "test_boundary_window_is_radially_symmetric",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 706,
+    "signature": "test_boundary_window_is_radially_symmetric()",
     "doc": ""
   },
   {
@@ -1228,7 +1237,7 @@
     "name": "test_full_column_aperture_interior_is_clean",
     "qualname": "test_full_column_aperture_interior_is_clean",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 706,
+    "source_lineno": 728,
     "signature": "test_full_column_aperture_interior_is_clean()",
     "doc": ""
   },
@@ -1273,7 +1282,7 @@
     "name": "test_jump_policy_through_focus_optical",
     "qualname": "test_jump_policy_through_focus_optical",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 770,
+    "source_lineno": 808,
     "signature": "test_jump_policy_through_focus_optical()",
     "doc": ""
   },
@@ -1291,7 +1300,7 @@
     "name": "test_padded_grid_hybrid_completes",
     "qualname": "test_padded_grid_hybrid_completes",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 749,
+    "source_lineno": 787,
     "signature": "test_padded_grid_hybrid_completes()",
     "doc": ""
   },
@@ -1363,7 +1372,7 @@
     "name": "test_pseudo_isotropic_pair_matches_scalar_path",
     "qualname": "test_pseudo_isotropic_pair_matches_scalar_path",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 866,
+    "source_lineno": 904,
     "signature": "test_pseudo_isotropic_pair_matches_scalar_path()",
     "doc": ""
   },
@@ -1444,7 +1453,7 @@
     "name": "test_strong_stigmator_absorbed_runs",
     "qualname": "test_strong_stigmator_absorbed_runs",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 903,
+    "source_lineno": 941,
     "signature": "test_strong_stigmator_absorbed_runs()",
     "doc": ""
   },
