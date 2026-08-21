@@ -71,12 +71,12 @@ def test_phase_shift_scaled_split():
 	# Lens: full 1/f absorbed into R, nothing on U (handoff Eqs 15/45)
 	power, screen = Lens(strength=6.0, length=0.0).phase_shift(GRID, LAM, scaled=True)
 	assert np.isclose(power, 36.0) and screen is None
-	# Quadrupole: nothing absorbed, full saddle applied to U (Eqs 47-48)
-	power, screen = Quadrapole(strength=2.0, length=0.0).phase_shift(GRID, LAM, scaled=True, s=0.5)
-	assert power == 0.0 and screen is not None and phase_space_of(screen) == "position"
-	# at s=0.5 the physical coordinates shrink -> phase shrinks by s^2 vs s=1
-	_, screen1 = Quadrapole(strength=2.0, length=0.0).phase_shift(GRID, LAM, scaled=True, s=1.0)
-	assert np.allclose(screen.data, 0.25 * screen1.data)
+	# Quadrupole: per-axis powers absorbed into (R_x, R_y), nothing on U —
+	# the saddle is quadratic per axis, so the anisotropic frame holds all of it
+	quad = Quadrapole(strength=2.0, length=0.0)
+	power, screen = quad.phase_shift(GRID, LAM, scaled=True, s=0.5)
+	assert screen is None and power == quad.focal_powers()
+	assert power[0] == -power[1] and power[0] != 0
 	# Dipole: nothing absorbed, full linear phase applied to U
 	power, screen = Dipole(strength=1e-6, axis="y").phase_shift(GRID, LAM, scaled=True)
 	assert power == 0.0 and screen is not None
@@ -880,3 +880,75 @@ def test_pseudo_isotropic_pair_matches_scalar_path():
 	assert [t.split("-")[0] for t in [e[0] for e in lga]] == \
 		   [e[0] for e in lgi] or len(lga) == 2 * len(lgi)
 	assert np.allclose(Ua, Ui, atol=1e-12 * np.abs(Ui).max())
+
+
+def test_anisotropic_seam_roundtrip():
+	# per-axis frame state survives the Signal seam (per-axis metadata keys),
+	# and isotropic planes keep the scalar keys (old files load unchanged)
+	from pySEA.rayTEM.seashells import (make_scaled_wavefield_signal, read_scaled_wavefield,
+										scaled_frame_crossover)
+	U = np.ones((8, 8), complex)
+	sig = make_scaled_wavefield_signal(U, 1e-7, 1e-7, LAM, s=(0.5, 2.0), R=(-0.1, np.inf),
+									   tau=(1e-3, 2e-3), z=0.3, z_cross=(0.4, None))
+	U2, dxi, deta, lam, s, R, tau, z = read_scaled_wavefield(sig)
+	assert s == (0.5, 2.0) and R == (-0.1, np.inf) and tau == (1e-3, 2e-3)
+	assert scaled_frame_crossover(sig) == (0.4, None)
+	iso = make_scaled_wavefield_signal(U, 1e-7, 1e-7, LAM, s=0.5, R=-0.1, tau=1e-3, z=0.3)
+	assert read_scaled_wavefield(iso)[4] == 0.5		# scalar key path intact
+	if sea_available:
+		meta = iso.metadata.to_dict()
+		assert "s" in meta and "s_x" not in meta
+
+
+def test_strong_stigmator_absorbed_runs():
+	# a quadrupole this strong used to alias its saddle screen on the scaled
+	# grid (loud guard error); absorbed into (R_x, R_y) it has no sampling
+	# limit at all — the run completes with an anisotropic frame
+	K = np.sqrt(1 / 5e-3)		# |P| = K^2 = 200 /m (f = +-5 mm)
+	sec = MicroscopeSection(elements=[
+		Source(voltage=200, wave_shape=(64, 64), wave_extent=64 * 2.5e-7,
+			   wave_kind="aperture", aperture_radius=5e-6),
+		Drift(length=1e-3), Quadrapole(strength=K, length=0.0), Drift(length=2e-3)])
+	sec.propagate_wave(mode="scaled")
+	U, dxi, deta, lam, s, R, tau, z = read_scaled_wavefield(sec._wave_scaled_planes[-1])
+	assert np.ndim(R) == 1 and R[0] != R[1]			# anisotropic curvature state
+	assert np.ndim(s) == 1 and s[0] != s[1]			# axes evolve independently
+	# energy conserved in the reduced field (U untouched by the quad; the
+	# default absorbing boundary removes only a sliver of edge halo)
+	src_U = read_scaled_wavefield(sec._wave_scaled_planes[0])[0]
+	assert np.isclose((np.abs(U)**2).sum(), (np.abs(src_U)**2).sum(), rtol=1e-3)
+
+
+@pytest.mark.skipif(not sea_available, reason="SignalSet companions require sea_eco")
+def test_astigmatic_line_foci_in_column_hybrid():
+	# round lens + weak quadrupole -> two line foci at per-axis f_eff, both
+	# logged by the hybrid engine and listed on Microscope.crossovers; the
+	# stacked SignalSet switches to per-axis frame companions
+	f = 45e-3
+	Kq = np.sqrt(2.0)			# |P| = 2 /m astigmatism on top of 1/f = 22.2 /m
+	src = Source(voltage=200, wave_shape=(64, 64), wave_extent=64 * 2.5e-7,
+				 wave_kind="aperture", aperture_radius=5e-6)
+	quad = Quadrapole(strength=Kq, length=0.0)
+	P_x, P_y = quad.focal_powers()
+	z_lens = 1e-3
+	fx = 1 / (1 / f + P_x)
+	fy = 1 / (1 / f + P_y)
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		src, Drift(length=z_lens), Lens(strength=np.sqrt(1 / f), length=0.0), quad,
+		Drift(length=60e-3)])])
+	mic.propagate_wave(mode="hybrid")
+	from pySEA.rayTEM.seashells import scaled_frame_tag
+	tags = {scaled_frame_tag(p): read_scaled_wavefield(p)[7]
+			for p in mic._wave_scaled_planes if scaled_frame_tag(p)}
+	assert np.isclose(tags["crossover-x"], z_lens + fx, atol=1e-9)
+	assert np.isclose(tags["crossover-y"], z_lens + fy, atol=1e-9)
+	assert sorted(mic.crossovers) == sorted([tags["crossover-x"], tags["crossover-y"]])
+	names = mic.wave_scaled.get_dataset_names()
+	assert names == ["U", "s_x", "s_y", "R_x", "R_y", "tau_x", "tau_y", "frame"]
+	# energy accounted for across the whole astigmatic ride: conserved up to
+	# the aperture-edge halo the absorbing boundary honestly removes during
+	# the two deep line-focus rides (measured ~6.6% on this 64^2 grid)
+	U0 = read_scaled_wavefield(mic._wave_scaled_planes[0])[0]
+	U1, dxi, deta, *_ = read_scaled_wavefield(mic._wave_scaled_planes[-1])
+	ratio = (np.abs(U1)**2).sum() / (np.abs(U0)**2).sum()
+	assert 0.90 < ratio <= 1.0 + 1e-12

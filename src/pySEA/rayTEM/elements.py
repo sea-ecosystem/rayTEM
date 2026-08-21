@@ -333,13 +333,15 @@ class Element(SEASerializable):
 			``[kernel(L/2), screen(χ), kernel(L/2)]``.
 			``True`` → return the scaled-representation split ``(power,
 			screen)``: ``power`` is the focusing power absorbed into the
-			curvature state (``1/R⁺ = 1/R⁻ − power``, handoff Eq 45) and
-			``screen`` is the phase applied explicitly to U (handoff Eqs 47–48;
-			``None`` when fully absorbed), evaluated at physical coordinates
+			curvature state (``1/R⁺ = 1/R⁻ − power``, handoff Eq 45) — a
+			per-axis ``(P_x, P_y)`` pair for astigmatic elements, absorbed
+			into the anisotropic curvature ``(R_x, R_y)`` — and ``screen`` is
+			the phase applied explicitly to U (handoff Eqs 47–48; ``None``
+			when fully absorbed), evaluated at physical coordinates
 			``x = s·ξ``.
-		s : float, optional
-			Current transverse scale factor (used only when ``scaled=True``),
-			by default 1.
+		s : float or Sequence[float], optional
+			Current transverse scale factor (used only when ``scaled=True``);
+			an ``(s_x, s_y)`` pair on an anisotropic frame, by default 1.
 
 		Returns
 		-------
@@ -668,13 +670,20 @@ class Element(SEASerializable):
 		propagate_wave : The mode-dispatching public method.
 		"""
 		from .waveoptics import (propagate_free_scaled, propagate_free_scaled_hybrid,
-								 apply_thin_lens_scaled, apply_phase)
+								 apply_thin_lens_scaled, apply_phase,
+								 axis_components, join_axes)
 		from .seashells import (make_scaled_wavefield_signal, read_scaled_wavefield,
 								scaled_frame_crossover, phase_space_of)
 		U, dxi, deta, wavelength, s, R, tau, z = read_scaled_wavefield(signal)
 		z = z if z is not None else 0.0
 		z_cross = scaled_frame_crossover(signal)
 		name = getattr(signal, "name", "scaled wavefield")
+
+		def tau_add(t, dt):
+			# scalar-or-pair addition (anisotropic frames carry per-axis tau)
+			tx, ty = axis_components(t)
+			dtx, dty = axis_components(dt)
+			return join_axes(tx + dtx, ty + dty)
 
 		def free(U, s, R, tau, z, z_cross, dz):
 			if dz == 0:
@@ -686,19 +695,19 @@ class Element(SEASerializable):
 				if log is not None:
 					for tag, U_l, s_l, R_l, dt_l, z_l, zc_l in logged:
 						log.append(make_scaled_wavefield_signal(
-							U_l, dxi, deta, wavelength, s_l, R_l, tau + dt_l,
+							U_l, dxi, deta, wavelength, s_l, R_l, tau_add(tau, dt_l),
 							z=z_l, z_cross=zc_l, tag=tag, name=name))
-				tau += dt
+				tau = tau_add(tau, dt)
 			else:
 				U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R,
 													s_min=s_min, absorb=absorb)
-				tau += dt ; z += dz
+				tau = tau_add(tau, dt) ; z += dz
 			return U, s, R, tau, z, z_cross
 
 		L = getattr(self, "length", 0)
 		U, s, R, tau, z, z_cross = free(U, s, R, tau, z, z_cross, L / 2 if L != 0 else 0)
 		power, screen = self.phase_shift((U.shape, dxi, deta), wavelength, scaled=True, s=s)
-		if power != 0:
+		if xp.ndim(power) > 0 or power != 0:		# scalar or per-axis (quadrupole) power
 			s, R = apply_thin_lens_scaled(s, R, power)
 		if screen is not None:
 			_check_screen_sampling(screen.data, self.name or type(self).__name__)
@@ -1516,20 +1525,21 @@ class Quadrapole(Element):
 		-------
 		list or tuple
 			``scaled=False``: ``[kernel(L/2), screen(χ), kernel(L/2)]``.
-			``scaled=True``: ``(0.0, screen)`` — the scalar curvature R can only
-			hold an ``(x²+y²)``-shaped phase and the saddle contains none of it,
-			so nothing is absorbed and the full phase is applied to U
-			(handoff Eqs 47–48). ``(0.0, None)`` at zero strength.
+			``scaled=True``: ``((P_x, P_y), None)`` — the per-axis powers are
+			absorbed into the anisotropic curvature state ``(R_x, R_y)``
+			exactly like a round lens absorbs one power into one curvature
+			(``1/R_a⁺ = 1/R_a⁻ − P_a`` per axis), so the saddle never touches
+			the sampled field U and arbitrarily strong quadrupoles carry no
+			sampling limit. ``(0.0, None)`` at zero strength.
 		"""
 		from .waveoptics import quadratic_phase
 		from .seashells import grid_of
 		P_x, P_y = self.focal_powers()
-		ny, nx, dy, dx = grid_of(dimensions)
 		if scaled:
 			if P_x == 0 and P_y == 0:
 				return 0.0, None
-			chi = quadratic_phase((ny, nx), s * dx, s * dy, wavelength, P_x, P_y)
-			return 0.0, _screen_item(chi, dx, dy, self.name or "quadrupole")
+			return (float(P_x), float(P_y)), None
+		ny, nx, dy, dx = grid_of(dimensions)
 		chi = quadratic_phase((ny, nx), dx, dy, wavelength, P_x, P_y) if (P_x or P_y) else None
 		return self._phase_program(dimensions, wavelength, chi, self.name or "quadrupole")
 
@@ -1687,14 +1697,15 @@ class Dipole(Element):
 			so nothing is absorbed into R and the full tilt is applied to U
 			(handoff Eqs 47–48). ``(0.0, None)`` at zero strength.
 		"""
-		from .waveoptics import linear_phase
+		from .waveoptics import linear_phase, axis_components
 		from .seashells import grid_of
 		tilt_x, tilt_y = self.effective_tilts()
 		ny, nx, dy, dx = grid_of(dimensions)
 		if scaled:
 			if tilt_x == 0 and tilt_y == 0:
 				return 0.0, None
-			chi = linear_phase((ny, nx), s * dx, s * dy, wavelength, tilt_x, tilt_y)
+			s_x, s_y = axis_components(s)		# per-axis physical pitch on anisotropic frames
+			chi = linear_phase((ny, nx), s_x * dx, s_y * dy, wavelength, tilt_x, tilt_y)
 			return 0.0, _screen_item(chi, dx, dy, self.name or "dipole")
 		chi = linear_phase((ny, nx), dx, dy, wavelength, tilt_x, tilt_y) if (tilt_x or tilt_y) else None
 		return self._phase_program(dimensions, wavelength, chi, self.name or "dipole")
