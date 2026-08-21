@@ -10,7 +10,7 @@
 | SEASerializable (sea_eco absent) | 58 |
 | Module-level functions | 64 |
 |   Signal factories and readers (the wave/rays/covariance seam) | 66 |
-|   `safeReinstantiate(source, cls)` | 95 |
+|   `safeReinstantiate(source, cls)` | 102 |
 <!-- END AUTO-GENERATED TOC -->
 
 # seashells.py
@@ -76,12 +76,19 @@ warning) when sea_eco is absent:
   `read_scaled_wavefield(signal)` (+ `_ScaledWavefield` fallback) — the
   in-flight scaled-Fresnel state: U on ξ/η Dimensions carrying Δξ/Δη as their
   scale; `s`/`R_m`/`tau`/`z_m`/`wavelength_m` mirrored in metadata for
-  parse-free read-back.
+  parse-free read-back. Anisotropic frames store per-axis keys instead
+  (`s_x`/`s_y`, `R_x_m`/`R_y_m`, `tau_x`/`tau_y`, `z_cross_x_m`/`z_cross_y_m`)
+  and read back as `(x, y)` pairs; isotropic planes keep the scalar keys, so
+  old files load unchanged. `scaled_frame_crossover` / `scaled_frame_tag`
+  read the hybrid engine's crossover marker and event tags.
 - `make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, name)` —
   stacked scaled result: main Signal `U` `(n_planes, nη, nξ)` plus companion
   1-D `s(z)`/`R(z)`/`tau(z)` Signals sharing the unstructured plane-z axis
-  (same pattern as `make_rays_signalset`). Access by name:
-  `sset["U"]`, `sset["s"]`, ... (`get_dataset_names()`).
+  (same pattern as `make_rays_signalset`); per-plane entries may be per-axis
+  pairs, in which case that companion splits into `s_x`/`s_y` (etc.). With
+  `tags` given, a `frame` companion counts frame switches (flatten/rediverge/
+  jump, axis-suffixed included) and the tags land in `plane_tags` metadata.
+  Access by name: `sset["U"]`, `sset["s"]`, ... (`get_dataset_names()`).
 - `make_rays_signalset(rays, I, R, components, name)` — rays + I + R on shared
   plane-z/ray axes.
 - `make_covariance_signal(covariance, z, components, name)` — per-plane Σ stack.

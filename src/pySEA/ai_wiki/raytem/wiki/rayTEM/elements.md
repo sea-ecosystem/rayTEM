@@ -11,36 +11,36 @@
 |   `Element.transfer_matrix(self)` | 100 |
 |   `Element.propagate_ray(self, r0, z, z0)` | 104 |
 |   `Element.phase_shift(self, dimensions, wavelength, scaled=False, s=1.0)` | 110 |
-|   `Element.propagate_wave(self, signal, mode='fixed', s_min=1e-3, log=None)` | 131 |
-|   `Element.propagate(self, *args, kind='ray', **kwargs)` | 152 |
-| Source | 161 |
-|   `Source.__init__(self, name, size, np_xy, angle, na_xy, position)` | 165 |
-|   `Source.rays(self)` | 172 |
-|   `Source.propagate_ray(self, r0, **kwargs)` | 176 |
-|   `Source.wave(self, mode='fixed')` / `Source._aperture_wave(self, radius)` | 180 |
-| Aperture | 194 |
-|   `Aperture.__init__(self, name, radius, calibration, position)` | 198 |
-|   `Aperture.propagate_ray(self, r0, z, z0)` | 202 |
-|   `Aperture.propagate_wave(self, signal, mode='fixed', ...)` | 206 |
-| Drift | 216 |
-|   `Drift.__init__(self, name, length, calibration, position)` | 220 |
-|   `Drift.transfer_matrix(self)` | 224 |
-| Quadrapole | 230 |
-|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 234 |
-|   `Quadrapole.transfer_matrix(self)` | 238 |
-| Dipole | 244 |
-|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 248 |
-|   `Dipole.transfer_matrix(self)` | 252 |
-|   `Dipole.propagate_ray(self, r0, z, z0)` | 256 |
-| Lens | 262 |
-|   `Lens.__init__(self, name, length, strength, calibration, position)` | 266 |
-|   `Lens.transfer_matrix(self)` | 274 |
-|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 281 |
-| Prism | 287 |
-|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 291 |
-|   `Prism.focus_matrix(self)` | 295 |
-|   `Prism.bending_matrix(self, s)` | 299 |
-|   `Prism.transfer_matrix(self)` | 303 |
+|   `Element.propagate_wave(self, signal, mode='fixed', s_min=1e-3, log=None, absorb=0.1, crossover='flat')` | 134 |
+|   `Element.propagate(self, *args, kind='ray', **kwargs)` | 162 |
+| Source | 171 |
+|   `Source.__init__(self, name, size, np_xy, angle, na_xy, position)` | 175 |
+|   `Source.rays(self)` | 182 |
+|   `Source.propagate_ray(self, r0, **kwargs)` | 186 |
+|   `Source.wave(self, mode='fixed')` / `Source._aperture_wave(self, radius)` | 190 |
+| Aperture | 204 |
+|   `Aperture.__init__(self, name, radius, calibration, position)` | 208 |
+|   `Aperture.propagate_ray(self, r0, z, z0)` | 212 |
+|   `Aperture.propagate_wave(self, signal, mode='fixed', ...)` | 216 |
+| Drift | 226 |
+|   `Drift.__init__(self, name, length, calibration, position)` | 230 |
+|   `Drift.transfer_matrix(self)` | 234 |
+| Quadrapole | 240 |
+|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 244 |
+|   `Quadrapole.transfer_matrix(self)` | 248 |
+| Dipole | 254 |
+|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 258 |
+|   `Dipole.transfer_matrix(self)` | 262 |
+|   `Dipole.propagate_ray(self, r0, z, z0)` | 266 |
+| Lens | 272 |
+|   `Lens.__init__(self, name, length, strength, calibration, position)` | 276 |
+|   `Lens.transfer_matrix(self)` | 284 |
+|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 291 |
+| Prism | 297 |
+|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 301 |
+|   `Prism.focus_matrix(self)` | 305 |
+|   `Prism.bending_matrix(self, s)` | 309 |
+|   `Prism.transfer_matrix(self)` | 313 |
 <!-- END AUTO-GENERATED TOC -->
 
 # elements.py
@@ -119,8 +119,11 @@ returns the split `(power, screen)`: `power` is absorbed into the curvature
 state (Eq 45) and `screen` is the non-absorbable phase applied explicitly to U
 at physical coords x = s·ξ (Eqs 47–48; `None` when fully absorbed).
 Definitions: Lens χ = −k(x²+y²)/2f (scaled: full 1/f → R, no screen);
-Quadrapole χ = −k(x²−y²)/2f_q saddle (scaled: nothing absorbed, full screen);
-Dipole χ = k(θ_x·x + θ_y·y) (scaled: full screen); Drift reciprocal kernel
+Quadrapole χ = −k(x²−y²)/2f_q saddle (scaled: per-axis powers ((P_x, P_y),
+None) absorbed into the **anisotropic** curvature (R_x, R_y) — no screen, no
+sampling limit, arbitrarily strong stigmators run);
+Dipole χ = k(θ_x·x + θ_y·y) (scaled: full screen, evaluated at per-axis
+physical pitch s_x·dξ / s_y·dη on anisotropic frames); Drift reciprocal kernel
 (scaled: `(0.0, None)` — the driver runs the free segment). The base `Element`
 is **transparent** (the wave analog of the identity matrix): a phase of
 nothing plus free transport over its `length` — fixed path returns a single
@@ -128,7 +131,7 @@ full-length kernel (empty program at zero length), scaled path returns
 `(0.0, None)`. Source/Aperture/Prism override it to fail loudly because their
 wave action is not a phase.
 
-### `Element.propagate_wave(self, signal, mode='fixed', s_min=1e-3, log=None)`
+### `Element.propagate_wave(self, signal, mode='fixed', s_min=1e-3, log=None, absorb=0.1, crossover='flat')`
 
 The one wave method covering all three representations via `mode`:
 
@@ -146,8 +149,15 @@ The one wave method covering all three representations via `mode`:
   (back-focal) plane, and re-diverges past it. Interior planes are appended to
   the optional `log` list as tagged scaled Signals.
 
-Internally split into `_propagate_wave_fixed` / `_propagate_wave_scaled`.
-Larmor rotation is not applied to the wavefield (documented approximation).
+`absorb` is the absorbing-boundary margin for the free segments (default 0.1;
+0 disables — pure periodic FFT); `crossover` picks the hybrid traversal policy
+(`'flat'` default, `'jump'` for direct mirror frame jumps — see the waveoptics
+wiki for the measured guidance). Frame state is scalar-or-pair throughout: a
+quadrupole makes the frame anisotropic (per-axis s/R/τ, line-focus events
+tagged `flatten-x`/`crossover-y`/…), while round-lens columns stay scalar
+bit-for-bit. Internally split into `_propagate_wave_fixed` /
+`_propagate_wave_scaled`. Larmor rotation is not applied to the wavefield
+(documented approximation).
 
 ### `Element.propagate(self, *args, kind='ray', **kwargs)`
 
