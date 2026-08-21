@@ -86,7 +86,7 @@ def _stack_scaled_wavefields(planes, name="scaled wave"):
 
 
 def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None,
-							   title=None):
+							   image_planes=None, title=None):
 	"""Draw the |ψ(x, y=0, z)| cross-section of a scaled-wave run into an axis.
 
 	The wave analog of the geometric ray diagram: each logged plane is
@@ -107,7 +107,12 @@ def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None
 	named_positions : dict, optional
 		``{label: z}`` element annotations (white dashed), by default none.
 	crossovers : Sequence[float], optional
-		Crossover (focal-plane) z positions (cyan dotted), by default none.
+		Crossover z positions of the family the wave's own frame follows —
+		the diffraction / back-focal planes for the usual flat-wavefront seed
+		(cyan dotted), by default none.
+	image_planes : Sequence[float], optional
+		The conjugate family: image-plane z positions from
+		:meth:`Microscope.conjugate_planes` (magenta dashed), by default none.
 	title : str, optional
 		Axis title, by default none.
 
@@ -159,11 +164,16 @@ def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None
 			ax.axvline(zp * 1e3, color="w", lw=0.6, ls="--", alpha=0.6)
 			ax.text(zp * 1e3, half * 1e6 * 0.95, label, color="w", rotation=90,
 					ha="right", va="top", fontsize=7)
-	if crossovers:
+	if crossovers is not None and len(crossovers):
 		for zc in crossovers:
 			ax.axvline(zc * 1e3, color="cyan", lw=0.8, ls=":", alpha=0.9)
 			ax.text(zc * 1e3, -half * 1e6 * 0.95, "crossover", color="cyan",
 					rotation=90, ha="right", va="bottom", fontsize=7)
+	if image_planes is not None and len(image_planes):
+		for zi in image_planes:
+			ax.axvline(zi * 1e3, color="magenta", lw=0.8, ls="-.", alpha=0.9)
+			ax.text(zi * 1e3, -half * 1e6 * 0.95, "image", color="magenta",
+					rotation=90, ha="left", va="bottom", fontsize=7)
 	if title:
 		ax.set_title(title)
 
@@ -748,7 +758,7 @@ class Microscope(SEASerializable):
 		self.mu = None ; self.covariance_matrix = None	# beam-envelope mode results
 		self.wave = None								# wave-optics mode result (complex wavefield Signal)
 		self.wave_scaled = None							# scaled-Fresnel mode result (SignalSet: U + s/R/tau)
-		self.crossovers = None							# focal-plane z positions found by the hybrid wave run
+		self.crossovers = None							# focal planes logged by the hybrid wave run: the conjugate family the wave's own frame follows (diffraction/back-focal for the usual flat seed). conjugate_planes() gives both families.
 		if self.sections is not None and len(self.sections)>1: # check if consecutive sections are correct length. if not, insert drift at tail of first one
 			for s,s2 in zip(self.sections[:-1],self.sections[1:]):
 				if s.position+s.length<s2.position:
@@ -1106,6 +1116,82 @@ class Microscope(SEASerializable):
 											  position=sec.position))
 		return Microscope(name=scope.name, sections=sections)
 
+	def conjugate_planes(self, axis:Literal['x','y']='x', x0:float=1e-6,
+						 theta0:float=1e-6) -> dict:
+		r"""Locate this column's image and diffraction (back-focal) planes, in metres.
+
+		A column has **two** independent families of conjugate planes, set by
+		the two independent reference rays of its transfer matrices:
+
+		- **diffraction** (back-focal / reciprocal) planes — where rays that
+		  entered *parallel to the axis* (zero angle, finite position) converge;
+		- **image** planes — where rays that left a single *on-axis point*
+		  (zero position, finite angle) re-converge.
+
+		They interleave and neither is derivable from a single lens's focal
+		length: each crossing reflects the whole upstream system. This traces
+		the four reference rays of :func:`postprocessing.findPlanes` (the
+		repo-wide convention for the two families) on a **copy**, so this
+		object's own ``rays``/``I``/``R`` are left untouched, and converts
+		``findPlanes``' fractional plane indices to metres with
+		:func:`postprocessing.zFromFractional`.
+
+		Parameters
+		----------
+		axis : {'x', 'y'}, optional
+			Transverse axis to analyze, by default ``'x'``. Round optics give
+			the same answer on both; astigmatic optics do not.
+		x0 : float, optional
+			Off-axis height of the parallel (diffraction) reference ray pair
+			(metres), by default 1e-6. Paraxial, so the value only sets scale.
+		theta0 : float, optional
+			Angle of the on-axis (image) reference ray pair (radians), by
+			default 1e-6.
+
+		Returns
+		-------
+		dict
+			``{'diff': ndarray, 'image': ndarray}`` — the z positions (metres)
+			of the diffraction and image planes, in column order.
+
+		Related
+		-------
+		crossovers : The focal planes the hybrid wave run logs exactly — the
+			family matching the wave's own seeded frame (the diffraction
+			family for the usual flat-wavefront seed).
+		show : Annotates both families on the scaled cross-section.
+		postprocessing.findPlanes : Does the ray-side plane detection.
+
+		Notes
+		-----
+		The scaled-wave frame follows exactly one of these families — whichever
+		its seed belongs to (``Source.wave`` seeds ``s=1, R=inf``, a parallel
+		wavefront, hence the diffraction family). The other family is still
+		reconstructable at will: pass these positions to
+		:meth:`show` / :meth:`subdivided` as ``zpts`` to log them exactly, e.g.
+		``scope.show(kind='wave-hybrid', zpts=scope.conjugate_planes()['image'])``.
+
+		Examples
+		--------
+		>>> planes = scope.conjugate_planes()            # doctest: +SKIP
+		>>> planes['image'], planes['diff']              # doctest: +SKIP
+		"""
+		scope = deepcopy(self)			# a reference trace must not clobber self.rays
+		xi = columnByName('x' if axis == 'x' else 'y')
+		ti = columnByName('xt' if axis == 'x' else 'yt')
+		r0 = xp.zeros((4, len(convention)))
+		r0[0, xi] = x0 ; r0[1, xi] = -x0			# diffraction pair: parallel in
+		r0[2, ti] = theta0 ; r0[3, ti] = -theta0	# image pair: from an on-axis point
+		scope.propagate_ray(r0=r0)
+		zs = scope.rays[:, 0, columnByName('z')]
+		found = findPlanes(scope.rays, scope.R, axis=axis)[axis]
+		out = {}
+		for family in ('diff', 'image'):
+			# clamp so an index landing exactly on the last plane stays in range
+			idx = [min(float(f), len(zs) - 1 - 1e-9) for f in found[family]['z']]
+			out[family] = xp.asarray([zFromFractional(zs, f) for f in idx])
+		return out
+
 	def propagate_ray(self, r0:xp.ndarray=None, z: float = None, verbose=False):
 		"""Propagate rays through every section, carrying intensity/rotation across boundaries.
 
@@ -1375,7 +1461,7 @@ class Microscope(SEASerializable):
 
 	def show(self, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray",
 			 filename=None, title=None, ylims=None, zlims=None, regenerate=True, plt_ax=None,
-			 plane:int|float|str=None, zpts=None):
+			 plane:int|float|str=None, zpts=None, conjugates:bool=True):
 		"""Visualize a propagation result.
 
 		``kind="ray"`` draws the usual ray diagram (with element/plane overlays).
@@ -1421,6 +1507,11 @@ class Microscope(SEASerializable):
 			existing one. The copy is propagated on the spot and discarded —
 			this object's own stored result is never touched (so ``regenerate``
 			does not apply to it).
+		conjugates : bool, optional
+			Scaled cross-section only: also annotate the **image** planes from
+			:meth:`conjugate_planes` (magenta dash-dot) alongside the wave
+			run's own crossovers (cyan dotted), by default True. Costs one
+			four-ray reference trace on a copy.
 
 		Returns
 		-------
@@ -1494,10 +1585,14 @@ class Microscope(SEASerializable):
 				self.propagate_wave(mode=mode)
 			if plane is None:
 				# the wave analog of the ray diagram, with the same overlays
+				images = None
+				if conjugates:
+					images = scope.conjugate_planes(axis='x')['image']
 				_scaled_wave_cross_section(
 					scope._wave_scaled_planes, ax,
 					named_positions=scope.named_positions,
 					crossovers=getattr(scope, "crossovers", None),
+					image_planes=images,
 					title=title or (self.name or 'microscope') + f" {mode} wave |ψ(x, 0, z)|")
 			else:
 				if isinstance(plane, (int, xp.integer)) and not isinstance(plane, bool):

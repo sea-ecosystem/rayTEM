@@ -1068,3 +1068,59 @@ def test_show_zpts_uses_temporary_dense_copy():
 	# zpts is rejected where it has no meaning
 	with pytest.raises(ValueError, match="only supported for the scaled wave kinds"):
 		mic.show(kind="ray", zpts=1e-3)
+
+
+def test_conjugate_planes_both_families_compound():
+	# A column has TWO conjugate families and neither follows from a single
+	# lens's f: with collimated input through f1=45mm then f2=30mm at 100mm
+	# spacing, the second diffraction plane is the IMAGE of the first crossover
+	# (176 mm), not z_L2 + f2 (140 mm). The hybrid wave frame is seeded flat
+	# (a parallel wavefront), so its crossovers are the DIFFRACTION family;
+	# conjugate_planes() exposes both.
+	f1, f2, d0, d = 45e-3, 30e-3, 10e-3, 100e-3
+	z_diff1 = d0 + f1										# 55 mm
+	R2 = 1 / (1 / (d - f1) - 1 / f2)						# frame curvature after L2
+	z_diff2 = d0 + d + abs(R2)								# 176 mm (compound!)
+	assert not np.isclose(z_diff2, d0 + d + f2)				# NOT simply z_L2 + f2
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200, wave_shape=(64, 64), wave_extent=64 * 2.5e-7,
+			   wave_kind="aperture", aperture_radius=5e-6),
+		Drift(length=d0), Lens(strength=np.sqrt(1 / f1), length=0.0, name="L1"),
+		Drift(length=d), Lens(strength=np.sqrt(1 / f2), length=0.0, name="L2"),
+		Drift(length=100e-3)])])
+	mic.propagate_wave(mode="hybrid")
+	assert np.allclose(mic.crossovers, [z_diff1, z_diff2], atol=1e-9)
+
+	planes = mic.conjugate_planes(axis="x")
+	# the ray-side diffraction family reproduces the wave crossovers exactly
+	assert np.allclose(planes["diff"], [z_diff1, z_diff2], atol=1e-9)
+	# and the image family is a genuinely different set of planes
+	assert len(planes["image"]) > 0
+	for zi in planes["image"]:
+		assert min(abs(zi - np.array(mic.crossovers))) > 1e-3
+	# the reference trace must not disturb this object's own ray result
+	assert mic.rays is None or True			# (no ray run was requested here)
+	mic.propagate_ray()
+	before = mic.rays.copy()
+	mic.conjugate_planes(axis="x")
+	assert np.array_equal(mic.rays, before)
+
+
+@pytest.mark.skipif(not sea_available, reason="requires sea_eco")
+def test_conjugate_planes_feed_zpts_to_log_image_planes():
+	# the documented composition: image planes are logged exactly by handing
+	# conjugate_planes' positions to show/subdivided as zpts
+	f1, f2 = 45e-3, 30e-3
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200, wave_shape=(64, 64), wave_extent=64 * 2.5e-7,
+			   wave_kind="aperture", aperture_radius=5e-6),
+		Drift(length=10e-3), Lens(strength=np.sqrt(1 / f1), length=0.0),
+		Drift(length=100e-3), Lens(strength=np.sqrt(1 / f2), length=0.0),
+		Drift(length=100e-3)])])
+	zi = mic.conjugate_planes(axis="x")["image"]
+	assert len(zi)						# this compound column has a real image plane
+	dense = mic.subdivided(zi)
+	dense.propagate_wave(mode="hybrid")
+	zs = np.array([read_scaled_wavefield(p)[7] for p in dense._wave_scaled_planes])
+	for z in zi:
+		assert min(abs(zs - z)) < 1e-9		# requested image planes are logged exactly
