@@ -531,7 +531,7 @@ class _ScaledWavefield:
 
 
 def make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=None,
-								 z_cross=None, name="scaled wavefield"):
+								 z_cross=None, tag=None, name="scaled wavefield"):
 	"""Wrap a reduced field ``U(ξ, η)`` as a single-plane scaled-wavefield ``Signal``.
 
 	Builds the in-flight state of scaled-Fresnel propagation: the reduced field of
@@ -562,6 +562,10 @@ def make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=None,
 		Position of the crossover a flat frame is currently traversing
 		(set by the hybrid frame-switching policy; ``None`` otherwise).
 		Stored in metadata as ``z_cross_m`` only when set.
+	tag : str or None, optional
+		Frame-event tag for interior planes logged by the hybrid policy
+		(``'flatten'``/``'crossover'``/``'rediverge'``); stored in metadata as
+		``frame_tag`` only when set.
 	name : str, optional
 		Signal name, by default ``"scaled wavefield"``.
 
@@ -582,7 +586,9 @@ def make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=None,
 	if not sea_available:
 		warn("sea_eco is not installed; make_scaled_wavefield_signal returns a "
 			 "lightweight _ScaledWavefield fallback (no .sea serialization).")
-		return _ScaledWavefield(U, dxi, deta, wavelength, s, R, tau, z, z_cross)
+		out = _ScaledWavefield(U, dxi, deta, wavelength, s, R, tau, z, z_cross)
+		out.tag = tag
+		return out
 	neta, nxi = U.shape[-2], U.shape[-1]
 	xidim = _Dimension(name="xi", space="position", scale=dxi, offset=-(nxi // 2) * dxi, size=nxi, units="m")
 	etadim = _Dimension(name="eta", space="position", scale=deta, offset=-(neta // 2) * deta, size=neta, units="m")
@@ -592,6 +598,8 @@ def make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=None,
 			"z_m": float(z) if z is not None else 0.0}
 	if z_cross is not None:
 		meta["z_cross_m"] = float(z_cross)
+	if tag is not None:
+		meta["frame_tag"] = str(tag)
 	return _Signal(data=U, name=name, dimensions=[etadim, xidim], metadata=meta, signal_type="Image")
 
 
@@ -656,7 +664,36 @@ def scaled_frame_crossover(signal):
 	return meta.get("z_cross_m", None)
 
 
-def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, name="scaled wave"):
+def scaled_frame_tag(signal):
+	"""Read the frame-event tag of a scaled wavefield plane, if any.
+
+	Interior planes logged by the hybrid frame-switching policy carry a tag
+	(``'flatten'``/``'crossover'``/``'rediverge'``); ordinary element-exit
+	planes carry none. Works for both a real sea_eco ``Signal`` (metadata key
+	``frame_tag``) and the :class:`_ScaledWavefield` fallback.
+
+	Parameters
+	----------
+	signal : Signal or _ScaledWavefield
+		A scaled wavefield produced by :func:`make_scaled_wavefield_signal`.
+
+	Returns
+	-------
+	str or None
+		The tag, or ``None`` for an untagged plane.
+
+	Related
+	-------
+	make_scaled_wavefield_signal : Stores the tag.
+	"""
+	if isinstance(signal, _ScaledWavefield):
+		return getattr(signal, "tag", None)
+	meta = signal.metadata.to_dict() if signal.metadata is not None else {}
+	return meta.get("frame_tag", None)
+
+
+def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None,
+							   name="scaled wave"):
 	"""Wrap a stack of reduced fields and their chart state as a sea_eco ``SignalSet``.
 
 	Assembles the stacked result of a scaled-Fresnel run: the reduced field
@@ -680,14 +717,20 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, name="sca
 	z : Sequence[float]
 		The ``n_planes`` physical plane positions (metres) for the unstructured
 		z axis.
+	tags : Sequence[str or None], optional
+		Per-plane frame-event tags from the hybrid policy (``None`` entries
+		for ordinary planes). When given, a ``frame`` companion Signal is added
+		(an integer frame index that increments at each ``flatten``/
+		``rediverge`` switch) and the tags are stored on the U Signal's
+		metadata as the comma-joined string ``plane_tags``.
 	name : str, optional
 		Name for the SignalSet, by default ``"scaled wave"``.
 
 	Returns
 	-------
 	SignalSet or None
-		A SignalSet of ``[U, s, R, tau]`` (main Signal ``U``) when sea_eco is
-		present, else ``None``.
+		A SignalSet of ``[U, s, R, tau]`` (plus ``frame`` when ``tags`` is
+		given; main Signal ``U``) when sea_eco is present, else ``None``.
 
 	Related
 	-------
@@ -706,12 +749,19 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, name="sca
 	xidim = _Dimension(name="xi", space="position", scale=dxi, offset=-(nxi // 2) * dxi, size=nxi, units="m")
 	etadim = _Dimension(name="eta", space="position", scale=deta, offset=-(neta // 2) * deta, size=neta, units="m")
 	meta = {"wavelength_m": float(wavelength), "dxi_m": float(dxi), "deta_m": float(deta)}
+	if tags is not None:
+		meta["plane_tags"] = ",".join(tag or "" for tag in tags)
 	U_sig = _Signal(data=U, name="U", dimensions=[zdim, etadim, xidim], metadata=meta,
 					signal_type="Image")
 	s_sig = _Signal(data=_np.asarray(s, dtype=float), name="s", dimensions=[zdim])
 	R_sig = _Signal(data=_np.asarray(R, dtype=float), name="R", dimensions=[zdim])
 	tau_sig = _Signal(data=_np.asarray(tau, dtype=float), name="tau", dimensions=[zdim])
-	return _SignalSet(signals=[U_sig, s_sig, R_sig, tau_sig], main_signal=0, name=name)
+	signals = [U_sig, s_sig, R_sig, tau_sig]
+	if tags is not None:
+		# integer frame index: increments at each frame switch
+		frame = _np.cumsum([1 if tag in ("flatten", "rediverge") else 0 for tag in tags])
+		signals.append(_Signal(data=frame.astype(float), name="frame", dimensions=[zdim]))
+	return _SignalSet(signals=signals, main_signal=0, name=name)
 
 
 #SEASerializable.from_sea will create a purely-SEASerializable object. rayTEM objects (Element, MicroscopeSection, Microscope, etc) will have inherited from SEASerializable, so we may need to reinstantiate rayTEM objects to ensure they have the rayTEM-specific functionality (e.g. "scope=Microscope(); scope.from_sea" will find scope.sections is a list of purely-SEASerializable objects without functions like "propagate_ray").
