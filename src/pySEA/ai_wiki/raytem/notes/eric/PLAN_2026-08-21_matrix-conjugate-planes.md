@@ -1,119 +1,128 @@
-# Plan — closed-form conjugate planes from the transfer matrices
+# Note — analytic crossover planes from the transfer matrix (A = 0 and B = 0)
 
 **For:** the other contributor (owner of the ray / transfer-matrix side)
 **From:** Eric (+ Claude)
-**Related:** `TODO_DONE_conjugate-planes.md`, LOG entry 2026-08-21 "Conjugate planes"
+**Scope:** how to locate the two families of special planes *analytically*, from the
+accumulated transfer matrix, instead of by searching a traced ray bundle.
+No code changed; no request to change the wave side.
 
-## 1. What the current method does (confirmed by reading the code)
+## 1. Notation
 
-`postprocessing.findPlanes` (line 392) locates both plane families by **pairwise
-ray difference**, not from the matrices:
+`A, B, C, D` are the ordinary ray-transfer (ABCD) elements — the 2x2 x-block of
+the existing 6x6 `transfer_matrix()` (rows/cols 0,1 of
+`convention = [x, xt, y, yt, z, E]`), **accumulated** from the entrance plane to
+the plane of interest, so that
 
-- it infers four reference rays from the initial conditions — two *diffraction*
-  rays (`xt = 0`, `x = ±a`) and two *image* rays (`x = 0`, `xt = ±b`);
-- for each consecutive pair of **logged planes** it calls `whereRaysCross`,
-  which linearly interpolates both rays and solves
-  `ma·dz + ya0 = mb·dz + yb0  ->  dz = (yb0 - ya0)/(ma - mb)`;
-- it returns a **fractional plane index** `i-1+dz`, converted to metres by
-  `zFromFractional`;
-- magnification is a second interpolation using the *other* ray pair.
-
-So: two rays per family, find where their difference is zero, evaluated between
-sampled planes. Nothing in `postprocessing.py` uses `transfer_matrix()`.
-
-## 2. Why the matrix form is the *same physics*
-
-For the ± pairs the ray difference **is** a matrix element. With the accumulated
-x-block `M(z) = [[A, B], [C, D]]` acting on `(x, xt)`, i.e.
-`x_out = A·x_in + B·xt_in`:
-
-- diffraction pair (`xt = 0`, `x = ±a`):  `x_a - x_b = 2a·A`  ->  zero iff **A = 0**
-- image pair (`x = 0`, `xt = ±b`):        `x_a - x_b = 2b·B`  ->  zero iff **B = 0**
-
-Identical roots — the present code is already evaluating A and B, implicitly,
-through two rays. (The wave side does the same thing with one column of M
-without saying so: the scaled frame's curvature is `R = -A/C`, so its crossover
-`z + |R|` is exactly the `A = 0` root.)
-
-**Notation, since it caused confusion:** `A, B, C, D` here are the ordinary
-**ray-transfer (ABCD) matrix** elements — the 2x2 x-block of rayTEM's existing
-6x6 `transfer_matrix()` (rows/cols 0,1 of `convention = [x, xt, y, yt, z, E]`).
-Nothing wave-optical about them:
+```
+x_out  = A*x_in + B*xt_in
+xt_out = C*x_in + D*xt_in
+```
 
 | element | meaning | units |
 |---|---|---|
-| `A = d x_out / d x_in`   | position -> position (magnification-like) | — |
-| `B = d x_out / d xt_in`  | angle -> position (camera-length-like)    | length |
-| `C = d xt_out / d x_in`  | position -> angle (power-like, `-1/f`)    | 1/length |
-| `D = d xt_out / d xt_in` | angle -> angle (angular magnification)    | — |
+| `A` | position -> position (magnification-like) | — |
+| `B` | angle -> position (camera-length-like) | length |
+| `C` | position -> angle (power-like; `-1/f` for a thin lens) | 1/length |
+| `D` | angle -> angle (angular magnification) | — |
 
 Drift `L` = `[[1, L], [0, 1]]`; thin lens `f` = `[[1, 0], [-1/f, 1]]`.
 
-## 3. Proposal
+## 2. The criterion
 
-Compute both families in closed form from the accumulated matrix — no ray array,
-no interpolation, no dependence on logged-plane density:
+Read straight off `x_out = A*x_in + B*xt_in`:
 
-- **in free space** after an element exit, A and B are linear in `dz`:
-  `A(dz) = A0 + dz·C0`, `B(dz) = B0 + dz·D0`, so
-  `dz_diffraction = -A0/C0` and `dz_image = -B0/D0`.
-  Keep roots with `0 <= dz <= L_drift`; report the rest as **virtual** planes.
-- **inside a thick element** of constant `K` (round lens, or a quad's focusing
-  axis) the evolution is sinusoidal, so the root is still closed-form:
-  `A(dz) = A0·cos(K·dz) + (C0/K)·sin(K·dz)  ->  tan(K·dz) = -K·A0/C0`.
-  On a defocusing axis `cos/sin -> cosh/sinh`, giving
-  `tanh(K·dz) = -K·A0/C0` (a root exists only when `|K·A0/C0| < 1`).
-- **magnification falls out at the root**: at an image plane `M = A`; at a
-  diffraction plane `B` is the camera-length factor. No second interpolation.
-- per axis (x and y separately) for astigmatic optics; evaluate in the rotating
-  frame for magnetic round lenses, as `findPlanes` already does.
+- **`A = 0` -> diffraction (back-focal / reciprocal) plane.** Output position
+  no longer depends on input position, so rays that entered parallel converge.
+- **`B = 0` -> image plane.** Output position no longer depends on input angle,
+  so all rays from one object point reconverge.
 
-## 4. What this buys
+These are the same planes the current pairwise-ray search finds — for the `+-`
+reference pairs the ray *difference* is literally the matrix element
+(`x_a - x_b = 2a*A` for the parallel pair, `2b*B` for the on-axis pair) — so the
+existing method is already evaluating A and B, implicitly, through two rays.
+The gain here is closed-form roots instead of interpolating between sampled
+planes.
 
-1. **Exact positions**, independent of how densely planes were logged.
-2. **Catches planes inside thick lens bodies**, where linear interpolation
-   between entrance and exit is the wrong functional form. Not hypothetical:
-   every `basic_column` lens is a thick `QLens` (10-20 mm), and our wave
-   crossovers sit **0.4-4.8 mm** from the `findPlanes` positions there, versus
-   **0 nm** agreement on a thin-lens column.
-3. **Cannot miss two crossings in one segment** (the sign-change test finds one).
-4. **No dependence on the caller having built the right four rays** — the
-   current heuristic warns and returns empty when it cannot infer them.
-5. Returns **metres**, not fractional plane indices.
-6. **Invertible**: "what lens strength puts a plane at z?" becomes closed-form
-   instead of the numerical search `error_dz` is built around.
+## 3. Closed-form roots
 
-## 5. Non-goals
+**In free space** downstream of an element exit, both are linear in `dz`:
 
-- `findPlanes` **stays**. Rays remain the ground truth and the cross-check: on
-  thin-lens columns the two must agree to ~1e-12.
-- No change to the ray convention, the 6x6 matrices, or the `diff`/`image`
-  naming — this reuses that vocabulary exactly.
+```
+A(dz) = A0 + dz*C0        ->   dz_diffraction = -A0/C0
+B(dz) = B0 + dz*D0        ->   dz_image       = -B0/D0
+```
 
-## 6. Verification
+Keep roots with `0 <= dz <= L_drift`; the rest are **virtual** planes (report or
+drop, see Q3).
 
-- **Thin 2-lens compound column** (collimated in, f1 = 45 mm, 100 mm gap,
-  f2 = 30 mm): diffraction planes 55.0000 and 176.0000 mm — note the second is
-  the *image of the first crossover*, **not** `z_L2 + f2` = 140 mm — and the
-  image plane at 150.8621 mm. Matrix, `findPlanes`, and the hybrid wave
-  crossovers already agree here to 0 nm.
-- **Thick-lens column**: matrix and `findPlanes` should now *differ*, with the
-  matrix version matching a finely subdivided ray reference.
-- **basic_column**: publish the diff/image table both ways.
+**Inside a thick element** of constant `K` the evolution is sinusoidal, so the
+root is still closed-form. Composing the interior matrix with the accumulated
+one, `A(dz) = A0*cos(K*dz) + (C0/K)*sin(K*dz)`, hence
 
-## 7. Open questions for you
+```
+focusing axis:    tan(K*dz)  = -K*A0/C0
+defocusing axis:  tanh(K*dz) = -K*A0/C0     (root only if |K*A0/C0| < 1)
+```
 
-1. Where should this live — `postprocessing`, next to `findPlanes`, or as a
-   `Microscope` method? (There is a `Microscope.conjugate_planes` now, ray-traced
-   via `findPlanes`; happy to re-point it at the matrix version.)
-2. Do you want the closed-form inverse wired into `error_dz` / the fitting
-   helpers, or kept separate?
+and the same with `(B0, D0)` for the image family. Take the first root in
+`[0, L_element]`.
+
+This is the case that matters most here: linear interpolation between a thick
+lens's entrance and exit is the *wrong functional form* inside the body, and
+every `basic_column` lens is a thick `QLens` (10-20 mm).
+
+## 4. Free extras at the root
+
+- **Magnification** needs no second pass: at an image plane `M = A`; at a
+  diffraction plane `B` is the camera-length factor.
+- **Sanity identities** for cross-checking against textbook formulas — for an
+  accumulated system matrix,
+
+```
+1/f_system = -C
+BFD (back focal distance)  = -A/C
+FFD (front focal distance) = -D/C
+```
+
+  so `dz_diffraction = -A0/C0` is exactly the back focal distance, and the
+  familiar doublet combination `1/f12 = 1/f1 + 1/f2 - d/(f1*f2)` is just `-C`
+  for two thin lenses separated by `d`. Worked check: `f1 = 45 mm`,
+  `d = 100 mm`, `f2 = 30 mm` gives `f12 = -54 mm` and
+  `BFD = f12*(1 - d/f1) = 66 mm`, i.e. a crossover 66 mm past the second lens.
+
+- **Inversion**: because the roots are closed form, "what lens strength puts a
+  plane at z?" can be solved directly rather than by the numerical search
+  `error_dz` is built around.
+
+## 5. Verification cases
+
+- **Thin 2-lens compound column**, collimated in, `f1 = 45 mm`, 100 mm gap,
+  `f2 = 30 mm`, lens 1 at z = 10 mm: diffraction planes at **55.0000 mm** and
+  **176.0000 mm** (the second is the *image of the first crossover*, i.e.
+  `10 + 100 + BFD`, **not** `z_L2 + f2 = 140 mm`), image plane at
+  **150.8621 mm**. `findPlanes` and the analytic values agree here to 0 nm.
+- **Thick-lens column**: analytic and `findPlanes` should now *differ*, with the
+  analytic version matching a finely subdivided ray reference.
+- **basic_column**: publish the diff/image table both ways. For reference, the
+  current ray values (x axis, metres) are
+  diff `[0.17458, 0.30519, 0.50249, 0.72929, 0.91715]`,
+  image `[0.19828, 0.49380, 0.53089, 0.73033, 0.91963]`.
+
+## 6. Open questions
+
+1. Where should it live — `postprocessing`, next to `findPlanes`, or as a
+   `Microscope` method?
+2. Wire the closed-form inversion into `error_dz` / the fitting helpers, or keep
+   it separate?
 3. Virtual planes (roots outside the segment): returned flagged, or dropped?
 
-## 8. Two incidental findings (left untouched)
+`findPlanes` should stay regardless — a traced bundle is the natural ground
+truth, and on thin-lens columns the two must agree to ~1e-12.
 
-- `assemblies.py:937` (`Microscope.focus_error`) calls `findPlanes(self.rays, "x")`
-  — `"x"` lands on the `R` (rotation) parameter and `axis` falls back to `"xy"`.
-  Looks like a real bug.
+## 7. Two incidental findings (left untouched)
+
+- `assemblies.py:937` (`Microscope.focus_error`) calls
+  `findPlanes(self.rays, "x")` — `"x"` lands on the `R` (rotation) parameter and
+  `axis` falls back to `"xy"`. Looks like a real bug.
 - `postprocessing.whereCrossesZero` is used only by `findPlanes4` (~line 627),
   not by `findPlanes`.
