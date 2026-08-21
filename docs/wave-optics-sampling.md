@@ -138,6 +138,21 @@ and is propagated by the *same* angular-spectrum kernel over `Δτ`
   frame events, so `show(..., zpts=5e-3)` (or `scope.subdivided(5e-3)`)
   propagates a temporary copy with finer drift steps when a smooth
   cross-section is wanted. Crossovers need no subdivision — see below.
+- **Both families of conjugate planes.** A column has two independent
+  conjugate families: **diffraction** (back-focal) planes, where rays that
+  entered parallel converge, and **image** planes, where rays from one on-axis
+  point re-converge. The scaled frame follows exactly one — whichever its seed
+  belongs to, which for the usual flat-wavefront seed (`s=1, R=∞`) is the
+  diffraction family, so that is what `scope.crossovers` holds.
+  `scope.conjugate_planes(axis)` returns **both** in metres (reusing the ray
+  side's `findPlanes` convention on a throwaway copy), the cross-section
+  annotates the image planes alongside the crossovers, and
+  `zpts=scope.conjugate_planes()['image']` logs the image planes exactly for
+  reconstruction. Neither family follows from one lens's `f` — the frame's
+  accumulated curvature carries the whole upstream system (verified: a
+  collimated beam through f=45 mm then f=30 mm at 100 mm spacing puts the
+  second diffraction plane at 176 mm, the image of the first crossover, not at
+  `z_L2 + f2` = 140 mm).
 - **Reconstruction back to physical x, y** at any logged plane:
   `Microscope.wavefield_at(z_or_name, target_dx=..., target_shape=...)`
   (crossover planes included — the back-focal wavefield of each lens)
