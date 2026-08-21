@@ -797,3 +797,86 @@ def test_jump_policy_through_focus_optical():
 											   target_dx=dx, target_shape=(n, n))
 	a = _align_global_phase(psi, ref)
 	assert np.linalg.norm(a - ref) / np.linalg.norm(ref) < 3e-2
+
+
+# --- anisotropic frames (s_x != s_y) -----------------------------------------------
+
+def test_axis_helpers_scalar_pair_convention():
+	# scalars fan out to both axes; equal components (including inf) collapse back
+	assert wo.axis_components(3.0) == (3.0, 3.0)
+	assert wo.axis_components((1.0, 2.0)) == (1.0, 2.0)
+	assert wo.join_axes(2.0, 2.0) == 2.0
+	assert wo.join_axes(np.inf, np.inf) == np.inf
+	assert wo.join_axes(1.0, 2.0) == (1.0, 2.0)
+	# thin-lens absorption: a quadrupole's (P, -P) goes into (R_x, R_y)
+	s, R = wo.apply_thin_lens_scaled(1.0, np.inf, (10.0, -10.0))
+	assert R == (-0.1, 0.1)		# converging in x (R < 0), diverging in y
+	s, R = wo.apply_thin_lens_scaled(1.0, np.inf, 10.0)		# round lens stays scalar
+	assert R == -0.1
+	# per-axis support extents join to the isotropic radius
+	U = wo.gaussian_field((64, 64), 1e-7, 1e-7, 3e-7, 6e-7)
+	ex, ey = wo.beam_support_extents(U, 1e-7, 1e-7)
+	assert ey > ex
+	assert wo.beam_support_radius(U, 1e-7, 1e-7) == max(ex, ey)
+
+
+def test_anisotropic_line_foci_match_gaussian_q():
+	# an astigmatic lens (f_x != f_y) absorbed into per-axis curvatures: the
+	# hybrid engine must log both line foci at the right z and reproduce the
+	# analytic Gaussian q-parameter widths per axis at the foci and the exit
+	lam, n, W, sig = 500e-9, 256, 4e-3, 0.3e-3
+	dx = W / n
+	fx, fy, zend = 0.05, 0.08, 0.20
+
+	def sigma_pred(f, z):		# std of intensity from the complex q parameter
+		w0 = np.sqrt(2) * sig
+		q = 1j * np.pi * w0**2 / lam
+		q = q / (1 - q / f) + z
+		return np.sqrt(-lam / (np.pi * (1 / q).imag)) / 2
+
+	psi0 = wo.gaussian_field((n, n), dx, dx, sig, sig)
+	U, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, 1.0, np.inf)
+	s, R = wo.apply_thin_lens_scaled(1.0, np.inf, (1 / fx, 1 / fy))
+	U, s, R, dtau, z, zc, logged = wo.propagate_free_scaled_hybrid(
+		U, dxi, deta, lam, zend, s, R, z=0.0)
+	tags = [e[0] for e in logged]
+	assert "crossover-x" in tags and "crossover-y" in tags	# both line foci logged
+	assert zc is None and np.ndim(s) == 1					# past both, still anisotropic
+
+	def sigma_measured(Up, sp, Rp):
+		psi, dxo, dyo = wo.reconstruct_physical_wave(Up, dxi, deta, lam, sp, Rp)
+		I = np.abs(psi)**2
+		X, Y = wo.transverse_coordinates(I.shape, dxo, dyo)
+		return (np.sqrt((I * X**2).sum() / I.sum()),
+				np.sqrt((I * Y**2).sum() / I.sum()), I.sum() * dxo * dyo)
+
+	for (tag, Ul, sl, Rl, tl, zl, zcl) in logged:
+		if tag.startswith("crossover"):
+			f_here = fx if tag.endswith("x") else fy
+			assert np.isclose(zl, f_here, atol=1e-9)		# line focus position
+			sx, sy, _ = sigma_measured(Ul, sl, Rl)
+			assert np.isclose(sx, sigma_pred(fx, zl), rtol=1e-3)
+			assert np.isclose(sy, sigma_pred(fy, zl), rtol=1e-3)
+	sx, sy, energy = sigma_measured(U, s, R)
+	assert np.isclose(sx, sigma_pred(fx, zend), rtol=1e-3)
+	assert np.isclose(sy, sigma_pred(fy, zend), rtol=1e-3)
+	assert np.isclose(energy, (np.abs(psi0)**2).sum() * dx * dx, rtol=1e-9)
+
+
+def test_pseudo_isotropic_pair_matches_scalar_path():
+	# an equal-axes pair routed through the anisotropic engine must reproduce
+	# the scalar (isotropic) hybrid path: same physics, per-axis bookkeeping
+	lam, n, W, sig, f, zend = 500e-9, 128, 4e-3, 0.3e-3, 0.05, 0.12
+	dx = W / n
+	psi0 = wo.gaussian_field((n, n), dx, dx, sig, sig)
+	U0, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, 1.0, np.inf)
+	Ui, si, Ri, ti, zi, zci, lgi = wo.propagate_free_scaled_hybrid(
+		U0, dxi, deta, lam, zend, 1.0, -f, z=0.0)
+	Ua, sa, Ra, ta, za, zca, lga = wo.propagate_free_scaled_hybrid(
+		U0, dxi, deta, lam, zend, (1.0, 1.0), (-f, -f), z=0.0)
+	# pair input with equal axes joins straight back to the scalar state
+	assert np.isclose(sa if np.ndim(sa) == 0 else sa[0], si)
+	assert np.isclose(Ra if np.ndim(Ra) == 0 else Ra[0], Ri)
+	assert [t.split("-")[0] for t in [e[0] for e in lga]] == \
+		   [e[0] for e in lgi] or len(lga) == 2 * len(lgi)
+	assert np.allclose(Ua, Ui, atol=1e-12 * np.abs(Ui).max())

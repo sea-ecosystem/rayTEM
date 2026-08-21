@@ -132,10 +132,12 @@ def kernel_phase(shape: tuple, dx: float, dy: float, wavelength: float,
 		Sample spacings (metres, or scaled-coordinate units for the scaled path).
 	wavelength : float
 		Wavelength (metres).
-	dz : float
-		Propagation distance (metres; the scaled path passes Δτ).
+	dz : float or Sequence[float]
+		Propagation distance (metres; the scaled path passes Δτ, per-axis
+		``(Δτ_x, Δτ_y)`` on anisotropic frames).
 	include_carrier : bool, optional
-		Include the on-axis carrier term ``k·dz``, by default True.
+		Include the on-axis carrier term ``k·dz``, by default True (meaningful
+		for isotropic/physical distances only).
 
 	Returns
 	-------
@@ -151,9 +153,10 @@ def kernel_phase(shape: tuple, dx: float, dy: float, wavelength: float,
 	kx = 2 * np.pi * np.fft.fftfreq(nx, d=dx)
 	ky = 2 * np.pi * np.fft.fftfreq(ny, d=dy)
 	KX, KY = np.meshgrid(kx, ky)
-	chi = -(KX**2 + KY**2) * dz / (2 * k)
+	dzx, dzy = axis_components(dz)
+	chi = -(KX**2 * dzx + KY**2 * dzy) / (2 * k)
 	if include_carrier:
-		chi = chi + k * dz
+		chi = chi + k * dzx
 	return chi
 
 
@@ -231,7 +234,7 @@ def angular_spectrum_propagate(field: np.ndarray, dx: float, dy: float,
 	-------
 	kernel_phase : The real phase this function exponentiates.
 	"""
-	if dz == 0:
+	if np.all(np.asarray(dz) == 0):
 		return field.astype(complex, copy=True)
 	chi = kernel_phase(field.shape, dx, dy, wavelength, dz, include_carrier=include_carrier)
 	return apply_phase(field, chi, space="scattering")
@@ -357,6 +360,59 @@ def tilt_phase(field: np.ndarray, dx: float, dy: float, wavelength: float,
 	return apply_phase(field, linear_phase(field.shape, dx, dy, wavelength, tilt_x, tilt_y))
 
 
+def axis_components(value) -> tuple:
+	r"""Split a scalar-or-pair frame quantity into its (x, y) components.
+
+	The scaled frame is isotropic in the common case — one ``s``, ``R``, ``τ``
+	for both axes — but quadrupoles make it **anisotropic**:
+	:math:`\psi = (s_x s_y)^{-1/2} U(x/s_x, y/s_y)\,
+	e^{ik(x^2/2R_x + y^2/2R_y)}`. Frame quantities therefore travel as scalars
+	(isotropic) or 2-sequences ``(x, y)``; this helper normalizes either form.
+
+	Parameters
+	----------
+	value : float or Sequence[float]
+		Scalar (applied to both axes) or ``(x, y)`` pair.
+
+	Returns
+	-------
+	tuple
+		``(vx, vy)`` floats.
+
+	Related
+	-------
+	join_axes : The inverse (collapses equal components to a scalar).
+	"""
+	if np.ndim(value) == 0:
+		return float(value), float(value)
+	return float(value[0]), float(value[1])
+
+
+def join_axes(vx: float, vy: float):
+	r"""Join per-axis frame components, collapsing to a scalar when equal.
+
+	Keeps the isotropic case exactly as before — scalar in, scalar out — so
+	round-lens columns carry scalar ``s``/``R``/``τ`` bit-for-bit, while
+	astigmatic states travel as ``(x, y)`` tuples.
+
+	Parameters
+	----------
+	vx, vy : float
+		Per-axis components.
+
+	Returns
+	-------
+	float or tuple
+		``vx`` when the components are equal (including both infinite),
+		else ``(vx, vy)``.
+
+	Related
+	-------
+	axis_components : The inverse.
+	"""
+	return vx if vx == vy else (vx, vy)
+
+
 def scaled_delta_tau(dz: float, s0: float, R0: float) -> float:
 	r"""Scaled propagation increment Δτ for a linear-s free segment.
 
@@ -434,11 +490,45 @@ def beam_support_radius(U: np.ndarray, dxi: float, deta: float,
 	-------
 	min_representable_curvature : Consumes this as its ``x_max``.
 	"""
+	ext_x, ext_y = beam_support_extents(U, dxi, deta, threshold=threshold)
+	return max(ext_x, ext_y)
+
+
+def beam_support_extents(U: np.ndarray, dxi: float, deta: float,
+						 threshold: float = 1e-6) -> tuple:
+	r"""Per-axis half-widths of the beam's support on the ξ/η grid.
+
+	The largest ``|ξ|`` and largest ``|η|`` at which ``|U|`` still exceeds
+	``threshold`` times its maximum, returned separately per axis. Anisotropic
+	frames need the axes individually — each axis's reference phase is sampled
+	against that axis's own support — while :func:`beam_support_radius` keeps
+	the combined (max) form for isotropic criteria.
+
+	Parameters
+	----------
+	U : np.ndarray
+		Scaled field ``(ny, nx)``.
+	dxi, deta : float
+		Scaled-coordinate sample spacings.
+	threshold : float, optional
+		Amplitude fraction defining the support, by default ``1e-6``.
+
+	Returns
+	-------
+	tuple
+		``(ext_x, ext_y)`` support half-widths in ξ/η units (each at least one
+		pixel of its own axis).
+
+	Related
+	-------
+	beam_support_radius : The combined (max over axes) form.
+	"""
 	amp = np.abs(U)
 	mask = amp > threshold * amp.max()
 	X, Y = transverse_coordinates(U.shape, abs(dxi), abs(deta))
-	ext = max(float(np.abs(X[mask]).max()), float(np.abs(Y[mask]).max()))
-	return max(ext, abs(dxi))
+	ext_x = max(float(np.abs(X[mask]).max()), abs(dxi))
+	ext_y = max(float(np.abs(Y[mask]).max()), abs(deta))
+	return ext_x, ext_y
 
 
 def min_representable_curvature(n: int, dxi: float, wavelength: float, s: float,
@@ -499,26 +589,29 @@ def min_representable_curvature(n: int, dxi: float, wavelength: float, s: float,
 
 
 def change_scaled_frame(U: np.ndarray, dxi: float, deta: float, wavelength: float,
-						s_old: float, R_old: float, R_new: float,
-						s_new: float = None, safety: float = 0.5) -> tuple:
+						s_old, R_old, R_new,
+						s_new=None, safety: float = 0.5) -> tuple:
 	r"""Re-express the same physical wave in a different scaled frame (Eq 5).
 
 	A *frame* is a choice of factorization
-	:math:`\psi = (1/s)\,U(x/s, y/s)\,e^{ik(x^2+y^2)/2R}`; this primitive
-	transforms :math:`(s_o, R_o, U_o) \to (s_n, R_n, U_n)` while keeping ψ
-	identical:
+	:math:`\psi = (s_x s_y)^{-1/2}\,U(x/s_x, y/s_y)\,
+	e^{ik(x^2/2R_x + y^2/2R_y)}` (isotropic: one ``s``, one ``R``); this
+	primitive transforms :math:`(s_o, R_o, U_o) \to (s_n, R_n, U_n)` while
+	keeping ψ identical:
 
 	.. math::
 
-		U_n = \frac{s_n}{s_o}\, U_o \,
-		\exp\!\left[\frac{ik\,(x^2+y^2)}{2}
-		\left(\frac{1}{R_o} - \frac{1}{R_n}\right)\right]
+		U_n = \sqrt{\frac{s_{nx} s_{ny}}{s_{ox} s_{oy}}}\, U_o \,
+		\exp\!\left[\frac{ik}{2}\left(
+		x^2\!\left(\frac{1}{R_{ox}} - \frac{1}{R_{nx}}\right) +
+		y^2\!\left(\frac{1}{R_{oy}} - \frac{1}{R_{ny}}\right)\right)\right]
 
-	using the **physical-grid-continuous convention**: the new pitch is
-	:math:`\Delta\xi_n = \Delta\xi_o\, s_o/s_n`, so the samples sit at the same
-	physical points and the operation is pointwise — no interpolation. The
-	physical representation is the special frame ``(s=1, R=inf)``, making
-	:func:`factor_wave` and :func:`reconstruct_physical_wave` special cases.
+	using the **physical-grid-continuous convention**: the new pitches are
+	:math:`\Delta\xi_n = \Delta\xi_o\, s_{ox}/s_{nx}` (and likewise per axis),
+	so the samples sit at the same physical points and the operation is
+	pointwise — no interpolation. The physical representation is the special
+	frame ``(s=1, R=inf)``, making :func:`factor_wave` and
+	:func:`reconstruct_physical_wave` special cases.
 
 	Parameters
 	----------
@@ -528,13 +621,14 @@ def change_scaled_frame(U: np.ndarray, dxi: float, deta: float, wavelength: floa
 		Old-frame sample spacings Δξ/Δη.
 	wavelength : float
 		Wavelength (metres).
-	s_old : float
-		Old-frame transverse scale (nonzero).
-	R_old : float
+	s_old : float or Sequence[float]
+		Old-frame transverse scale (nonzero); ``(s_x, s_y)`` pair when
+		anisotropic.
+	R_old : float or Sequence[float]
 		Old-frame reference curvature radius (metres); ``numpy.inf`` = flat.
-	R_new : float
+	R_new : float or Sequence[float]
 		New-frame reference curvature radius (metres); ``numpy.inf`` = flat.
-	s_new : float, optional
+	s_new : float or Sequence[float], optional
 		New-frame scale (nonzero); ``None`` (default) keeps ``s_old`` (pitch
 		unchanged — the flatten/re-diverge cases).
 	safety : float, optional
@@ -551,55 +645,74 @@ def change_scaled_frame(U: np.ndarray, dxi: float, deta: float, wavelength: floa
 	ValueError
 		If the reference-phase difference is not representable on this grid —
 		the error names the minimum representable ``|R|`` — or if ``s_new``
-		is zero.
+		is zero on either axis.
 
 	Related
 	-------
 	min_representable_curvature : The guard's threshold.
 	factor_wave, reconstruct_physical_wave : The (1, inf) special cases.
+	axis_components, join_axes : The scalar-or-pair convention.
 
 	Notes
 	-----
 	The singularity of a converging frame at its crossover (``s -> 0``)
 	belongs to the frame, not to the wave; this operation is how propagation
 	steps onto a better frame before that happens (the hybrid policy in
-	:func:`propagate_free_scaled_hybrid`). A sign flip between ``s_old`` and
-	``s_new`` applies the signed amplitude ratio of Eq 5; the implied ξ-grid
-	inversion is exact for the (even) quadratic reference phase and is the
-	caller's relabeling to track.
+	:func:`propagate_free_scaled_hybrid`). On an isotropic change the
+	amplitude ratio is the signed ``s_n/s_o`` of Eq 5 (a sign flip's implied
+	ξ-grid inversion is exact for the even quadratic phase and is the caller's
+	relabeling to track); anisotropic changes use the principal square root of
+	the scale-product ratio.
 	"""
+	s_ox, s_oy = axis_components(s_old)
 	if s_new is None:
-		s_new = s_old
-	if s_new == 0:
-		raise ValueError("change_scaled_frame requires a nonzero s_new; the frame is "
-						 "singular at s = 0 (switch frames before the crossover).")
-	c_old = 0.0 if np.isinf(R_old) else 1.0 / R_old
-	c_new = 0.0 if np.isinf(R_new) else 1.0 / R_new
-	U_out = (s_new / s_old) * U.astype(complex)
-	if c_old != c_new:
-		# physical coordinates of the (shared) sample points
-		X, Y = transverse_coordinates(U.shape, abs(s_old) * dxi, abs(s_old) * deta)
+		s_nx, s_ny = s_ox, s_oy
+	else:
+		s_nx, s_ny = axis_components(s_new)
+	if s_nx == 0 or s_ny == 0:
+		raise ValueError("change_scaled_frame requires a nonzero s_new on both axes; the "
+						 "frame is singular at s = 0 (switch frames before the crossover).")
+	R_ox, R_oy = axis_components(R_old)
+	R_nx, R_ny = axis_components(R_new)
+	c_ox = 0.0 if np.isinf(R_ox) else 1.0 / R_ox
+	c_oy = 0.0 if np.isinf(R_oy) else 1.0 / R_oy
+	c_nx = 0.0 if np.isinf(R_nx) else 1.0 / R_nx
+	c_ny = 0.0 if np.isinf(R_ny) else 1.0 / R_ny
+	if s_ox == s_oy and s_nx == s_ny:
+		amp = s_nx / s_ox			# signed Eq 5 ratio (isotropic, bit-for-bit)
+	else:
+		amp = np.sqrt(complex((s_nx * s_ny) / (s_ox * s_oy)))
+		amp = amp.real if amp.imag == 0 else amp
+	U_out = amp * U.astype(complex)
+	if c_ox != c_nx or c_oy != c_ny:
+		# physical coordinates of the (shared) sample points, per-axis pitch
+		X, Y = transverse_coordinates(U.shape, abs(s_ox) * dxi, abs(s_oy) * deta)
 		k = 2 * np.pi / wavelength
-		chi = k * (X**2 + Y**2) / 2 * (c_old - c_new)
+		chi = k / 2 * (X**2 * (c_ox - c_nx) + Y**2 * (c_oy - c_ny))
 		if safety is not None:
 			# measure the per-pixel step over the beam's support only — phase
 			# applied where the field is essentially zero is harmless
-			r_supp = beam_support_radius(U, dxi, deta)
-			step = k * abs(s_old)**2 * max(abs(dxi), abs(deta)) * r_supp * abs(c_old - c_new)
+			ext_x, ext_y = beam_support_extents(U, dxi, deta)
+			step_x = k * abs(s_ox)**2 * abs(dxi) * ext_x * abs(c_ox - c_nx)
+			step_y = k * abs(s_oy)**2 * abs(deta) * ext_y * abs(c_oy - c_ny)
+			step = max(step_x, step_y)
 			if step > safety * np.pi:
-				R_min = min_representable_curvature(U.shape[0], dxi, wavelength, s_old,
-													safety, x_max=r_supp)
+				axis, s_g, d_g, e_g = (("x", s_ox, dxi, ext_x) if step_x >= step_y
+									   else ("y", s_oy, deta, ext_y))
+				R_min = min_representable_curvature(U.shape[0], d_g, wavelength, s_g,
+													safety, x_max=e_g)
 				raise ValueError(f"Frame change from R={R_old} m to R={R_new} m is not representable "
 								 f"on this grid (per-pixel phase step {step:.2f} rad at the beam "
-								 f"support > {safety:.2g}*pi): the curvature moved into U must "
-								 f"satisfy |R| >= {R_min:.3e} m. Switch frames closer to the plane "
-								 "where the reference curvature is weaker, or refine the grid.")
+								 f"support > {safety:.2g}*pi on the {axis} axis): the curvature "
+								 f"moved into U must satisfy |R| >= {R_min:.3e} m. Switch frames "
+								 "closer to the plane where the reference curvature is weaker, or "
+								 "refine the grid.")
 		U_out = U_out * np.exp(1j * chi)
-	return U_out, dxi * s_old / s_new, deta * s_old / s_new
+	return U_out, dxi * s_ox / s_nx, deta * s_oy / s_ny
 
 
 def factor_wave(psi: np.ndarray, dx: float, dy: float, wavelength: float,
-				s: float, R: float) -> tuple:
+				s, R) -> tuple:
 	r"""Factor an ordinary paraxial wave into the scaled representation (handoff Eq 55).
 
 	Removes the reference quadratic phase and the coordinate scaling:
@@ -620,10 +733,12 @@ def factor_wave(psi: np.ndarray, dx: float, dy: float, wavelength: float,
 		Physical sample spacings (metres).
 	wavelength : float
 		Wavelength (metres).
-	s : float
-		Chosen transverse scale (nonzero).
-	R : float
-		Chosen reference radius of curvature (metres); ``numpy.inf`` for none.
+	s : float or Sequence[float]
+		Chosen transverse scale (nonzero); ``(s_x, s_y)`` pair for an
+		anisotropic frame.
+	R : float or Sequence[float]
+		Chosen reference radius of curvature (metres); ``numpy.inf`` for none;
+		per-axis pair for an anisotropic frame.
 
 	Returns
 	-------
@@ -640,9 +755,10 @@ def factor_wave(psi: np.ndarray, dx: float, dy: float, wavelength: float,
 	Delegates to :func:`change_scaled_frame` as the transform from the
 	physical frame ``(1, inf)`` to ``(s, R)``, guard-free (a pure converter).
 	"""
+	s_x, s_y = axis_components(s)
 	U, _, _ = change_scaled_frame(psi, dx, dy, wavelength, s_old=1.0, R_old=np.inf,
 								  R_new=R, s_new=s, safety=None)
-	return U, dx / s, dy / s
+	return U, dx / s_x, dy / s_y
 
 
 def fourier_resample(field: np.ndarray, d_in: float, n_out: int, d_out: float) -> np.ndarray:
@@ -682,7 +798,7 @@ def fourier_resample(field: np.ndarray, d_in: float, n_out: int, d_out: float) -
 
 
 def reconstruct_physical_wave(U: np.ndarray, dxi: float, deta: float,
-							  wavelength: float, s: float, R: float,
+							  wavelength: float, s, R,
 							  target_dx: float | None = None,
 							  target_shape: tuple | None = None) -> tuple:
 	r"""Reconstruct the ordinary paraxial wave from the scaled representation.
@@ -708,10 +824,12 @@ def reconstruct_physical_wave(U: np.ndarray, dxi: float, deta: float,
 		Scaled-coordinate sample spacings.
 	wavelength : float
 		Wavelength (metres).
-	s : float
-		Transverse scale at this plane (nonzero).
-	R : float
-		Reference radius of curvature (metres); ``numpy.inf`` for none.
+	s : float or Sequence[float]
+		Transverse scale at this plane (nonzero); ``(s_x, s_y)`` pair when
+		anisotropic (native pixels ``dx = |s_x|·Δξ``, ``dy = |s_y|·Δη``).
+	R : float or Sequence[float]
+		Reference radius of curvature (metres); ``numpy.inf`` for none;
+		per-axis pair when anisotropic.
 	target_dx : float, optional
 		Prescribed physical pixel size; ``None`` (default) reconstructs on the
 		native grid ``Δx = |s|·Δξ``.
@@ -723,50 +841,81 @@ def reconstruct_physical_wave(U: np.ndarray, dxi: float, deta: float,
 	tuple
 		``(psi, dx, dy)`` — the physical wave and its pixel sizes.
 
+	Raises
+	------
+	NotImplementedError
+		If a ``target_dx`` grid is requested on an anisotropic frame — the
+		band-limited resampler is square-grid only; reconstruct on the native
+		(rectangular-pixel) grid instead.
+
 	Related
 	-------
 	factor_wave : Exact inverse (handoff Eq 55).
 	fourier_resample : The band-limited resampler used for target grids.
 	"""
+	s_x, s_y = axis_components(s)
+	R_x, R_y = axis_components(R)
 	if target_dx is not None:
+		if s_x != s_y:
+			raise NotImplementedError("target_dx resampling is square-grid only; an anisotropic "
+									  "frame (s_x != s_y) reconstructs on its native rectangular "
+									  "pixels (dx = |s_x| dxi, dy = |s_y| deta). Omit target_dx.")
 		n_out = target_shape[0]
-		U = fourier_resample(U, dxi, n_out, target_dx / abs(s))
-		dxi = deta = target_dx / abs(s)
-	dx = abs(s) * dxi
-	dy = abs(s) * deta
-	psi = U.astype(complex) / s
-	if not np.isinf(R):
+		U = fourier_resample(U, dxi, n_out, target_dx / abs(s_x))
+		dxi = deta = target_dx / abs(s_x)
+	dx = abs(s_x) * dxi
+	dy = abs(s_y) * deta
+	if s_x == s_y:
+		psi = U.astype(complex) / s_x		# signed Eq 37 amplitude (isotropic)
+	else:
+		amp = np.sqrt(complex(s_x * s_y))
+		psi = U.astype(complex) / (amp.real if amp.imag == 0 else amp)
+	if not (np.isinf(R_x) and np.isinf(R_y)):
 		X, Y = transverse_coordinates(psi.shape, dx, dy)
 		k = 2 * np.pi / wavelength
-		psi = psi * np.exp(1j * k * (X**2 + Y**2) / (2 * R))
+		c_x = 0.0 if np.isinf(R_x) else 1.0 / R_x
+		c_y = 0.0 if np.isinf(R_y) else 1.0 / R_y
+		psi = psi * np.exp(1j * k * (X**2 * c_x + Y**2 * c_y) / 2)
 	return psi, dx, dy
 
 
-def apply_thin_lens_scaled(s: float, R: float, power: float) -> tuple:
+def apply_thin_lens_scaled(s, R, power) -> tuple:
 	r"""Absorb a thin-lens focusing power into the scaled curvature state.
 
 	Handoff Eqs 45–46: :math:`1/R^+ = 1/R^- - 1/f` with ``s`` continuous
 	through the lens and ``s' = s/R`` re-derived from the new curvature. The
 	scaled field U is untouched (Eq 15) — only the reference state changes.
+	All arguments accept per-axis ``(x, y)`` pairs: a quadrupole absorbs its
+	``(P, -P)`` powers into ``(R_x, R_y)`` exactly like a round lens absorbs
+	one power into one curvature, making the frame anisotropic.
 
 	Parameters
 	----------
-	s : float
+	s : float or Sequence[float]
 		Transverse scale at the lens plane (unchanged, returned for symmetry).
-	R : float
+	R : float or Sequence[float]
 		Incoming reference radius of curvature (metres); ``numpy.inf`` for flat.
-	power : float
-		Focusing power ``1/f`` to absorb (1/metres).
+	power : float or Sequence[float]
+		Focusing power ``1/f`` to absorb (1/metres); per-axis pair for
+		astigmatic elements.
 
 	Returns
 	-------
 	tuple
 		``(s, R_out)`` — the (unchanged) scale and the updated curvature
-		(``numpy.inf`` when the outgoing wavefront is flat).
+		(``numpy.inf`` when the outgoing wavefront is flat). Scalars when the
+		axes agree, ``(x, y)`` pairs otherwise.
+
+	Related
+	-------
+	axis_components, join_axes : The scalar-or-pair convention.
 	"""
-	curvature = (0.0 if np.isinf(R) else 1.0 / R) - power
-	R_out = np.inf if curvature == 0 else 1.0 / curvature
-	return s, R_out
+	def one_axis(R_a, P_a):
+		curvature = (0.0 if np.isinf(R_a) else 1.0 / R_a) - P_a
+		return np.inf if curvature == 0 else 1.0 / curvature
+	R_x, R_y = axis_components(R)
+	P_x, P_y = axis_components(power)
+	return s, join_axes(one_axis(R_x, P_x), one_axis(R_y, P_y))
 
 
 def boundary_window(shape: tuple, margin: float = 0.1) -> np.ndarray:
@@ -809,7 +958,7 @@ def boundary_window(shape: tuple, margin: float = 0.1) -> np.ndarray:
 
 
 def propagate_free_scaled(U: np.ndarray, dxi: float, deta: float, wavelength: float,
-						  dz: float, s: float, R: float, s_min: float = 1e-3,
+						  dz: float, s, R, s_min: float = 1e-3,
 						  absorb: float = 0.0) -> tuple:
 	r"""Propagate the scaled field U through one free segment of length ``dz``.
 
@@ -828,13 +977,15 @@ def propagate_free_scaled(U: np.ndarray, dxi: float, deta: float, wavelength: fl
 		Wavelength (metres).
 	dz : float
 		Physical segment length (metres). ``dz == 0`` returns the state unchanged.
-	s : float
-		Transverse scale at the segment start.
-	R : float
-		Reference radius of curvature at the segment start (``numpy.inf`` = flat).
+	s : float or Sequence[float]
+		Transverse scale at the segment start; ``(s_x, s_y)`` pair when
+		anisotropic.
+	R : float or Sequence[float]
+		Reference radius of curvature at the segment start (``numpy.inf`` =
+		flat); per-axis pair when anisotropic.
 	s_min : float, optional
-		Crossover guard: the segment must keep ``|s| > s_min`` (handoff Eq 52),
-		by default ``1e-3``.
+		Crossover guard: the segment must keep ``|s| > s_min`` on both axes
+		(handoff Eq 52), by default ``1e-3``.
 	absorb : float, optional
 		Absorbing-boundary margin fraction (:func:`boundary_window`), by
 		default 0 (pure periodic propagation). When > 0 the segment is
@@ -847,26 +998,41 @@ def propagate_free_scaled(U: np.ndarray, dxi: float, deta: float, wavelength: fl
 	Returns
 	-------
 	tuple
-		``(U_out, s_out, R_out, dtau)``. With ``absorb > 0`` the total
-		``|U|²`` decreases by the power lost through the boundary.
+		``(U_out, s_out, R_out, dtau)``. Frame outputs (and ``dtau``) are
+		scalars when the axes agree, ``(x, y)`` pairs otherwise. With
+		``absorb > 0`` the total ``|U|²`` decreases by the power lost through
+		the boundary.
 
 	Raises
 	------
 	ValueError
 		If the frame crosses ``s = 0`` inside the segment, or the exit scale
-		violates ``|s_out| > s_min`` — with the crossover position named, since
-		the singularity belongs to the frame, not the physical wave.
+		violates ``|s_out| > s_min`` on either axis — with the crossover
+		position named, since the singularity belongs to the frame, not the
+		physical wave.
 	"""
 	if dz == 0:
 		return U.astype(complex, copy=True), s, R, 0.0
-	dtau = scaled_delta_tau(dz, s, R)		# also guards the in-segment zero crossing
-	s_out = s if np.isinf(R) else s * (1.0 + dz / R)
-	if abs(s_out) <= s_min:
-		z_cross = -R if not np.isinf(R) else np.inf
-		raise ValueError(f"Scaled frame reaches |s| = {abs(s_out):.3e} <= s_min = {s_min} at the segment "
-						 f"end (frame crossover at dz = {z_cross} m); stop before the crossover, "
-						 "switch frames (hybrid mode), or lower s_min knowingly.")
-	R_out = R + dz if not np.isinf(R) else np.inf
+	s_x, s_y = axis_components(s)
+	R_x, R_y = axis_components(R)
+	# also guards the in-segment zero crossing (per axis)
+	dtau_x = scaled_delta_tau(dz, s_x, R_x)
+	dtau_y = scaled_delta_tau(dz, s_y, R_y)
+	s_out_x = s_x if np.isinf(R_x) else s_x * (1.0 + dz / R_x)
+	s_out_y = s_y if np.isinf(R_y) else s_y * (1.0 + dz / R_y)
+	if abs(s_out_x) <= s_min or abs(s_out_y) <= s_min:
+		axis, s_bad, R_bad = (("x", s_out_x, R_x) if abs(s_out_x) <= abs(s_out_y)
+							  else ("y", s_out_y, R_y))
+		z_cross = -R_bad if not np.isinf(R_bad) else np.inf
+		raise ValueError(f"Scaled frame reaches |s| = {abs(s_bad):.3e} <= s_min = {s_min} on the "
+						 f"{axis} axis at the segment end (frame crossover at dz = {z_cross} m); "
+						 "stop before the crossover, switch frames (hybrid mode), or lower "
+						 "s_min knowingly.")
+	R_out_x = R_x + dz if not np.isinf(R_x) else np.inf
+	R_out_y = R_y + dz if not np.isinf(R_y) else np.inf
+	s_out = join_axes(s_out_x, s_out_y)
+	R_out = join_axes(R_out_x, R_out_y)
+	dtau = join_axes(dtau_x, dtau_y)
 	if absorb and absorb > 0:
 		# absorbing boundary: sub-step in tau so no spectral component can
 		# traverse the absorbing band unattenuated within one FFT step
@@ -874,12 +1040,13 @@ def propagate_free_scaled(U: np.ndarray, dxi: float, deta: float, wavelength: fl
 		n = U.shape[0]
 		band = absorb * n * abs(dxi)					# absorber width in xi
 		dtau_step = 2 * band * abs(dxi) / wavelength	# travel at Nyquist = band
-		n_steps = max(1, int(np.ceil(abs(dtau) / dtau_step)))
+		n_steps = max(1, int(np.ceil(max(abs(dtau_x), abs(dtau_y)) / dtau_step)))
 		W = boundary_window(U.shape, margin=absorb)
 		U_out = U.astype(complex, copy=True) * W
+		sub = join_axes(dtau_x / n_steps, dtau_y / n_steps)
 		for _ in range(n_steps):
 			U_out = angular_spectrum_propagate(U_out, dxi, deta, wavelength,
-											   dtau / n_steps, include_carrier=False)
+											   sub, include_carrier=False)
 			U_out = U_out * W
 		return U_out, s_out, R_out, dtau
 	U_out = angular_spectrum_propagate(U, dxi, deta, wavelength, dtau, include_carrier=False)
@@ -887,8 +1054,8 @@ def propagate_free_scaled(U: np.ndarray, dxi: float, deta: float, wavelength: fl
 
 
 def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
-								 wavelength: float, dz: float, s: float, R: float,
-								 z: float, z_cross: float = None,
+								 wavelength: float, dz: float, s, R,
+								 z: float, z_cross=None,
 								 safety: float = 0.5, s_min: float = 1e-3,
 								 absorb: float = 0.0,
 								 crossover: str = 'flat') -> tuple:
@@ -924,14 +1091,18 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 		Wavelength (metres).
 	dz : float
 		Physical segment length (metres).
-	s, R : float
-		Frame state at the segment start (``R = numpy.inf`` = flat).
+	s, R : float or Sequence[float]
+		Frame state at the segment start (``R = numpy.inf`` = flat); per-axis
+		``(x, y)`` pairs on an anisotropic frame, whose axes then flatten and
+		re-diverge independently at their own **line foci**.
 	z : float
 		Physical position at the segment start (metres).
-	z_cross : float, optional
+	z_cross : float or Sequence, optional
 		Position of the crossover a flat frame is currently traversing
 		(recorded by an earlier flatten; carried in the scaled Signal's
-		metadata between elements). ``None`` when not in a flat window.
+		metadata between elements). ``None`` when not in a flat window;
+		per-axis ``(x, y)`` pair (entries ``None`` where inactive) on an
+		anisotropic frame.
 	safety : float, optional
 		Sampling-guard fraction for the frame changes, by default 0.5.
 	s_min : float, optional
@@ -969,8 +1140,12 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 		scaled increment Δτ over the segment, the exit position, the updated
 		crossover marker (``None`` once re-diverged), and ``logged``: an
 		ordered list of interior states ``(tag, U, s, R, dtau_cum, z, z_cross)``
-		with ``tag`` in ``{'flatten', 'crossover', 'rediverge'}`` and
-		``dtau_cum`` the Δτ accumulated since the segment entry.
+		with ``tag`` in ``{'flatten', 'crossover', 'rediverge', 'jump'}`` and
+		``dtau_cum`` the Δτ accumulated since the segment entry. On an
+		anisotropic frame the per-axis events carry axis-suffixed tags
+		(``'flatten-x'``, ``'crossover-y'``, ...) and the frame outputs are
+		``(x, y)`` pairs; isotropic frames keep scalar outputs and unsuffixed
+		tags bit-for-bit.
 
 	Raises
 	------
@@ -992,10 +1167,15 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 	"""
 	k = 2 * np.pi / wavelength
 	remaining = float(dz)
-	dtau_total = 0.0
 	logged = []
 	U = U.astype(complex, copy=True)
 	tol = 1e-9 * (abs(dz) + abs(z) + 1.0)		# float tolerance on split positions
+	isotropic = (np.ndim(s) == 0 and np.ndim(R) == 0
+				 and (z_cross is None or np.ndim(z_cross) == 0))
+	if not isotropic:
+		return _hybrid_anisotropic(U, dxi, deta, wavelength, remaining, s, R, z,
+								   z_cross, safety, absorb, crossover, k, tol, logged)
+	dtau_total = 0.0
 	while remaining > tol:
 		# switch criterion at the beam's support (1.2x margin for spreading
 		# within the leg; the frame-change guard re-checks the exact support)
@@ -1062,6 +1242,154 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 		U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, remaining, s, R, s_min=0.0, absorb=absorb)
 		dtau_total += dt ; z += remaining ; remaining = 0.0
 	return U, s, R, dtau_total, z, z_cross, logged
+
+
+def _hybrid_anisotropic(U: np.ndarray, dxi: float, deta: float, wavelength: float,
+						remaining: float, s, R, z: float, z_cross,
+						safety: float, absorb: float, crossover: str,
+						k: float, tol: float, logged: list) -> tuple:
+	r"""Anisotropic (per-axis) branch of :func:`propagate_free_scaled_hybrid`.
+
+	Runs the hybrid crossover policy with the two frame axes handled
+	independently: each axis carries its own ``(s, R, τ, z_cross)`` and
+	flattens / crosses / re-diverges at its own **line focus**, at planes set
+	by that axis's own beam-support extent and pitch. Events carry
+	axis-suffixed tags (``'flatten-x'``, ``'crossover-y'``, ...). The
+	isotropic fast path in the public function never enters here, so
+	round-lens columns are untouched.
+
+	Parameters
+	----------
+	U : np.ndarray
+		Scaled field ``(n, n)``.
+	dxi, deta : float
+		Scaled-coordinate sample spacings.
+	wavelength : float
+		Wavelength (metres).
+	remaining : float
+		Segment length still to propagate (metres).
+	s, R : float or Sequence[float]
+		Frame state at entry (scalar-or-pair).
+	z : float
+		Physical position at entry (metres).
+	z_cross : float or Sequence or None
+		Crossover marker(s) at entry; per-axis entries may be ``None``.
+	safety : float
+		Sampling-guard fraction for the frame changes.
+	absorb : float
+		Absorbing-boundary margin forwarded to :func:`propagate_free_scaled`.
+	crossover : {'flat', 'jump'}
+		Crossover-traversal policy (see the public function).
+	k : float
+		Wavenumber ``2π/λ``.
+	tol : float
+		Float tolerance on split positions.
+	logged : list
+		List to append interior states to (owned by the caller).
+
+	Returns
+	-------
+	tuple
+		``(U, s, R, dtau, z, z_cross, logged)`` with per-axis quantities
+		joined by :func:`join_axes` (``z_cross`` collapses to ``None`` when
+		both axes are clear, a scalar when equal, else an ``(x, y)`` pair).
+
+	Raises
+	------
+	ValueError
+		Only from the frame-change sampling guard; the policy switches frames
+		before either axis's singularity is approached.
+
+	Related
+	-------
+	propagate_free_scaled_hybrid : The public entry point and policy spec.
+	"""
+	ss = list(axis_components(s))
+	RR = list(axis_components(R))
+	if z_cross is None:
+		zc = [None, None]
+	elif np.ndim(z_cross) == 0:
+		zc = [float(z_cross), float(z_cross)]
+	else:
+		zc = [None if z_cross[0] is None else float(z_cross[0]),
+			  None if z_cross[1] is None else float(z_cross[1])]
+	tau = [0.0, 0.0]
+	names = ("x", "y")
+	pitches = (abs(dxi), abs(deta))
+
+	def snapshot():
+		zj = None if (zc[0] is None and zc[1] is None) else \
+			(zc[0] if zc[0] == zc[1] else (zc[0], zc[1]))
+		return (join_axes(ss[0], ss[1]), join_axes(RR[0], RR[1]),
+				join_axes(tau[0], tau[1]), zj)
+
+	while remaining > tol:
+		exts = beam_support_extents(U, dxi, deta)
+		fired = False
+		dists = [np.inf, np.inf]
+		for a in range(2):
+			A = k * 1.2 * exts[a] * pitches[a] / (safety * np.pi)
+			R_a, s_a = RR[a], ss[a]
+			if not np.isinf(R_a) and R_a < 0:
+				R_flat = R_a**2 / (A * s_a**2)
+				R_switch = R_flat if crossover == 'flat' else R_flat / 2
+				if abs(R_a) <= R_switch + tol:
+					R_new = list(RR)
+					R_new[a] = np.inf if crossover == 'flat' else abs(R_a)
+					tag = ("flatten-" if crossover == 'flat' else "jump-") + names[a]
+					U, dxi, deta = change_scaled_frame(U, dxi, deta, wavelength,
+													   (ss[0], ss[1]), (RR[0], RR[1]),
+													   (R_new[0], R_new[1]), safety=safety)
+					zc[a] = z + abs(R_a)
+					RR[a] = R_new[a]
+					s_j, R_j, t_j, z_j = snapshot()
+					logged.append((tag, U, s_j, R_j, t_j, z, z_j))
+					fired = True
+					break
+				dists[a] = abs(R_a) - R_switch
+			elif np.isinf(R_a) and zc[a] is not None:
+				if z < zc[a] - tol:
+					dists[a] = zc[a] - z
+				else:
+					d = z - zc[a]
+					d_min = A * s_a**2
+					if d >= d_min - tol:
+						R_new = list(RR)
+						R_new[a] = d
+						U, dxi, deta = change_scaled_frame(U, dxi, deta, wavelength,
+														   (ss[0], ss[1]), (RR[0], RR[1]),
+														   (R_new[0], R_new[1]), safety=safety)
+						RR[a] = d
+						zc[a] = None
+						s_j, R_j, t_j, z_j = snapshot()
+						logged.append(("rediverge-" + names[a], U, s_j, R_j, t_j, z, z_j))
+						fired = True
+						break
+					dists[a] = d_min - d
+			elif zc[a] is not None and not np.isinf(R_a) and R_a > 0 and z < zc[a] - tol:
+				dists[a] = zc[a] - z	# jump policy: split to log the line focus
+		if fired:
+			continue
+		step = min(remaining, dists[0], dists[1])
+		heading = [zc[a] is not None and z < zc[a] - tol for a in range(2)]
+		U, s_j, R_j, dt = propagate_free_scaled(U, dxi, deta, wavelength, step,
+												(ss[0], ss[1]), (RR[0], RR[1]),
+												s_min=0.0, absorb=absorb)
+		ss = list(axis_components(s_j))
+		RR = list(axis_components(R_j))
+		dt_x, dt_y = axis_components(dt)
+		tau[0] += dt_x
+		tau[1] += dt_y
+		z += step
+		remaining -= step
+		for a in range(2):
+			if heading[a] and z >= zc[a] - tol:
+				s_j, R_j, t_j, z_j = snapshot()
+				logged.append(("crossover-" + names[a], U, s_j, R_j, t_j, z, z_j))
+				if not np.isinf(RR[a]) and RR[a] > 0:
+					zc[a] = None		# jump path: marker consumed at the focus
+	s_j, R_j, t_j, z_j = snapshot()
+	return U, s_j, R_j, t_j, z, z_j, logged
 
 
 def aperture_mask(field: np.ndarray, dx: float, dy: float, radius: float,
