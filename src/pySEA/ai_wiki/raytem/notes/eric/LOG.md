@@ -7,6 +7,12 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-21 — [Under Construction] Microscope.show for scaled/hybrid wave results
+**Goal:** Wire `show(kind="wave-scaled"/"wave-hybrid")`: cross-section |ψ(x,0,z)| with element/crossover annotations by default, per-plane |ψ|² via the reconstructed Signal's own `.show()` when a plane is named.
+**Why:** The kinds are accepted by the signature but raise; the demo's figures live only in examples/04 — Eric wants the scaled result to plot through the standard `show`.
+- [ ] cross-section + per-plane show paths
+- [ ] headless test + wiki
+
 ## 2026-08-21 — [Done] Radial absorbing boundary (fourfold fringe fix)
 **Goal:** Replace the square separable absorbing-boundary window with a radially symmetric one so the absorber stops imprinting a fourfold, pixel-aligned fringe pattern on the beam.
 **Why:** Eric spotted a fourfold pattern inside the disc at every downstream plane (band limit on or off); discrimination experiments (c4 fourfold harmonic, suspects toggled in-memory) pinned it to the square window's azimuthally anisotropic clipping of the aperture halo — radial window collapses c4 from ~1e-3 to 0.0000 at sample and detector, while the band-limit and beam-support-policy toggles change nothing.
