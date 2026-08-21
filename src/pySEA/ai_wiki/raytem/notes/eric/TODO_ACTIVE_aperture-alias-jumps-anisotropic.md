@@ -8,7 +8,7 @@
       edge content (real Fresnel fringes stay — Eric: keep the physics);
       `bandlimited_disk` from the analytic J1 spectrum (+ supersampled
       area-coverage masks for mid-column Apertures); tests + demo rerun
-- [ ] Step 2 — beam-support frame policy: guard + flatten/re-diverge
+- [x] Step 2 — beam-support frame policy: guard + flatten/re-diverge
       thresholds measured over the beam's actual support instead of the empty
       grid edge (fixes the padded-grid s_min crash; flattens earlier)
 - [ ] Step 3 — direct converging→diverging frame jumps (crossover='jump'):
