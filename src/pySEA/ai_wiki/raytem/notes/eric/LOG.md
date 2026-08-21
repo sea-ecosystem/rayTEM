@@ -7,12 +7,14 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
-## 2026-08-21 — [Under Construction] Radial absorbing boundary (fourfold fringe fix)
+## 2026-08-21 — [Done] Radial absorbing boundary (fourfold fringe fix)
 **Goal:** Replace the square separable absorbing-boundary window with a radially symmetric one so the absorber stops imprinting a fourfold, pixel-aligned fringe pattern on the beam.
 **Why:** Eric spotted a fourfold pattern inside the disc at every downstream plane (band limit on or off); discrimination experiments (c4 fourfold harmonic, suspects toggled in-memory) pinned it to the square window's azimuthally anisotropic clipping of the aperture halo — radial window collapses c4 from ~1e-3 to 0.0000 at sample and detector, while the band-limit and beam-support-policy toggles change nothing.
-- [ ] radial boundary_window
-- [ ] tests (radial symmetry + c4 regression) + suite green
-- [ ] figures to Eric + docs/wiki + protocol finish
+- [x] radial boundary_window
+- [x] tests (radial symmetry + c4 regression) + suite green
+- [x] figures to Eric + docs/wiki + protocol finish
+
+**Outcome:** `waveoptics.boundary_window` is now a radially symmetric raised cosine (1 inside the inscribed circle minus the band, 0 at the inscribed-circle edge; corners fully absorbed). The old separable `outer(ramp, ramp)` window was a soft SQUARE frame applied at every tau sub-step: its corners sit sqrt(2) farther than its edges, so the aperture's Fresnel halo was clipped azimuthally anisotropically and the fourfold-modulated survivor interfered back into the disc — the pixel-aligned pattern Eric flagged ("fringes overlapping" was exactly right, but overlapping through the absorber frame, not at a crossover). Discrimination table (c4 fourfold harmonic of interior intensity at sample/detector): square window 0.00095/0.00145; binary-vs-bandlimited aperture toggle no change; grid-edge-vs-beam-support flatten toggle no change; radial window 0.00004/0.00005; padded 512^2/40um halves c4 (frame farther from beam — Eric's FOV intuition). Residual interior contrast is isotropic concentric Fresnel rings only (sample std/mean 0.012, detector 0.023 — thresholds re-measured; the circular truncation starts slightly earlier than the square window's corners, so ring contrast is marginally higher but has no angular structure). bandlimited_disk kept per Eric (exact alias-free sampling; cleans the z=120mm near-field, no downstream effect). Tests 67 green: window radial-symmetry unit test + c4 < 5e-4 regression at both planes.
 
 ## 2026-08-21 — [Done] Alias-free aperture + frame-policy refinements + anisotropic frames
 **Goal:** Remove the numerical "gridding" from hard-aperture runs while keeping the real Fresnel fringes (band-limited sampling of the exact Theta(a-r)); make the frame policy beam-support based; add direct frame jumps and anisotropic (s_x != s_y) frames.

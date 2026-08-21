@@ -12,7 +12,9 @@ sub-step and the fourfold-modulated survivor interferes back into the disc.
 Radial window kills c4 to 0.0000 at sample and detector; band limit and
 beam-support policy toggles change nothing (c4 0.0008–0.0015 all).
 
-- [ ] `boundary_window` → radially symmetric raised cosine (inscribed circle)
-- [ ] tests: radial-symmetry unit test + c4 < 5e-4 at the sample plane
-- [ ] suite green; re-measure energy thresholds if tripped
-- [ ] A/B figure rerun → send Eric; docs/wiki sync; protocol finish
+- [x] `boundary_window` → radially symmetric raised cosine (inscribed circle)
+- [x] tests: radial-symmetry unit test + c4 < 5e-4 at the sample AND detector
+- [x] suite green (67); interior ring-contrast thresholds re-measured
+      (sample 0.012 → bound 0.015; detector 0.023 → bound 0.03, flat_min 0.85)
+- [x] A/B figure rerun → sent Eric (c4 sample 0.00095→0.00004, detector
+      0.00145→0.00005; only concentric Fresnel rings remain); docs/wiki synced
