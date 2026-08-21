@@ -480,3 +480,44 @@ def test_wave_kind_aperture_matches__aperture_wave():
 	with pytest.raises(ValueError, match="aperture_radius"):
 		Source(voltage=200, wave_shape=(64, 64), wave_extent=16e-6,
 			   wave_kind="aperture").wave()
+
+
+# --- frame-change primitive (Eric's Eq 5) ---------------------------------------
+
+def test_change_scaled_frame_identity():
+	# the physical wave is invariant under any frame change (pointwise path)
+	psi0, dx, lam = _gaussian_state()
+	frames = [(1.0, np.inf), (0.7, 0.3), (0.5, -0.2), (1.4, np.inf)]
+	for (s_a, R_a) in frames:
+		U_a, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, s_a, R_a)
+		for (s_b, R_b) in frames:
+			U_b, dxi_b, deta_b = wo.change_scaled_frame(U_a, dxi, deta, lam,
+														s_a, R_a, R_b, s_new=s_b)
+			# physical-grid continuity: same physical pixel before and after
+			assert np.isclose(abs(s_b) * dxi_b, abs(s_a) * dxi)
+			psi_b, dx_b, _ = wo.reconstruct_physical_wave(U_b, dxi_b, deta_b, lam, s_b, R_b)
+			assert np.isclose(dx_b, dx)
+			assert np.allclose(psi_b, psi0, atol=1e-12)
+	# flatten/re-diverge case (s kept): pitch unchanged
+	U_a, dxi, deta = wo.factor_wave(psi0, dx, dx, lam, 0.8, -0.5)
+	U_f, dxi_f, _ = wo.change_scaled_frame(U_a, dxi, deta, lam, 0.8, -0.5, np.inf)
+	assert dxi_f == dxi
+	psi_f, _, _ = wo.reconstruct_physical_wave(U_f, dxi_f, dxi_f, lam, 0.8, np.inf)
+	assert np.allclose(psi_f, psi0, atol=1e-12)
+
+
+def test_change_scaled_frame_sampling_guard():
+	# moving an unrepresentably strong curvature into U must raise, naming the
+	# minimum representable |R|
+	n, dxi, s = 128, 5e-6, 1.0
+	lam = LAM		# electron wavelength: curvature phases are severe
+	U = wo.gaussian_field((n, n), dxi, dxi, 1e-4, 1e-4)
+	R_min = wo.min_representable_curvature(n, dxi, lam, s, safety=0.5)
+	with pytest.raises(ValueError, match="not representable"):
+		wo.change_scaled_frame(U, dxi, dxi, lam, s, -0.5 * R_min, np.inf)
+	# at a weaker curvature (larger |R|) the same change passes
+	out, _, _ = wo.change_scaled_frame(U, dxi, dxi, lam, s, -2.0 * R_min, np.inf)
+	assert np.isfinite(out).all()
+	# and the pure-converter path (safety=None) never guards
+	out, _, _ = wo.change_scaled_frame(U, dxi, dxi, lam, s, -0.5 * R_min, np.inf, safety=None)
+	assert np.isfinite(out).all()
