@@ -7,6 +7,13 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-21 — [Under Construction] Radial absorbing boundary (fourfold fringe fix)
+**Goal:** Replace the square separable absorbing-boundary window with a radially symmetric one so the absorber stops imprinting a fourfold, pixel-aligned fringe pattern on the beam.
+**Why:** Eric spotted a fourfold pattern inside the disc at every downstream plane (band limit on or off); discrimination experiments (c4 fourfold harmonic, suspects toggled in-memory) pinned it to the square window's azimuthally anisotropic clipping of the aperture halo — radial window collapses c4 from ~1e-3 to 0.0000 at sample and detector, while the band-limit and beam-support-policy toggles change nothing.
+- [ ] radial boundary_window
+- [ ] tests (radial symmetry + c4 regression) + suite green
+- [ ] figures to Eric + docs/wiki + protocol finish
+
 ## 2026-08-21 — [Done] Alias-free aperture + frame-policy refinements + anisotropic frames
 **Goal:** Remove the numerical "gridding" from hard-aperture runs while keeping the real Fresnel fringes (band-limited sampling of the exact Theta(a-r)); make the frame policy beam-support based; add direct frame jumps and anisotropic (s_x != s_y) frames.
 **Why:** Eric spotted an axis-aligned grid texture at the sample/detector (diagnosed: aliased above-Nyquist edge content, not wraparound; physics must stay); the padded-grid control exposed the grid-edge flatten criterion crashing into s_min; the two handoff follow-ups (jumps, anisotropy) were queued next.
