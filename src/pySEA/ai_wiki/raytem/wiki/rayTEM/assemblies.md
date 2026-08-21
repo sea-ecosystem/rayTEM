@@ -28,9 +28,9 @@
 |   `Microscope.propagate_ray(self, r0, z, verbose)` | 168 |
 |   `Microscope.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 172 |
 |   `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)` | 183 |
-|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 193 |
-|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 198 |
-|   `Microscope.save(self, filename)` | 202 |
+|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 202 |
+|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 207 |
+|   `Microscope.save(self, filename)` | 211 |
 <!-- END AUTO-GENERATED TOC -->
 
 # assemblies.py
@@ -181,6 +181,15 @@ the hybrid engine (per-axis line foci included: any tag starting with
 the frame-switching engine (the back-focal / image planes).
 
 ### `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)`
+
+`Microscope.show` covers the scaled result too: `kind='wave-scaled'` /
+`'wave-hybrid'` with no `plane` draws the |ψ(x, y=0, z)| **cross-section**
+(the wave analog of the ray diagram — per-plane native grids resampled onto
+one x axis, element and crossover overlays; `_scaled_wave_cross_section`);
+with `plane=` (logged-plane index, z in metres, or a named position like
+`"sample"`) it images the reconstructed physical |ψ|² by delegating to the
+wavefield Signal's own `.show()` — the same composition (not inheritance)
+pattern as `kind='wave'`/`'moments'`.
 
 The scaled-run boundary: reconstructs the physical wave ψ(x, y) at the logged
 plane nearest `z` (float or named position) via
