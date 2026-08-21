@@ -7,6 +7,15 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-20 — [Under Construction] Scaled-frame switching through crossovers
+**Goal:** Full-column scaled propagation: a general frame-change primitive (Eric's Eq 5) plus a hybrid crossover policy (scaled -> flatten near focus -> ordinary Fresnel through it -> re-diverge), consolidated as propagate_wave(mode='fixed'|'scaled'|'hybrid').
+**Why:** The scaled run stops at C1's crossover (the frame's s->0 singularity), and the focal/back-focal/image planes — which sit AT the crossovers — are the most important planes.
+- [ ] change_scaled_frame + min_representable_curvature + delegation (tests)
+- [ ] hybrid engine + z_cross metadata (through-focus + Airy tests)
+- [ ] API consolidation propagate_wave(mode=...) / Source.wave(mode=...)
+- [ ] driver wiring (log, frame companion, Microscope.crossovers) + column test
+- [ ] demo + docs/wiki + close issue #2
+
 ## 2026-08-20 — [Done] Unify wave-mode naming on "wave"
 **Goal:** The wave signal is the object everywhere; rename the Source "field" API and driver kwargs to wave terminology (wave/wave_scaled/wave_shape/wave_kind/wave0).
 **Why:** Eric's review: "field" was an undefined synonym for the wave signal, inconsistent with rays()/moments() and the .wave/.wave_scaled containers.
