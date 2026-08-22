@@ -23,15 +23,15 @@
 |   `reconstruct_physical_wave(U, dxi, deta, wavelength, s, R, target_dx=None, target_shape=None)` | 142 |
 |   `axis_components(value)` / `join_axes(vx, vy)` | 147 |
 |   `rotate_field(U, angle)` | 155 |
-|   `scaled_delta_tau_lens(dz, s0, R0, K)` | 166 |
-|   `propagate_thick_lens_scaled(U, dxi, deta, wavelength, dz, s, R, K, s_min=1e-3, absorb=0.0, rotate=False)` | 177 |
-|   `apply_thin_lens_scaled(s, R, power)` | 190 |
-|   `beam_support_radius(U, dxi, deta, threshold=1e-6)` / `beam_support_extents(...)` | 196 |
-|   `propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min=1e-3, absorb=0.0)` | 204 |
-| Frame switching (crossover traversal) | 213 |
-|   `min_representable_curvature(n, dxi, wavelength, s, safety=0.5, x_max=None)` | 218 |
-|   `change_scaled_frame(U, dxi, deta, wavelength, s_old, R_old, R_new, s_new=None, safety=0.5)` | 225 |
-|   `propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross=None, safety=0.5, s_min=1e-3, absorb=0.0, crossover='flat')` | 236 |
+|   `scaled_delta_tau_quadratic(dz, s0, R0, K)` | 166 |
+|   `propagate_quadratic_segment_scaled(U, dxi, deta, wavelength, dz, s, R, K, s_min=1e-3, absorb=0.0, rotate=False)` | 177 |
+|   `apply_thin_lens_scaled(s, R, power)` | 192 |
+|   `beam_support_radius(U, dxi, deta, threshold=1e-6)` / `beam_support_extents(...)` | 198 |
+|   `propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min=1e-3, absorb=0.0)` | 206 |
+| Frame switching (crossover traversal) | 215 |
+|   `min_representable_curvature(n, dxi, wavelength, s, safety=0.5, x_max=None)` | 220 |
+|   `change_scaled_frame(U, dxi, deta, wavelength, s_old, R_old, R_new, s_new=None, safety=0.5)` | 227 |
+|   `propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross=None, safety=0.5, s_min=1e-3, absorb=0.0, crossover='flat')` | 238 |
 <!-- END AUTO-GENERATED TOC -->
 
 # waveoptics.py
@@ -163,9 +163,9 @@ Larmor angle can be applied once at its exit exactly (verified to 1e-10
 inside the drift sampling limit; past that limit aliasing breaks the
 commutation, since wraparound is not rotation-invariant).
 
-### `scaled_delta_tau_lens(dz, s0, R0, K)`
-Δτ across a **constant-K quadratic-index segment** — a thick round lens body,
-where `s(z) = s₀cos(Kz) + (u₀/K)sin(Kz)` (the element's own
+### `scaled_delta_tau_quadratic(dz, s0, R0, K)`
+Δτ across a **constant-K quadratic-index segment** — today a thick round lens
+body, a thick quadrupole once its per-axis block lands (issue #3), where `s(z) = s₀cos(Kz) + (u₀/K)sin(Kz)` (the element's own
 `[[cos, sin/K], [−K sin, cos]]` block) rather than linear. With
 `s(z) = C·cos(Kz − φ)`, `C² = s₀² + (u₀/K)²`, `tan φ = u₀/(K s₀)`:
 `Δτ = [tan(K·Δz − φ) + tan φ]/(K·C²)`. Verified against the numerical
@@ -174,17 +174,19 @@ actionably when `s → 0` *inside* the body — the crossover lies within the
 element, where the frame is singular (mid-element frame switching is not
 implemented).
 
-### `propagate_thick_lens_scaled(U, dxi, deta, wavelength, dz, s, R, K, s_min=1e-3, absorb=0.0, rotate=False)`
-The honest thick lens: **not** a phase screen but a *medium*, carried as one
-segment. The frame advances by the element's own 2×2 applied to `(s, s/R)` —
+### `propagate_quadratic_segment_scaled(U, dxi, deta, wavelength, dz, s, R, K, s_min=1e-3, absorb=0.0, rotate=False)`
+The honest thick body: **not** a phase screen but a *medium*, carried as one
+segment. Element-agnostic — it serves whatever `Element.scaled_segment()`
+declares `('quadratic', K)` (today `Lens` with `length > 0`). The frame advances by the element's own 2×2 applied to `(s, s/R)` —
 legitimate because the frame *is* a reference ray — and U propagates over the
 segment's own Δτ with the usual carrier-free kernel. **No screen, no
 curvature kick**: the factorization solves a quadratic-index medium exactly,
-so a thick lens costs U nothing in sampling, just like a drift. `rotate=True`
+so a thick body costs U nothing in sampling, just like a drift. `rotate=True`
 applies the body's Larmor angle `−K·dz` (see `rotate_field`); the ray path
 always rotates, but it is a no-op for rotationally symmetric fields, hence
-the default. Anisotropic frames are refused (a round lens cannot be applied
-per-axis). Verified to reproduce `Lens.transfer_matrix`'s rotating-frame
+the default. Anisotropic frames are refused — the segment is isotropic, so a
+per-axis medium would need an anisotropic K and a separable kernel (issue #3).
+Verified to reproduce `Lens.transfer_matrix`'s rotating-frame
 x-block exactly, with energy conserved to 1e-9.
 
 ### `apply_thin_lens_scaled(s, R, power)`

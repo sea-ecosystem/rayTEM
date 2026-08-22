@@ -7,12 +7,45 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
-## 2026-08-22 — [Under Construction] Wave seam cleanup: no element owns a propagation method
+## 2026-08-22 — [Done] Wave seam cleanup: no element owns a propagation method
 **Goal:** `phase_shift(kind=...)` dispatching to `_phase_shift_*`, an amplitude/mask declaration, removal of the `Source`/`Aperture`/`Prism` `propagate_wave` overrides, and an element-agnostic per-axis segment propagator.
 **Why:** Eric's architectural direction — the ray side is the model (an element declares `transfer_matrix`, the generic `propagate_ray` consumes it), and the wave side should match; also `propagate_thick_lens_scaled` is lens-named and lens-scoped, which is what blocks a quadrupole from using it.
-- [ ] phase_shift(kind=) + _phase_shift_* split
-- [ ] amplitude_mask seam + remove the three overrides
-- [ ] segment propagator rename + per-axis
+- [x] phase_shift(kind=) + _phase_shift_* split
+- [x] amplitude_mask seam + remove the three overrides
+- [x] segment propagator rename (per-axis deliberately deferred to issue #3 step 3)
+
+**Outcome:** The wave side now matches the ray side: an element **declares**
+(`phase_shift`, `amplitude_mask`, `scaled_segment`) and the generic propagators
+on `Element` consume it. `Element.phase_shift(dimensions, wavelength,
+kind='fixed'|'scaled'|'hybrid', s=1)` replaces the `scaled=bool` flag and
+dispatches to overridable `_phase_shift_fixed`/`_phase_shift_scaled` halves
+(Drift/Quadrapole/Dipole/Lens/Prism split accordingly; `'hybrid'` *is* the
+scaled representation so it maps there; an unknown kind raises). New
+`Element.amplitude_mask(dimensions, kind, s)` is the multiplicative companion
+for elements whose wave action is a transmission rather than a phase —
+`Aperture` implements it and maps its own physical radius to `xi <=
+radius/|s_x|` on scaled frames, so the driver never owns that coordinate
+mapping. With those two declarations in place, `Source.propagate_wave`,
+`Aperture.propagate_wave` and `Prism.propagate_wave` are **deleted**: both
+drivers now apply `amplitude_mask` and pass `kind=` through, reproducing the
+deleted behavior generically (`Source` and `Aperture` are simply transparent on
+the phase seam — a seed and a mask are not phases; `Prism` raises, its wave
+physics being genuinely unimplemented rather than architecturally special).
+`waveoptics.propagate_thick_lens_scaled` -> `propagate_quadratic_segment_scaled`
+and `scaled_delta_tau_lens` -> `scaled_delta_tau_quadratic`: these describe a
+constant-K quadratic-index *segment*, and the lens-scoped name was what blocked
+a quadrupole from reaching them. **Per-axis capability deliberately deferred**
+to issue #3 step 3 rather than built here: an anisotropic segment needs a
+per-axis K *and* a separable (dtau_x, dtau_y) kernel, and its only consumer is
+the thick quadrupole whose transfer block is not yet symplectic — the rename is
+what actually unblocks #3, and the isotropic-frame refusal already names the
+limit actionably. 86 tests green (was 84); the two pre-existing regression tests
+that pin this seam (`test_fixed_path_refactor_regression`,
+`test_wave_kind_aperture_matches__aperture_wave`) pass unchanged, which is the
+pure-refactor proof. Scope note: this cleans the **wave** seam only —
+`Source`/`Aperture` still own `propagate_ray`/`propagate_moments`, since a beam
+seed and a hard geometric block are not transfer matrices; the guard test says
+so explicitly rather than silently allowing it.
 
 ## 2026-08-22 — [Note] Thick quadrupole defects filed as issue #3
 **Goal:** Get the thick-quadrupole matrix defects in front of the other contributor rather than fixing quadrupole ray physics unilaterally, and record the wave-side work they block.

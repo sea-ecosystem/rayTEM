@@ -73,7 +73,8 @@ quadratic-index *segment* — no thin-kick approximation — which moved
 A thick quadrupole should get the same treatment, but cannot yet:
 
 1. the segment propagator is currently named and scoped for a lens
-   (`waveoptics.propagate_thick_lens_scaled`) and **refuses anisotropic
+   (`waveoptics.propagate_quadratic_segment_scaled` (renamed from
+   `propagate_thick_lens_scaled` in the P1 wave-seam cleanup)) and **refuses anisotropic
    frames**, because a round lens is isotropic by construction. A quadrupole
    needs per-axis strengths `(K, −K)`, i.e. one focusing and one defocusing
    medium in the same element;
