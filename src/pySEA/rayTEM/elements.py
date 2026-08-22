@@ -310,66 +310,149 @@ class Element(SEASerializable):
 		"""
 		return xp.eye(len(convention))
 
-	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
-		r"""Wave-side element contract: the phase this element imprints on a wave.
+	def phase_shift(self, dimensions, wavelength:float,
+					kind:Literal['fixed','scaled','hybrid']='fixed', s=1.0):
+		"""Dispatch to this element's phase declaration for one wave representation.
 
-		The wave counterpart of :meth:`transfer_matrix`: each element class states
-		its wave physics explicitly as a scalar, projected-potential-like phase
-		χ (radians) that the propagators apply as ``exp(i·χ)``.
+		The wave-side counterpart of :meth:`transfer_matrix`: an element
+		*declares* its phase and the generic propagators consume it — no element
+		implements propagation itself. This is the public entry point and mirrors
+		:meth:`propagate_wave`'s ``mode``; the physics lives in
+		:meth:`_phase_shift_fixed` and :meth:`_phase_shift_scaled`, which
+		subclasses override.
 
 		Parameters
 		----------
 		dimensions : Dimensions or tuple
-			Transverse grid: a sea_eco ``Dimensions`` whose trailing axes are the
-			calibrated y/x dimensions, or the fallback ``((ny, nx), dx, dy)``.
+			Transverse grid, either a sea_eco ``Dimensions`` or the fallback
+			``((ny, nx), dx, dy)`` tuple (see :func:`seashells.grid_of`).
 		wavelength : float
 			Wavelength (metres).
-		scaled : bool, optional
-			Select the representation, by default False.
-			``False`` → return the ordered **phase program** for the fixed-grid
-			propagator: a list of space-tagged phase Signals (Dimension
-			``space='position'`` = real-space screen; ``'scattering'`` =
-			reciprocal-space free-segment kernel). A finite-length element yields
-			``[kernel(L/2), screen(χ), kernel(L/2)]``.
-			``True`` → return the scaled-representation split ``(power,
-			screen)``: ``power`` is the focusing power absorbed into the
-			curvature state (``1/R⁺ = 1/R⁻ − power``, handoff Eq 45) — a
-			per-axis ``(P_x, P_y)`` pair for astigmatic elements, absorbed
-			into the anisotropic curvature ``(R_x, R_y)`` — and ``screen`` is
-			the phase applied explicitly to U (handoff Eqs 47–48; ``None``
-			when fully absorbed), evaluated at physical coordinates
-			``x = s·ξ``.
+		kind : {'fixed', 'scaled', 'hybrid'}, optional
+			Which representation to declare for, by default ``'fixed'``.
+			``'hybrid'`` is the scaled representation, so it maps to
+			``'scaled'``.
 		s : float or Sequence[float], optional
-			Current transverse scale factor (used only when ``scaled=True``);
-			an ``(s_x, s_y)`` pair on an anisotropic frame, by default 1.
+			Current transverse scale factor, used by the scaled kinds only; an
+			``(s_x, s_y)`` pair on an anisotropic frame, by default 1.
 
 		Returns
 		-------
 		list or tuple
-			``scaled=False``: list of phase Signals in application order.
-			``scaled=True``: ``(power, screen_or_None)``.
+			``'fixed'``: the ordered phase program (space-tagged phase Signals).
+			``'scaled'``/``'hybrid'``: the ``(power, screen)`` split.
+
+		Raises
+		------
+		ValueError
+			If ``kind`` is not one of the documented values.
 
 		Related
 		-------
-		transfer_matrix : The ray-side counterpart (identity on the base class).
-		propagate_wave : Consumer of this contract in every wave mode.
-
-		Notes
-		-----
-		The base ``Element`` is **transparent** — the wave analog of the
-		identity transfer matrix: a phase of nothing, plus free-space transport
-		over the element's ``length`` (the fixed path returns a single
-		full-length kernel, or an empty program for zero length; the scaled
-		path returns ``(0.0, None)`` — its drivers already run the free
-		segments). Element classes with wave physics (``Lens``, ``Quadrapole``,
-		``Dipole``, ``Drift``) override this with their explicit phase;
-		non-phase elements (``Source``, ``Aperture``, ``Prism``) override it to
-		fail loudly because their wave action lives elsewhere.
+		_phase_shift_fixed, _phase_shift_scaled : The per-element declarations.
+		amplitude_mask : The multiplicative counterpart (apertures).
+		transfer_matrix : The ray-side declaration this mirrors.
+		propagate_wave : The generic consumer.
 		"""
-		if scaled:
-			return 0.0, None
+		if kind == 'fixed':
+			return self._phase_shift_fixed(dimensions, wavelength)
+		if kind in ('scaled', 'hybrid'):
+			return self._phase_shift_scaled(dimensions, wavelength, s)
+		raise ValueError(f"Unknown phase kind {kind!r}; expected 'fixed', 'scaled', "
+						 "or 'hybrid'.")
+
+	def _phase_shift_fixed(self, dimensions, wavelength:float):
+		"""Fixed-grid phase program: this element's phases in application order.
+
+		A list of space-tagged phase Signals (``space='position'`` = real-space
+		screen, ``'scattering'`` = reciprocal free-segment kernel). The base
+		``Element`` is **transparent** — the wave analog of the identity transfer
+		matrix — contributing only free transport over its ``length`` (a single
+		full-length kernel, or an empty program at zero length).
+
+		Parameters
+		----------
+		dimensions : Dimensions or tuple
+			Transverse grid (see :meth:`phase_shift`).
+		wavelength : float
+			Wavelength (metres).
+
+		Returns
+		-------
+		list
+			Phase Signals in application order.
+
+		Related
+		-------
+		phase_shift : The public dispatcher.
+		_phase_program : Assembles the kernel/screen ordering.
+		"""
 		return self._phase_program(dimensions, wavelength, None,
 								   self.name or type(self).__name__)
+
+	def _phase_shift_scaled(self, dimensions, wavelength:float, s=1.0):
+		"""Scaled-representation phase split: ``(power, screen)``.
+
+		``power`` is the focusing power absorbed into the frame's curvature
+		state (``1/R⁺ = 1/R⁻ − power``; a per-axis ``(P_x, P_y)`` pair for
+		astigmatic elements), and ``screen`` is the residual phase applied
+		explicitly to ``U`` at physical coordinates ``x = s·ξ`` (``None`` when
+		fully absorbed). The base ``Element`` is transparent: ``(0.0, None)``.
+
+		Parameters
+		----------
+		dimensions : Dimensions or tuple
+			Transverse grid (see :meth:`phase_shift`).
+		wavelength : float
+			Wavelength (metres).
+		s : float or Sequence[float], optional
+			Current transverse scale factor, by default 1.
+
+		Returns
+		-------
+		tuple
+			``(power, screen_or_None)``.
+
+		Related
+		-------
+		phase_shift : The public dispatcher.
+		scaled_segment : Declared instead by elements that are whole segments.
+		"""
+		return 0.0, None
+
+	def amplitude_mask(self, dimensions, kind:Literal['fixed','scaled','hybrid']='fixed',
+					   s=1.0):
+		"""Declare a multiplicative amplitude mask, if this element is one.
+
+		The companion of :meth:`phase_shift` for elements whose wave action is
+		**not** a phase — an aperture transmits or blocks. Declaring it here
+		keeps propagation generic: no element needs to own a ``propagate_wave``.
+		The base ``Element`` is transparent and returns ``None``.
+
+		Parameters
+		----------
+		dimensions : Dimensions or tuple
+			Transverse grid (see :meth:`phase_shift`).
+		kind : {'fixed', 'scaled', 'hybrid'}, optional
+			Which representation the mask is wanted in, by default ``'fixed'``.
+			The scaled kinds receive the frame scale so an element can map its
+			physical geometry into scaled coordinates.
+		s : float or Sequence[float], optional
+			Current transverse scale factor, by default 1.
+
+		Returns
+		-------
+		numpy.ndarray or None
+			A real multiplicative mask on the given grid, or ``None`` when the
+			element is transparent.
+
+		Related
+		-------
+		Aperture.amplitude_mask : The hard circular aperture.
+		phase_shift : The additive-phase counterpart.
+		"""
+		return None
+
 
 	def transfer_xblock(self, dz:float=None, axis:Literal['x','y']='x') -> xp.ndarray:
 		r"""Rotating-frame 2x2 transfer block for one transverse axis.
@@ -456,7 +539,7 @@ class Element(SEASerializable):
 		Related
 		-------
 		phase_shift : The point-event contract used when this returns ``None``.
-		waveoptics.propagate_thick_lens_scaled : Consumes the ``'quadratic'`` case.
+		waveoptics.propagate_quadratic_segment_scaled : Consumes the ``'quadratic'`` case.
 
 		Notes
 		-----
@@ -642,7 +725,7 @@ class Element(SEASerializable):
 		  the reduced field ``U(ξ, η)`` of ``ψ = (1/s)·U·exp[ik(x²+y²)/2R]``
 		  plus the frame scalars ``(s, R, τ)``. A finite length is split as
 		  free ``L/2`` → element action → free ``L/2``;
-		  :meth:`phase_shift(scaled=True)` supplies the split into curvature
+		  :meth:`phase_shift(kind=...)` supplies the split into curvature
 		  (``1/R⁺ = 1/R⁻ − power``, Eq 45) and a residual screen applied to U
 		  under a sampling guard (Eqs 47–48). A single frame: propagation
 		  raises before a beam crossover (the frame's ``s = 0`` singularity).
@@ -689,6 +772,8 @@ class Element(SEASerializable):
 		Related
 		-------
 		phase_shift : The per-element wave physics consumed by every mode.
+		amplitude_mask : The multiplicative declaration (apertures), also
+			consumed by every mode.
 		waveoptics.propagate_free_scaled_hybrid : The hybrid crossover engine.
 		Source.wave : Seeds the matching initial state per mode.
 
@@ -729,7 +814,10 @@ class Element(SEASerializable):
 		dimensions = getattr(signal, "dimensions", None)
 		if dimensions is None:
 			dimensions = (data.shape, dx, dy)
-		for phase in self.phase_shift(dimensions, wavelength):
+		mask = self.amplitude_mask(dimensions, kind='fixed')
+		if mask is not None:
+			data = data * mask
+		for phase in self.phase_shift(dimensions, wavelength, kind='fixed'):
 			data = apply_phase(data, phase.data, phase_space_of(phase))
 		z_out = (z if z is not None else 0.0) + self.length
 		return make_wavefield_signal(data, dx, dy, wavelength, z=z_out,
@@ -804,16 +892,20 @@ class Element(SEASerializable):
 		segment = self.scaled_segment()
 		if segment is not None and L != 0:
 			# quadratic-index medium: one exact segment, no screen and no kick
-			from .waveoptics import propagate_thick_lens_scaled
+			from .waveoptics import propagate_quadratic_segment_scaled
 			_kind, K = segment
-			U, s, R, dt = propagate_thick_lens_scaled(U, dxi, deta, wavelength, L,
+			U, s, R, dt = propagate_quadratic_segment_scaled(U, dxi, deta, wavelength, L,
 													  s, R, K, s_min=s_min,
 													  absorb=absorb, rotate=rotate)
 			tau = tau_add(tau, dt) ; z += L
 			return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
 												z=z, z_cross=z_cross, name=name)
 		U, s, R, tau, z, z_cross = free(U, s, R, tau, z, z_cross, L / 2 if L != 0 else 0)
-		power, screen = self.phase_shift((U.shape, dxi, deta), wavelength, scaled=True, s=s)
+		kind = 'hybrid' if hybrid else 'scaled'
+		mask = self.amplitude_mask((U.shape, dxi, deta), kind=kind, s=s)
+		if mask is not None:
+			U = U * mask
+		power, screen = self.phase_shift((U.shape, dxi, deta), wavelength, kind=kind, s=s)
 		if xp.ndim(power) > 0 or power != 0:		# scalar or per-axis (quadrupole) power
 			s, R = apply_thin_lens_scaled(s, R, power)
 		if screen is not None:
@@ -1139,39 +1231,15 @@ class Source(Element):
 		return make_wavefield_signal(data, dx, dy, self.wavelength, z=z0,
 									 name=(self.name or 'source') + ' aperture wavefield')
 
-	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
-					   s_min:float=1e-3, log:list=None, absorb:float=0.1,
-				   crossover:Literal['flat','jump']='flat', rotate:bool=False):
-		"""Pass the wavefield through unchanged (the source only originates the beam).
 
-		Mirrors :meth:`propagate_ray`/:meth:`propagate_moments`: the driver
-		seeds the wave from :meth:`wave` (in the matching representation), so
-		the source's own step is a no-op in every mode.
+	def _phase_shift_scaled(self, dimensions, wavelength:float, s=1.0):
+		"""A source imprints nothing: its wave role is originating the beam.
 
-		Parameters
-		----------
-		signal : Signal or seashells._Wavefield or seashells._ScaledWavefield
-			Incoming wavefield.
-		mode : {'fixed', 'scaled', 'hybrid'}, optional
-			Unused (accepted for driver-signature uniformity).
-		s_min : float, optional
-			Unused.
-		log : list, optional
-			Unused.
-
-		Returns
-		-------
-		Signal or seashells._Wavefield or seashells._ScaledWavefield
-			The input ``signal`` unchanged.
-		"""
-		return signal
-
-	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
-		"""A source originates waves; it imprints no phase (not part of this contract).
-
-		Overrides :meth:`Element.phase_shift` to fail loudly: the source's wave
-		role is generating the initial wave (:meth:`wave`), and its propagation
-		step is a passthrough.
+		Overrides :meth:`Element._phase_shift_scaled` only to document the
+		intent. The source's contribution is :meth:`wave` (the seed the drivers
+		start from), so its own propagation step is transparent — which the base
+		class already provides, and which is why ``Source`` needs no
+		``propagate_wave`` of its own.
 
 		Parameters
 		----------
@@ -1179,23 +1247,20 @@ class Source(Element):
 			Unused.
 		wavelength : float
 			Unused.
-		scaled : bool, optional
-			Unused.
-		s : float, optional
+		s : float or Sequence[float], optional
 			Unused.
 
 		Returns
 		-------
-		None
-			Never returns.
+		tuple
+			``(0.0, None)`` — transparent.
 
-		Raises
-		------
-		NotImplementedError
-			Always.
+		Related
+		-------
+		wave : Where a source's wave physics actually lives.
 		"""
-		raise NotImplementedError("Source originates waves (wave/wave_scaled); "
-								  "it has no phase_shift.")
+		return 0.0, None
+
 
 class Aperture(Element):
 	"""Aperture element class. An aperture serves to crop the beam, and the total beam intensity is reduced dependent on the area of the beam and the area of aperture.
@@ -1317,91 +1382,46 @@ class Aperture(Element):
 		"""
 		return mu, Sigma
 
-	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
-					   s_min:float=1e-3, log:list=None, absorb:float=0.1,
-				   crossover:Literal['flat','jump']='flat', rotate:bool=False):
-		r"""Apply the hard circular aperture to the wavefield in any wave mode.
 
-		Overrides :meth:`Element.propagate_wave` (an aperture is an amplitude
-		mask, not a phase). On the fixed grid the field is zeroed outside
-		``radius``; on the scaled/hybrid paths the physical radius maps to the
-		scaled coordinates as ``ξ ≤ radius/|s|``, so U is masked at the scaled
-		radius. The plane position and (scaled) frame state are unchanged
-		(zero length).
+	def amplitude_mask(self, dimensions, kind:Literal['fixed','scaled','hybrid']='fixed',
+					   s=1.0):
+		r"""The hard circular aperture, as a multiplicative mask.
 
-		Parameters
-		----------
-		signal : Signal or seashells._Wavefield or seashells._ScaledWavefield
-			Incoming wavefield in the representation matching ``mode``.
-		mode : {'fixed', 'scaled', 'hybrid'}, optional
-			Wave representation, by default ``'fixed'``.
-		s_min : float, optional
-			Unused (accepted for driver-signature uniformity).
-		log : list, optional
-			Unused (a zero-length element has no free segments).
-
-		Returns
-		-------
-		Signal or seashells._Wavefield or seashells._ScaledWavefield
-			Masked wavefield on the same grid.
-
-		Raises
-		------
-		ValueError
-			Unknown ``mode``.
-
-		Related
-		-------
-		waveoptics.aperture_mask : The masking operator applied here.
-		"""
-		from .waveoptics import aperture_mask
-		if mode == 'fixed':
-			from .seashells import make_wavefield_signal, read_wavefield
-			data, dx, dy, wavelength, z = read_wavefield(signal)
-			data = aperture_mask(data, dx, dy, self.radius)
-			return make_wavefield_signal(data, dx, dy, wavelength, z=(z if z is not None else 0.0),
-										 name=getattr(signal, "name", "wavefield"))
-		if mode in ('scaled', 'hybrid'):
-			from .seashells import (make_scaled_wavefield_signal, read_scaled_wavefield,
-									scaled_frame_crossover)
-			U, dxi, deta, wavelength, s, R, tau, z = read_scaled_wavefield(signal)
-			U = aperture_mask(U, dxi, deta, self.radius / abs(s))
-			return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
-												z=(z if z is not None else 0.0),
-												z_cross=scaled_frame_crossover(signal),
-												name=getattr(signal, "name", "scaled wavefield"))
-		raise ValueError(f"Unknown wave mode {mode!r}; expected 'fixed', 'scaled', or 'hybrid'.")
-
-	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
-		"""An aperture is an amplitude mask, not a phase (not part of this contract).
-
-		Overrides :meth:`Element.phase_shift` to fail loudly: the aperture's wave
-		action is the multiplicative mask in :meth:`propagate_wave` (and, on the
-		scaled path, the mask at scaled radius ``radius/|s|``), not a phase screen.
+		Overrides :meth:`Element.amplitude_mask`: an aperture is an amplitude
+		mask, not a phase, so this is the declaration the generic propagators
+		consume. On the fixed grid the mask is applied at the physical
+		``radius``; in the scaled representation the same physical radius maps
+		to ``ξ ≤ radius/|s|``, so the element scales it itself.
 
 		Parameters
 		----------
 		dimensions : Dimensions or tuple
-			Unused.
-		wavelength : float
-			Unused.
-		scaled : bool, optional
-			Unused.
-		s : float, optional
-			Unused.
+			Transverse grid (see :meth:`Element.phase_shift`).
+		kind : {'fixed', 'scaled', 'hybrid'}, optional
+			Representation, by default ``'fixed'``.
+		s : float or Sequence[float], optional
+			Frame scale, used by the scaled kinds to map the radius, by default 1.
 
 		Returns
 		-------
-		None
-			Never returns.
+		numpy.ndarray
+			The real mask on the given grid.
 
-		Raises
-		------
-		NotImplementedError
-			Always.
+		Related
+		-------
+		waveoptics.aperture_mask : The masking operator (anti-aliased edge).
+		Element.amplitude_mask : The transparent default.
 		"""
-		raise NotImplementedError("Aperture is an amplitude mask, not a phase; its wave action "
-								  "is applied by its propagate_wave override (all modes).")
+		from .waveoptics import aperture_mask, axis_components
+		from .seashells import grid_of
+		ny, nx, dy, dx = grid_of(dimensions)
+		radius = self.radius
+		if kind in ('scaled', 'hybrid'):
+			s_x, _s_y = axis_components(s)
+			radius = radius / abs(s_x)
+		ones = xp.ones((ny, nx), dtype=complex)
+		return xp.real(aperture_mask(ones, dx, dy, radius))
+
 
 class Drift(Element):
 	"""Drift element class for free-space propagation.
@@ -1446,11 +1466,11 @@ class Drift(Element):
 
 		return fix_mat_dims(m,["x","xt","y","yt"])
 
-	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
+	def _phase_shift_fixed(self, dimensions, wavelength:float):
 		r"""Free-space phase: the reciprocal-space Fresnel kernel over ``length``.
 
-		Extends :meth:`Element.phase_shift`. A drift imprints no real-space
-		screen — its entire action is the paraxial propagator phase
+		Overrides :meth:`Element._phase_shift_fixed`. A drift imprints no
+		real-space screen — its entire action is the paraxial propagator phase
 		:math:`-\pi\lambda\,\Delta z\,(f_\xi^2 + f_\eta^2)` applied in the FFT
 		domain (handoff Eq 33).
 
@@ -1460,21 +1480,24 @@ class Drift(Element):
 			Transverse grid (see :meth:`Element.phase_shift`).
 		wavelength : float
 			Wavelength (metres).
-		scaled : bool, optional
-			See :meth:`Element.phase_shift`, by default False.
-		s : float, optional
-			Unused for a drift, by default 1.
 
 		Returns
 		-------
-		list or tuple
-			``scaled=False``: ``[kernel(length)]`` (empty for zero length).
-			``scaled=True``: ``(0.0, None)`` — a drift absorbs nothing into R and
-			applies nothing to U; its free-segment updates (Δτ, s, R) are handled
-			by the scaled driver from ``self.length``.
+		list
+			``[kernel(length)]``, or an empty program at zero length.
+
+		Related
+		-------
+		Element.phase_shift : The public dispatcher.
+
+		Notes
+		-----
+		A drift declares nothing in the scaled representation (it inherits the
+		transparent :meth:`Element._phase_shift_scaled`): it absorbs no power
+		into ``R`` and applies nothing to ``U``, because its free-segment
+		updates (Δτ, s, R) are the scaled driver's own job, driven from
+		``self.length``.
 		"""
-		if scaled:
-			return 0.0, None
 		return self._phase_program(dimensions, wavelength, None, "drift")
 
 class Quadrapole(Element):
@@ -1664,11 +1687,11 @@ class Quadrapole(Element):
 		#print("QUAD",m,self.strength,K,self.calibration,self.length)
 		return m
 
-	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
+	def _phase_shift_fixed(self, dimensions, wavelength:float):
 		r"""Quadrupole phase: the astigmatic saddle :math:`\chi = -k(P_x x^2 + P_y y^2)/2`.
 
-		Extends :meth:`Element.phase_shift`. The quadrupole is the spatially
-		asymmetric version of the round lens — ``P_x = −P_y`` (from
+		Overrides :meth:`Element._phase_shift_fixed`. The quadrupole is the
+		spatially asymmetric version of the round lens — ``P_x = -P_y`` (from
 		:meth:`focal_powers`), so one transverse axis focuses while the other
 		diverges: :math:`\chi \propto (x^2 - y^2)`.
 
@@ -1678,34 +1701,56 @@ class Quadrapole(Element):
 			Transverse grid (see :meth:`Element.phase_shift`).
 		wavelength : float
 			Wavelength (metres).
-		scaled : bool, optional
-			See :meth:`Element.phase_shift`, by default False.
-		s : float, optional
-			Transverse scale for ``scaled=True``: the screen is evaluated at
-			physical coordinates ``x = s·ξ``, by default 1.
 
 		Returns
 		-------
-		list or tuple
-			``scaled=False``: ``[kernel(L/2), screen(χ), kernel(L/2)]``.
-			``scaled=True``: ``((P_x, P_y), None)`` — the per-axis powers are
-			absorbed into the anisotropic curvature state ``(R_x, R_y)``
-			exactly like a round lens absorbs one power into one curvature
-			(``1/R_a⁺ = 1/R_a⁻ − P_a`` per axis), so the saddle never touches
-			the sampled field U and arbitrarily strong quadrupoles carry no
-			sampling limit. ``(0.0, None)`` at zero strength.
+		list
+			``[kernel(L/2), screen(chi), kernel(L/2)]``.
+
+		Related
+		-------
+		_phase_shift_scaled : The scaled-representation counterpart.
+		focal_powers : Supplies the per-axis powers.
 		"""
 		from .waveoptics import quadratic_phase
 		from .seashells import grid_of
 		P_x, P_y = self.focal_powers()
-		if scaled:
-			if P_x == 0 and P_y == 0:
-				return 0.0, None
-			return (float(P_x), float(P_y)), None
 		ny, nx, dy, dx = grid_of(dimensions)
 		chi = quadratic_phase((ny, nx), dx, dy, wavelength, P_x, P_y) if (P_x or P_y) else None
 		return self._phase_program(dimensions, wavelength, chi, self.name or "quadrupole")
 
+	def _phase_shift_scaled(self, dimensions, wavelength:float, s=1.0):
+		r"""Scaled split: the saddle absorbed as a per-axis power pair.
+
+		Overrides :meth:`Element._phase_shift_scaled`. The per-axis powers are
+		absorbed into the anisotropic curvature state ``(R_x, R_y)`` exactly as
+		a round lens absorbs one power into one curvature
+		(``1/R_a+ = 1/R_a- - P_a`` per axis), so the saddle never touches the
+		sampled field ``U`` and arbitrarily strong quadrupoles carry no
+		sampling limit.
+
+		Parameters
+		----------
+		dimensions : Dimensions or tuple
+			Transverse grid (unused — nothing is applied to ``U``).
+		wavelength : float
+			Wavelength (metres, unused for the same reason).
+		s : float or Sequence[float], optional
+			Current transverse scale, unused (fully absorbed), by default 1.
+
+		Returns
+		-------
+		tuple
+			``((P_x, P_y), None)``, or ``(0.0, None)`` at zero strength.
+
+		Related
+		-------
+		_phase_shift_fixed : The fixed-grid counterpart.
+		"""
+		P_x, P_y = self.focal_powers()
+		if P_x == 0 and P_y == 0:
+			return 0.0, None
+		return (float(P_x), float(P_y)), None
 
 class Dipole(Element):
 	def __init__(self, name:str='',
@@ -1833,12 +1878,12 @@ class Dipole(Element):
 
 		return fix_mat_dims(xp.eye(4),["x","xt","y","yt"])
 
-	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
+	def _phase_shift_fixed(self, dimensions, wavelength:float):
 		r"""Dipole phase: the linear tilt :math:`\chi = k(\theta_x x + \theta_y y)`.
 
-		Extends :meth:`Element.phase_shift`. The deflection angles come from
-		:meth:`effective_tilts` (calibration + the ``phi`` axis projection, so
-		both orientations of a 45° dipole pair are covered).
+		Overrides :meth:`Element._phase_shift_fixed`. The deflection angles come
+		from :meth:`effective_tilts` (calibration + the ``phi`` axis projection,
+		so both orientations of a 45 degree dipole pair are covered).
 
 		Parameters
 		----------
@@ -1846,87 +1891,60 @@ class Dipole(Element):
 			Transverse grid (see :meth:`Element.phase_shift`).
 		wavelength : float
 			Wavelength (metres).
-		scaled : bool, optional
-			See :meth:`Element.phase_shift`, by default False.
-		s : float, optional
-			Transverse scale for ``scaled=True``: the screen is evaluated at
-			physical coordinates ``x = s·ξ``, by default 1.
 
 		Returns
 		-------
-		list or tuple
-			``scaled=False``: ``[kernel(L/2), screen(χ), kernel(L/2)]``.
-			``scaled=True``: ``(0.0, screen)`` — a linear phase is not quadratic,
-			so nothing is absorbed into R and the full tilt is applied to U
-			(handoff Eqs 47–48). ``(0.0, None)`` at zero strength.
+		list
+			``[kernel(L/2), screen(chi), kernel(L/2)]``.
+
+		Related
+		-------
+		_phase_shift_scaled : The scaled-representation counterpart.
+		effective_tilts : Supplies the deflection angles.
+		"""
+		from .waveoptics import linear_phase
+		from .seashells import grid_of
+		tilt_x, tilt_y = self.effective_tilts()
+		ny, nx, dy, dx = grid_of(dimensions)
+		chi = linear_phase((ny, nx), dx, dy, wavelength, tilt_x, tilt_y) if (tilt_x or tilt_y) else None
+		return self._phase_program(dimensions, wavelength, chi, self.name or "dipole")
+
+	def _phase_shift_scaled(self, dimensions, wavelength:float, s=1.0):
+		r"""Scaled split: the whole tilt as a residual screen on ``U``.
+
+		Overrides :meth:`Element._phase_shift_scaled`. A linear phase is not
+		quadratic, so nothing is absorbed into ``R`` and the full tilt is
+		applied to ``U`` at physical coordinates ``x = s*xi`` (handoff
+		Eqs 47-48).
+
+		Parameters
+		----------
+		dimensions : Dimensions or tuple
+			Transverse grid (see :meth:`Element.phase_shift`).
+		wavelength : float
+			Wavelength (metres).
+		s : float or Sequence[float], optional
+			Current transverse scale; the screen is evaluated at ``x = s*xi``,
+			an ``(s_x, s_y)`` pair on an anisotropic frame, by default 1.
+
+		Returns
+		-------
+		tuple
+			``(0.0, screen)``, or ``(0.0, None)`` at zero strength.
+
+		Related
+		-------
+		_phase_shift_fixed : The fixed-grid counterpart.
 		"""
 		from .waveoptics import linear_phase, axis_components
 		from .seashells import grid_of
 		tilt_x, tilt_y = self.effective_tilts()
+		if tilt_x == 0 and tilt_y == 0:
+			return 0.0, None
 		ny, nx, dy, dx = grid_of(dimensions)
-		if scaled:
-			if tilt_x == 0 and tilt_y == 0:
-				return 0.0, None
-			s_x, s_y = axis_components(s)		# per-axis physical pitch on anisotropic frames
-			chi = linear_phase((ny, nx), s_x * dx, s_y * dy, wavelength, tilt_x, tilt_y)
-			return 0.0, _screen_item(chi, dx, dy, self.name or "dipole")
-		chi = linear_phase((ny, nx), dx, dy, wavelength, tilt_x, tilt_y) if (tilt_x or tilt_y) else None
-		return self._phase_program(dimensions, wavelength, chi, self.name or "dipole")
-
-		#m = xp.zeros((7,8))
-		#xp.fill_diagonal(m, 1, wrap=False)
-		#
-		#if self.length == 0:
-		#	m[2, 7] = Kx
-		#	m[3, 7] = Ky
-		#else:
-		#	L = self.length
-		#
-		#	# Drift terms
-		#	m[0, 2] = L   # x <- ux
-		#	m[1, 3] = L   # y <- uy
-		#	m[4, 4] = 1.0 # z stays identity (already set)
-		#
-		#	# z advance
-		#	m[4, 7] = L
-		#
-		#	# Angular kicks
-		#	m[2, 7] = Kx * L
-		#	m[3, 7] = Ky * L
-		#
-		#	# Position offsets (affine)
-		#	m[0, 7] = 0.5 * Kx * L**2
-		#	m[1, 7] = 0.5 * Ky * L**2
-		#
-		#return m
-	
-	#def propagate_ray(self, r0:xp.ndarray,
-	#				  z:float=None, z0:float=0) -> xp.ndarray:
-	#	"""propagate an array through an element.
-	#
-	#	Parameters
-	#	----------
-	#	r0 : xp.ndarray
-	#		List of rays with possible initial conditions (x, θx, y, θy, E).
-	#	z : None | int | float | xp.ndarray, optional
-	#		Positions in the element to propagate to by default None
-	#	z0 : None | float, optional
-	#		Initial position of the element, by default 0
-	#
-	#	Returns
-	#	-------
-	#	xp.ndarray
-	#		List of propagated rays with initial condition (x, θx, y, θy, z, E)
-	#	"""
-	#	m = self.transfer_matrix()
-	#	#print(f'm: {m.shape}')#FLAG
-	#	ones = xp.ones((r0.shape[0], 1), dtype=r0.dtype)
-	#	r0_aug = xp.concatenate([r0, ones], axis=1)
-	#	#print(f'r0: { r0.shape} to {r0_aug.shape}')#FLAG
-	#
-	#	rf = xp.einsum('mn,in->im', m, r0_aug)
-	#	return rf
-
+		s_x, s_y = axis_components(s)		# per-axis physical pitch on anisotropic frames
+		chi = linear_phase((ny, nx), s_x * dx, s_y * dy, wavelength, tilt_x, tilt_y)
+		return 0.0, _screen_item(chi, dx, dy, self.name or "dipole")
 
 class Lens(Element):
 	"""Lens element class for round lenses / symmetric focusing. https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example or Brown1983 page 105
@@ -2127,7 +2145,7 @@ class Lens(Element):
 		Related
 		-------
 		scaled_segment : Reports the same body to the scaled wave path.
-		waveoptics.propagate_thick_lens_scaled : Advances the wave frame by it.
+		waveoptics.propagate_quadratic_segment_scaled : Advances the wave frame by it.
 		"""
 		L = self.length or 0.0
 		step = L if dz is None else float(dz)
@@ -2156,20 +2174,20 @@ class Lens(Element):
 		Related
 		-------
 		phase_shift : Supplies the thin-lens curvature kick.
-		waveoptics.propagate_thick_lens_scaled : Propagates the segment.
+		waveoptics.propagate_quadratic_segment_scaled : Propagates the segment.
 		"""
 		K = self._effective_strength()
 		if self.length > 0 and K != 0:
 			return ('quadratic', float(K))
 		return None
 
-	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
+	def _phase_shift_fixed(self, dimensions, wavelength:float):
 		r"""Round-lens phase: :math:`\chi = -k(x^2+y^2)/(2f)` (handoff Eq 12).
 
-		Extends :meth:`Element.phase_shift`. The focal power ``1/f`` comes from
-		:meth:`focal_power` (thin: ``sign(K)·K²``; thick: ``K·sin(K·L)``, Brown
-		1983 — the pure focusing relation, so a thick lens's Larmor rotation
-		never contaminates the wave-path power).
+		Overrides :meth:`Element._phase_shift_fixed`. The focal power ``1/f``
+		comes from :meth:`focal_power` (thin: ``sign(K)*K**2``; thick:
+		``K*sin(K*L)``, Brown 1983 — the pure focusing relation, so a thick
+		lens's Larmor rotation never contaminates the wave-path power).
 
 		Parameters
 		----------
@@ -2177,26 +2195,52 @@ class Lens(Element):
 			Transverse grid (see :meth:`Element.phase_shift`).
 		wavelength : float
 			Wavelength (metres).
-		scaled : bool, optional
-			See :meth:`Element.phase_shift`, by default False.
-		s : float, optional
-			Unused for a round lens (fully absorbed), by default 1.
 
 		Returns
 		-------
-		list or tuple
-			``scaled=False``: ``[kernel(L/2), screen(χ), kernel(L/2)]``.
-			``scaled=True``: ``(1/f, None)`` — the entire quadratic phase is
-			absorbed into the curvature state (Eq 45) and ``U⁺ = U⁻`` (Eq 15).
+		list
+			``[kernel(L/2), screen(chi), kernel(L/2)]``.
+
+		Related
+		-------
+		_phase_shift_scaled : The scaled-representation counterpart.
+		focal_power : Supplies the focusing power.
 		"""
 		from .waveoptics import quadratic_phase
 		from .seashells import grid_of
 		P = self.focal_power()
-		if scaled:
-			return float(P), None
 		ny, nx, dy, dx = grid_of(dimensions)
 		chi = quadratic_phase((ny, nx), dx, dy, wavelength, P, P) if P != 0 else None
 		return self._phase_program(dimensions, wavelength, chi, self.name or "lens")
+
+	def _phase_shift_scaled(self, dimensions, wavelength:float, s=1.0):
+		r"""Scaled split: the entire quadratic phase absorbed into ``R``.
+
+		Overrides :meth:`Element._phase_shift_scaled`. A round lens is
+		isotropic and purely quadratic, so its power goes wholly into the
+		curvature state (Eq 45) and ``U+ = U-`` (Eq 15) — nothing is applied to
+		the sampled field.
+
+		Parameters
+		----------
+		dimensions : Dimensions or tuple
+			Transverse grid (unused — nothing is applied to ``U``).
+		wavelength : float
+			Wavelength (metres, unused for the same reason).
+		s : float or Sequence[float], optional
+			Current transverse scale, unused (fully absorbed), by default 1.
+
+		Returns
+		-------
+		tuple
+			``(1/f, None)``.
+
+		Related
+		-------
+		_phase_shift_fixed : The fixed-grid counterpart.
+		scaled_segment : Declared instead when the lens body is a whole segment.
+		"""
+		return float(self.focal_power()), None
 
 	def calibration_from_f_and_I(self,f,I,rotationPerAmp=None):
 		print("for lens",self.name,"seeking a calibration factor C, which focuses strength",I,"to focal length",f,"and rotationPerAmp",rotationPerAmp)
@@ -2342,37 +2386,59 @@ class Prism(Element):
 
 		return fix_mat_dims(m,["x","xt","y","yt","z","E"])
 
-	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
-					   s_min:float=1e-3, log:list=None, absorb:float=0.1,
-				   crossover:Literal['flat','jump']='flat', rotate:bool=False):
-		"""Wave-optics propagation through a prism/spectrometer (not implemented).
+	def _phase_shift_fixed(self, dimensions, wavelength:float):
+		"""Wave optics is not implemented for a prism (declares, does not propagate).
 
-		Overrides :meth:`Element.propagate_wave` for every mode. A dispersive
-		bending prism is not a simple thin phase screen plus drift, so
-		wave-optics support is deferred.
+		Overrides :meth:`Element._phase_shift_fixed` to refuse. A dispersive
+		bending prism is not a thin phase screen plus a drift, so rather than
+		owning a ``propagate_wave`` this states that it has no wave declaration
+		to give; the generic propagator surfaces the refusal.
 
 		Parameters
 		----------
-		signal : Signal or seashells._Wavefield or seashells._ScaledWavefield
-			Incoming wavefield.
-		mode : {'fixed', 'scaled', 'hybrid'}, optional
+		dimensions : Dimensions or tuple
 			Unused.
-		s_min : float, optional
-			Unused.
-		log : list, optional
+		wavelength : float
 			Unused.
 
 		Returns
 		-------
-		Signal
+		list
 			Never returns.
 
 		Raises
 		------
 		NotImplementedError
-			Always; wave-optics propagation is not implemented for ``Prism``.
+			Always.
 		"""
-		raise NotImplementedError("Wave-optics propagation is not implemented for Prism (spectrometer).")
+		raise NotImplementedError("Wave-optics propagation is not implemented for "
+								  "Prism (spectrometer).")
 
+	def _phase_shift_scaled(self, dimensions, wavelength:float, s=1.0):
+		"""Wave optics is not implemented for a prism (scaled representation).
 
-element_list = ["Element"] + [subclass.__name__ for subclass in Element.__subclasses__()]
+		Overrides :meth:`Element._phase_shift_scaled` to refuse, for the same
+		reason as :meth:`_phase_shift_fixed`.
+
+		Parameters
+		----------
+		dimensions : Dimensions or tuple
+			Unused.
+		wavelength : float
+			Unused.
+		s : float or Sequence[float], optional
+			Unused.
+
+		Returns
+		-------
+		tuple
+			Never returns.
+
+		Raises
+		------
+		NotImplementedError
+			Always.
+		"""
+		raise NotImplementedError("Wave-optics propagation is not implemented for "
+								  "Prism (spectrometer).")
+

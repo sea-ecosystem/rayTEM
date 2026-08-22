@@ -499,7 +499,7 @@ def rotate_field(U: np.ndarray, angle: float) -> np.ndarray:
 
 	Related
 	-------
-	propagate_thick_lens_scaled : Applies this over a lens body's Larmor angle.
+	propagate_quadratic_segment_scaled : Applies this over a quadratic body's Larmor angle.
 
 	Notes
 	-----
@@ -542,11 +542,13 @@ def rotate_field(U: np.ndarray, angle: float) -> np.ndarray:
 	return shear_x(out, t)
 
 
-def scaled_delta_tau_lens(dz: float, s0: float, R0: float, K: float) -> float:
+def scaled_delta_tau_quadratic(dz: float, s0: float, R0: float, K: float) -> float:
 	r"""Scaled increment Δτ across a constant-``K`` quadratic-index segment.
 
-	A thick round lens is not a phase screen but a **medium**: inside it the
-	reference scale obeys the same equation as a ray in that medium,
+	An element with a finite body and finite focusing strength is not a phase
+	screen but a **medium** — a thick round lens today, a thick quadrupole once
+	its per-axis block lands. Inside it the reference scale obeys the same
+	equation as a ray in that medium,
 
 	.. math::
 
@@ -561,7 +563,7 @@ def scaled_delta_tau_lens(dz: float, s0: float, R0: float, K: float) -> float:
 
 		\Delta\tau = \frac{\tan(K\,\Delta z - \varphi) + \tan\varphi}{K\,C^2}
 
-	This is the thick-lens counterpart of :func:`scaled_delta_tau` (whose
+	This is the quadratic-medium counterpart of :func:`scaled_delta_tau` (whose
 	linear ``s(z)`` is the ``K → 0`` limit).
 
 	Parameters
@@ -592,7 +594,7 @@ def scaled_delta_tau_lens(dz: float, s0: float, R0: float, K: float) -> float:
 	Related
 	-------
 	scaled_delta_tau : The free-space (linear ``s``) form.
-	propagate_thick_lens_scaled : Consumes this.
+	propagate_quadratic_segment_scaled : Consumes this.
 
 	Notes
 	-----
@@ -617,15 +619,17 @@ def scaled_delta_tau_lens(dz: float, s0: float, R0: float, K: float) -> float:
 	return (np.tan(K * dz - phi) + np.tan(phi)) / (K * C2)
 
 
-def propagate_thick_lens_scaled(U: np.ndarray, dxi: float, deta: float,
+def propagate_quadratic_segment_scaled(U: np.ndarray, dxi: float, deta: float,
 								wavelength: float, dz: float, s, R, K: float,
 								s_min: float = 1e-3, absorb: float = 0.0,
 								rotate: bool = False) -> tuple:
-	r"""Propagate the scaled field through a thick lens body (quadratic medium).
+	r"""Propagate the scaled field through a constant-``K`` quadratic-index segment.
 
-	The honest treatment of a thick round lens: rather than a thin kick placed
-	between two half-length drifts, the element is one **segment** whose scale
-	law is sinusoidal. The frame advances by the element's own transfer block,
+	The honest treatment of any element that declares itself a quadratic
+	segment (:meth:`elements.Element.scaled_segment` — today a thick round
+	lens): rather than a thin kick placed between two half-length drifts, the
+	element is one **segment** whose scale law is sinusoidal. The frame advances
+	by the element's own transfer block,
 
 	.. math::
 
@@ -636,10 +640,10 @@ def propagate_thick_lens_scaled(U: np.ndarray, dxi: float, deta: float,
 
 	— legitimate because the frame *is* a reference ray, ``(h, u) = (s, s/R)``
 	— and the reduced field U propagates over the segment's own Δτ
-	(:func:`scaled_delta_tau_lens`) with the same carrier-free kernel used for
+	(:func:`scaled_delta_tau_quadratic`) with the same carrier-free kernel used for
 	free space. **No phase screen and no curvature kick are applied**: the
 	scaled factorization solves the paraxial equation in a quadratic-index
-	medium exactly, so a thick lens costs U nothing in sampling, exactly like a
+	medium exactly, so a thick body costs U nothing in sampling, exactly like a
 	drift.
 
 	Parameters
@@ -651,12 +655,12 @@ def propagate_thick_lens_scaled(U: np.ndarray, dxi: float, deta: float,
 	wavelength : float
 		Wavelength (metres).
 	dz : float
-		Length of lens body traversed (metres). ``0`` returns the state
-		unchanged.
+		Length of body traversed (metres). ``0`` returns the state unchanged.
 	s, R : float or Sequence[float]
 		Frame state at the entrance (``R = numpy.inf`` = flat). Per-axis pairs
-		are rejected: a round lens is isotropic, so an anisotropic frame would
-		need per-axis media.
+		are rejected: this segment is isotropic, so an anisotropic frame would
+		need an anisotropic (per-axis ``K``) medium and a separable kernel —
+		see the thick-quadrupole work.
 	K : float
 		Focusing strength of the body (1/metres); ``0`` degenerates to a drift.
 	s_min : float, optional
@@ -688,12 +692,12 @@ def propagate_thick_lens_scaled(U: np.ndarray, dxi: float, deta: float,
 	Related
 	-------
 	propagate_free_scaled : The linear-``s`` counterpart.
-	scaled_delta_tau_lens : The Δτ closed form.
+	scaled_delta_tau_quadratic : The Δτ closed form.
 	apply_thin_lens_scaled : What a *thin* (``length == 0``) lens does instead.
 
 	Examples
 	--------
-	>>> U, s, R, dtau = propagate_thick_lens_scaled(
+	>>> U, s, R, dtau = propagate_quadratic_segment_scaled(
 	...     U0, 1e-7, 1e-7, 2.5e-12, 0.02, 1.0, np.inf, 34.7)   # doctest: +SKIP
 	"""
 	if dz == 0:
@@ -702,20 +706,20 @@ def propagate_thick_lens_scaled(U: np.ndarray, dxi: float, deta: float,
 	R_x, R_y = axis_components(R)
 	if s_x != s_y or R_x != R_y:
 		raise NotImplementedError(
-			"propagate_thick_lens_scaled needs an isotropic frame; this frame is "
-			f"anisotropic (s = {s}, R = {R}). A round thick lens cannot be applied "
+			"propagate_quadratic_segment_scaled needs an isotropic frame; this frame is "
+			f"anisotropic (s = {s}, R = {R}). An isotropic segment cannot be applied "
 			"per-axis — reconcile the axes first, or model the element as thin.")
 	if K == 0:
 		return propagate_free_scaled(U, dxi, deta, wavelength, dz, s_x, R_x,
 									 s_min=s_min, absorb=absorb)
 	u0 = 0.0 if np.isinf(R_x) else s_x / R_x
-	dtau = scaled_delta_tau_lens(dz, s_x, R_x, K)	# also guards s = 0 inside
+	dtau = scaled_delta_tau_quadratic(dz, s_x, R_x, K)	# also guards s = 0 inside
 	c, sn = np.cos(K * dz), np.sin(K * dz)
 	s_out = c * s_x + (sn / K) * u0
 	u_out = -K * sn * s_x + c * u0
 	if abs(s_out) <= s_min:
 		raise ValueError(f"Scaled frame reaches |s| = {abs(s_out):.3e} <= s_min = "
-						 f"{s_min} at the thick-lens exit; switch frames before the "
+						 f"{s_min} at the quadratic-segment exit; switch frames before the "
 						 "element, or lower s_min knowingly.")
 	R_out = np.inf if u_out == 0 else s_out / u_out
 	# U evolves purely by the segment's own dtau (no screen, no kick)
