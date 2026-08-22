@@ -124,6 +124,23 @@ and is propagated by the *same* angular-spectrum kernel over `Δτ`
   `Δx = |s|·Δξ`, so a converging beam is followed at constant relative
   resolution. `Δτ = Δz / (s₀²[1 + Δz/R₀])` in closed form (verified against
   the numerical integral in the test suite).
+- **Thick lenses are exact too, and cost U nothing.** A thick round lens is a
+  quadratic-index *medium*, not a screen: in the scaled frame it is one
+  segment whose scale law is sinusoidal, `s(z) = s₀cos(Kz) + (u₀/K)sin(Kz)`,
+  with its own closed-form `Δτ = [tan(KL − φ) + tan φ]/(K·C²)`
+  (`C² = s₀² + (u₀/K)²`, `tan φ = u₀/(K s₀)`). U takes no screen and no kick —
+  it just propagates over that Δτ. Thin lenses (`length == 0`) keep the
+  curvature-kick route. This matters: treating a thick lens as *drift L/2 →
+  kick → drift L/2* misplaced every crossover on `basic_column` by 422–4808 µm,
+  and the exact segment puts them on the ray-traced diffraction planes to
+  0.0 µm. The one limitation is a crossover landing *inside* a lens body,
+  where this frame is singular and the code raises rather than guessing —
+  mid-element frame switching is not implemented.
+- **Larmor rotation is available** (`propagate_wave(..., rotate=True)`): each
+  thick lens rotates the field by `−K·L`, the same angle the ray path applies,
+  via an exact unitary three-shear Fourier rotation. Off by default because it
+  is analytically a no-op for rotationally symmetric fields, where it would
+  only add resampling noise.
 - **Non-quadratic phases still apply to U** (quadrupole saddle, dipole tilt,
   future aberrations), evaluated at physical coordinates `x = s·ξ` and
   protected by a per-pixel `|Δχ| < π` sampling guard — stigmator-scale

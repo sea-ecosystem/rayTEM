@@ -13,7 +13,7 @@
     "name": "Aperture",
     "qualname": "Aperture",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1090,
+    "source_lineno": 1133,
     "signature": "class Aperture",
     "doc": "Aperture element class. An aperture serves to crop the beam, and the total beam intensity is reduced dependent on the area of the beam and the area of aperture."
   },
@@ -22,7 +22,7 @@
     "name": "aperture_mask",
     "qualname": "aperture_mask",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1400,
+    "source_lineno": 1682,
     "signature": "aperture_mask(field, dx, dy, radius, antialias)",
     "doc": "Apply a hard circular aperture to a field."
   },
@@ -40,7 +40,7 @@
     "name": "apply_thin_lens_scaled",
     "qualname": "apply_thin_lens_scaled",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 882,
+    "source_lineno": 1164,
     "signature": "apply_thin_lens_scaled(s, R, power)",
     "doc": "Absorb a thin-lens focusing power into the scaled curvature state."
   },
@@ -76,7 +76,7 @@
     "name": "bandlimited_disk",
     "qualname": "bandlimited_disk",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1440,
+    "source_lineno": 1722,
     "signature": "bandlimited_disk(shape, dx, dy, radius)",
     "doc": "Exactly alias-free sampling of the sharp disk :math:`\\Theta(a - r)`."
   },
@@ -85,7 +85,7 @@
     "name": "beam_support_extents",
     "qualname": "beam_support_extents",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 497,
+    "source_lineno": 779,
     "signature": "beam_support_extents(U, dxi, deta, threshold)",
     "doc": "Per-axis half-widths of the beam's support on the \u03be/\u03b7 grid."
   },
@@ -94,7 +94,7 @@
     "name": "beam_support_radius",
     "qualname": "beam_support_radius",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 461,
+    "source_lineno": 743,
     "signature": "beam_support_radius(U, dxi, deta, threshold)",
     "doc": "Per-axis half-width of the beam's support on the \u03be grid."
   },
@@ -112,7 +112,7 @@
     "name": "boundary_window",
     "qualname": "boundary_window",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 921,
+    "source_lineno": 1203,
     "signature": "boundary_window(shape, margin)",
     "doc": "Absorbing-boundary window: 1 in the interior, radial cosine \u2192 0 at the edge."
   },
@@ -130,7 +130,7 @@
     "name": "change_scaled_frame",
     "qualname": "change_scaled_frame",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 591,
+    "source_lineno": 873,
     "signature": "change_scaled_frame(U, dxi, deta, wavelength, s_old, R_old, R_new, s_new, safety)",
     "doc": "Re-express the same physical wave in a different scaled frame (Eq 5)."
   },
@@ -166,7 +166,7 @@
     "name": "Dipole",
     "qualname": "Dipole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1547,
+    "source_lineno": 1590,
     "signature": "class Dipole",
     "doc": ""
   },
@@ -184,7 +184,7 @@
     "name": "Drift",
     "qualname": "Drift",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1296,
+    "source_lineno": 1339,
     "signature": "class Drift",
     "doc": "Drift element class for free-space propagation."
   },
@@ -274,7 +274,7 @@
     "name": "factor_wave",
     "qualname": "factor_wave",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 714,
+    "source_lineno": 996,
     "signature": "factor_wave(psi, dx, dy, wavelength, s, R)",
     "doc": "Factor an ordinary paraxial wave into the scaled representation (handoff Eq 55)."
   },
@@ -364,7 +364,7 @@
     "name": "fourier_resample",
     "qualname": "fourier_resample",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 764,
+    "source_lineno": 1046,
     "signature": "fourier_resample(field, d_in, n_out, d_out)",
     "doc": "Band-limited (Fourier-domain) resampling of a 2D field."
   },
@@ -409,7 +409,7 @@
     "name": "Lens",
     "qualname": "Lens",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1768,
+    "source_lineno": 1811,
     "signature": "class Lens",
     "doc": "Lens element class for round lenses / symmetric focusing. https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example or Brown1983 page 105"
   },
@@ -571,7 +571,7 @@
     "name": "min_representable_curvature",
     "qualname": "min_representable_curvature",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 534,
+    "source_lineno": 816,
     "signature": "min_representable_curvature(n, dxi, wavelength, s, safety, x_max)",
     "doc": "Smallest reference-curvature radius a scaled frame can absorb or release."
   },
@@ -679,7 +679,7 @@
     "name": "Prism",
     "qualname": "Prism",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1986,
+    "source_lineno": 2055,
     "signature": "class Prism",
     "doc": ""
   },
@@ -697,7 +697,7 @@
     "name": "propagate_free_scaled",
     "qualname": "propagate_free_scaled",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 965,
+    "source_lineno": 1247,
     "signature": "propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min, absorb)",
     "doc": "Propagate the scaled field U through one free segment of length ``dz``."
   },
@@ -706,9 +706,18 @@
     "name": "propagate_free_scaled_hybrid",
     "qualname": "propagate_free_scaled_hybrid",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1061,
+    "source_lineno": 1343,
     "signature": "propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross, safety, s_min, absorb, crossover)",
     "doc": "Propagate one free segment with automatic frame switching at crossovers."
+  },
+  {
+    "kind": "function",
+    "name": "propagate_thick_lens_scaled",
+    "qualname": "propagate_thick_lens_scaled",
+    "path": "src/pySEA/rayTEM/waveoptics.py",
+    "source_lineno": 620,
+    "signature": "propagate_thick_lens_scaled(U, dxi, deta, wavelength, dz, s, R, K, s_min, absorb, rotate)",
+    "doc": "Propagate the scaled field through a thick lens body (quadratic medium)."
   },
   {
     "kind": "function",
@@ -733,7 +742,7 @@
     "name": "Quadrapole",
     "qualname": "Quadrapole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1370,
+    "source_lineno": 1413,
     "signature": "class Quadrapole",
     "doc": ""
   },
@@ -778,7 +787,7 @@
     "name": "reconstruct_physical_wave",
     "qualname": "reconstruct_physical_wave",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 800,
+    "source_lineno": 1082,
     "signature": "reconstruct_physical_wave(U, dxi, deta, wavelength, s, R, target_dx, target_shape)",
     "doc": "Reconstruct the ordinary paraxial wave from the scaled representation."
   },
@@ -811,6 +820,15 @@
   },
   {
     "kind": "function",
+    "name": "rotate_field",
+    "qualname": "rotate_field",
+    "path": "src/pySEA/rayTEM/waveoptics.py",
+    "source_lineno": 461,
+    "signature": "rotate_field(U, angle)",
+    "doc": "Rotate a sampled complex field about the optical axis, band-limited-exactly."
+  },
+  {
+    "kind": "function",
     "name": "round_lens",
     "qualname": "round_lens",
     "path": "src/pySEA/rayTEM/microscopes/basic_column.py",
@@ -835,6 +853,15 @@
     "source_lineno": 416,
     "signature": "scaled_delta_tau(dz, s0, R0)",
     "doc": "Scaled propagation increment \u0394\u03c4 for a linear-s free segment."
+  },
+  {
+    "kind": "function",
+    "name": "scaled_delta_tau_lens",
+    "qualname": "scaled_delta_tau_lens",
+    "path": "src/pySEA/rayTEM/waveoptics.py",
+    "source_lineno": 545,
+    "signature": "scaled_delta_tau_lens(dz, s0, R0, K)",
+    "doc": "Scaled increment \u0394\u03c4 across a constant-``K`` quadratic-index segment."
   },
   {
     "kind": "function",
@@ -886,7 +913,7 @@
     "name": "Source",
     "qualname": "Source",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 755,
+    "source_lineno": 798,
     "signature": "class Source",
     "doc": "Source element class. Source element can be put in a MicroscopeSection and then propagating \"through\" the section will mean the starting rays r0 are generated by the Source (instead of requiring the user pass in starting rays)"
   },
@@ -1423,6 +1450,24 @@
   },
   {
     "kind": "function",
+    "name": "test_rotate_field_is_exact_and_unitary",
+    "qualname": "test_rotate_field_is_exact_and_unitary",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 1195,
+    "signature": "test_rotate_field_is_exact_and_unitary()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_rotation_commutes_with_propagation",
+    "qualname": "test_rotation_commutes_with_propagation",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 1215,
+    "signature": "test_rotation_commutes_with_propagation()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_scaled_guard_through_column",
     "qualname": "test_scaled_guard_through_column",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -1500,6 +1545,42 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 1023,
     "signature": "test_subdivided_preserves_geometry()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_thick_lens_crossovers_match_ray_planes",
+    "qualname": "test_thick_lens_crossovers_match_ray_planes",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 1176,
+    "signature": "test_thick_lens_crossovers_match_ray_planes()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_thick_lens_delta_tau_closed_form",
+    "qualname": "test_thick_lens_delta_tau_closed_form",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 1131,
+    "signature": "test_thick_lens_delta_tau_closed_form()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_thick_lens_segment_matches_transfer_matrix",
+    "qualname": "test_thick_lens_segment_matches_transfer_matrix",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 1155,
+    "signature": "test_thick_lens_segment_matches_transfer_matrix()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_thick_lens_wave_rotation_matches_ray_larmor",
+    "qualname": "test_thick_lens_wave_rotation_matches_ray_larmor",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 1229,
+    "signature": "test_thick_lens_wave_rotation_matches_ray_larmor()",
     "doc": ""
   },
   {
