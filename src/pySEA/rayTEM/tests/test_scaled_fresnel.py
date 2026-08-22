@@ -1290,8 +1290,8 @@ def test_conjugate_planes_frame_ray_and_wave_agree():
 	scope = load_microscope(os.path.join(here, "..", "microscopes", "basic_column.sea"))
 	src = scope.sections[0].elements[0]
 	src.wave_kind = "aperture" ; src.aperture_radius = 5e-6
-	frame = scope.conjugate_planes()					# method='frame' by default
-	ray = scope.conjugate_planes(method="ray")
+	frame = scope.conjugate_planes(method="frame")
+	ray = scope.conjugate_planes()					# method='ray' is the default
 	assert np.allclose(frame["diff"], ray["diff"], atol=1e-9)		# free space: identical
 	scope.propagate_wave(mode="hybrid")
 	for zc in scope.crossovers:							# the wave rides this family
@@ -1313,12 +1313,15 @@ def test_conjugate_planes_reference_plane():
 		Source(voltage=200), Drift(length=10e-3),
 		Lens(strength=np.sqrt(1 / f1), length=0.0, name="L1"), Drift(length=100e-3),
 		Lens(strength=np.sqrt(1 / f2), length=0.0, name="L2"), Drift(length=200e-3)])])
-	entrance = mic.conjugate_planes()
+	entrance = mic.conjugate_planes(method="frame")
 	assert np.isclose(entrance["z_reference"], 0.0)
 	assert np.allclose(entrance["diff_offset"], entrance["diff"])	# offsets from 0
+	# the ray default agrees on the entrance case
+	assert np.allclose(mic.conjugate_planes()["diff"], entrance["diff"], atol=1e-9)
 	# an explicit z reference of 0 is the same as the default
-	assert np.allclose(mic.conjugate_planes(reference=0.0)["diff"], entrance["diff"])
-	at_l1 = mic.conjugate_planes(reference="L1")
+	assert np.allclose(mic.conjugate_planes(method="frame", reference=0.0)["diff"],
+					   entrance["diff"])
+	at_l1 = mic.conjugate_planes(method="frame", reference="L1")
 	assert np.isclose(at_l1["z_reference"], 10e-3)
 	assert np.allclose(at_l1["diff_offset"], at_l1["diff"] - 10e-3)
 	# a lens sitting exactly at the reference still acts on the beam: the
@@ -1367,3 +1370,45 @@ def test_beam_waists_match_analytic_focal_shift():
 	assert min(abs(brute - w2["z"][0])) < 2 * (L / 40000)
 	with pytest.raises(ValueError, match="finite entrance covariance"):
 		mic.beam_waists(axis="x", sigma0=np.zeros((2, 2)))
+
+
+def test_transfer_xblock_refuses_to_invent_a_kick_in_a_body():
+	# a finite-length element with focusing power must carry its body's own
+	# law -- splitting it into a kick between drifts is exactly the
+	# approximation the scaled path was corrected to avoid, so the base class
+	# refuses rather than guessing
+	class BodyWithoutLaw(Lens):
+		def transfer_xblock(self, dz=None, axis='x'):
+			return super(Lens, self).transfer_xblock(dz=dz, axis=axis)
+	with pytest.raises(NotImplementedError, match="no partial propagator"):
+		BodyWithoutLaw(strength=10.0, length=0.02).transfer_xblock()
+	# elements with no focusing power are exact free space at any depth
+	assert np.allclose(Drift(length=0.05).transfer_xblock(), [[1, 0.05], [0, 1]])
+	assert np.allclose(Dipole(strength=1e-5, length=0.02).transfer_xblock(),
+					   [[1, 0.02], [0, 1]])
+	# a thin element IS an impulsive kick -- exact, no body to traverse
+	thin = Lens(strength=6.0, length=0.0)
+	assert np.allclose(thin.transfer_xblock(), [[1, 0], [-thin.focal_power(), 1]])
+	# and a thick lens/quad body carries a harmonic law whose halves compose
+	for ele in (Lens(strength=34.72, length=0.02),
+				Quadrapole(strength=12.0, length=0.03)):
+		full = np.asarray(ele.transfer_xblock(axis='x'), float)
+		half = np.asarray(ele.transfer_xblock(dz=ele.length / 2, axis='x'), float)
+		assert np.abs(half @ half - full).max() < 1e-12
+		assert np.isclose(np.linalg.det(full), 1.0, atol=1e-12)		# symplectic
+
+
+def test_walk_refuses_non_symplectic_body():
+	# Liouville: a real element conserves phase-space area, so a body's block
+	# must have det == 1. Quadrapole.transfer_matrix's thick y-block does not
+	# (it uses cos/sin where the defocusing axis needs cosh/sinh), so the walk
+	# refuses instead of reporting planes that cannot be trusted. NOTE: this
+	# guards a pre-existing issue in transfer_matrix, it does not fix it.
+	q = Quadrapole(strength=12.0, length=0.03)
+	assert np.isclose(np.linalg.det(np.asarray(q.transfer_xblock(axis='x'), float)), 1.0)
+	assert not np.isclose(np.linalg.det(np.asarray(q.transfer_xblock(axis='y'), float)), 1.0)
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200), q, Drift(length=0.2)])])
+	mic.conjugate_planes(method="frame", axis="x")			# focusing axis is fine
+	with pytest.raises(ValueError, match="non-symplectic"):
+		mic.conjugate_planes(method="frame", axis="y")

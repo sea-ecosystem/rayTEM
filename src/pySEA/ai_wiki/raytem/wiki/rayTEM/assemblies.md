@@ -29,12 +29,12 @@
 |   `Microscope.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 176 |
 |   `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)` | 187 |
 |   `Element.transfer_xblock(dz=None, axis='x')` — the shared seam | 189 |
-|   `Microscope.conjugate_planes(axis='x', method='frame', reference=None, x0=1e-6, theta0=1e-6)` | 197 |
-|   `Microscope.beam_waists(axis='x', sigma0=None)` | 225 |
-|   `Microscope.subdivided(zpts)` | 254 |
-|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 298 |
-|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 303 |
-|   `Microscope.save(self, filename)` | 307 |
+|   `Microscope.conjugate_planes(axis='x', method='frame', reference=None, x0=1e-6, theta0=1e-6)` | 211 |
+|   `Microscope.beam_waists(axis='x', sigma0=None)` | 242 |
+|   `Microscope.subdivided(zpts)` | 271 |
+|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 315 |
+|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 320 |
+|   `Microscope.save(self, filename)` | 324 |
 <!-- END AUTO-GENERATED TOC -->
 
 # assemblies.py
@@ -189,10 +189,24 @@ the frame-switching engine (the back-focal / image planes).
 ### `Element.transfer_xblock(dz=None, axis='x')` — the shared seam
 The rotating-frame 2×2 `[[A, B], [C, D]]` for one transverse axis, at a
 **partial** length. This is what makes planes *inside* a body exact instead of
-interpolated between its faces. Base implementation is a thin kick plus free
-space; `Lens` overrides it with the `cos/sin` law of a thick body. Verified
-against `transfer_matrix` on all 58 `basic_column` elements to 1.7e-18, with a
-body's halves composing exactly.
+interpolated between its faces. Each element carries its body's own law —
+`Lens` and `Quadrapole` override with their harmonic forms — and the base
+class handles only the two cases where no law is needed: **no focusing power**
+(exact free space at any depth) and **zero length** (a thin element *is* an
+impulsive kick). A finite body *with* power and no override **raises**: splitting
+it into a kick between drifts is precisely the approximation the scaled wave
+path was corrected to drop, so it is not done here either. Verified against
+`transfer_matrix` on all 58 `basic_column` elements to 1.7e-18, with bodies'
+halves composing exactly.
+
+The walk additionally checks that a body's block is **symplectic**
+(`det = 1`, i.e. Liouville). This currently catches a real problem: the thick
+`Quadrapole.transfer_matrix` y-block uses `cos/sin` where a defocusing axis
+needs `cosh/sinh`, giving `det = cos(2|KL|)` — 0.75 over a 30 mm body. The walk
+refuses that axis rather than reporting planes that cannot be trusted; fixing
+`transfer_matrix` itself is a separate change (thin and thick quadrupoles also
+disagree on which axis focuses, since the thin form swaps x/y for `K > 0` and
+the thick form never swaps).
 
 ### `Microscope.conjugate_planes(axis='x', method='frame', reference=None, x0=1e-6, theta0=1e-6)`
 Returns `{'diff', 'image', 'z_reference', 'diff_offset', 'image_offset'}` in
@@ -203,7 +217,9 @@ the reference re-converge (`B = 0`). They interleave, and neither follows from
 a single lens's `f`: every crossing reflects the whole system since the
 reference.
 
-`method='frame'` (default) accumulates the transfer blocks
+`method='ray'` (default) traces the four reference rays through
+`postprocessing.findPlanes` — the repo's established convention.
+`method='frame'` accumulates the transfer blocks
 (`_accumulate_xblocks`) and solves both conditions in closed form — exact, and
 **this is the same calculation the scaled wave frame performs while
 propagating**, since the frame is a reference ray `(h, u) = (s, s/R)`: `s → 0`
@@ -215,7 +231,8 @@ independent cross-check; the two agree exactly wherever the planes fall in
 free space, and the frame walk is the correct one inside a thick body (on
 `basic_column` the image plane inside OL1 differs by 188 µm).
 
-`reference=` sets the **object** plane whose conjugates are wanted — a name
+`reference=` requires `method='frame'` (the ray trace only launches from the
+column entrance) and sets the **object** plane whose conjugates are wanted — a name
 from `named_positions`, a z in metres, or `None` for the column entrance.
 Different references give genuinely different sets, and the two families
 behave differently: moving the reference across a pure drift leaves the
