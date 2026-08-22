@@ -580,7 +580,7 @@ class MicroscopeSection(SEASerializable):
 
 	def propagate_wave(self, wave0=None, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, absorb:float=0.1,
-				   crossover:Literal['flat','jump']='flat'):
+				   crossover:Literal['flat','jump']='flat', rotate:bool=False):
 		r"""Propagate a wavefield through every element in the section.
 
 		The one wave-optics analog of :meth:`propagate_ray`, covering all three
@@ -635,7 +635,7 @@ class MicroscopeSection(SEASerializable):
 		fi=[wave0]
 		for ele in self.elements:
 			interior = [] if mode == 'hybrid' else None
-			f = ele.propagate_wave(fi[-1], mode=mode, s_min=s_min, log=interior, absorb=absorb, crossover=crossover)
+			f = ele.propagate_wave(fi[-1], mode=mode, s_min=s_min, log=interior, absorb=absorb, crossover=crossover, rotate=rotate)
 			if interior:
 				fi.extend(interior)		# frame switches / crossover planes, in z order
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
@@ -1272,7 +1272,7 @@ class Microscope(SEASerializable):
 
 	def propagate_wave(self, wave0=None, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, absorb:float=0.1,
-				   crossover:Literal['flat','jump']='flat'):
+				   crossover:Literal['flat','jump']='flat', rotate:bool=False):
 		r"""Propagate a wavefield through every section, chaining boundaries.
 
 		The one wave-optics analog of :meth:`propagate_ray`, covering all three
@@ -1317,7 +1317,7 @@ class Microscope(SEASerializable):
 		f = wave0
 		planes=[]
 		for s in self.sections:
-			s.propagate_wave(wave0=f, mode=mode, s_min=s_min, absorb=absorb, crossover=crossover)
+			s.propagate_wave(wave0=f, mode=mode, s_min=s_min, absorb=absorb, crossover=crossover, rotate=rotate)
 			sec_planes = s._wave_planes if mode == 'fixed' else s._wave_scaled_planes
 			planes.extend(sec_planes)
 			f = sec_planes[-1]

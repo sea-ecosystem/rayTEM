@@ -1124,3 +1124,128 @@ def test_conjugate_planes_feed_zpts_to_log_image_planes():
 	zs = np.array([read_scaled_wavefield(p)[7] for p in dense._wave_scaled_planes])
 	for z in zi:
 		assert min(abs(zs - z)) < 1e-9		# requested image planes are logged exactly
+
+
+# --- thick lens as an exact scaled segment ----------------------------------------
+
+def test_thick_lens_delta_tau_closed_form():
+	# the sinusoidal-s(z) tau integral, against the numerical integral, and its
+	# K -> 0 limit against the free-space (linear-s) form
+	rng = np.random.default_rng(11)
+	for _ in range(30):
+		s0 = rng.uniform(0.2, 2.0)
+		K = rng.uniform(5, 200) * rng.choice([-1, 1])
+		R0 = np.inf if rng.random() < 0.3 else rng.uniform(0.05, 2.0) * rng.choice([-1, 1])
+		dz = rng.uniform(1e-4, 0.4 / abs(K))		# short of the first zero of s
+		u0 = 0.0 if np.isinf(R0) else s0 / R0
+		zg = np.linspace(0, dz, 100001)
+		sg = s0 * np.cos(K * zg) + (u0 / K) * np.sin(K * zg)
+		if np.abs(sg).min() < 1e-6:
+			continue
+		numeric = np.trapezoid(1.0 / sg**2, zg)
+		assert np.isclose(wo.scaled_delta_tau_lens(dz, s0, R0, K), numeric, rtol=1e-6)
+	# K -> 0 degenerates to the drift form
+	assert np.isclose(wo.scaled_delta_tau_lens(0.02, 1.3, np.inf, 1e-9),
+					  wo.scaled_delta_tau(0.02, 1.3, np.inf), rtol=1e-9)
+	# a crossover inside the body is refused, naming where
+	with pytest.raises(ValueError, match="inside the thick lens body"):
+		wo.scaled_delta_tau_lens(0.05, 1.0, -0.01, 30.0)
+
+
+def test_thick_lens_segment_matches_transfer_matrix():
+	# the frame advances by the element's OWN 2x2 block: s_out must equal the
+	# rotating-frame A element, and the crossover -R_out must equal -A/C
+	lens = Lens(strength=34.72, length=0.02)
+	K, L = lens._effective_strength(), lens.length
+	U0 = wo.gaussian_field((64, 64), 1e-7, 1e-7, 5e-7, 5e-7)
+	U, s, R, dtau = wo.propagate_thick_lens_scaled(U0, 1e-7, 1e-7, LAM, L,
+												   1.0, np.inf, K)
+	M = lens.transfer_matrix()
+	c = np.cos(K * L)					# the Larmor rotation scales the x-block by cos(KL)
+	A, C = M[0, 0] / c, M[1, 0] / c
+	assert np.isclose(s, A, rtol=1e-12)			# scale == A for a flat seed
+	assert np.isclose(-R, -A / C, rtol=1e-12)	# crossover distance == -A/C
+	# U is untouched apart from the segment's own tau propagation: energy conserved
+	assert np.isclose((np.abs(U)**2).sum(), (np.abs(U0)**2).sum(), rtol=1e-9)
+	# and a thin lens of the same power still takes the kick path
+	assert Lens(strength=6.0, length=0.0).scaled_segment() is None
+	assert lens.scaled_segment() == ('quadratic', K)
+
+
+@pytest.mark.skipif(not sea_available, reason="basic_column.sea requires sea_eco")
+def test_thick_lens_crossovers_match_ray_planes():
+	# the payoff: with thick lenses carried exactly, the hybrid crossovers land
+	# on the ray-traced diffraction planes. They used to sit 422-4808 um away,
+	# which was precisely the thin-equivalent (drift L/2 -> kick -> drift L/2)
+	# error of each lens.
+	import os
+	from pySEA.rayTEM.assemblies import load_microscope
+	here = os.path.dirname(os.path.abspath(__file__))
+	scope = load_microscope(os.path.join(here, "..", "microscopes", "basic_column.sea"))
+	src = scope.sections[0].elements[0]
+	src.wave_kind = "aperture"
+	src.aperture_radius = 5e-6
+	scope.propagate_wave(mode="hybrid")
+	planes = scope.conjugate_planes(axis="x")["diff"]
+	assert len(scope.crossovers) >= 5
+	for zc in scope.crossovers:
+		assert min(abs(np.asarray(planes) - zc)) < 1e-6		# was up to 4.8e-3
+
+
+def test_rotate_field_is_exact_and_unitary():
+	# band-limited three-shear rotation: right sign, right magnitude, unitary
+	n = 128
+	X, Y = wo.transverse_coordinates((n, n), 1.0, 1.0)
+	x0 = 30.0
+	U = np.exp(-((X - x0)**2 + Y**2) / (2 * 4.0**2)).astype(complex)
+	for ang in (0.3, -0.7, 1.2980):
+		V = wo.rotate_field(U, ang)
+		I = np.abs(V)**2
+		cx, cy = (I * X).sum() / I.sum(), (I * Y).sum() / I.sum()
+		# counter-clockwise: the blob lands on the rotated position
+		assert np.isclose(cx, x0 * np.cos(ang), atol=1e-9)
+		assert np.isclose(cy, x0 * np.sin(ang), atol=1e-9)
+		assert np.isclose(I.sum(), (np.abs(U)**2).sum(), rtol=1e-12)		# unitary
+	assert np.allclose(wo.rotate_field(wo.rotate_field(U, 0.9), -0.9), U, atol=1e-12)
+	assert wo.rotate_field(U, 0.0) is not U			# angle 0 returns a copy
+	with pytest.raises(ValueError, match="square grid"):
+		wo.rotate_field(np.ones((8, 16), complex), 0.5)
+
+
+def test_rotation_commutes_with_propagation():
+	# the isotropic kernel depends only on |k|, so rotating once at a lens exit
+	# is equivalent to rotating continuously through the body
+	n, dxi, lam = 128, 1e-6, 500e-9
+	X, Y = wo.transverse_coordinates((n, n), 1.0, 1.0)
+	U = np.exp(-((X - 30.0)**2 + Y**2) / (2 * 4.0**2)).astype(complex)
+	dz = 0.1 * n * dxi**2 / lam			# well inside the drift sampling limit
+	a = wo.angular_spectrum_propagate(wo.rotate_field(U, 0.8), dxi, dxi, lam, dz,
+									  include_carrier=False)
+	b = wo.rotate_field(wo.angular_spectrum_propagate(U, dxi, dxi, lam, dz,
+													  include_carrier=False), 0.8)
+	assert np.abs(a - b).max() / np.abs(a).max() < 1e-10
+
+
+def test_thick_lens_wave_rotation_matches_ray_larmor():
+	# with rotate=True the wave picks up the same Larmor angle the ray path
+	# applies (Lens.rotation = -K L): an off-axis blob's azimuth must agree
+	lens = Lens(strength=34.72, length=0.02)
+	K, L = lens._effective_strength(), lens.length
+	n, dxi = 128, 1e-7
+	X, Y = wo.transverse_coordinates((n, n), dxi, dxi)
+	x0 = 20 * dxi
+	U0 = np.exp(-((X - x0)**2 + Y**2) / (2 * (3 * dxi)**2)).astype(complex)
+
+	def azimuth(U):
+		I = np.abs(U)**2
+		return np.arctan2((I * Y).sum() / I.sum(), (I * X).sum() / I.sum())
+
+	U_no, *_ = wo.propagate_thick_lens_scaled(U0, dxi, dxi, LAM, L, 1.0, np.inf, K)
+	U_rot, *_ = wo.propagate_thick_lens_scaled(U0, dxi, dxi, LAM, L, 1.0, np.inf, K,
+											   rotate=True)
+	lens.transfer_matrix()					# sets lens.rotation as the ray path does
+	assert np.isclose(lens.rotation, -K * L, rtol=1e-12)
+	assert np.isclose(azimuth(U_no), 0.0, atol=1e-6)			# default: no rotation
+	assert np.isclose(azimuth(U_rot), -K * L, atol=1e-3)		# opt-in: ray's angle
+	# and the rotation is energy-neutral
+	assert np.isclose((np.abs(U_rot)**2).sum(), (np.abs(U_no)**2).sum(), rtol=1e-12)
