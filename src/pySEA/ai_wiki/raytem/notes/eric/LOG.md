@@ -7,6 +7,13 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-22 — [Under Construction] Wave seam cleanup: no element owns a propagation method
+**Goal:** `phase_shift(kind=...)` dispatching to `_phase_shift_*`, an amplitude/mask declaration, removal of the `Source`/`Aperture`/`Prism` `propagate_wave` overrides, and an element-agnostic per-axis segment propagator.
+**Why:** Eric's architectural direction — the ray side is the model (an element declares `transfer_matrix`, the generic `propagate_ray` consumes it), and the wave side should match; also `propagate_thick_lens_scaled` is lens-named and lens-scoped, which is what blocks a quadrupole from using it.
+- [ ] phase_shift(kind=) + _phase_shift_* split
+- [ ] amplitude_mask seam + remove the three overrides
+- [ ] segment propagator rename + per-axis
+
 ## 2026-08-22 — [Note] Thick quadrupole defects filed as issue #3
 **Goal:** Get the thick-quadrupole matrix defects in front of the other contributor rather than fixing quadrupole ray physics unilaterally, and record the wave-side work they block.
 **Why:** Found while validating the analytic plane calculation: the thick `Quadrapole.transfer_matrix` y-block is non-symplectic (`det = cos(2|KL|)` = 0.7518 over a 30 mm body, ~25% of phase-space area lost, violating Liouville — the defocusing axis needs cosh/sinh), and the thin branch swaps X/Y for K > 0 while the thick branch never swaps, so thin and thick quadrupoles disagree about which axis focuses.
