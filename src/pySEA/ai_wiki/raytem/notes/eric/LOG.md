@@ -7,6 +7,13 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-21 — [Under Construction] Thick lens as a scaled segment (+ wave rotation)
+**Goal:** Treat a thick lens as the quadratic-index medium it is — a segment with a sinusoidal s(z) law and its own closed-form dtau — keeping the thin-lens (L == 0) path exactly as it is, and add the Larmor rotation to the wave.
+**Why:** The drift L/2 -> thin kick -> drift L/2 split misplaces every crossover by the per-lens amount measured in `examples/05_planeComparison.py` (C1: 422.3 um, matching the prediction to the last digit; up to 4.8 mm downstream). The scaled factorization solves a quadratic-index medium exactly, so no approximation is needed here.
+- [ ] scaled_delta_tau_lens + propagate_thick_lens_scaled
+- [ ] element seam (L == 0 thin / L > 0 segment) + tests
+- [ ] wave rotation + docs
+
 ## 2026-08-21 — [Note] Note handed over: analytic crossover planes (A = 0, B = 0)
 **Goal:** A self-contained note for the ray-side owner on locating both plane families analytically from the accumulated transfer matrix — `A = 0` for diffraction (back-focal) planes, `B = 0` for image planes — instead of searching a traced ray bundle.
 **Why:** Confirmed `findPlanes` finds planes by interpolating where two reference rays' *difference* is zero between logged planes. That is algebraically the same criterion (the +- pair's difference IS `2a*A` / `2b*B`), but sampled — and linear interpolation is the wrong functional form inside a thick lens body, which is where our wave-vs-ray offsets show up on basic_column (0.4-4.8 mm, vs 0 nm on a thin-lens column).
