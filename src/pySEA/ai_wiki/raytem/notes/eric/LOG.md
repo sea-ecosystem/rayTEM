@@ -7,6 +7,13 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-22 — [Note] Thick quadrupole defects filed as issue #3
+**Goal:** Get the thick-quadrupole matrix defects in front of the other contributor rather than fixing quadrupole ray physics unilaterally, and record the wave-side work they block.
+**Why:** Found while validating the analytic plane calculation: the thick `Quadrapole.transfer_matrix` y-block is non-symplectic (`det = cos(2|KL|)` = 0.7518 over a 30 mm body, ~25% of phase-space area lost, violating Liouville — the defocusing axis needs cosh/sinh), and the thin branch swaps X/Y for K > 0 while the thick branch never swaps, so thin and thick quadrupoles disagree about which axis focuses.
+**Issue:** [sea-ecosystem/rayTEM#3](https://github.com/sea-ecosystem/rayTEM/issues/3) — reproducer included, plan inlined so it is self-contained.
+**Plan:** [PLAN_2026-08-22_thick-quadrupole-symplecticity.md](PLAN_2026-08-22_thick-quadrupole-symplecticity.md) · **TODO:** [TODO_ACTIVE_thick-quadrupole-symplecticity.md](TODO_ACTIVE_thick-quadrupole-symplecticity.md)
+**Status:** mitigation only — no quadrupole physics changed. `Element.transfer_xblock` mirrors `transfer_matrix` exactly (defect included) so plane finding never silently diverges from ray tracing, and the walk guards `det == 1` on any body, refusing that axis with an actionable error. `basic_column` is unaffected (its quads are thin). Blocks the thick-quad wave-optics fix: the segment propagator is lens-scoped and refuses anisotropic frames, and there is no correct per-axis body law to mirror until the matrix is fixed — so a thick quad in the wave path still falls back to drift L/2 -> kick -> drift L/2. The plan also records Eric's architectural point: `Source`/`Aperture`/`Prism` still override `propagate_wave`, which they should not need to once there is an amplitude/mask declaration alongside `phase_shift`.
+
 ## 2026-08-22 — [Done] One plane calculus (wave image planes, covariance waists, reference planes)
 **Goal:** Promote the analytic plane calculation into the framework as one per-element walk of the accumulated 2x2, and use it for all three modes: wave image planes (conjugate seed), covariance waists (`Sigma_12 = 0`), and planes conjugate to a *named* reference element rather than the column entrance.
 **Why:** Eric's follow-ups. The wave currently only reports the diffraction family; the covariance mode reports no planes at all; and "the planes" are always measured from the entrance, when what you usually want is "conjugate to the sample" or "conjugate to the condenser aperture" — genuinely different sets.
