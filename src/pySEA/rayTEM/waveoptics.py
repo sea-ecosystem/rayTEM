@@ -458,6 +458,192 @@ def scaled_delta_tau(dz: float, s0: float, R0: float) -> float:
 	return dz / (s0**2 * growth)
 
 
+def scaled_delta_tau_lens(dz: float, s0: float, R0: float, K: float) -> float:
+	r"""Scaled increment Δτ across a constant-``K`` quadratic-index segment.
+
+	A thick round lens is not a phase screen but a **medium**: inside it the
+	reference scale obeys the same equation as a ray in that medium,
+
+	.. math::
+
+		s(z) = s_0\cos(Kz) + \frac{u_0}{K}\sin(Kz), \qquad u_0 = s_0/R_0
+
+	(the ``[[\cos, \sin/K], [-K\sin, \cos]]`` block of the element's own
+	transfer matrix), so :math:`\tau = \int dz/s^2` is again closed form.
+	Writing :math:`s(z) = C\cos(Kz - \varphi)` with
+	:math:`C^2 = s_0^2 + (u_0/K)^2` and :math:`\tan\varphi = u_0/(K s_0)`:
+
+	.. math::
+
+		\Delta\tau = \frac{\tan(K\,\Delta z - \varphi) + \tan\varphi}{K\,C^2}
+
+	This is the thick-lens counterpart of :func:`scaled_delta_tau` (whose
+	linear ``s(z)`` is the ``K → 0`` limit).
+
+	Parameters
+	----------
+	dz : float
+		Distance travelled inside the medium (metres).
+	s0 : float
+		Transverse scale at the segment start.
+	R0 : float
+		Reference radius of curvature at the segment start (metres);
+		``numpy.inf`` for a flat reference wavefront.
+	K : float
+		Focusing strength of the medium (1/metres, nonzero).
+
+	Returns
+	-------
+	float
+		The scaled increment Δτ (metres).
+
+	Raises
+	------
+	ValueError
+		If the reference scale passes through zero inside the segment — the
+		crossover lies *within the lens body*, where this frame is singular
+		(the integral diverges). Switch frames before entering, or shorten the
+		step; mid-element frame switching is not implemented.
+
+	Related
+	-------
+	scaled_delta_tau : The free-space (linear ``s``) form.
+	propagate_thick_lens_scaled : Consumes this.
+
+	Notes
+	-----
+	The divergence is the ordinary crossover singularity of a converging
+	frame, not a new pathology: it is the same ``s → 0`` the hybrid policy
+	flattens through in free space.
+	"""
+	u0 = 0.0 if np.isinf(R0) else s0 / R0
+	phi = np.arctan2(u0 / K, s0)
+	C2 = s0**2 + (u0 / K)**2
+	# s(z) = C cos(K z - phi) vanishes at z = (phi + pi/2 + n*pi)/K
+	n_max = int(abs(K * dz) / np.pi) + 2
+	tol = 1e-12 * max(abs(dz), 1.0)
+	for n in range(-n_max, n_max + 1):
+		z_zero = (phi + np.pi / 2 + n * np.pi) / K
+		if tol < z_zero < dz - tol:
+			raise ValueError(f"Scaled frame reaches s = 0 inside the thick lens body "
+							 f"(at {z_zero:.6g} m of {dz:.6g} m): the crossover lies "
+							 "within the element, where this frame is singular. Switch "
+							 "frames before the element, or stop the step there "
+							 "(mid-element frame switching is not implemented).")
+	return (np.tan(K * dz - phi) + np.tan(phi)) / (K * C2)
+
+
+def propagate_thick_lens_scaled(U: np.ndarray, dxi: float, deta: float,
+								wavelength: float, dz: float, s, R, K: float,
+								s_min: float = 1e-3, absorb: float = 0.0) -> tuple:
+	r"""Propagate the scaled field through a thick lens body (quadratic medium).
+
+	The honest treatment of a thick round lens: rather than a thin kick placed
+	between two half-length drifts, the element is one **segment** whose scale
+	law is sinusoidal. The frame advances by the element's own transfer block,
+
+	.. math::
+
+		\begin{pmatrix} s \\ s/R \end{pmatrix}^+ =
+		\begin{pmatrix} \cos K\Delta z & \sin(K\Delta z)/K \\
+		-K\sin K\Delta z & \cos K\Delta z \end{pmatrix}
+		\begin{pmatrix} s \\ s/R \end{pmatrix}^-
+
+	— legitimate because the frame *is* a reference ray, ``(h, u) = (s, s/R)``
+	— and the reduced field U propagates over the segment's own Δτ
+	(:func:`scaled_delta_tau_lens`) with the same carrier-free kernel used for
+	free space. **No phase screen and no curvature kick are applied**: the
+	scaled factorization solves the paraxial equation in a quadratic-index
+	medium exactly, so a thick lens costs U nothing in sampling, exactly like a
+	drift.
+
+	Parameters
+	----------
+	U : np.ndarray
+		Scaled field ``(ny, nx)``.
+	dxi, deta : float
+		Scaled-coordinate sample spacings.
+	wavelength : float
+		Wavelength (metres).
+	dz : float
+		Length of lens body traversed (metres). ``0`` returns the state
+		unchanged.
+	s, R : float or Sequence[float]
+		Frame state at the entrance (``R = numpy.inf`` = flat). Per-axis pairs
+		are rejected: a round lens is isotropic, so an anisotropic frame would
+		need per-axis media.
+	K : float
+		Focusing strength of the body (1/metres); ``0`` degenerates to a drift.
+	s_min : float, optional
+		Crossover backstop on the exit scale, by default ``1e-3``.
+	absorb : float, optional
+		Absorbing-boundary margin forwarded to the sub-stepped propagation
+		(see :func:`propagate_free_scaled`), by default 0.
+
+	Returns
+	-------
+	tuple
+		``(U_out, s_out, R_out, dtau)``.
+
+	Raises
+	------
+	NotImplementedError
+		If the incoming frame is anisotropic (``s_x != s_y``).
+	ValueError
+		If the frame reaches ``s = 0`` inside the body, or the exit scale
+		violates ``|s_out| > s_min``.
+
+	Related
+	-------
+	propagate_free_scaled : The linear-``s`` counterpart.
+	scaled_delta_tau_lens : The Δτ closed form.
+	apply_thin_lens_scaled : What a *thin* (``length == 0``) lens does instead.
+
+	Examples
+	--------
+	>>> U, s, R, dtau = propagate_thick_lens_scaled(
+	...     U0, 1e-7, 1e-7, 2.5e-12, 0.02, 1.0, np.inf, 34.7)   # doctest: +SKIP
+	"""
+	if dz == 0:
+		return U.astype(complex, copy=True), s, R, 0.0
+	s_x, s_y = axis_components(s)
+	R_x, R_y = axis_components(R)
+	if s_x != s_y or R_x != R_y:
+		raise NotImplementedError(
+			"propagate_thick_lens_scaled needs an isotropic frame; this frame is "
+			f"anisotropic (s = {s}, R = {R}). A round thick lens cannot be applied "
+			"per-axis — reconcile the axes first, or model the element as thin.")
+	if K == 0:
+		return propagate_free_scaled(U, dxi, deta, wavelength, dz, s_x, R_x,
+									 s_min=s_min, absorb=absorb)
+	u0 = 0.0 if np.isinf(R_x) else s_x / R_x
+	dtau = scaled_delta_tau_lens(dz, s_x, R_x, K)	# also guards s = 0 inside
+	c, sn = np.cos(K * dz), np.sin(K * dz)
+	s_out = c * s_x + (sn / K) * u0
+	u_out = -K * sn * s_x + c * u0
+	if abs(s_out) <= s_min:
+		raise ValueError(f"Scaled frame reaches |s| = {abs(s_out):.3e} <= s_min = "
+						 f"{s_min} at the thick-lens exit; switch frames before the "
+						 "element, or lower s_min knowingly.")
+	R_out = np.inf if u_out == 0 else s_out / u_out
+	# U evolves purely by the segment's own dtau (no screen, no kick)
+	if absorb and absorb > 0:
+		n = U.shape[0]
+		band = absorb * n * abs(dxi)
+		dtau_step = 2 * band * abs(dxi) / wavelength
+		n_steps = max(1, int(np.ceil(abs(dtau) / dtau_step)))
+		W = boundary_window(U.shape, margin=absorb)
+		U_out = U.astype(complex, copy=True) * W
+		for _ in range(n_steps):
+			U_out = angular_spectrum_propagate(U_out, dxi, deta, wavelength,
+											   dtau / n_steps, include_carrier=False)
+			U_out = U_out * W
+	else:
+		U_out = angular_spectrum_propagate(U, dxi, deta, wavelength, dtau,
+										   include_carrier=False)
+	return U_out, s_out, R_out, dtau
+
+
 def beam_support_radius(U: np.ndarray, dxi: float, deta: float,
 						threshold: float = 1e-6) -> float:
 	r"""Per-axis half-width of the beam's support on the ξ grid.
