@@ -53,9 +53,9 @@ def _():
 	TRIM_AFTER = "PL4"			# keep the column up to this element
 	TAIL = 0.02					# m of drift kept past it
 	DZ_DENSE = 1e-3				# m, plane spacing for the continuous cross-section
-	THETA0 = 1e-5				# rad, on-axis (image) reference-ray angle
-	return (APERTURE_RADIUS, DZ_DENSE, Drift, Lens, MicroscopeSection,
-			Microscope, Quadrapole, THETA0, TAIL, TRIM_AFTER, columnByName,
+	AIM_AT = "C1"				# image rays leave (0,0) and reach +-aperture here
+	return (AIM_AT, APERTURE_RADIUS, DZ_DENSE, Drift, Lens, MicroscopeSection,
+			Microscope, Quadrapole, TAIL, TRIM_AFTER, columnByName,
 			convert_to_rotating_reference_frame, convention, load_microscope, np,
 			os, plt, read_scaled_wavefield, wo)
 
@@ -308,17 +308,22 @@ def _(mo):
 
 
 @app.cell
-def _(APERTURE_RADIUS, DZ_DENSE, THETA0, columnByName,
+def _(AIM_AT, APERTURE_RADIUS, DZ_DENSE, columnByName,
 	  convert_to_rotating_reference_frame, convention, np,
 	  read_scaled_wavefield, scope, wo, z_max):
 	def reference_rays(scope):
 		"""Trace the four reference rays at their **true** physical scale.
 
-		The parallel pair is launched at ``+-APERTURE_RADIUS``, so it is exactly
-		the geometric edge of the illuminated aperture and overlays the wave
-		envelope directly. The on-axis pair is a mathematical probe of ``B`` (an
-		object point at the entrance), with no counterpart in this illumination —
-		it is plotted on its own axis rather than rescaled.
+		Both pairs are given the column's own geometry, so neither needs
+		rescaling to be visible:
+
+		- the **parallel** pair (probing ``A``) is launched at
+		  ``+-APERTURE_RADIUS`` with zero angle, so it is exactly the geometric
+		  edge of the illuminated aperture and overlays the wave envelope;
+		- the **on-axis** pair (probing ``B``) leaves ``(z, x) = (0, 0)`` at the
+		  angle that brings it to ``+-APERTURE_RADIUS`` at ``AIM_AT``, i.e.
+		  ``theta = +-a / z_aim`` — the bundle from an on-axis source point that
+		  just fills that element.
 
 		Parameters
 		----------
@@ -328,16 +333,19 @@ def _(APERTURE_RADIUS, DZ_DENSE, THETA0, columnByName,
 		Returns
 		-------
 		tuple
-			``(z, rays_x)`` — ``(n_planes,)`` and ``(n_planes, 4)``, metres.
+			``(z, rays_x, theta_aim)`` — ``(n_planes,)``, ``(n_planes, 4)`` in
+			metres, and the aimed angle (radians).
 		"""
+		z_aim = scope.named_positions[AIM_AT]
+		theta_aim = APERTURE_RADIUS / z_aim
 		dense = scope.subdivided(DZ_DENSE)
 		r0 = np.zeros((4, len(convention)))
 		xi, ti = columnByName("x"), columnByName("xt")
 		r0[0, xi] = APERTURE_RADIUS ; r0[1, xi] = -APERTURE_RADIUS
-		r0[2, ti] = THETA0 ; r0[3, ti] = -THETA0
+		r0[2, ti] = theta_aim ; r0[3, ti] = -theta_aim
 		dense.propagate_ray(r0=r0)
 		rot = convert_to_rotating_reference_frame(dense.rays, dense.R)
-		return dense.rays[:, 0, columnByName("z")], rot[:, :, xi]
+		return dense.rays[:, 0, columnByName("z")], rot[:, :, xi], theta_aim
 
 	def wave_cross_section(scope, z_max):
 		"""Densely sample the physical ``|psi(x, 0, z)|`` cross-section.
@@ -379,10 +387,12 @@ def _(APERTURE_RADIUS, DZ_DENSE, THETA0, columnByName,
 
 	zw, xw, prof, crossovers = wave_cross_section(scope, z_max)
 	ray = scope.conjugate_planes(axis="x")
-	zr, rays_x = reference_rays(scope)
+	zr, rays_x, theta_aim = reference_rays(scope)
 	print(f"wave planes: {len(zw)}   crossovers: {len(crossovers)}   "
 		  f"ray diff: {len(ray['diff'])}   ray image: {len(ray['image'])}")
-	return crossovers, prof, ray, rays_x, xw, zr, zw
+	print(f"image rays aimed from (0,0) to ({AIM_AT}, ±{APERTURE_RADIUS*1e6:g} µm) "
+		  f"=> θ = ±{theta_aim*1e6:.1f} µrad")
+	return crossovers, prof, ray, rays_x, theta_aim, xw, zr, zw
 
 
 @app.cell(hide_code=True)
@@ -475,21 +485,21 @@ def _(mo):
 		r"""
 		## The figure
 
-		Two panels, **both at true physical scale** — no rays are rescaled. The
-		parallel pair belongs on the wave panel (it is launched at the aperture
-		radius, so it *is* the geometric edge of the illuminated beam); the
-		on-axis pair probes `B` and has its own µm axis below.
+		One panel, everything at **true physical scale** — no rays are rescaled.
+		Both pairs are sized by the column's own geometry: the parallel pair is
+		launched at the aperture radius (so it *is* the geometric edge of the
+		illuminated beam and overlays the wave envelope), and the on-axis pair
+		leaves `(0, 0)` at the angle that brings it to ±aperture radius at C1 —
+		the bundle from an on-axis source point that just fills C1.
 		"""
 	)
 	return
 
 
 @app.cell
-def _(APERTURE_RADIUS, THETA0, analytic, crossovers, np, plt, prof, ray,
-	  rays_x, scope, xw, z_max, zr, zw):
-	fig, (ax, ax2) = plt.subplots(
-		2, 1, figsize=(13, 8.5), sharex=True,
-		gridspec_kw={"height_ratios": [3, 1], "hspace": 0.06})
+def _(AIM_AT, APERTURE_RADIUS, analytic, crossovers, np, plt, prof, ray,
+	  rays_x, scope, theta_aim, xw, z_max, zr, zw):
+	fig, ax = plt.subplots(figsize=(13, 7))
 
 	_ze = np.concatenate([[zw[0] - 1e-4], (zw[:-1] + zw[1:]) / 2,
 						  [zw[-1] + 1e-4]]) * 1e3
@@ -501,51 +511,46 @@ def _(APERTURE_RADIUS, THETA0, analytic, crossovers, np, plt, prof, ray,
 		ax.plot(zr[_m] * 1e3, rays_x[_m, _j] * 1e6, "-", color="#66ff99", lw=1.0,
 				alpha=0.9,
 				label=f"ray: parallel in at ±{APERTURE_RADIUS*1e6:g} µm "
-					  "(diffraction)" if _j == 0 else None)
+					  "(probes A → diffraction)" if _j == 0 else None)
 	for _j in (2, 3):
-		ax2.plot(zr[_m] * 1e3, rays_x[_m, _j] * 1e6, "--", color="#66ff99",
-				 lw=1.0, alpha=0.9,
-				 label=f"ray: on-axis point at ±{THETA0*1e6:g} µrad (image)"
-					   if _j == 2 else None)
-	ax2.axhline(0, color="w", lw=0.4, alpha=0.4)
+		ax.plot(zr[_m] * 1e3, rays_x[_m, _j] * 1e6, "--", color="#66ff99", lw=1.0,
+				alpha=0.95,
+				label=f"ray: (0,0) → ({AIM_AT}, ±{APERTURE_RADIUS*1e6:g} µm), "
+					  f"θ=±{theta_aim*1e6:.0f} µrad (probes B → image)"
+					  if _j == 2 else None)
 
-	_lo, _hi = _xe[0], _xe[-1]
-	for _a in (ax, ax2):
-		for _zs, _c, _lbl in [(analytic["diff"], "cyan", "analytic A=0 (diffraction)"),
-							  (analytic["image"], "magenta", "analytic B=0 (image)")]:
-			for _i, _z in enumerate(np.asarray(_zs)):
-				if _z <= z_max + 1e-12:
-					_a.axvline(_z * 1e3, color=_c, ls="-", lw=1.0, alpha=0.8,
-							   label=_lbl if (_i == 0 and _a is ax) else None)
-		for _zs, _c, _lbl in [(ray["diff"], "cyan", "ray findPlanes (diffraction)"),
-							  (ray["image"], "magenta", "ray findPlanes (image)")]:
-			for _i, _z in enumerate(np.asarray(_zs)):
-				if _z <= z_max + 1e-12:
-					_yl, _yh = _a.get_ylim()
-					_a.plot([_z * 1e3] * 2, [_yl, _yl + 0.14 * (_yh - _yl)],
-							color=_c, lw=3.0, alpha=0.9,
-							label=_lbl if (_i == 0 and _a is ax) else None)
-		for _i, _z in enumerate(np.asarray(crossovers)):
+	_yl, _yh = _xe[0], _xe[-1]
+	for _zs, _c, _lbl in [(analytic["diff"], "cyan", "analytic A=0 (diffraction)"),
+						  (analytic["image"], "magenta", "analytic B=0 (image)")]:
+		for _i, _z in enumerate(np.asarray(_zs)):
 			if _z <= z_max + 1e-12:
-				_a.axvline(_z * 1e3, color="yellow", ls="-.", lw=1.0, alpha=0.85,
-						   label="wave frame (s=0)" if (_i == 0 and _a is ax) else None)
+				ax.axvline(_z * 1e3, color=_c, ls="-", lw=1.0, alpha=0.8,
+						   label=_lbl if _i == 0 else None)
+	for _zs, _c, _lbl in [(ray["diff"], "cyan", "ray findPlanes (diffraction)"),
+						  (ray["image"], "magenta", "ray findPlanes (image)")]:
+		for _i, _z in enumerate(np.asarray(_zs)):
+			if _z <= z_max + 1e-12:
+				ax.plot([_z * 1e3] * 2, [_yl, _yl + 0.12 * (_yh - _yl)], color=_c,
+						lw=3.0, alpha=0.9, label=_lbl if _i == 0 else None)
+				ax.plot([_z * 1e3] * 2, [_yh - 0.12 * (_yh - _yl), _yh], color=_c,
+						lw=3.0, alpha=0.9)
+	for _i, _z in enumerate(np.asarray(crossovers)):
+		if _z <= z_max + 1e-12:
+			ax.axvline(_z * 1e3, color="yellow", ls="-.", lw=1.0, alpha=0.85,
+					   label="wave frame (s=0)" if _i == 0 else None)
 
 	for _name, _z in scope.named_positions.items():
 		if _name and "_D" not in _name and _z <= z_max + 1e-12:
 			ax.axvline(_z * 1e3, color="w", lw=0.5, ls="--", alpha=0.3)
-			ax.text(_z * 1e3, _hi * 0.97, _name, color="w", rotation=90,
+			ax.text(_z * 1e3, _yh * 0.97, _name, color="w", rotation=90,
 					ha="right", va="top", fontsize=7)
 
+	ax.set_xlabel("z (mm)")
 	ax.set_ylabel("x (µm) — physical, unscaled")
 	ax.set_title("Special planes: analytic matrix vs ray trace vs wave frame\n"
 				 "basic_column trimmed past PL4, |ψ(x, 0, z)| (each plane peak-normalized)")
 	ax.legend(loc="lower left", fontsize=7, framealpha=0.45, labelcolor="w",
 			  facecolor="black", ncol=2)
-	ax2.set_ylabel("x (µm)\nimage rays")
-	ax2.set_xlabel("z (mm)")
-	ax2.legend(loc="upper left", fontsize=7, framealpha=0.45, labelcolor="w",
-			   facecolor="black")
-	ax2.set_facecolor("black")
 	fig.savefig("plane_comparison.png", dpi=150, bbox_inches="tight")
 	fig
 	return
