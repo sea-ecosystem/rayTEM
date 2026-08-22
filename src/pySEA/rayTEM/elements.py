@@ -420,10 +420,20 @@ class Element(SEASerializable):
 		power = 0.0
 		if isinstance(self, Quadrapole):
 			power = self.focal_powers()[0 if axis == 'x' else 1]
-		elif hasattr(self, "focal_power") and L == 0:
+		elif hasattr(self, "focal_power"):
 			power = self.focal_power()
-		# thin kick at entry, then free space: [[1, dz], [0, 1]] @ [[1, 0], [-P, 1]]
-		return xp.asarray([[1 - step * power, step], [-power, 1.0]])
+		if power == 0:
+			return xp.asarray([[1.0, step], [0.0, 1.0]])		# free space, exact
+		if L == 0:
+			return xp.asarray([[1.0, 0.0], [-power, 1.0]])		# a thin element IS a kick
+		raise NotImplementedError(
+			f"{type(self).__name__} {self.name or ''!r} has a finite length "
+			f"({L} m) and focusing power, but no partial propagator. Splitting it "
+			"into a kick between drifts is exactly the approximation the scaled "
+			"path was corrected to avoid, so it is not done here: give this class "
+			"a transfer_xblock override carrying its body's own law (see "
+			"Lens.transfer_xblock / Quadrapole.transfer_xblock), or model the "
+			"element as thin (length = 0).")
 
 	def scaled_segment(self):
 		r"""Report this element as a *segment* for the scaled wave path, if it is one.
@@ -1528,6 +1538,59 @@ class Quadrapole(Element):
 				c,p = self.calibration
 				K = K**p * c
 		return K
+
+	def transfer_xblock(self, dz:float=None, axis:Literal['x','y']='x') -> xp.ndarray:
+		r"""Rotating-frame 2x2 block of a quadrupole, exact at any partial length.
+
+		Overrides :meth:`Element.transfer_xblock`. A thick quadrupole body is a
+		medium of constant strength, so its block is harmonic and exact at any
+		depth — mirroring :meth:`transfer_matrix` exactly (Brown 1983 p. 46), with
+		the sign of the off-diagonal terms flipped between the two axes:
+
+		.. math::
+
+			\begin{pmatrix} \cos|K\,dz| & \sin|K\,dz|/K \\
+			\mp K\sin|K\,dz| & \cos|K\,dz| \end{pmatrix}
+
+		(upper sign for x, lower for y). A thin quadrupole (``length == 0``)
+		defers to the base class, where the impulsive kick
+		:meth:`focal_powers` is exact.
+
+		Parameters
+		----------
+		dz : float, optional
+			Distance into the quadrupole (metres); ``None`` uses ``length``.
+		axis : {'x', 'y'}, optional
+			Transverse axis, by default ``'x'``. The two axes differ in the sign
+			of the focusing term — that is what makes it a quadrupole.
+
+		Returns
+		-------
+		xp.ndarray
+			The ``2x2`` block.
+
+		Related
+		-------
+		transfer_matrix : The full 6x6 matrix this mirrors.
+		focal_powers : The thin-element powers.
+
+		Notes
+		-----
+		This deliberately reproduces :meth:`transfer_matrix`'s convention, which
+		uses ``cos``/``sin`` on **both** axes rather than ``cosh``/``sinh`` on the
+		defocusing one. The block is still a valid propagator (unit determinant,
+		and a body's halves compose), so plane finding stays consistent with ray
+		tracing; whether the defocusing axis should instead be hyperbolic is a
+		question about ``transfer_matrix`` itself, not about this method.
+		"""
+		L = self.length or 0.0
+		step = L if dz is None else float(dz)
+		K = self._effective_strength()
+		if L <= 0 or K == 0:
+			return super().transfer_xblock(dz=step, axis=axis)
+		c, s = xp.cos(abs(K * step)), xp.sin(abs(K * step))
+		sign = -1.0 if axis == 'x' else 1.0
+		return xp.asarray([[c, s / K], [sign * K * s, c]])
 
 	def focal_powers(self) -> tuple:
 		r"""Return the astigmatic focusing powers ``(1/f_x, 1/f_y)``.

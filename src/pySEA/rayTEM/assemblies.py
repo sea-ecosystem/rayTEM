@@ -1265,6 +1265,10 @@ class Microscope(SEASerializable):
 		------
 		KeyError
 			If ``reference`` names a position this column does not have.
+		ValueError
+			If an element with a finite body has a non-symplectic block
+			(``det != 1``) — its matrix is unphysical, so no plane downstream of
+			it can be trusted.
 
 		Related
 		-------
@@ -1296,6 +1300,20 @@ class Microscope(SEASerializable):
 				M = xp.asarray(ele.transfer_xblock(dz=z0 + L - start, axis=axis),
 							   dtype=float) @ M
 				continue
+			blk = xp.asarray(ele.transfer_xblock(axis=axis), dtype=float)
+			if L > 0:
+				# a real element conserves phase-space area (Liouville), so its
+				# block must be symplectic; without that, partial-length
+				# composition inside the body is meaningless
+				det = float(xp.linalg.det(blk))
+				if abs(det - 1.0) > 1e-9:
+					raise ValueError(
+						f"{type(ele).__name__} {ele.name or ''!r} has a non-symplectic "
+						f"{axis}-block over its {L} m body (det = {det:.6f}, must be 1), "
+						"so planes inside or beyond it cannot be located. Its "
+						"transfer_matrix needs fixing before this element can be walked "
+						"(a defocusing body should be cosh/sinh, not cos/sin); until "
+						"then, model it as thin (length = 0).")
 			yield z0, ele, L, M, lambda dz, _e=ele: xp.asarray(
 				_e.transfer_xblock(dz=dz, axis=axis), dtype=float)
 			M = xp.asarray(ele.transfer_xblock(axis=axis), dtype=float) @ M
@@ -1400,7 +1418,7 @@ class Microscope(SEASerializable):
 		return [float(dz)] if 1e-15 < dz <= L + 1e-15 else []
 
 	def conjugate_planes(self, axis:Literal['x','y']='x',
-						 method:Literal['frame','ray']='frame',
+						 method:Literal['frame','ray']='ray',
 						 reference=None, x0:float=1e-6, theta0:float=1e-6) -> dict:
 		r"""Locate this column's image and diffraction (back-focal) planes, in metres.
 
@@ -1427,13 +1445,14 @@ class Microscope(SEASerializable):
 		axis : {'x', 'y'}, optional
 			Transverse axis to analyze, by default ``'x'``. Round optics give
 			the same answer on both; astigmatic optics do not.
-		method : {'frame', 'ray'}, optional
-			``'frame'`` (default) accumulates the transfer blocks and solves
-			``A = 0`` / ``B = 0`` in closed form — exact, including planes
-			*inside* a thick lens body. ``'ray'`` traces four reference rays
-			through :func:`postprocessing.findPlanes`, which interpolates
-			between logged planes; kept as an independent cross-check (the two
-			agree to ~1e-12 wherever the planes fall in free space).
+		method : {'ray', 'frame'}, optional
+			``'ray'`` (default) traces four reference rays through
+			:func:`postprocessing.findPlanes` — the repo's established
+			convention, interpolating between logged planes. ``'frame'``
+			accumulates the transfer blocks and solves ``A = 0`` / ``B = 0`` in
+			closed form, which is exact and additionally resolves planes
+			*inside* a body; it is required for ``reference``. The two agree to
+			~1e-12 wherever the planes fall in free space.
 		reference : str, float, or None, optional
 			The **object** plane whose conjugates are wanted: a name from
 			:attr:`named_positions` (e.g. ``'sample'`` or a condenser
