@@ -371,6 +371,37 @@ class Element(SEASerializable):
 		return self._phase_program(dimensions, wavelength, None,
 								   self.name or type(self).__name__)
 
+	def scaled_segment(self):
+		r"""Report this element as a *segment* for the scaled wave path, if it is one.
+
+		Most elements act on the scaled representation as a point event: a
+		curvature kick and/or a phase screen (:meth:`phase_shift` with
+		``scaled=True``), sandwiched between two half-length free segments. A
+		**thick round lens** is different — it is a quadratic-index *medium*, so
+		the scaled factorization can carry it exactly as one segment whose scale
+		law is sinusoidal instead of linear, with no screen and no kick. This
+		hook lets such an element say so.
+
+		Returns
+		-------
+		tuple or None
+			``('quadratic', K)`` for a constant-strength focusing medium of
+			strength ``K`` (1/metres), or ``None`` (the base class) meaning
+			"treat me as a point event inside free space".
+
+		Related
+		-------
+		phase_shift : The point-event contract used when this returns ``None``.
+		waveoptics.propagate_thick_lens_scaled : Consumes the ``'quadratic'`` case.
+
+		Notes
+		-----
+		Only the scaled/hybrid wave paths consult this; the fixed-grid path still
+		slices a thick element into half-length kernels around a phase screen,
+		because a fixed grid cannot follow the medium's scale law.
+		"""
+		return None
+
 	def _phase_program(self, dimensions, wavelength:float, chi, name:str):
 		"""Assemble the fixed-grid phase program ``[kernel(L/2), screen, kernel(L/2)]``.
 
@@ -705,6 +736,17 @@ class Element(SEASerializable):
 			return U, s, R, tau, z, z_cross
 
 		L = getattr(self, "length", 0)
+		segment = self.scaled_segment()
+		if segment is not None and L != 0:
+			# quadratic-index medium: one exact segment, no screen and no kick
+			from .waveoptics import propagate_thick_lens_scaled
+			_kind, K = segment
+			U, s, R, dt = propagate_thick_lens_scaled(U, dxi, deta, wavelength, L,
+													  s, R, K, s_min=s_min,
+													  absorb=absorb)
+			tau = tau_add(tau, dt) ; z += L
+			return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
+												z=z, z_cross=z_cross, name=name)
 		U, s, R, tau, z, z_cross = free(U, s, R, tau, z, z_cross, L / 2 if L != 0 else 0)
 		power, screen = self.phase_shift((U.shape, dxi, deta), wavelength, scaled=True, s=s)
 		if xp.ndim(power) > 0 or power != 0:		# scalar or per-axis (quadrupole) power
@@ -1907,6 +1949,32 @@ class Lens(Element):
 		self.rotation = -kL
 		M = fix_mat_dims(XY,["x","xt","y","yt"])
 		return M
+
+	def scaled_segment(self):
+		r"""A thick round lens is a quadratic-index segment; a thin one is not.
+
+		Overrides :meth:`Element.scaled_segment`. With ``length > 0`` the lens
+		body is a medium of constant strength ``K``, which the scaled frame
+		follows exactly (sinusoidal ``s(z)``, closed-form Δτ, no phase screen).
+		With ``length == 0`` there is no body to traverse, so the thin-lens
+		route is used instead: the full power ``sign(K)·K²`` is absorbed into the
+		curvature by :meth:`phase_shift` (``scaled=True``).
+
+		Returns
+		-------
+		tuple or None
+			``('quadratic', K)`` when this lens has a finite length and nonzero
+			strength, else ``None``.
+
+		Related
+		-------
+		phase_shift : Supplies the thin-lens curvature kick.
+		waveoptics.propagate_thick_lens_scaled : Propagates the segment.
+		"""
+		K = self._effective_strength()
+		if self.length > 0 and K != 0:
+			return ('quadratic', float(K))
+		return None
 
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
 		r"""Round-lens phase: :math:`\chi = -k(x^2+y^2)/(2f)` (handoff Eq 12).
