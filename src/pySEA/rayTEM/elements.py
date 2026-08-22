@@ -565,7 +565,7 @@ class Element(SEASerializable):
 
 	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, log:list=None, absorb:float=0.1,
-				   crossover:Literal['flat','jump']='flat'):
+				   crossover:Literal['flat','jump']='flat', rotate:bool=False):
 		r"""Propagate a wavefield through this element in the selected wave mode.
 
 		The one wave-optics analog of :meth:`propagate_ray`, covering all three
@@ -637,7 +637,7 @@ class Element(SEASerializable):
 		if mode == 'fixed':
 			return self._propagate_wave_fixed(signal)
 		if mode in ('scaled', 'hybrid'):
-			return self._propagate_wave_scaled(signal, hybrid=(mode == 'hybrid'),
+			return self._propagate_wave_scaled(signal, hybrid=(mode == 'hybrid'), rotate=rotate,
 											   s_min=s_min, log=log, absorb=absorb,
 											   crossover=crossover)
 		raise ValueError(f"Unknown wave mode {mode!r}; expected 'fixed', 'scaled', or 'hybrid'.")
@@ -673,7 +673,8 @@ class Element(SEASerializable):
 
 	def _propagate_wave_scaled(self, signal, hybrid:bool=False, s_min:float=1e-3,
 							   log:list=None, absorb:float=0.1,
-							   crossover:Literal['flat','jump']='flat'):
+							   crossover:Literal['flat','jump']='flat',
+							   rotate:bool=False):
 		"""Scaled-frame wave step: free L/2 → element action → free L/2.
 
 		Parameters
@@ -743,7 +744,7 @@ class Element(SEASerializable):
 			_kind, K = segment
 			U, s, R, dt = propagate_thick_lens_scaled(U, dxi, deta, wavelength, L,
 													  s, R, K, s_min=s_min,
-													  absorb=absorb)
+													  absorb=absorb, rotate=rotate)
 			tau = tau_add(tau, dt) ; z += L
 			return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
 												z=z, z_cross=z_cross, name=name)
@@ -1076,7 +1077,7 @@ class Source(Element):
 
 	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, log:list=None, absorb:float=0.1,
-				   crossover:Literal['flat','jump']='flat'):
+				   crossover:Literal['flat','jump']='flat', rotate:bool=False):
 		"""Pass the wavefield through unchanged (the source only originates the beam).
 
 		Mirrors :meth:`propagate_ray`/:meth:`propagate_moments`: the driver
@@ -1254,7 +1255,7 @@ class Aperture(Element):
 
 	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, log:list=None, absorb:float=0.1,
-				   crossover:Literal['flat','jump']='flat'):
+				   crossover:Literal['flat','jump']='flat', rotate:bool=False):
 		r"""Apply the hard circular aperture to the wavefield in any wave mode.
 
 		Overrides :meth:`Element.propagate_wave` (an aperture is an amplitude
@@ -2184,7 +2185,7 @@ class Prism(Element):
 
 	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, log:list=None, absorb:float=0.1,
-				   crossover:Literal['flat','jump']='flat'):
+				   crossover:Literal['flat','jump']='flat', rotate:bool=False):
 		"""Wave-optics propagation through a prism/spectrometer (not implemented).
 
 		Overrides :meth:`Element.propagate_wave` for every mode. A dispersive

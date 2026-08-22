@@ -458,6 +458,90 @@ def scaled_delta_tau(dz: float, s0: float, R0: float) -> float:
 	return dz / (s0**2 * growth)
 
 
+def rotate_field(U: np.ndarray, angle: float) -> np.ndarray:
+	r"""Rotate a sampled complex field about the optical axis, band-limited-exactly.
+
+	Magnetic round lenses rotate the beam (Larmor rotation): the ray path
+	accumulates it on ``MicroscopeSection.R`` and a thick lens reports it as
+	``Lens.rotation = -K L``. A scalar wave rotates the same way — the rotation
+	is a coordinate rotation of the transverse plane, ``psi_out(r) =
+	psi_in(R^-1 r)`` — so it can be applied to the sampled field directly.
+
+	The rotation is realized as the exact three-shear decomposition
+
+	.. math::
+
+		R(\theta) = S_x(-\tan\tfrac{\theta}{2})\; S_y(\sin\theta)\;
+					S_x(-\tan\tfrac{\theta}{2})
+
+	with each shear a per-row (or per-column) subpixel **shift**, applied as a
+	linear phase ramp in the conjugate direction. Every step is therefore
+	unitary and interpolation-free for band-limited content: no spline blur, and
+	the total intensity is preserved to round-off.
+
+	Parameters
+	----------
+	U : np.ndarray
+		Complex field ``(n, n)`` on a square grid with equal pitches.
+	angle : float
+		Rotation angle (radians), counter-clockwise in the array's ``(x, y)``
+		convention. ``0`` returns a copy.
+
+	Returns
+	-------
+	np.ndarray
+		The rotated field, same shape.
+
+	Raises
+	------
+	ValueError
+		If ``U`` is not square (shears assume one common pitch on both axes).
+
+	Related
+	-------
+	propagate_thick_lens_scaled : Applies this over a lens body's Larmor angle.
+
+	Notes
+	-----
+	Rotation commutes exactly with both the free-space kernel (which depends
+	only on ``|k|``) and the isotropic reference phase, so applying the whole
+	angle once at a lens exit is equivalent to rotating continuously through the
+	body — verified in the test suite. For a rotationally symmetric field it is
+	analytically a no-op, so applying it there only adds resampling noise; that
+	is why the wave paths leave it off by default.
+
+	References
+	----------
+	Larkin, K. G. et al., "Fast Fourier method for the accurate rotation of
+	sampled images," *Opt. Commun.* **139**, 99 (1997).
+	"""
+	if angle == 0:
+		return U.astype(complex, copy=True)
+	ny, nx = U.shape
+	if ny != nx:
+		raise ValueError(f"rotate_field needs a square grid; got {U.shape}. The shear "
+						 "decomposition assumes one common pitch on both axes.")
+	n = nx
+	coords = np.arange(n) - n // 2					# centred pixel coordinates
+	fx = np.fft.fftfreq(n)							# cycles per pixel
+	t = np.tan(angle / 2.0)
+	sn = -np.sin(angle)
+
+	def shear_x(field, amount):
+		"""Shift every row in x by ``amount * y`` pixels (phase ramp along x)."""
+		ramp = np.exp(2j * np.pi * np.outer(coords * amount, fx))
+		return np.fft.ifft(np.fft.fft(field, axis=1) * ramp, axis=1)
+
+	def shear_y(field, amount):
+		"""Shift every column in y by ``amount * x`` pixels (phase ramp along y)."""
+		ramp = np.exp(2j * np.pi * np.outer(fx, coords * amount))
+		return np.fft.ifft(np.fft.fft(field, axis=0) * ramp, axis=0)
+
+	out = shear_x(U.astype(complex), t)
+	out = shear_y(out, sn)
+	return shear_x(out, t)
+
+
 def scaled_delta_tau_lens(dz: float, s0: float, R0: float, K: float) -> float:
 	r"""Scaled increment Δτ across a constant-``K`` quadratic-index segment.
 
@@ -535,7 +619,8 @@ def scaled_delta_tau_lens(dz: float, s0: float, R0: float, K: float) -> float:
 
 def propagate_thick_lens_scaled(U: np.ndarray, dxi: float, deta: float,
 								wavelength: float, dz: float, s, R, K: float,
-								s_min: float = 1e-3, absorb: float = 0.0) -> tuple:
+								s_min: float = 1e-3, absorb: float = 0.0,
+								rotate: bool = False) -> tuple:
 	r"""Propagate the scaled field through a thick lens body (quadratic medium).
 
 	The honest treatment of a thick round lens: rather than a thin kick placed
@@ -579,6 +664,13 @@ def propagate_thick_lens_scaled(U: np.ndarray, dxi: float, deta: float,
 	absorb : float, optional
 		Absorbing-boundary margin forwarded to the sub-stepped propagation
 		(see :func:`propagate_free_scaled`), by default 0.
+	rotate : bool, optional
+		Apply the body's **Larmor rotation** ``-K·dz`` to the field
+		(:func:`rotate_field`), by default False. The ray path always rotates
+		(``Lens.rotation = -K L``, accumulated on ``.R``), so set this when the
+		field is not rotationally symmetric and the wave must share the ray
+		frame. It is analytically a no-op for a rotationally symmetric field,
+		where it would only add resampling noise — hence the default.
 
 	Returns
 	-------
@@ -641,6 +733,10 @@ def propagate_thick_lens_scaled(U: np.ndarray, dxi: float, deta: float,
 	else:
 		U_out = angular_spectrum_propagate(U, dxi, deta, wavelength, dtau,
 										   include_carrier=False)
+	if rotate:
+		# Larmor rotation of the body; commutes with the isotropic propagation
+		# above, so applying the whole angle once here is exact
+		U_out = rotate_field(U_out, -K * dz)
 	return U_out, s_out, R_out, dtau
 
 
