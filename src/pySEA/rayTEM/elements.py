@@ -371,6 +371,60 @@ class Element(SEASerializable):
 		return self._phase_program(dimensions, wavelength, None,
 								   self.name or type(self).__name__)
 
+	def transfer_xblock(self, dz:float=None, axis:Literal['x','y']='x') -> xp.ndarray:
+		r"""Rotating-frame 2x2 transfer block for one transverse axis.
+
+		The ``(position, angle)`` sub-block of :meth:`transfer_matrix` for a
+		single axis, with the Larmor rotation left out — the frame
+		:func:`postprocessing.findPlanes` works in, and the object that locates
+		special planes: with ``M = [[A, B], [C, D]]`` accumulated from a
+		reference plane, ``A = 0`` marks a diffraction (back-focal) plane and
+		``B = 0`` an image plane of that reference.
+
+		Unlike :meth:`transfer_matrix` this accepts a **partial** length, so a
+		plane falling *inside* an element body can be located exactly rather
+		than interpolated between its faces. The base implementation is a thin
+		kick followed by free space, which is right for every point-like
+		element; :meth:`Lens.transfer_xblock` overrides it with the ``cos/sin``
+		law of a thick body.
+
+		Parameters
+		----------
+		dz : float, optional
+			Distance into the element (metres); ``None`` (default) uses the
+			full ``length``.
+		axis : {'x', 'y'}, optional
+			Transverse axis, by default ``'x'``. Only astigmatic elements
+			(quadrupoles) differ between the two.
+
+		Returns
+		-------
+		xp.ndarray
+			The ``2x2`` block ``[[A, B], [C, D]]`` for this element alone.
+
+		Related
+		-------
+		transfer_matrix : The full 6x6 ray matrix (rotation included).
+		Lens.transfer_xblock : The thick-body override.
+		Microscope.conjugate_planes : Accumulates these to locate planes.
+
+		Notes
+		-----
+		At ``dz = length`` this reproduces the corresponding sub-block of
+		:meth:`transfer_matrix` up to the ``cos(K L)`` factor the Larmor
+		rotation applies to a thick lens's x-block — verified element by
+		element in the test suite.
+		"""
+		L = getattr(self, "length", 0) or 0.0
+		step = L if dz is None else float(dz)
+		power = 0.0
+		if isinstance(self, Quadrapole):
+			power = self.focal_powers()[0 if axis == 'x' else 1]
+		elif hasattr(self, "focal_power") and L == 0:
+			power = self.focal_power()
+		# thin kick at entry, then free space: [[1, dz], [0, 1]] @ [[1, 0], [-P, 1]]
+		return xp.asarray([[1 - step * power, step], [-power, 1.0]])
+
 	def scaled_segment(self):
 		r"""Report this element as a *segment* for the scaled wave path, if it is one.
 
@@ -1950,6 +2004,48 @@ class Lens(Element):
 		self.rotation = -kL
 		M = fix_mat_dims(XY,["x","xt","y","yt"])
 		return M
+
+	def transfer_xblock(self, dz:float=None, axis:Literal['x','y']='x') -> xp.ndarray:
+		r"""Rotating-frame 2x2 block of a round lens, exact at any partial length.
+
+		Overrides :meth:`Element.transfer_xblock`. A thick lens body is a medium
+		of constant strength ``K``, so its block is sinusoidal and exact for any
+		distance into it:
+
+		.. math::
+
+			\begin{pmatrix} \cos K\,dz & \sin(K\,dz)/K \\
+			-K\sin K\,dz & \cos K\,dz \end{pmatrix}
+
+		(Brown 1983; the same block :meth:`transfer_matrix` builds before
+		applying the Larmor rotation). A thin lens (``length == 0``) falls back
+		to the base thin-kick form.
+
+		Parameters
+		----------
+		dz : float, optional
+			Distance into the lens (metres); ``None`` uses the full ``length``.
+		axis : {'x', 'y'}, optional
+			Transverse axis, by default ``'x'``; a round lens is identical on
+			both.
+
+		Returns
+		-------
+		xp.ndarray
+			The ``2x2`` block.
+
+		Related
+		-------
+		scaled_segment : Reports the same body to the scaled wave path.
+		waveoptics.propagate_thick_lens_scaled : Advances the wave frame by it.
+		"""
+		L = self.length or 0.0
+		step = L if dz is None else float(dz)
+		K = self._effective_strength()
+		if L <= 0 or K == 0:
+			return super().transfer_xblock(dz=step, axis=axis)
+		c, s = xp.cos(K * step), xp.sin(K * step)
+		return xp.asarray([[c, s / K], [-K * s, c]])
 
 	def scaled_segment(self):
 		r"""A thick round lens is a quadratic-index segment; a thin one is not.

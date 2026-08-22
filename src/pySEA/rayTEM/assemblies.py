@@ -1116,81 +1116,371 @@ class Microscope(SEASerializable):
 											  position=sec.position))
 		return Microscope(name=scope.name, sections=sections)
 
-	def conjugate_planes(self, axis:Literal['x','y']='x', x0:float=1e-6,
-						 theta0:float=1e-6) -> dict:
+	def _accumulate_xblocks(self, axis:Literal['x','y']='x', reference=None):
+		"""Walk the column accumulating the 2x2 block, yielding per-element state.
+
+		The single mechanism behind :meth:`conjugate_planes` and
+		:meth:`beam_waists`: it visits every element in z order and reports the
+		accumulated rotating-frame block **at that element's entrance**, plus a
+		callable giving the element's own block at any partial depth. Because
+		the accumulated block is what the scaled wave frame advances by (the
+		frame *is* a reference ray, ``(h, u) = (s, s/R)``), the ray, matrix and
+		wave descriptions all read the same numbers off this walk.
+
+		Parameters
+		----------
+		axis : {'x', 'y'}, optional
+			Transverse axis, by default ``'x'``.
+		reference : str, float, or None, optional
+			Where to start accumulating — the *object* plane whose conjugates
+			are being sought. A name from :attr:`named_positions`, a z in
+			metres, or ``None`` (default) for the column entrance. Elements
+			upstream of it are skipped.
+
+		Yields
+		------
+		tuple
+			``(z0, ele, L, M, block)`` — the element's entrance z (metres), the
+			element, its length, the accumulated ``2x2`` block at that entrance,
+			and ``block(dz)`` returning the element's own block at depth ``dz``.
+
+		Raises
+		------
+		KeyError
+			If ``reference`` names a position this column does not have.
+
+		Related
+		-------
+		Element.transfer_xblock : Supplies each element's block.
+		conjugate_planes, beam_waists : Consumers.
+		"""
+		z_ref = 0.0
+		if reference is not None:
+			z_ref = (self.named_positions[reference] if isinstance(reference, str)
+					 else float(reference))
+		flat = []
+		for sec in self.sections:
+			for ele in sec.elements:
+				flat.append((sec.position + (ele.position or 0.0), ele,
+							 getattr(ele, "length", 0) or 0.0))
+		flat.sort(key=lambda e: e[0])
+		M = xp.eye(2)
+		z_prev = z_ref
+		for z0, ele, L in flat:
+			if z0 + L < z_ref - 1e-12:			# entirely upstream of the reference
+				continue						# (zero-length elements AT z_ref count)
+			start = max(z0, z_ref)
+			if start - z_prev > 1e-12:			# free space since the last element
+				M = xp.asarray([[1.0, start - z_prev], [0.0, 1.0]]) @ M
+			z_prev = z0 + L
+			if start > z0 + 1e-12:				# reference falls inside this element
+				# homogeneous body: the block from depth (start-z0) to L is the
+				# element's own block over the remaining length
+				M = xp.asarray(ele.transfer_xblock(dz=z0 + L - start, axis=axis),
+							   dtype=float) @ M
+				continue
+			yield z0, ele, L, M, lambda dz, _e=ele: xp.asarray(
+				_e.transfer_xblock(dz=dz, axis=axis), dtype=float)
+			M = xp.asarray(ele.transfer_xblock(axis=axis), dtype=float) @ M
+
+	def _element_roots(self, ele, L, block, P0, Q0):
+		"""Solve ``m00(dz)*P0 + m01(dz)*Q0 = 0`` inside one element.
+
+		The plane condition, evaluated with the element's own partial
+		propagator so a plane inside a thick body is exact rather than
+		interpolated between its faces.
+
+		Parameters
+		----------
+		ele : Element
+			The element being traversed.
+		L : float
+			Its length (metres).
+		block : callable
+			``block(dz)`` giving the element's ``2x2`` at depth ``dz``.
+		P0, Q0 : float
+			The accumulated pair — ``(A, C)`` for diffraction planes,
+			``(B, D)`` for image planes.
+
+		Returns
+		-------
+		list of float
+			Roots inside the element, metres from its entrance.
+
+		Related
+		-------
+		conjugate_planes : Collects these across the column.
+		"""
+		if L <= 0:
+			return []
+		K = ele._effective_strength() if isinstance(ele, Lens) else 0
+		if isinstance(ele, Lens) and (K or 0) != 0 and L > 0:
+			if P0 == 0 and Q0 == 0:
+				return []
+			theta = xp.arctan2(-K * P0, Q0)		# cos*P0 + sin*Q0/K = 0
+			roots = [(theta + n * xp.pi) / K for n in range(-2, 4)]
+			return sorted(min(float(d), L) for d in roots if 1e-15 < d <= L + 1e-15)
+		m00, m01 = block(L)[0]					# linear in dz for these elements
+		slope = Q0 if m01 != 0 else 0.0
+		if slope == 0:
+			return []
+		dz = -P0 / slope
+		return [dz] if 1e-15 < dz <= L + 1e-15 else []
+
+	def _waist_roots(self, ele, L, block, S):
+		r"""Solve ``Sigma_12(dz) = 0`` inside one element (the waist condition).
+
+		Distinct from :meth:`_element_roots`: the covariance transports as
+		:math:`\Sigma' = M \Sigma M^T`, so inside an element ``Sigma_12`` is
+		*quadratic* in the element's matrix entries, not linear like a plane
+		condition. In free space that still reduces to
+		``Sigma_12 + dz*Sigma_22``, but through a thick lens body of strength
+		``K`` (with :math:`\theta = K\,dz`)
+
+		.. math::
+
+			\Sigma_{12}(dz) = \cos 2\theta\, \Sigma_{12}
+			+ \sin 2\theta \left[\frac{\Sigma_{22}}{2K}
+			- \frac{K \Sigma_{11}}{2}\right]
+
+		giving the closed form
+		:math:`\tan 2\theta = -2K\Sigma_{12}/(\Sigma_{22} - K^2\Sigma_{11})`.
+
+		Parameters
+		----------
+		ele : Element
+			The element being traversed.
+		L : float
+			Its length (metres).
+		block : callable
+			``block(dz)`` giving the element's ``2x2`` at depth ``dz``.
+		S : xp.ndarray
+			The ``2x2`` covariance at the element's entrance.
+
+		Returns
+		-------
+		list of float
+			Waist positions inside the element, metres from its entrance.
+
+		Related
+		-------
+		beam_waists : Collects these across the column.
+		_element_roots : The (linear) plane condition.
+		"""
+		if L <= 0:
+			return []
+		K = ele._effective_strength() if isinstance(ele, Lens) else 0
+		if isinstance(ele, Lens) and (K or 0) != 0:
+			denom = S[1, 1] - K**2 * S[0, 0]
+			if denom == 0 and S[0, 1] == 0:
+				return []
+			two_theta = xp.arctan2(-2 * K * S[0, 1], denom)
+			roots = [(two_theta + n * xp.pi) / (2 * K) for n in range(-2, 4)]
+			return sorted(min(float(d), L) for d in roots if 1e-15 < d <= L + 1e-15)
+		if S[1, 1] == 0:
+			return []
+		dz = -S[0, 1] / S[1, 1]				# free space: Sigma_12 + dz*Sigma_22
+		return [float(dz)] if 1e-15 < dz <= L + 1e-15 else []
+
+	def conjugate_planes(self, axis:Literal['x','y']='x',
+						 method:Literal['frame','ray']='frame',
+						 reference=None, x0:float=1e-6, theta0:float=1e-6) -> dict:
 		r"""Locate this column's image and diffraction (back-focal) planes, in metres.
 
 		A column has **two** independent families of conjugate planes, set by
 		the two independent reference rays of its transfer matrices:
 
 		- **diffraction** (back-focal / reciprocal) planes — where rays that
-		  entered *parallel to the axis* (zero angle, finite position) converge;
-		- **image** planes — where rays that left a single *on-axis point*
-		  (zero position, finite angle) re-converge.
+		  left the reference plane *parallel to the axis* converge (``A = 0``);
+		- **image** planes — where rays that left a single *on-axis point* of
+		  the reference plane re-converge (``B = 0``).
 
 		They interleave and neither is derivable from a single lens's focal
-		length: each crossing reflects the whole upstream system. This traces
-		the four reference rays of :func:`postprocessing.findPlanes` (the
-		repo-wide convention for the two families) on a **copy**, so this
-		object's own ``rays``/``I``/``R`` are left untouched, and converts
-		``findPlanes``' fractional plane indices to metres with
-		:func:`postprocessing.zFromFractional`.
+		length: each crossing reflects the whole system since the reference.
+		This is the **same** calculation the scaled wave frame performs while
+		propagating — the frame is a reference ray ``(h, u) = (s, s/R)``, so
+		``s → 0`` on a flat seed is ``A = 0`` and on a point seed is ``B = 0``.
+		Hence the wave's own crossovers (:attr:`crossovers`, the family its
+		seed belongs to) appear here too, and the *other* family is available
+		without a second wave run; :meth:`wavefield_at` reconstructs the field
+		at any of them.
 
 		Parameters
 		----------
 		axis : {'x', 'y'}, optional
 			Transverse axis to analyze, by default ``'x'``. Round optics give
 			the same answer on both; astigmatic optics do not.
+		method : {'frame', 'ray'}, optional
+			``'frame'`` (default) accumulates the transfer blocks and solves
+			``A = 0`` / ``B = 0`` in closed form — exact, including planes
+			*inside* a thick lens body. ``'ray'`` traces four reference rays
+			through :func:`postprocessing.findPlanes`, which interpolates
+			between logged planes; kept as an independent cross-check (the two
+			agree to ~1e-12 wherever the planes fall in free space).
+		reference : str, float, or None, optional
+			The **object** plane whose conjugates are wanted: a name from
+			:attr:`named_positions` (e.g. ``'sample'`` or a condenser
+			aperture), a z in metres, or ``None`` (default) for the column
+			entrance. Planes conjugate to different references are genuinely
+			different sets. ``'ray'`` supports only the entrance.
 		x0 : float, optional
-			Off-axis height of the parallel (diffraction) reference ray pair
-			(metres), by default 1e-6. Paraxial, so the value only sets scale.
+			Height of the parallel reference ray pair for ``method='ray'``
+			(metres), by default 1e-6. Paraxial, so it only sets scale.
 		theta0 : float, optional
-			Angle of the on-axis (image) reference ray pair (radians), by
-			default 1e-6.
+			Angle of the on-axis reference ray pair for ``method='ray'``
+			(radians), by default 1e-6.
 
 		Returns
 		-------
 		dict
-			``{'diff': ndarray, 'image': ndarray}`` — the z positions (metres)
-			of the diffraction and image planes, in column order.
+			``{'diff': ndarray, 'image': ndarray, 'z_reference': float,
+			'diff_offset': ndarray, 'image_offset': ndarray}`` — absolute plane
+			positions (metres) in column order, the reference position, and the
+			same planes as offsets from it (signed, downstream positive).
+
+		Raises
+		------
+		ValueError
+			If ``method`` is unknown, or ``reference`` is given with
+			``method='ray'``.
+		KeyError
+			If ``reference`` names a position this column does not have.
 
 		Related
 		-------
-		crossovers : The focal planes the hybrid wave run logs exactly — the
-			family matching the wave's own seeded frame (the diffraction
-			family for the usual flat-wavefront seed).
-		show : Annotates both families on the scaled cross-section.
-		postprocessing.findPlanes : Does the ray-side plane detection.
-
-		Notes
-		-----
-		The scaled-wave frame follows exactly one of these families — whichever
-		its seed belongs to (``Source.wave`` seeds ``s=1, R=inf``, a parallel
-		wavefront, hence the diffraction family). The other family is still
-		reconstructable at will: pass these positions to
-		:meth:`show` / :meth:`subdivided` as ``zpts`` to log them exactly, e.g.
-		``scope.show(kind='wave-hybrid', zpts=scope.conjugate_planes()['image'])``.
+		crossovers : The family the hybrid wave run logs while propagating.
+		beam_waists : The covariance mode's minimum-width planes.
+		wavefield_at : Reconstructs the wave at any of these planes.
+		postprocessing.findPlanes : The ray-side cross-check.
 
 		Examples
 		--------
-		>>> planes = scope.conjugate_planes()            # doctest: +SKIP
-		>>> planes['image'], planes['diff']              # doctest: +SKIP
+		>>> p = scope.conjugate_planes()                      # doctest: +SKIP
+		>>> p['image'], p['diff']                             # doctest: +SKIP
+		>>> scope.conjugate_planes(reference='sample')['image_offset']  # doctest: +SKIP
 		"""
-		scope = deepcopy(self)			# a reference trace must not clobber self.rays
-		xi = columnByName('x' if axis == 'x' else 'y')
-		ti = columnByName('xt' if axis == 'x' else 'yt')
-		r0 = xp.zeros((4, len(convention)))
-		r0[0, xi] = x0 ; r0[1, xi] = -x0			# diffraction pair: parallel in
-		r0[2, ti] = theta0 ; r0[3, ti] = -theta0	# image pair: from an on-axis point
-		scope.propagate_ray(r0=r0)
-		zs = scope.rays[:, 0, columnByName('z')]
-		found = findPlanes(scope.rays, scope.R, axis=axis)[axis]
-		out = {}
-		for family in ('diff', 'image'):
-			# clamp so an index landing exactly on the last plane stays in range
-			idx = [min(float(f), len(zs) - 1 - 1e-9) for f in found[family]['z']]
-			out[family] = xp.asarray([zFromFractional(zs, f) for f in idx])
+		if method not in ('frame', 'ray'):
+			raise ValueError(f"Unknown method {method!r}; expected 'frame' (accumulated "
+							 "transfer blocks, exact) or 'ray' (findPlanes cross-check).")
+		z_ref = 0.0
+		if reference is not None:
+			if method == 'ray':
+				raise ValueError("method='ray' measures conjugates of the column entrance "
+								 "only; use method='frame' for a reference plane.")
+			z_ref = (self.named_positions[reference] if isinstance(reference, str)
+					 else float(reference))
+		if method == 'ray':
+			scope = deepcopy(self)		# a reference trace must not clobber self.rays
+			xi = columnByName('x' if axis == 'x' else 'y')
+			ti = columnByName('xt' if axis == 'x' else 'yt')
+			r0 = xp.zeros((4, len(convention)))
+			r0[0, xi] = x0 ; r0[1, xi] = -x0			# diffraction pair: parallel in
+			r0[2, ti] = theta0 ; r0[3, ti] = -theta0	# image pair: on-axis point
+			scope.propagate_ray(r0=r0)
+			zs = scope.rays[:, 0, columnByName('z')]
+			found = findPlanes(scope.rays, scope.R, axis=axis)[axis]
+			out = {}
+			for family in ('diff', 'image'):
+				idx = [min(float(f), len(zs) - 1 - 1e-9) for f in found[family]['z']]
+				out[family] = xp.asarray([zFromFractional(zs, f) for f in idx])
+		else:
+			out = {'diff': [], 'image': []}
+			for z0, ele, L, M, block in self._accumulate_xblocks(axis=axis,
+																 reference=reference):
+				A, B, C, D = M[0, 0], M[0, 1], M[1, 0], M[1, 1]
+				for family, (P0, Q0) in (('diff', (A, C)), ('image', (B, D))):
+					out[family] += [z0 + dz for dz
+									in self._element_roots(ele, L, block, P0, Q0)]
+			out = {k: xp.asarray(sorted(v)) for k, v in out.items()}
+		out['z_reference'] = z_ref
+		out['diff_offset'] = out['diff'] - z_ref
+		out['image_offset'] = out['image'] - z_ref
 		return out
+
+	def beam_waists(self, axis:Literal['x','y']='x', sigma0:xp.ndarray=None) -> dict:
+		r"""Locate the beam-envelope waists (minimum-width planes), in metres.
+
+		The covariance mode's counterpart of a crossover. Transporting
+		:math:`\Sigma' = M\Sigma M^T`, the RMS width :math:`\sqrt{\Sigma_{11}}`
+		is stationary where the position-angle correlation vanishes:
+
+		.. math::
+
+			\frac{d\Sigma_{11}}{dz} = 2\Sigma_{12} \;\Rightarrow\;
+			\text{waist at } \Sigma_{12} = 0
+
+		which in free space is the closed form ``dz = -Σ₁₂/Σ₂₂`` and inside a
+		thick lens body follows the same ``cos/sin`` law as the plane
+		conditions. Unlike a geometric crossover a waist has **finite width**,
+		and it sits slightly off the geometric focus — that displacement is the
+		emittance-driven focal shift, which this reports directly.
+
+		Parameters
+		----------
+		axis : {'x', 'y'}, optional
+			Transverse axis, by default ``'x'``.
+		sigma0 : xp.ndarray, optional
+			Entrance covariance for this axis, ``[[<xx>, <xx'>], [<xx'>,
+			<x'x'>]]`` (m², m·rad, rad²). ``None`` (default) takes it from the
+			column's ``Source`` via :meth:`propagate_moments` on a copy.
+
+		Returns
+		-------
+		dict
+			``{'z': ndarray, 'width': ndarray, 'emittance': float}`` — waist
+			positions (metres), the RMS width ``sqrt(Σ₁₁)`` at each (metres),
+			and the invariant emittance ``sqrt(det Σ)`` (m·rad).
+
+		Raises
+		------
+		ValueError
+			If no entrance covariance is available and the column has no
+			``Source`` to derive one from.
+
+		Related
+		-------
+		conjugate_planes : The system's (emittance-free) geometric planes.
+		propagate_moments : The covariance transport this mirrors.
+
+		Notes
+		-----
+		The emittance is a transport invariant, so it is reported once rather
+		than per plane; a waist's width is then ``emittance/sqrt(Σ₂₂)`` there.
+
+		Examples
+		--------
+		>>> w = scope.beam_waists()                            # doctest: +SKIP
+		>>> w['z'], w['width'], w['emittance']                 # doctest: +SKIP
+		"""
+		from .seashells import as_ndarray
+		if sigma0 is None:
+			scope = deepcopy(self)			# do not clobber this object's results
+			scope.propagate_moments()
+			cov = as_ndarray(scope.covariance_matrix)
+			i = columnByName('x' if axis == 'x' else 'y')
+			j = columnByName('xt' if axis == 'x' else 'yt')
+			sigma0 = xp.asarray([[cov[0][i, i], cov[0][i, j]],
+								 [cov[0][j, i], cov[0][j, j]]], dtype=float)
+		S0 = xp.asarray(sigma0, dtype=float)
+		if not xp.all(xp.isfinite(S0)) or S0[1, 1] <= 0:
+			raise ValueError("beam_waists needs a finite entrance covariance with a "
+							 "positive angular variance; pass sigma0=[[<xx>, <xx'>], "
+							 "[<xx'>, <x'x'>]] explicitly.")
+		emittance = float(xp.sqrt(max(xp.linalg.det(S0), 0.0)))
+		zs, widths = [], []
+		for z0, ele, L, M, block in self._accumulate_xblocks(axis=axis):
+			S = M @ S0 @ M.T				# covariance at this element's entrance
+			# waist where Sigma_12 = 0; the same root condition as a plane, with
+			# (P0, Q0) = (Sigma_12, Sigma_22) since d(Sigma_12)/ddz = Sigma_22
+			for dz in self._waist_roots(ele, L, block, S):
+				Md = block(dz) @ M
+				Sd = Md @ S0 @ Md.T
+				zs.append(z0 + dz)
+				widths.append(float(xp.sqrt(max(Sd[0, 0], 0.0))))
+		order = xp.argsort(xp.asarray(zs)) if zs else xp.asarray([], dtype=int)
+		return {'z': xp.asarray(zs)[order] if zs else xp.asarray([]),
+				'width': xp.asarray(widths)[order] if zs else xp.asarray([]),
+				'emittance': emittance}
 
 	def propagate_ray(self, r0:xp.ndarray=None, z: float = None, verbose=False):
 		"""Propagate rays through every section, carrying intensity/rotation across boundaries.

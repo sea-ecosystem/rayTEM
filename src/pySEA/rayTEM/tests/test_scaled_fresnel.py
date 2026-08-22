@@ -1249,3 +1249,121 @@ def test_thick_lens_wave_rotation_matches_ray_larmor():
 	assert np.isclose(azimuth(U_rot), -K * L, atol=1e-3)		# opt-in: ray's angle
 	# and the rotation is energy-neutral
 	assert np.isclose((np.abs(U_rot)**2).sum(), (np.abs(U_no)**2).sum(), rtol=1e-12)
+
+
+# --- one plane calculus: transfer_xblock, conjugate families, waists --------------
+
+def test_transfer_xblock_matches_transfer_matrix():
+	# the partial-length seam must be the SAME optics as the ray matrices
+	import os
+	from pySEA.rayTEM.assemblies import load_microscope
+	if not sea_available:
+		pytest.skip("basic_column.sea requires sea_eco")
+	here = os.path.dirname(os.path.abspath(__file__))
+	scope = load_microscope(os.path.join(here, "..", "microscopes", "basic_column.sea"))
+	worst, n = 0.0, 0
+	for sec in scope.sections:
+		for ele in sec.elements:
+			L = getattr(ele, "length", 0) or 0
+			M6 = ele.transfer_matrix()
+			stored = np.array([[M6[0, 0], M6[0, 1]], [M6[1, 0], M6[1, 1]]], float)
+			mine = np.asarray(ele.transfer_xblock(), float)
+			if isinstance(ele, Lens) and L > 0 and (ele._effective_strength() or 0):
+				mine = mine * np.cos(ele._effective_strength() * L)	# Larmor factor
+			worst = max(worst, abs(stored - mine).max()) ; n += 1
+	assert n > 40 and worst < 1e-12
+	# a homogeneous body's halves compose exactly
+	lens = Lens(strength=34.72, length=0.02)
+	full = np.asarray(lens.transfer_xblock(), float)
+	half = np.asarray(lens.transfer_xblock(dz=0.01), float)
+	assert np.abs(half @ half - full).max() < 1e-12
+
+
+@pytest.mark.skipif(not sea_available, reason="basic_column.sea requires sea_eco")
+def test_conjugate_planes_frame_ray_and_wave_agree():
+	# (1) the wave's image planes: the frame walk gives BOTH families, and
+	# because the frame update IS the transfer block it reproduces the ray
+	# numbers wherever the ray method is valid, and the wave's own crossovers.
+	import os
+	from pySEA.rayTEM.assemblies import load_microscope
+	here = os.path.dirname(os.path.abspath(__file__))
+	scope = load_microscope(os.path.join(here, "..", "microscopes", "basic_column.sea"))
+	src = scope.sections[0].elements[0]
+	src.wave_kind = "aperture" ; src.aperture_radius = 5e-6
+	frame = scope.conjugate_planes()					# method='frame' by default
+	ray = scope.conjugate_planes(method="ray")
+	assert np.allclose(frame["diff"], ray["diff"], atol=1e-9)		# free space: identical
+	scope.propagate_wave(mode="hybrid")
+	for zc in scope.crossovers:							# the wave rides this family
+		assert min(abs(frame["diff"] - zc)) < 1e-9
+	# the image family exists for the wave too, and differs from the diffraction one
+	assert len(frame["image"]) == len(frame["diff"])
+	assert min(abs(frame["image"][:, None] - frame["diff"][None, :]).min(axis=1)) > 1e-6
+	# one image plane sits inside OL1's body: there the ray method interpolates
+	# across the wrong functional form, the frame walk solves it exactly
+	inside = [z for z in frame["image"] if 0.490 < z < 0.500]
+	assert len(inside) == 1
+	assert 1e-5 < min(abs(ray["image"] - inside[0])) < 1e-3		# ~188 um apart
+
+
+def test_conjugate_planes_reference_plane():
+	# (3) planes conjugate to a NAMED reference are a different set
+	f1, f2 = 45e-3, 30e-3
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200), Drift(length=10e-3),
+		Lens(strength=np.sqrt(1 / f1), length=0.0, name="L1"), Drift(length=100e-3),
+		Lens(strength=np.sqrt(1 / f2), length=0.0, name="L2"), Drift(length=200e-3)])])
+	entrance = mic.conjugate_planes()
+	assert np.isclose(entrance["z_reference"], 0.0)
+	assert np.allclose(entrance["diff_offset"], entrance["diff"])	# offsets from 0
+	# an explicit z reference of 0 is the same as the default
+	assert np.allclose(mic.conjugate_planes(reference=0.0)["diff"], entrance["diff"])
+	at_l1 = mic.conjugate_planes(reference="L1")
+	assert np.isclose(at_l1["z_reference"], 10e-3)
+	assert np.allclose(at_l1["diff_offset"], at_l1["diff"] - 10e-3)
+	# a lens sitting exactly at the reference still acts on the beam: the
+	# diffraction plane conjugate to L1's own plane is f1 past it
+	assert np.isclose(at_l1["diff"][0], 10e-3 + f1, atol=1e-9)
+	# the DIFFRACTION family is unchanged by moving the reference across a pure
+	# drift -- rays parallel at the entrance are still parallel at L1 --
+	assert np.allclose(at_l1["diff"], entrance["diff"], atol=1e-9)
+	# -- but the IMAGE family is not: the object plane moved, so its conjugates
+	# are a genuinely different set. This is the "may or may not be the same"
+	# distinction: ask for the right reference and the right family.
+	assert not np.allclose(at_l1["image"][:1], entrance["image"][:1], atol=1e-6)
+	with pytest.raises(ValueError, match="method='ray'"):
+		mic.conjugate_planes(method="ray", reference="L1")
+
+
+def test_beam_waists_match_analytic_focal_shift():
+	# (2) the covariance mode's planes: a waist is where Sigma_12 = 0, which
+	# for a beam waisted at a thin lens is the classic focal shift
+	# z = f / (1 + (f*sigma_theta/sigma_x)^2) -- NOT the geometric focus f.
+	sx, st, f = 2.5e-6, 1e-4, 45e-3
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200), Lens(strength=np.sqrt(1 / f), length=0.0),
+		Drift(length=0.1)])])
+	S0 = np.array([[sx**2, 0.0], [0.0, st**2]])
+	w = mic.beam_waists(axis="x", sigma0=S0)
+	predicted = f / (1 + (f * st / sx)**2)
+	assert np.isclose(w["z"][0], predicted, atol=1e-12)
+	assert not np.isclose(w["z"][0], f, atol=1e-3)		# genuinely shifted from f
+	assert np.isclose(w["emittance"], sx * st, rtol=1e-12)		# invariant
+	# the width there is emittance / sqrt(Sigma_22), and finite (not a point)
+	assert w["width"][0] > 0
+	# a thick lens body can hold a waist, solved with the cos/sin condition
+	sx2, st2, K, L = 1e-5, 5e-4, 60.0, 0.05
+	mic2 = Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200), Lens(strength=K, length=L), Drift(length=0.02)])])
+	S = np.array([[sx2**2, 0.0], [0.0, st2**2]])
+	w2 = mic2.beam_waists(axis="x", sigma0=S)
+	assert len(w2["z"]) >= 1 and 0 < w2["z"][0] < L		# inside the body
+	# brute-force the same root
+	zs = np.linspace(0, L, 40001)
+	s12 = np.array([(lambda m: (m @ S @ m.T)[0, 1])(np.array(
+		[[np.cos(K * z), np.sin(K * z) / K], [-K * np.sin(K * z), np.cos(K * z)]]))
+		for z in zs])
+	brute = zs[np.where(np.diff(np.sign(s12)) != 0)[0]]
+	assert min(abs(brute - w2["z"][0])) < 2 * (L / 40000)
+	with pytest.raises(ValueError, match="finite entrance covariance"):
+		mic.beam_waists(axis="x", sigma0=np.zeros((2, 2)))
