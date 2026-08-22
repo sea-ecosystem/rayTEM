@@ -108,12 +108,17 @@ FFD (front focal distance) = -D/C
   diff `[0.17458, 0.30519, 0.50249, 0.72929, 0.91715]`,
   image `[0.19828, 0.49380, 0.53089, 0.73033, 0.91963]`.
 
-## 5b. Already validated — `examples/05_planeComparison.py`
+## 5b. Already validated — `examples/05_planeComparison.py` (marimo notebook)
 
 Before touching anything, all three methods were run side by side on
-`basic_column` trimmed past PL4. The script prints the table below and plots the
-densely sampled physical cross-section with the four reference rays overlaid and
-every method's planes marked.
+`basic_column` trimmed past PL4. The notebook prints the table below and plots
+the densely sampled physical cross-section with the reference rays overlaid (at
+true scale) and every method's planes marked.
+
+**It also checks that this uses your optics, not a re-derivation:** the partial
+propagator is compared against every element's own `transfer_matrix()` x-block
+at `dz = L` (allowing the known `cos(K L)` factor that the Larmor rotation
+applies to a thick lens's x-block). All 55 elements agree to **1.7e-18**.
 
 ```
 family  analytic (mm)     ray (mm)  d_ray (um)   wave (mm)  d_wave (um)
