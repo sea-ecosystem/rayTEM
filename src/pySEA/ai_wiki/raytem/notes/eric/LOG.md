@@ -7,6 +7,13 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-22 — [Under Construction] One plane calculus (wave image planes, covariance waists, reference planes)
+**Goal:** Promote the analytic plane calculation into the framework as one per-element walk of the accumulated 2x2, and use it for all three modes: wave image planes (conjugate seed), covariance waists (`Sigma_12 = 0`), and planes conjugate to a *named* reference element rather than the column entrance.
+**Why:** Eric's follow-ups. The wave currently only reports the diffraction family; the covariance mode reports no planes at all; and "the planes" are always measured from the entrance, when what you usually want is "conjugate to the sample" or "conjugate to the condenser aperture" — genuinely different sets.
+- [ ] transfer_xblock seam + the walk
+- [ ] wave image planes, reference=, covariance waists
+- [ ] tests, aberrated-surface plan, docs
+
 ## 2026-08-21 — [Done] Thick lens as a scaled segment (+ wave rotation)
 **Goal:** Treat a thick lens as the quadratic-index medium it is — a segment with a sinusoidal s(z) law and its own closed-form dtau — keeping the thin-lens (L == 0) path exactly as it is, and add the Larmor rotation to the wave.
 **Why:** The drift L/2 -> thin kick -> drift L/2 split misplaces every crossover by the per-lens amount measured in `examples/05_planeComparison.py` (C1: 422.3 um, matching the prediction to the last digit; up to 4.8 mm downstream). The scaled factorization solves a quadratic-index medium exactly, so no approximation is needed here.
