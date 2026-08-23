@@ -345,14 +345,50 @@ This also closed a silent trap: `wavefield_at(z)` previously snapped to the
 nearest logged plane, so asking for the field at an image plane returned a
 *different* plane with no warning.
 
+**Plane positions are analytical.** They come from accumulating transfer
+blocks and solving `A = 0` / `B = 0` — no grid, no propagation, no sampling
+parameters. Nothing in this section can move a plane; propagation only supplies
+the *field* at one.
+
 Verified: the diffraction family matches the frame's own crossovers exactly;
 `B = -2.1e-17` at the logged image plane (`B = 0` is the definition of one);
 and the advance reproduces an independent engine path — the same column cut at
-that z — to 8.7e-16. With the absorber on, the two paths differ by 2.8e-3,
-which is the absorber's inherent **path dependence** (one long sub-stepped
-segment windows the escaping halo differently than two short ones), not an
-error in the advance. Worth knowing generally: with `absorb > 0`, where you cut
-a column changes the answer at the 1e-3 level.
+that z — to 8.7e-16.
+
+One caveat, about the reconstructed **field** and not about plane locations:
+with `absorb > 0` those two routes differ by ~2.8e-3, because the absorber is
+inherently path dependent — one long sub-stepped segment windows the escaping
+halo differently than two short ones. That is the absorber modelling real loss,
+not an error in the advance, but it does mean *field* comparisons between
+differently-cut columns should run at `absorb = 0`. Plane positions are
+unaffected either way.
+
+### Limitation: a mid-body flatten re-seeds the frame
+
+The scaled frame cannot cross `s = 0` inside an element body — documented above,
+where the code raises rather than guessing. The hybrid engine's response is to
+**flatten before the body** and carry a flat frame through it. That is safe for
+the field, but it has a consequence for plane finding that is easy to miss:
+
+**a frame switch re-seeds the frame as a different reference ray.** After a
+flatten, `s` is no longer proportional to the `A` or `B` of the original seed,
+so subsequent `s = 0` crossings belong to the new ray, not to the original
+object. The run does not fail; it silently continues on a different conjugate
+family.
+
+Measured on `basic_column` with a point object at z = −500 mm: the first image
+plane is found exactly (178.036758 mm), but the second predicted one,
+320.474 mm, falls inside C3's body (0.320–0.340 m). The engine flattens at
+0.314916 and 0.340 instead and crosses at 0.419803 mm — 99 mm away — and the
+remaining planes are off by 94–560 µm. The same column with the object at
+−50 mm, where no plane lands in a body, reproduces all five image planes to
+**0.000 nm**.
+
+So: **a wave run's crossovers are that seed's conjugate family only up to its
+first mid-body flatten.** Past that, use the analytic planes
+(`conjugate_planes`), which are unaffected — they are matrix arithmetic and
+never switch frames. Lifting this properly means mid-element frame switching,
+which would let the engine cross inside a body and keep the original ray.
 
 ## Other remedies (roadmap)
 
