@@ -2070,3 +2070,63 @@ def test_undersampled_aberration_screen_is_refused():
 		Drift(length=0.05)])])
 	with pytest.raises(ValueError, match="under-sampled on the scaled grid"):
 		mic.propagate_wave(mode="hybrid", absorb=0.0)
+
+
+# --- the wave path against the closed-form back focal plane ----------------------
+
+def _bfp_setup(Cs, n=512, ext=1.4e-3, f=0.045, a=3e-4):
+	"""A collimated aperture straight onto a lens, propagated one focal length."""
+	src = Source(voltage=200, wave_shape=(n, n), wave_extent=ext,
+				 wave_kind="aperture", aperture_radius=a)
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		src, Lens(strength=np.sqrt(1 / f), Cs=Cs), Drift(length=f)])])
+	return mic, float(src.wavelength), ext / n, f, a
+
+
+def test_wave_matches_closed_form_back_focal_plane():
+	# The non-circular check on the whole chain. Textbook: the field one focal
+	# length past a lens is FT[A(r) exp(i chi_ab)] sampled at q = x'/(lambda f).
+	# Reproducing it exercises the parabola going into the frame, the quartic
+	# staying as a screen on U, the carrier-free kernel, the hybrid frame
+	# switching and the reconstruction -- without reusing any of them.
+	n = 512
+	for Cs in (0.0, 1e-3):
+		mic, lam, dx, f, a = _bfp_setup(Cs, n=n)
+		mic.propagate_wave(mode="hybrid", absorb=0.0)
+		q = np.fft.fftshift(np.fft.fftfreq(n, d=dx))
+		dxp = lam * f * (q[1] - q[0])				# BFP pixel implied by the FT
+		w = mic.wavefield_at(float(mic.crossovers[0]), target_dx=dxp,
+							 target_shape=(n, n))
+		I_prop = np.abs(np.asarray(w.data))**2
+		I_prop /= I_prop.max()
+		# the same aperture model the source seeds, so the comparison is of the
+		# propagation and not of two different discs
+		A = wo.bandlimited_disk((n, n), dx, dx, a).astype(complex)
+		chi = wo.spherical_phase((n, n), dx, dx, lam, Cs, 1.0 / f) if Cs else 0.0
+		F = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(A * np.exp(1j * chi))))
+		I_ref = np.abs(F)**2
+		I_ref /= I_ref.max()
+		assert np.abs(I_ref - I_prop).max() < 2e-3, Cs
+
+
+def test_reconstruction_zero_fills_beyond_the_modelled_field():
+	# Band-limited resampling is PERIODIC, so asking for a grid wider than the
+	# modelled one used to return replicas of the beam: a bright false peak in a
+	# region where nothing was ever propagated. It is zero-filled instead.
+	n = 256
+	mic, lam, dx, f, a = _bfp_setup(0.0, n=n)
+	mic.propagate_wave(mode="hybrid", absorb=0.0)
+	z = float(mic.crossovers[0])
+	native = mic.wavefield_at(z)
+	dx_native = float(native.dimensions[-1].scale)
+	half_native = 0.5 * n * dx_native
+	# a coarser pixel at the same array size => a WIDER field than was modelled
+	coarse = 4.0 * dx_native
+	wide = mic.wavefield_at(z, target_dx=coarse, target_shape=(n, n))
+	I = np.abs(np.asarray(wide.data))**2
+	c = np.arange(n) - n // 2
+	X, Y = np.meshgrid(c * coarse, c * coarse)
+	outside = (np.abs(X) > half_native) | (np.abs(Y) > half_native)
+	assert outside.any(), "test needs a genuinely wider request"
+	assert np.all(I[outside] == 0.0), "no field was modelled out there"
+	assert I[~outside].max() > 0										# and the beam survives

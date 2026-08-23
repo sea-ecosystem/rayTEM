@@ -1612,6 +1612,15 @@ def reconstruct_physical_wave(U: np.ndarray, dxi: float, deta: float,
 	-------
 	factor_wave : Exact inverse (handoff Eq 55).
 	fourier_resample : The band-limited resampler used for target grids.
+
+	Notes
+	-----
+	A ``target_shape``/``target_dx`` pair spanning **more** than the modelled
+	field of view is zero-filled beyond it. Band-limited resampling is periodic,
+	so without that it would return replicas of the beam — a bright peak in a
+	region where nothing was ever propagated. Ask for a larger
+	``target_shape`` (rather than a coarser pixel) to cover more area with real
+	field.
 	"""
 	s_x, s_y = axis_components(s)
 	R_x, R_y = axis_components(R)
@@ -1621,8 +1630,19 @@ def reconstruct_physical_wave(U: np.ndarray, dxi: float, deta: float,
 									  "frame (s_x != s_y) reconstructs on its native rectangular "
 									  "pixels (dx = |s_x| dxi, dy = |s_y| deta). Omit target_dx.")
 		n_out = target_shape[0]
-		U = fourier_resample(U, dxi, n_out, target_dx / abs(s_x))
-		dxi = deta = target_dx / abs(s_x)
+		n_in = U.shape[0]
+		dxi_out = target_dx / abs(s_x)
+		U = fourier_resample(U, dxi, n_out, dxi_out)
+		# Band-limited resampling is PERIODIC, so a requested grid wider than the
+		# modelled one is filled with replicas of the beam -- a bright false peak
+		# where there is in fact no field. Outside the modelled field of view
+		# nothing was propagated, so zero it and say so.
+		half_in = 0.5 * n_in * abs(dxi)
+		if 0.5 * n_out * abs(dxi_out) > half_in + 1e-12 * half_in:
+			xi_out, eta_out = transverse_coordinates((n_out, n_out), dxi_out, dxi_out)
+			U = np.where((np.abs(xi_out) <= half_in) & (np.abs(eta_out) <= half_in),
+						 U, 0.0)
+		dxi = deta = dxi_out
 	dx = abs(s_x) * dxi
 	dy = abs(s_y) * deta
 	if s_x == s_y:
