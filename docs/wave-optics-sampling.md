@@ -309,6 +309,51 @@ uses rectangular native pixels (dx = |s_x|Δξ, dy = |s_y|Δη). Frame
 quantities travel as scalars wherever the axes agree, so round-lens columns
 keep their scalar state and outputs bit-for-bit.
 
+### Both conjugate families, from one wave run
+
+A scaled frame **is** a reference ray, `(h, u) = (s, s/R)`. That is what makes
+the frame's `s → 0` a physically meaningful plane — but it also means a run
+finds only the conjugate family its **seed** belongs to:
+
+| seed | `s(z) ∝` | `s = 0` is |
+|---|---|---|
+| flat (parallel illumination) | `A(z)` | a **diffraction** / back-focal plane |
+| point (divergent from a point) | `B(z)` | an **image** plane |
+
+The usual source is flat, so a hybrid run logs back-focal planes and never
+crosses the image planes at all. The tempting fix is a second "shadow" frame
+tracked alongside the real one — but the missing family is just the other
+column of the same transfer matrix, which `_accumulate_blocks` already
+accumulates for `conjugate_planes`. Adding a shadow frame would be a second
+implementation of that walk, free to drift from the first. So instead the run
+asks `conjugate_planes` for both families and logs a wavefield at each plane it
+did not already produce, tagged `image-x` / `image-y`; `Microscope.image_planes`
+and `.diffraction_planes` carry both, per axis.
+
+Reaching a plane the run did not log is exact, not approximate.
+`Microscope._scaled_plane_at(z)` returns the logged plane when one is there and
+otherwise advances the nearest upstream plane through the intervening free
+space — closed form for a scaled free segment. It **refuses** when an element
+lies in between, naming it and pointing at `subdivided()`: carrying a field
+through an element means running that element's optics, which is the engine's
+job, not a query's. Whether a stretch is free is asked of the optics rather
+than the type — an element is transparent exactly when its own transfer block
+equals `[[1, L], [0, 1]]` on both axes, so drifts, fiducials and zero-strength
+lenses are all free without this layer knowing any element class.
+
+This also closed a silent trap: `wavefield_at(z)` previously snapped to the
+nearest logged plane, so asking for the field at an image plane returned a
+*different* plane with no warning.
+
+Verified: the diffraction family matches the frame's own crossovers exactly;
+`B = -2.1e-17` at the logged image plane (`B = 0` is the definition of one);
+and the advance reproduces an independent engine path — the same column cut at
+that z — to 8.7e-16. With the absorber on, the two paths differ by 2.8e-3,
+which is the absorber's inherent **path dependence** (one long sub-stepped
+segment windows the escaping halo differently than two short ones), not an
+error in the advance. Worth knowing generally: with `absorb > 0`, where you cut
+a column changes the answer at the 1e-3 level.
+
 ## Other remedies (roadmap)
 
 1. **Collins / ABCD Gaussian-mode transport (grid-free, exact).** Propagate the
