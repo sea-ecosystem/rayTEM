@@ -910,6 +910,251 @@ def _segment_slope(dz: float, s0: float, u0: float, kappa: float) -> float:
 	return float(k * np.sinh(k * dz) * s0 + np.cosh(k * dz) * u0)
 
 
+def _crossing_from(s0: float, u0: float, kappa: float, body_left: float):
+	r"""Where the reference ray next reaches zero, measured from here.
+
+	Inside the body the ray follows the medium's law; past the body it travels
+	straight. Both are needed, because a frame flattened *inside* an element
+	often crosses *outside* it, and the crossover plane must be recorded in
+	absolute terms at the moment of the switch.
+
+	Parameters
+	----------
+	s0 : float
+		Reference scale here.
+	u0 : float
+		Reference slope here.
+	kappa : float
+		Signed curvature of the body (1/metres²).
+	body_left : float
+		Distance still inside the body (metres).
+
+	Returns
+	-------
+	float or None
+		Distance from here to the crossing (metres), or ``None`` if the ray
+		never reaches zero (a diverging ray in a non-focusing medium).
+
+	Related
+	-------
+	segment_zero : The in-body part of the answer.
+	propagate_quadratic_segment_hybrid : Records the crossover from this.
+	"""
+	inside = segment_zero(body_left, s0, u0, kappa)
+	if inside is not None:
+		return inside
+	A, B = segment_block(body_left, kappa)
+	s_exit = A * s0 + B * u0
+	u_exit = _segment_slope(body_left, s0, u0, kappa)
+	if u_exit == 0 or s_exit / u_exit > 0:		# parallel, or diverging onward
+		return None
+	return body_left - s_exit / u_exit
+
+
+def propagate_quadratic_segment_hybrid(U: np.ndarray, dxi: float, deta: float,
+									   wavelength: float, dz: float, s, R, kappa,
+									   z: float, z_cross=None, safety: float = 0.5,
+									   s_min: float = 1e-3, absorb: float = 0.0,
+									   crossover: str = 'flat',
+									   rotate: float = 0.0) -> tuple:
+	r"""A segment traversal that can switch frames **inside** the body.
+
+	:func:`propagate_quadratic_segment_scaled` carries a body exactly, but
+	refuses when the reference scale reaches zero part-way through: the frame is
+	singular there. The free-space engine
+	(:func:`propagate_free_scaled_hybrid`) already knows how to get through a
+	crossover — flatten the frame before it, cross on a flat frame, re-diverge
+	after — and this applies the same policy using the **segment's own law**
+	instead of straight-line drift.
+
+	Without it, a crossover landing inside an element is not merely refused: the
+	free engine flattens *around* the body instead, and the crossover plane it
+	then records, ``z + |R|``, extrapolates through the element as though it
+	were empty. The plane is reported in the wrong place, silently.
+
+	The common case is untouched. When no axis reaches zero inside the body and
+	no crossover is pending, this is a single exact call to
+	:func:`propagate_quadratic_segment_scaled` — identical output, no marching.
+	The stepped path runs only when a body actually contains a crossing.
+
+	Parameters
+	----------
+	U : np.ndarray
+		Scaled field ``(ny, nx)``.
+	dxi, deta : float
+		Scaled-coordinate sample spacings.
+	wavelength : float
+		Wavelength (metres).
+	dz : float
+		Body length (metres).
+	s, R : float or Sequence[float]
+		Frame state at the entrance, scalar or ``(x, y)``.
+	kappa : float or Sequence[float]
+		Signed curvature of the body (1/metres²), scalar or per-axis.
+	z : float
+		Absolute z at the body entrance (metres), so logged planes carry
+		absolute positions.
+	z_cross : float, Sequence, or None, optional
+		Pending crossover marker(s) carried in from upstream, by default None.
+	safety : float, optional
+		Sampling-guard fraction for frame changes, by default 0.5.
+	s_min : float, optional
+		Crossover backstop on the exit scale, by default ``1e-3``.
+	absorb : float, optional
+		Absorbing-boundary margin, by default 0.
+	crossover : {'flat', 'jump'}, optional
+		Traversal policy, by default ``'flat'``.
+	rotate : float, optional
+		Larmor angle of the body in radians, by default 0. Applied once at the
+		exit, which is exact because it commutes with the isotropic kernel.
+
+	Returns
+	-------
+	tuple
+		``(U, s, R, dtau, z, z_cross, logged)`` — the same shape the free-space
+		hybrid engine returns, so the driver treats bodies and drifts alike.
+
+	Raises
+	------
+	NotImplementedError
+		If a rotation is requested on an anisotropic segment or frame.
+
+	Related
+	-------
+	propagate_quadratic_segment_scaled : The exact single-call traversal.
+	propagate_free_scaled_hybrid : The same policy in free space.
+	_crossing_from : Where the reference ray crosses, in or past the body.
+	"""
+	ss = list(axis_components(s))
+	RR = list(axis_components(R))
+	kk = list(axis_components(kappa))
+	us = [0.0 if np.isinf(RR[a]) else ss[a] / RR[a] for a in range(2)]
+	pending = z_cross is not None
+	interior = any(segment_zero(dz, ss[a], us[a], kk[a]) is not None for a in range(2))
+	if not interior and not pending:
+		# nothing to switch through: the exact single call, unchanged
+		U, s_o, R_o, dt = propagate_quadratic_segment_scaled(
+			U, dxi, deta, wavelength, dz, s, R, kappa, s_min=s_min,
+			absorb=absorb, rotate=rotate)
+		return U, s_o, R_o, dt, z + dz, z_cross, []
+
+	if rotate and (kk[0] != kk[1] or ss[0] != ss[1] or RR[0] != RR[1]):
+		raise NotImplementedError(
+			"Larmor rotation mixes the transverse axes, so it is only defined on "
+			f"an isotropic segment and frame (got kappa = {kappa}, s = {s}, R = {R}).")
+
+	k = 2 * np.pi / wavelength
+	tol = 1e-9 * (abs(dz) + abs(z) + 1.0)
+	names, pitches = ("x", "y"), (abs(dxi), abs(deta))
+	if z_cross is None:
+		zc = [None, None]
+	elif np.ndim(z_cross) == 0:
+		zc = [float(z_cross), float(z_cross)]
+	else:
+		zc = [None if z_cross[0] is None else float(z_cross[0]),
+			  None if z_cross[1] is None else float(z_cross[1])]
+	tau = [0.0, 0.0]
+	logged = []
+	U = U.astype(complex, copy=True)
+	z_end = z + dz
+
+	def snapshot():
+		zj = None if (zc[0] is None and zc[1] is None) else \
+			(zc[0] if zc[0] == zc[1] else (zc[0], zc[1]))
+		return (join_axes(ss[0], ss[1]), join_axes(RR[0], RR[1]),
+				join_axes(tau[0], tau[1]), zj)
+
+	while z_end - z > tol:
+		exts = beam_support_extents(U, dxi, deta)
+		fired = False
+		for a in range(2):
+			A_a = k * 1.2 * exts[a] * pitches[a] / (safety * np.pi)
+			R_a, s_a = RR[a], ss[a]
+			heading_a = zc[a] is not None and z < zc[a] - tol
+			if not np.isinf(R_a) and R_a < 0 and not heading_a:
+				# `not heading_a`: a flat frame inside a FOCUSING medium is
+				# re-converged by the medium at once, so without this the
+				# criterion re-fires every step and the axis never crosses
+				R_switch = R_a**2 / (A_a * s_a**2)
+				if crossover != 'flat':
+					R_switch /= 2
+				if abs(R_a) <= R_switch + tol:
+					R_new = list(RR)
+					R_new[a] = np.inf if crossover == 'flat' else abs(R_a)
+					U, dxi, deta = change_scaled_frame(
+						U, dxi, deta, wavelength, (ss[0], ss[1]), (RR[0], RR[1]),
+						(R_new[0], R_new[1]), safety=safety)
+					# the crossing follows the body's law while inside it, then
+					# straight -- NOT z + |R|, which would treat the body as empty
+					d = _crossing_from(s_a, us[a], kk[a], z_end - z)
+					zc[a] = z + d if d is not None else None
+					RR[a] = R_new[a]
+					us[a] = 0.0 if np.isinf(RR[a]) else ss[a] / RR[a]
+					tag = ("flatten-" if crossover == 'flat' else "jump-") + names[a]
+					s_j, R_j, t_j, z_j = snapshot()
+					logged.append((tag, U, s_j, R_j, t_j, z, z_j))
+					fired = True
+					break
+			elif np.isinf(R_a) and zc[a] is not None and z >= zc[a] - tol:
+				d = z - zc[a]
+				if d >= A_a * s_a**2 - tol:
+					# a ray that crossed at zc has (s, u) = block(d)(0, u_c), so
+					# its curvature here is B(d)/D(d) -- which is d in free space
+					# (B = d, D = 1) but NOT inside a medium
+					_A, _B = segment_block(d, kk[a])
+					_D = _segment_slope(d, 0.0, 1.0, kk[a])
+					R_new = list(RR)
+					R_new[a] = (_B / _D) if _D != 0 else np.inf
+					if R_new[a] == 0:
+						R_new[a] = A_a * s_a**2
+					U, dxi, deta = change_scaled_frame(
+						U, dxi, deta, wavelength, (ss[0], ss[1]), (RR[0], RR[1]),
+						(R_new[0], R_new[1]), safety=safety)
+					RR[a] = R_new[a]
+					us[a] = ss[a] / RR[a]
+					zc[a] = None
+					s_j, R_j, t_j, z_j = snapshot()
+					logged.append(("rediverge-" + names[a], U, s_j, R_j, t_j, z, z_j))
+					fired = True
+					break
+		if fired:
+			continue
+
+		# step to the next event, always stopping short of any interior zero
+		step = z_end - z
+		for a in range(2):
+			zero = segment_zero(z_end - z, ss[a], us[a], kk[a])
+			if zero is not None:
+				step = min(step, zero * 0.5)			# halve in on the singularity
+			if zc[a] is not None and z < zc[a] - tol:
+				step = min(step, zc[a] - z)				# split at the crossover
+		step = max(step, tol)
+		heading = [zc[a] is not None and z < zc[a] - tol for a in range(2)]
+		U, s_j, R_j, dt = propagate_quadratic_segment_scaled(
+			U, dxi, deta, wavelength, step, (ss[0], ss[1]), (RR[0], RR[1]),
+			(kk[0], kk[1]), s_min=0.0, absorb=absorb)
+		ss = list(axis_components(s_j))
+		RR = list(axis_components(R_j))
+		us = [0.0 if np.isinf(RR[a]) else ss[a] / RR[a] for a in range(2)]
+		dt_x, dt_y = axis_components(dt)
+		tau[0] += dt_x ; tau[1] += dt_y
+		z += step
+		for a in range(2):
+			if heading[a] and z >= zc[a] - tol:
+				s_j, R_j, t_j, z_j = snapshot()
+				logged.append(("crossover-" + names[a], U, s_j, R_j, t_j, z, z_j))
+				# consume the marker unconditionally: inside a medium the frame
+				# does not stay flat, so the free engine's flat-frame rediverge
+				# does not apply -- the medium supplies the curvature itself,
+				# and leaving the marker set would strand the axis (unable to
+				# rediverge, re-flattening every step)
+				zc[a] = None
+	if rotate:
+		U = rotate_field(U, rotate)
+	s_j, R_j, t_j, z_j = snapshot()
+	return U, s_j, R_j, t_j, z, z_j, logged
+
+
 def beam_support_radius(U: np.ndarray, dxi: float, deta: float,
 						threshold: float = 1e-6) -> float:
 	r"""Per-axis half-width of the beam's support on the ξ grid.

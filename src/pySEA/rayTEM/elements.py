@@ -821,12 +821,28 @@ class Element(SEASerializable):
 		segment = self._scaled_segment()
 		if segment is not None and L != 0:
 			# quadratic-index medium: one exact segment, no screen and no kick
-			from .waveoptics import propagate_quadratic_segment_scaled
+			from .waveoptics import (propagate_quadratic_segment_scaled,
+									 propagate_quadratic_segment_hybrid)
 			_kind, kappa, larmor = segment
-			U, s, R, dt = propagate_quadratic_segment_scaled(
-				U, dxi, deta, wavelength, L, s, R, kappa, s_min=s_min,
-				absorb=absorb, rotate=(larmor if rotate else 0.0))
-			tau = tau_add(tau, dt) ; z += L
+			spin = larmor if rotate else 0.0
+			if hybrid:
+				# a crossover can fall INSIDE the body; the hybrid traversal
+				# switches frames there rather than leaving the free engine to
+				# flatten around the element and misplace the plane
+				U, s, R, dt, z, z_cross, logged = propagate_quadratic_segment_hybrid(
+					U, dxi, deta, wavelength, L, s, R, kappa, z, z_cross,
+					s_min=s_min, absorb=absorb, crossover=crossover, rotate=spin)
+				if log is not None:
+					for tag, U_l, s_l, R_l, dt_l, z_l, zc_l in logged:
+						log.append(make_scaled_wavefield_signal(
+							U_l, dxi, deta, wavelength, s_l, R_l, tau_add(tau, dt_l),
+							z=z_l, z_cross=zc_l, tag=tag, name=name))
+			else:
+				U, s, R, dt = propagate_quadratic_segment_scaled(
+					U, dxi, deta, wavelength, L, s, R, kappa, s_min=s_min,
+					absorb=absorb, rotate=spin)
+				z += L
+			tau = tau_add(tau, dt)
 			return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
 												z=z, z_cross=z_cross, name=name)
 		U, s, R, tau, z, z_cross = free(U, s, R, tau, z, z_cross, L / 2 if L != 0 else 0)

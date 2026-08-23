@@ -1735,3 +1735,81 @@ def test_wavefield_at_is_exact_not_nearest():
 	w = mic.wavefield_at(z)
 	assert abs(w.z - z) < 1e-12 if hasattr(w, "z") else True
 	assert f"{z:g}" in w.name						# the name reports the real z
+
+
+# --- mid-element frame switching --------------------------------------------------
+
+def test_mid_element_frame_switch_crosses_inside_a_body():
+	# a crossover landing INSIDE an element body used to be refused outright;
+	# the body can now flatten, cross and continue on its own law
+	n, dxi = 128, 1e-7
+	U0 = wo.gaussian_field((n, n), dxi, dxi, 3e-6, 3e-6)
+	s0, R0, kappa, L = 1.0, -0.005, 20.0**2, 0.02
+	z_zero = wo.segment_zero(L, s0, s0 / R0, kappa)
+	assert z_zero is not None and 0 < z_zero < L		# the crossing is inside
+
+	# the exact single-call traversal still refuses -- it has no policy
+	with pytest.raises(ValueError, match="inside the segment body"):
+		wo.propagate_quadratic_segment_scaled(U0, dxi, dxi, LAM, L, s0, R0, kappa)
+
+	# the hybrid traversal gets through, and logs the crossing where the
+	# medium's own law puts it
+	U, s, R, dtau, z, zc, logged = wo.propagate_quadratic_segment_hybrid(
+		U0, dxi, dxi, LAM, L, s0, R0, kappa, z=0.0)
+	assert np.isclose(z, L, atol=1e-12)
+	tags = [t for t, *_ in logged]
+	assert "crossover-x" in tags
+	z_logged = [zz for t, _U, _s, _R, _dt, zz, _zc in logged if t == "crossover-x"][0]
+	assert abs(z_logged - z_zero) < 1e-5
+	# energy is conserved: the invariant is sum|U|^2 * dxi * deta, NOT sum|U|
+	assert np.isclose((np.abs(U)**2).sum(), (np.abs(U0)**2).sum(), rtol=1e-9)
+
+
+def test_mid_element_hybrid_leaves_the_common_case_alone():
+	# no interior crossing and no pending marker -> a single exact call, so
+	# ordinary thick lenses keep their previous output exactly
+	n, dxi, L = 64, 1e-7, 0.02
+	U0 = wo.gaussian_field((n, n), dxi, dxi, 5e-7, 5e-7)
+	kappa = 34.72**2
+	Ue, se, Re, te = wo.propagate_quadratic_segment_scaled(
+		U0, dxi, dxi, LAM, L, 1.0, np.inf, kappa)
+	Uh, sh, Rh, th, zh, zch, logged = wo.propagate_quadratic_segment_hybrid(
+		U0, dxi, dxi, LAM, L, 1.0, np.inf, kappa, z=0.0)
+	assert logged == [] and zch is None
+	assert np.array_equal(Uh, Ue)
+	assert (sh, Rh, th) == (se, Re, te)
+	assert np.isclose(zh, L)
+	# and the anisotropic (thick quadrupole) case likewise
+	kq = (64.0, -64.0)
+	Ue, se, Re, te = wo.propagate_quadratic_segment_scaled(
+		U0, dxi, dxi, LAM, 0.03, 1.0, np.inf, kq)
+	Uh, sh, Rh, th, _z, _zc, logged = wo.propagate_quadratic_segment_hybrid(
+		U0, dxi, dxi, LAM, 0.03, 1.0, np.inf, kq, z=0.0)
+	assert logged == [] and np.array_equal(Uh, Ue) and sh == se
+
+
+@pytest.mark.skipif(not sea_available, reason="basic_column.sea requires sea_eco")
+def test_mid_element_crossover_lands_on_the_analytic_plane():
+	# the column case that motivated this: a point object at -500 mm has an
+	# image plane at 320.474 mm, INSIDE C3's body (0.320-0.340). The free engine
+	# used to flatten around C3 and record the plane 99 mm away.
+	import os
+	from pySEA.rayTEM.assemblies import load_microscope
+	from pySEA.rayTEM.seashells import make_scaled_wavefield_signal
+	here = os.path.dirname(os.path.abspath(__file__))
+	path = os.path.join(here, "..", "microscopes", "basic_column.sea")
+	R0 = 0.5											# virtual point at z = -R0
+	scope = load_microscope(path)
+	predicted = scope.conjugate_planes(axis="x", method="frame",
+									   reference=-R0)["image"]
+	z_in_body = [float(z) for z in predicted if 0.320 < z < 0.340]
+	assert len(z_in_body) == 1, "fixture no longer has a plane inside C3"
+
+	run = load_microscope(path)
+	U, dxi, deta, lam, *_ = read_scaled_wavefield(
+		run.sections[0].elements[0].wave(mode="scaled"))
+	seed = make_scaled_wavefield_signal(U, dxi, deta, lam, s=1.0, R=R0,
+										tau=0.0, z=0.0)
+	run.propagate_wave(wave0=seed, mode="hybrid", absorb=0.0)
+	measured = np.asarray(run.crossovers, float)
+	assert abs(measured - z_in_body[0]).min() < 1e-6		# was ~0.099 m off
