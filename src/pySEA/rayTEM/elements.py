@@ -1548,22 +1548,114 @@ class Quadrapole(Element):
 				K = K**p * c
 		return K
 
+	def _axis_focuses(self, axis:Literal['x','y']='x') -> bool:
+		r"""Whether this quadrupole focuses the given transverse axis.
+
+		The single place the sign convention lives: **``K > 0`` focuses x and
+		defocuses y**, and reversing the sign of ``K`` swaps them. Every other
+		quadrupole method asks this rather than re-deriving it, so the thin and
+		thick branches cannot disagree about which axis converges — they did
+		before, because the thin branch swapped its blocks for ``K > 0`` and the
+		thick branch never did.
+
+		Parameters
+		----------
+		axis : {'x', 'y'}, optional
+			Transverse axis, by default ``'x'``.
+
+		Returns
+		-------
+		bool
+			True if the axis converges, False if it diverges. Meaningless at
+			zero strength (returns True; callers short-circuit on ``K == 0``).
+
+		Raises
+		------
+		ValueError
+			If ``axis`` is not ``'x'`` or ``'y'``.
+
+		Related
+		-------
+		_body_block : Chooses the trig or hyperbolic law from this.
+		focal_powers : Signs its powers from this.
+		"""
+		if axis not in ('x', 'y'):
+			raise ValueError(f"axis must be 'x' or 'y', got {axis!r}.")
+		return (self._effective_strength() > 0) == (axis == 'x')
+
+	def _body_block(self, dz:float, axis:Literal['x','y']='x') -> xp.ndarray:
+		r"""The exact 2x2 body block over ``dz``, for one transverse axis.
+
+		The single source of truth for thick-quadrupole ray optics:
+		:meth:`transfer_matrix`, :meth:`transfer_xblock` and
+		:meth:`focal_powers` all read it, so they cannot drift apart. A
+		quadrupole body is a medium of constant strength, so with
+		:math:`k = |K|` the motion is harmonic on the focusing axis and
+		**hyperbolic** on the defocusing one (:math:`u'' \mp k^2 u = 0`):
+
+		.. math::
+
+			\mathrm{focusing:}\quad
+			\begin{pmatrix} \cos k\,dz & \sin(k\,dz)/k \\
+			-k\sin k\,dz & \cos k\,dz \end{pmatrix}
+			\qquad
+			\mathrm{defocusing:}\quad
+			\begin{pmatrix} \cosh k\,dz & \sinh(k\,dz)/k \\
+			+k\sinh k\,dz & \cosh k\,dz \end{pmatrix}
+
+		Both have **unit determinant** (:math:`\cos^2+\sin^2` and
+		:math:`\cosh^2-\sinh^2`), so phase-space area is conserved as Liouville
+		requires, and both compose (``M(dz/2)² = M(dz)``) as a homogeneous
+		medium must.
+
+		Parameters
+		----------
+		dz : float
+			Distance into the body (metres). May be partial, so a plane inside
+			the body is found exactly rather than interpolated across it.
+		axis : {'x', 'y'}, optional
+			Transverse axis, by default ``'x'``.
+
+		Returns
+		-------
+		xp.ndarray
+			The ``2x2`` block.
+
+		Raises
+		------
+		ValueError
+			If ``axis`` is not ``'x'`` or ``'y'``.
+
+		Related
+		-------
+		_axis_focuses : Picks the trig or hyperbolic law.
+		transfer_matrix, transfer_xblock, focal_powers : The three consumers.
+
+		Notes
+		-----
+		``k = |K|`` deliberately: the off-diagonal ``B`` term is drift-like and
+		must stay positive for a forward step. The previous code wrote ``S/K``
+		with a *signed* ``K``, which inverted it for ``K < 0``.
+		"""
+		k = abs(self._effective_strength())
+		if k == 0 or dz == 0:
+			return xp.asarray([[1.0, float(dz)], [0.0, 1.0]])
+		kz = k * abs(float(dz))
+		if self._axis_focuses(axis):
+			c, sn = xp.cos(kz), xp.sin(kz)
+			return xp.asarray([[c, sn / k], [-k * sn, c]])
+		c, sn = xp.cosh(kz), xp.sinh(kz)
+		return xp.asarray([[c, sn / k], [k * sn, c]])
+
 	def transfer_xblock(self, dz:float=None, axis:Literal['x','y']='x') -> xp.ndarray:
 		r"""Rotating-frame 2x2 block of a quadrupole, exact at any partial length.
 
 		Overrides :meth:`Element.transfer_xblock`. A thick quadrupole body is a
-		medium of constant strength, so its block is harmonic and exact at any
-		depth — mirroring :meth:`transfer_matrix` exactly (Brown 1983 p. 46), with
-		the sign of the off-diagonal terms flipped between the two axes:
-
-		.. math::
-
-			\begin{pmatrix} \cos|K\,dz| & \sin|K\,dz|/K \\
-			\mp K\sin|K\,dz| & \cos|K\,dz| \end{pmatrix}
-
-		(upper sign for x, lower for y). A thin quadrupole (``length == 0``)
-		defers to the base class, where the impulsive kick
-		:meth:`focal_powers` is exact.
+		medium of constant strength, so its block is exact at any depth: harmonic
+		on the focusing axis, hyperbolic on the defocusing one (see
+		:meth:`_body_block`, which this and :meth:`transfer_matrix` share).
+		A thin quadrupole (``length == 0``) defers to the base class, where the
+		impulsive kick :meth:`focal_powers` is exact.
 
 		Parameters
 		----------
@@ -1585,30 +1677,29 @@ class Quadrapole(Element):
 
 		Notes
 		-----
-		This deliberately reproduces :meth:`transfer_matrix`'s convention, which
-		uses ``cos``/``sin`` on **both** axes rather than ``cosh``/``sinh`` on the
-		defocusing one. The block is still a valid propagator (unit determinant,
-		and a body's halves compose), so plane finding stays consistent with ray
-		tracing; whether the defocusing axis should instead be hyperbolic is a
-		question about ``transfer_matrix`` itself, not about this method.
+		Delegates to :meth:`_body_block`, the same helper :meth:`transfer_matrix`
+		uses, so plane finding and ray tracing cannot disagree.
 		"""
 		L = self.length or 0.0
 		step = L if dz is None else float(dz)
-		K = self._effective_strength()
-		if L <= 0 or K == 0:
+		if L <= 0 or self._effective_strength() == 0:
 			return super().transfer_xblock(dz=step, axis=axis)
-		c, s = xp.cos(abs(K * step)), xp.sin(abs(K * step))
-		sign = -1.0 if axis == 'x' else 1.0
-		return xp.asarray([[c, s / K], [sign * K * s, c]])
+		return self._body_block(step, axis)
 
 	def focal_powers(self) -> tuple:
 		r"""Return the astigmatic focusing powers ``(1/f_x, 1/f_y)``.
 
 		The quadrupole is the spatially asymmetric round lens: one transverse
 		axis focuses while the other diverges, so the two powers have opposite
-		sign. Signs mirror :meth:`transfer_matrix` exactly (including its thin
-		``K > 0`` axis swap): thin (``length == 0``): ``(−sign(K)·K²,
-		+sign(K)·K²)``; thick: ``(+K·sin|K·L|, −K·sin|K·L|)``.
+		sign. Signs come from :meth:`_axis_focuses` (``K > 0`` focuses x), and
+		the magnitudes from the ``-1/f = C'`` entry of :meth:`_body_block`, so
+		these powers always agree with the ray matrix.
+
+		Thin (``length == 0``): the impulsive kick ``±K²``. Thick: ``+k·sin(kL)``
+		on the focusing axis and ``−k·sinh(kL)`` on the defocusing one, with
+		``k = |K|``. The hyperbolic magnitude grows without bound in ``kL``,
+		which is correct — a long defocusing quadrupole throws rays out
+		exponentially, and the old ``sin`` on both axes hid that.
 
 		Returns
 		-------
@@ -1617,24 +1708,62 @@ class Quadrapole(Element):
 
 		Related
 		-------
+		_body_block : The matrix these mirror.
 		phase_shift : Uses these powers for the saddle phase screen.
 		"""
-		K = self._effective_strength()
-		if K == 0:
+		k = abs(self._effective_strength())
+		if k == 0:
 			return 0.0, 0.0
 		if self.length == 0:
-			return float(-xp.sign(K) * K**2), float(xp.sign(K) * K**2)
-		S = xp.sin(abs(K * self.length))
-		return float(K * S), float(-K * S)
+			powers = (k**2, -(k**2))
+		else:
+			kL = k * abs(self.length)
+			powers = (float(k * xp.sin(kL)), float(-k * xp.sinh(kL)))
+		focus, defocus = powers
+		return (focus, defocus) if self._axis_focuses('x') else (defocus, focus)
 
 	def transfer_matrix(self) -> xp.ndarray:
-		r"""Transfer matrix for ray propogation.
+		r"""Transfer matrix for ray propagation through the quadrupole.
 
-		The homogenous equaiton of motion approximation leads to a linear solution of $u"+k(s)u=0$ given as $u(s)=C(s)u_0+S(s)u_0', where s is the distance traveled (~z for small u').
-		For K>0 $C=cos(\sqrt{Ks})$ and $S=\frac{1}{\sqrt{K}} sin(\sqrt{Ks})$ and for K<0 $C=cosh(\sqrt{|K|s})$ and $S=\frac{1}{\sqrt{|K|}} sinh(\sqrt{|K|s})$.
+		A quadrupole focuses one transverse axis and defocuses the other. The
+		homogeneous equation of motion :math:`u'' \pm k^2 u = 0` (``k = |K|``)
+		is therefore **harmonic** on the focusing axis and **hyperbolic** on the
+		defocusing one, and both solutions have unit determinant, as Liouville
+		requires. The per-axis blocks come from :meth:`_body_block`; a thin
+		quadrupole (``length == 0``) is the impulsive limit, a pure kick of
+		``∓K²`` from :meth:`focal_powers`.
 
-		To Do
+		**Convention: ``K > 0`` focuses x and defocuses y**, and reversing the
+		sign of ``K`` swaps the two axes. This holds identically in the thin and
+		thick branches — it did not before, because the thin branch swapped its
+		blocks for ``K > 0`` while the thick branch never did, so giving a
+		quadrupole a length changed which axis converged.
+
+		Returns
+		-------
+		xp.ndarray
+			The ``len(convention) × len(convention)`` transfer matrix.
+
+		Related
+		-------
+		_body_block : The per-axis body law, shared with :meth:`transfer_xblock`.
+		_axis_focuses : The sign convention.
+		focal_powers : The thin-equivalent powers, signed the same way.
+
+		Notes
 		-----
+		Brown 1983 p. 46. The defocusing axis previously reused ``cos``/``sin``,
+		giving ``det = cos(2|KL|)`` — 0.75 over a 30 mm body, so a quarter of
+		the phase-space area vanished and the block's halves did not compose.
+
+		A **skew** (rotated) quadrupole is not supported: that couples x and y,
+		so it cannot be written as two independent 2×2 blocks.
+
+		References
+		----------
+		.. [1] K. L. Brown, "A First- and Second-Order Matrix Theory for the
+		   Design of Beam Transport Systems and Charged Particle Spectrometers",
+		   SLAC-75 (1983), p. 46.
 		"""
 
 		#m = xp.eye(6)#[...,None]*xp.ones_like(s) # TWP 2025/08/27 - adding ones_like expression so m is 6x6x1, otherwise eigsum in propagate will fail
@@ -1646,28 +1775,16 @@ class Quadrapole(Element):
 			return fix_mat_dims(xp.eye(4),["x","xt","y","yt"])
 
 		if self.length==0:
-			print("using special")
+			# impulsive limit: a pure kick, -1/f on the [1,0] entry
+			P_x, P_y = self.focal_powers()
 			X=xp.asarray([[ 1 , 0 ],
-					     [ -(K**2) , 1 ]])
+					     [ -P_x , 1 ]])
 			Y=xp.asarray([[ 1 , 0 ],
-						 [  (K**2) , 1 ]])
-			if K>0: # testing with REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT_v2/DQCM.py, sign flip is needed for len=0.08,cal=1 vs len=0,cal=sqrt(0.08)
-				X,Y=Y,X
-			#print("X",fix_mat_dims(X,["x","xt"]))
-			#print("Y",fix_mat_dims(X,["y","yt"]))
+						 [ -P_y , 1 ]])
 		else:
-			kL=abs(K*self.length) ; L=self.length
-			C=xp.cos(kL) ; S=xp.sin(kL)
-			#print("K,L,C,S",K,L,C,S)
-			X=xp.asarray([[  C  , 1/K*S ],  # Brown1983 page 46, note the similarity to
-						[-K*S ,   C   ]]) # https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Example:_Thin_lens if L=0
-			Y=xp.asarray([[  C  , 1/K*S ],  # calculate x,xt and y,yt 2x2s separately, then matmul
-						[ K*S ,   C   ]])
-			# Small angle approximation: C=1, S=K*L
-			#X=xp.asarray([[  1 , L ],
-			#			[-K*K*L, 1   ]])
-			#Y=xp.asarray([[  1 , L ],
-			#			[ K*K*L,  1  ]])
+			# harmonic on the focusing axis, hyperbolic on the defocusing one
+			X = self._body_block(self.length, 'x')
+			Y = self._body_block(self.length, 'y')
 
 		m=xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
 		#print("QUAD",m,self.strength,K,self.calibration,self.length)

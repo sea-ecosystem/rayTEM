@@ -1427,15 +1427,84 @@ def test_transfer_xblock_refuses_to_invent_a_kick_in_a_body():
 
 def test_walk_refuses_non_symplectic_body():
 	# Liouville: a real element conserves phase-space area, so a body's block
-	# must have det == 1. Quadrapole.transfer_matrix's thick y-block does not
-	# (it uses cos/sin where the defocusing axis needs cosh/sinh), so the walk
-	# refuses instead of reporting planes that cannot be trusted. NOTE: this
-	# guards a pre-existing issue in transfer_matrix, it does not fix it.
-	q = Quadrapole(strength=12.0, length=0.03)
-	assert np.isclose(np.linalg.det(np.asarray(q.transfer_xblock(axis='x'), float)), 1.0)
-	assert not np.isclose(np.linalg.det(np.asarray(q.transfer_xblock(axis='y'), float)), 1.0)
+	# must have det == 1. The walk refuses a body that does not, rather than
+	# reporting planes that cannot be trusted. Uses a deliberately broken stub:
+	# the quadrupole that originally motivated this guard is fixed (issue #3),
+	# so the guard needs its own subject.
+	class _LossyBody(Drift):
+		"""A body whose block loses phase-space area. Not physical; a test probe."""
+		def transfer_xblock(self, dz=None, axis='x'):
+			"""Return a deliberately non-symplectic block (det = 0.75)."""
+			step = self.length if dz is None else float(dz)
+			return np.asarray([[1.0, step], [0.0, 0.75]])
+
+	bad = _LossyBody(length=0.03)
+	assert not np.isclose(np.linalg.det(np.asarray(bad.transfer_xblock(), float)), 1.0)
 	mic = Microscope(sections=[MicroscopeSection(elements=[
-		Source(voltage=200), q, Drift(length=0.2)])])
-	mic.conjugate_planes(method="frame", axis="x")			# focusing axis is fine
+		Source(voltage=200), bad, Drift(length=0.2)])])
 	with pytest.raises(ValueError, match="non-symplectic"):
-		mic.conjugate_planes(method="frame", axis="y")
+		mic.conjugate_planes(method="frame", axis="x")
+
+
+def test_thick_quadrupole_is_symplectic():
+	# issue #3 steps 1-2: the defocusing axis is hyperbolic, not harmonic, so
+	# both axes conserve phase-space area and a body's halves compose.
+	for K in (-12.0, -1.0, 1.0, 12.0):
+		for L in (0.005, 0.03, 0.1):
+			q = Quadrapole(strength=K, length=L)
+			for axis in ("x", "y"):
+				M = np.asarray(q.transfer_xblock(axis=axis), float)
+				assert np.isclose(np.linalg.det(M), 1.0, atol=1e-12), (K, L, axis)
+				half = np.asarray(q.transfer_xblock(dz=L / 2, axis=axis), float)
+				assert np.allclose(half @ half, M, atol=1e-12), (K, L, axis)
+	# the full transverse 4x4 is symplectic too
+	M = np.asarray(Quadrapole(strength=12.0, length=0.03).transfer_matrix(), float)
+	assert np.isclose(np.linalg.det(M[np.ix_([0, 1, 2, 3], [0, 1, 2, 3])]), 1.0, atol=1e-12)
+	# and the walk that used to refuse it now completes on both axes
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200), Quadrapole(strength=12.0, length=0.03), Drift(length=0.2)])])
+	mic.conjugate_planes(method="frame", axis="x")
+	mic.conjugate_planes(method="frame", axis="y")
+
+
+def test_quadrupole_axis_convention_thin_and_thick():
+	# issue #3 step 2: K > 0 focuses x and defocuses y, in BOTH branches.
+	# Previously the thin branch swapped its blocks for K > 0 and the thick
+	# branch never did, so giving a quadrupole a length flipped which axis
+	# converged.
+	for L in (0.0, 1e-3, 0.03):
+		P_x, P_y = Quadrapole(strength=12.0, length=L).focal_powers()
+		assert P_x > 0 > P_y, f"K > 0 must focus x at length {L}"
+		P_x, P_y = Quadrapole(strength=-12.0, length=L).focal_powers()
+		assert P_y > 0 > P_x, f"K < 0 must focus y at length {L}"
+	# focal_powers agrees with the matrix it claims to mirror (-1/f = C')
+	for K in (-12.0, 12.0):
+		for L in (0.0, 0.03):
+			q = Quadrapole(strength=K, length=L)
+			P = q.focal_powers()
+			M = np.asarray(q.transfer_matrix(), float)
+			assert np.isclose(M[1, 0], -P[0], atol=1e-12), (K, L, "x")
+			assert np.isclose(M[3, 2], -P[1], atol=1e-12), (K, L, "y")
+	# a short thick quad approaches the thin kick K^2*L
+	K, L = 12.0, 1e-4
+	assert np.isclose(Quadrapole(strength=K, length=L).focal_powers()[0],
+					  K**2 * L, rtol=1e-5)
+	# B stays drift-like (positive) for either sign of K -- it used to be
+	# computed as S/K with a signed K, so it inverted for K < 0
+	for K in (-12.0, 12.0):
+		for axis in ("x", "y"):
+			assert Quadrapole(strength=K, length=0.03).transfer_xblock(axis=axis)[0, 1] > 0
+
+
+def test_thick_quadrupole_conserves_emittance():
+	# the symplecticity that matters physically: sqrt(det Sigma) per axis is
+	# invariant under a real element (Liouville). The old cos/sin y-block lost
+	# ~13% of it over a 30 mm body.
+	q = Quadrapole(strength=12.0, length=0.03)
+	Sigma = np.diag([1e-12, 1e-10, 1e-12, 1e-10, 0.0, 0.0])
+	_, out = q.propagate_moments(np.zeros(6), Sigma)
+	for i in (0, 2):
+		sel = np.ix_([i, i + 1], [i, i + 1])
+		before = np.sqrt(np.linalg.det(Sigma[sel]))
+		after = np.sqrt(np.linalg.det(np.asarray(out, float)[sel]))
+		assert np.isclose(after, before, rtol=1e-12)
