@@ -176,17 +176,17 @@ implemented).
 
 ### `propagate_quadratic_segment_scaled(U, dxi, deta, wavelength, dz, s, R, K, s_min=1e-3, absorb=0.0, rotate=False)`
 The honest thick body: **not** a phase screen but a *medium*, carried as one
-segment. Element-agnostic — it serves whatever `Element.scaled_segment()`
-declares `('quadratic', K)` (today `Lens` with `length > 0`). The frame advances by the element's own 2×2 applied to `(s, s/R)` —
+segment. A `waveoptics` primitive, not an element method: elements declare
+`scaled_segment()` and the generic `Element._propagate_wave_scaled` consumes
+it, exactly as `transfer_matrix` feeds `propagate_ray`. The frame advances by the element's own 2×2 applied to `(s, s/R)` —
 legitimate because the frame *is* a reference ray — and U propagates over the
 segment's own Δτ with the usual carrier-free kernel. **No screen, no
 curvature kick**: the factorization solves a quadratic-index medium exactly,
 so a thick body costs U nothing in sampling, just like a drift. `rotate=True`
 applies the body's Larmor angle `−K·dz` (see `rotate_field`); the ray path
 always rotates, but it is a no-op for rotationally symmetric fields, hence
-the default. Anisotropic frames are refused — the segment is isotropic, so a
-per-axis medium would need an anisotropic K and a separable kernel (issue #3).
-Verified to reproduce `Lens.transfer_matrix`'s rotating-frame
+the default. Anisotropic frames are refused (a round lens cannot be applied
+per-axis). Verified to reproduce `Lens.transfer_matrix`'s rotating-frame
 x-block exactly, with energy conserved to 1e-9.
 
 ### `apply_thin_lens_scaled(s, R, power)`

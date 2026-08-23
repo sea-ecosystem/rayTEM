@@ -1,5 +1,14 @@
 # TODO — wave seam cleanup: no element owns a propagation method (P1)
 
+> **REVERTED 2026-08-23 at Eric's direction.** The items below were implemented
+> and then backed out; see the 2026-08-23 LOG entry. Kept as a record of what
+> was tried and why it was wrong. Only the `waveoptics` rename and a bug found
+> along the way survive. Short version: `phase_shift` goes back to
+> `scaled: bool` (there is no third representation — `'hybrid'` *is* scaled),
+> `amplitude_mask` is deleted (a single-use abstraction for a population of
+> one), and `Source`/`Aperture`/`Prism` keep their `propagate_wave` overrides
+> because their wave action genuinely is not a phase.
+
 **Branch/worktree:** `Signal_and_propagation_additions` (rayTEM)
 **Plan:** none (Eric's architectural direction, recorded in
 [PLAN_2026-08-22_thick-quadrupole-symplecticity.md](PLAN_2026-08-22_thick-quadrupole-symplecticity.md) §5)

@@ -69,76 +69,29 @@ def test_phase_shift_drift_kernel():
 
 def test_phase_shift_scaled_split():
 	# Lens: full 1/f absorbed into R, nothing on U (handoff Eqs 15/45)
-	power, screen = Lens(strength=6.0, length=0.0).phase_shift(GRID, LAM, kind='scaled')
+	power, screen = Lens(strength=6.0, length=0.0).phase_shift(GRID, LAM, scaled=True)
 	assert np.isclose(power, 36.0) and screen is None
 	# Quadrupole: per-axis powers absorbed into (R_x, R_y), nothing on U —
 	# the saddle is quadratic per axis, so the anisotropic frame holds all of it
 	quad = Quadrapole(strength=2.0, length=0.0)
-	power, screen = quad.phase_shift(GRID, LAM, kind='scaled', s=0.5)
+	power, screen = quad.phase_shift(GRID, LAM, scaled=True, s=0.5)
 	assert screen is None and power == quad.focal_powers()
 	assert power[0] == -power[1] and power[0] != 0
 	# Dipole: nothing absorbed, full linear phase applied to U
-	power, screen = Dipole(strength=1e-6, axis="y").phase_shift(GRID, LAM, kind='scaled')
+	power, screen = Dipole(strength=1e-6, axis="y").phase_shift(GRID, LAM, scaled=True)
 	assert power == 0.0 and screen is not None
 	# Drift: nothing absorbed, nothing on U (free segment handled by the driver)
-	assert Drift(length=0.1).phase_shift(GRID, LAM, kind='scaled') == (0.0, None)
+	assert Drift(length=0.1).phase_shift(GRID, LAM, scaled=True) == (0.0, None)
 	# zero-strength quad/dipole: fully transparent
-	assert Quadrapole(strength=0.0).phase_shift(GRID, LAM, kind='scaled') == (0.0, None)
-	assert Dipole(strength=0.0).phase_shift(GRID, LAM, kind='scaled') == (0.0, None)
+	assert Quadrapole(strength=0.0).phase_shift(GRID, LAM, scaled=True) == (0.0, None)
+	assert Dipole(strength=0.0).phase_shift(GRID, LAM, scaled=True) == (0.0, None)
 
 def test_phase_shift_not_a_phase_elements():
-	# an aperture's wave action is an amplitude mask, not a phase: it declares
-	# amplitude_mask and stays transparent on the phase seam (no element owns a
-	# propagate_wave of its own)
 	spec = GRID
-	ap = Aperture(radius=1e-6)
-	assert ap.phase_shift(spec, LAM) == []
-	assert ap.phase_shift(spec, LAM, kind='scaled') == (0.0, None)
-	mask = ap.amplitude_mask(spec, kind='fixed')
-	assert mask is not None and mask.shape == spec[0]
-	assert mask.max() <= 1.0 and mask.min() >= 0.0
-	(ny, nx), dx, dy = spec
-	assert mask[ny // 2, nx // 2] > 0.99				# open on axis
-	assert mask[0, 0] < 1e-9							# blocked at the corner
-	# scaled kinds map the same physical radius to xi <= radius/|s|: halving s
-	# doubles the mask radius, so the open area grows
-	wide = ap.amplitude_mask(spec, kind='scaled', s=0.5)
-	assert wide.sum() > mask.sum()
-	# a source is transparent on both seams (it seeds the field, it does not act)
-	src = Source(voltage=200)
-	assert src.phase_shift(spec, LAM) == []
-	assert src.phase_shift(spec, LAM, kind='scaled') == (0.0, None)
-	assert src.amplitude_mask(spec) is None
-
-
-def test_no_element_owns_a_wave_propagation_method():
-	# the wave-seam invariant: elements declare physics (phase_shift,
-	# amplitude_mask, scaled_segment) and the generic propagators in Element
-	# consume it. No subclass may define a propagate_wave* of its own.
-	# (The ray side is not yet clean — Source/Aperture still own propagate_ray
-	# and propagate_moments, since a seed and a hard block are not matrices.)
-	import pySEA.rayTEM.elements as el
-	owned = []
-	for name in dir(el):
-		cls = getattr(el, name)
-		if not (isinstance(cls, type) and issubclass(cls, el.Element)):
-			continue
-		if cls is el.Element:
-			continue
-		owned += [f"{name}.{m}" for m in vars(cls) if m.startswith("propagate_wave")]
-	assert owned == [], f"elements must not own wave propagation methods: {owned}"
-
-
-def test_phase_shift_kind_dispatch():
-	lens = Lens(strength=6.0, length=0.0)
-	# 'hybrid' is the scaled representation, so it maps to the scaled split
-	assert lens.phase_shift(GRID, LAM, kind='hybrid') == \
-		   lens.phase_shift(GRID, LAM, kind='scaled')
-	# default is 'fixed'
-	assert len(lens.phase_shift(GRID, LAM)) == \
-		   len(lens.phase_shift(GRID, LAM, kind='fixed'))
-	with pytest.raises(ValueError):
-		lens.phase_shift(GRID, LAM, kind='bogus')
+	with pytest.raises(NotImplementedError):
+		Aperture(radius=1e-6).phase_shift(spec, LAM)
+	with pytest.raises(NotImplementedError):
+		Source(voltage=200).phase_shift(spec, LAM)
 
 def test_fixed_path_refactor_regression():
 	# the refactored propagate_wave (phase-program consumer) must reproduce the
@@ -507,7 +460,7 @@ def test_base_element_is_transparent_in_every_kind():
 	w1 = ele.propagate_wave(w0)
 	assert np.allclose(w1.data, w0.data)
 	# scaled path: (0, None) split -> state unchanged
-	assert ele.phase_shift(GRID, LAM, kind='scaled') == (0.0, None)
+	assert ele.phase_shift(GRID, LAM, scaled=True) == (0.0, None)
 	s0 = src.wave(mode='scaled')
 	s1 = ele.propagate_wave(s0, mode='scaled')
 	U0 = read_scaled_wavefield(s0)[0] ; U1 = read_scaled_wavefield(s1)[0]
@@ -516,6 +469,33 @@ def test_base_element_is_transparent_in_every_kind():
 	ele.length = 0.01
 	items = ele.phase_shift(GRID, LAM)
 	assert len(items) == 1 and phase_space_of(items[0]) == "scattering"
+
+
+def test_aperture_scaled_anisotropic_frame():
+	# An aperture is a circle in the PHYSICAL plane, so on an anisotropic frame
+	# (any quadrupole upstream) it is an ellipse in scaled coordinates. This used
+	# to raise TypeError: abs() on the (s_x, s_y) pair.
+	src = Source(voltage=200, wave_shape=(64, 64), wave_extent=16e-6)
+	ap = Aperture(radius=5e-6)
+	w_iso = src.wave(mode='scaled')
+	U_iso = read_scaled_wavefield(ap.propagate_wave(w_iso, mode='scaled'))[0]
+	# a thin quad absorbs its (P, -P) into (R_x, R_y) and leaves s continuous, so
+	# s is numerically isotropic but *stored* as a pair: the masked result must
+	# be identical, not a crash
+	w_pair = Quadrapole(strength=2.0, length=0.0).propagate_wave(src.wave(mode='scaled'),
+															   mode='scaled')
+	assert isinstance(read_scaled_wavefield(w_pair)[4], tuple)
+	U_pair = read_scaled_wavefield(ap.propagate_wave(w_pair, mode='scaled'))[0]
+	assert np.allclose(U_pair, U_iso)
+	# genuinely anisotropic frame: the open region is an ellipse with the
+	# per-axis half-widths radius/|s_x| and radius/|s_y|
+	U, dxi, deta, lam, s, R, tau, z = read_scaled_wavefield(w_iso)
+	w_ani = make_scaled_wavefield_signal(U, dxi, deta, lam, (2.0, 1.0), R, tau, z=z)
+	U_ani = np.abs(read_scaled_wavefield(ap.propagate_wave(w_ani, mode='scaled'))[0])
+	ny, nx = U_ani.shape
+	open_x = (U_ani[ny // 2, :] > 0.5).sum()
+	open_y = (U_ani[:, nx // 2] > 0.5).sum()
+	assert open_y > 1.8 * open_x, "s_x = 2 s_y must open twice as wide along eta"
 
 
 def test_wave_kind_aperture_matches__aperture_wave():

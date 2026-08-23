@@ -7,6 +7,69 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-23 — [Done] Revert the P1 wave-seam generalization
+**Goal:** back out yesterday's `phase_shift(kind=)` / `amplitude_mask` rework and restore the three `propagate_wave` overrides.
+**Why:** Eric's architectural correction. Three separate things were wrong with it.
+- [x] `phase_shift(kind=...)` -> `phase_shift(..., scaled: bool = False)`; drop `_phase_shift_fixed`/`_phase_shift_scaled`
+- [x] delete `amplitude_mask` (base + `Aperture`)
+- [x] restore `Source.propagate_wave`, `Aperture.propagate_wave`, `Prism.propagate_wave`
+- [x] keep the `waveoptics` rename; fix the anisotropic-aperture bug found while reverting
+
+**Outcome:** Reverted. The three reasons, because they generalize:
+
+1. **`kind` was a fake three-valued enum.** `'hybrid'` *is* the scaled
+   representation — the dispatcher literally mapped it to `'scaled'`. A
+   parameter whose third value is an alias for its second is a boolean wearing
+   a costume. Back to `scaled: bool`. (`propagate_wave`'s `mode` keeps all
+   three, correctly: there the three *are* distinct — fixed grid, single scaled
+   frame, scaled with frame switching.)
+
+2. **`amplitude_mask` was a single-use abstraction.** The physics behind it is
+   real — `phase_shift` declares chi and the propagator applies exp(i*chi),
+   which is unimodular, so no real chi can ever produce zero transmission and
+   an aperture is genuinely not expressible as a phase. But the population of
+   elements needing it is *one*. The repo's own coding guidelines say not to
+   build single-use abstractions; a universal seam on every Element to serve
+   one class is exactly that. An aperture is a different **operator**, so it
+   overrides the propagator and says so.
+
+3. **The "no element owns a propagation method" invariant was overreach.** The
+   ray-side analogy holds for *phase* elements — lenses and multipoles declare
+   `phase_shift` and the generic propagator consumes it, which is right and
+   stays. It does not hold for elements that are not phase operators at all:
+   `Source` (seeds the field, it does not act on one), `Aperture` (amplitude),
+   `Prism` (unimplemented). Those override, optionally via `super()`.
+
+**Kept:** the `waveoptics` rename (`propagate_thick_lens_scaled` ->
+`propagate_quadratic_segment_scaled`, `scaled_delta_tau_lens` ->
+`scaled_delta_tau_quadratic`). Note for the record, since it caused confusion:
+these are `waveoptics` **primitives**, not element methods — no element owns
+them. The element seam is `Lens.scaled_segment()` returning `('quadratic', K)`,
+consumed by the generic `Element._propagate_wave_scaled`, which is the same
+declare/consume shape as `transfer_matrix` -> `propagate_ray`.
+
+**Bug found and fixed while reverting:** `Aperture.propagate_wave` raised
+`TypeError: bad operand type for abs(): 'tuple'` on the scaled path whenever
+the frame was anisotropic — i.e. after *any* quadrupole, since a thin quad
+leaves `s` stored as a pair even when the axes are numerically equal. It now
+masks at physical coordinates `(s_x*xi, s_y*eta)` against the physical radius,
+which is identical to `radius/|s|` when the axes agree and correctly an
+**ellipse** in scaled coordinates when they do not (an aperture is a circle in
+the physical plane, not the scaled one). Sign-safe past a crossover too, since
+the pitches are squared. Regression test added. 85 tests green (was 84).
+
+**Open design question Eric raised, not implemented:** whether an element
+should *store* its phase rather than compute it per call, so aberrations can be
+composed onto it (a round lens's radial term + a stig term, Krivanek/Seidel/
+Zernike). My answer to "do we need a separate stored phase for scaled and
+fixed": no — there is one physical chi(x, y); the two paths differ only in
+*where* it is evaluated (x = xi vs x = s*xi) and *how much* of it is absorbed
+into the frame curvature. The natural single declaration is a list of terms
+(coefficient + basis), with one rule: quadratic terms -> frame powers
+(P_x, P_y), everything else -> residual screen at x = s*xi. That rule
+generalizes exactly what `Lens` and `Quadrapole` hardcode today, and it means
+aberrations need no new seam at all. Belongs with the D4 aberration work.
+
 ## 2026-08-22 — [Done] Wave seam cleanup: no element owns a propagation method
 **Goal:** `phase_shift(kind=...)` dispatching to `_phase_shift_*`, an amplitude/mask declaration, removal of the `Source`/`Aperture`/`Prism` `propagate_wave` overrides, and an element-agnostic per-axis segment propagator.
 **Why:** Eric's architectural direction — the ray side is the model (an element declares `transfer_matrix`, the generic `propagate_ray` consumes it), and the wave side should match; also `propagate_thick_lens_scaled` is lens-named and lens-scoped, which is what blocks a quadrupole from using it.
