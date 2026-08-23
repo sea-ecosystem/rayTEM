@@ -7,6 +7,65 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-23 — [Done] Wave image planes (D5) + `wavefield_at` exactness
+**Goal:** make a hybrid run find and log image planes, not just back-focal planes.
+**Why:** Eric: "for the wave optics plane finding we need to find the image planes first. I think we only found the back focal planes." Correct — and the reason is structural.
+- [x] both conjugate families logged, tagged `image-x`/`image-y`
+- [x] `_scaled_plane_at` — exact field at any z
+- [x] fix `wavefield_at`'s silent snap to nearest
+- [x] tests + dev doc
+
+**Outcome:** The cause: a scaled frame **is** a reference ray, so a run finds
+only the family its *seed* belongs to. A flat (parallel) seed makes `s ∝ A`, so
+`s = 0` is a diffraction plane; a point seed makes `s ∝ B` and finds image
+planes. The usual source is flat, hence back-focal planes only.
+
+I had proposed a "shadow frame" — a second (s, R) tracked alongside the real
+one. **Didn't build it.** The missing family is just the other column of the
+same transfer matrix, which `_accumulate_blocks` already accumulates for
+`conjugate_planes`; a shadow frame would be a second implementation of that
+walk, free to drift from the first exactly as the quadrupole's three methods
+had. So the run asks `conjugate_planes` for both families and logs a wavefield
+at each plane it did not already produce. `Microscope.image_planes` /
+`.diffraction_planes` carry both, per axis.
+
+**A real bug underneath it:** `wavefield_at(z)` silently **snapped to the
+nearest logged plane**. Asking for the field at an image plane returned a
+different plane with no warning — which is precisely the query D5 makes, so it
+would have quietly produced wrong pictures. New `_scaled_plane_at(z)` returns
+the field at exactly z: the logged plane when one is there, else the nearest
+upstream plane advanced through the intervening free space (closed form). It
+refuses rather than approximating when an element intervenes, naming the
+element and pointing at `subdivided()`.
+
+"Is this stretch free space?" is asked of the **optics, not the type**:
+`_acts_on_rays` compares the element's own block against `[[1, L], [0, 1]]` on
+both axes, so drifts, fiducials and zero-strength lenses are transparent
+without this layer knowing any element class, and an astigmatic element counts
+as acting even if one axis is free. My first cut treated every element as
+blocking, which made a plain drift an obstacle — caught because the image plane
+then failed to log.
+
+Numbers: `diffraction_planes` == the frame's own crossovers exactly; ray and
+frame finders agree on the image plane; **`B = -2.1e-17`** at the logged image
+plane (`B = 0` *is* the definition); `_scaled_plane_at` reproduces an
+independent engine path — the same column cut at that z — to **8.7e-16** in the
+field and 1e-16 in the frame state. 96 tests green (was 92).
+
+**Worth knowing generally, found while cross-checking:** with `absorb > 0` the
+two paths differ by 2.8e-3, because the absorber is **path dependent** — one
+long sub-stepped segment windows the escaping halo differently than two short
+ones. So where you cut a column changes the answer at the 1e-3 level whenever
+the absorber is on. Not a bug (the absorber models real loss), but it means
+exactness checks must run at `absorb=0`. Recorded in the dev doc.
+
+**Two verification attempts that did NOT work,** noted so they are not retried:
+measuring beam width in *pixels* (the reconstructed pixel size scales with `s`,
+so the px width is constant by construction), and edge-sharpness or shape
+correlation through focus on this column (a uniform disk under parallel
+illumination has enormous depth of field — the test object cannot resolve
+focus). `B = 0` against the matrix is the check that actually bites.
+
 ## 2026-08-23 — [Done] Thick quadrupole as an exact scaled segment (issue #3 step 3)
 **Goal:** carry a thick quadrupole in the scaled wave path exactly, as the thick round lens already is.
 **Why:** a thick quad was approximated as a thin kick between two half-length drifts, putting its wave crossover 72-2315 um off the ray-traced diffraction plane.
