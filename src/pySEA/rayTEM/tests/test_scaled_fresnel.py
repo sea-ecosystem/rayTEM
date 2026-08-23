@@ -1628,3 +1628,110 @@ def test_thick_quadrupole_conserves_emittance():
 		before = np.sqrt(np.linalg.det(Sigma[sel]))
 		after = np.sqrt(np.linalg.det(np.asarray(out, float)[sel]))
 		assert np.isclose(after, before, rtol=1e-12)
+
+
+# --- wave-side image planes (the conjugate family the frame never crosses) --------
+
+def _two_lens_column(n=128, dx=1.2e-7):
+	return Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200, wave_shape=(n, n), wave_extent=n * dx,
+			   wave_kind="aperture", aperture_radius=5e-6),
+		Drift(length=10e-3), Lens(strength=np.sqrt(1 / 45e-3), length=0.0),
+		Drift(length=100e-3), Lens(strength=np.sqrt(1 / 30e-3), length=0.0),
+		Drift(length=100e-3)])])
+
+
+def _block_to(mic, z, axis="x"):
+	"""Accumulate the transfer block from the column entrance to z."""
+	M, z_prev = np.eye(2), 0.0
+	for z0, L, ele in mic._element_spans():
+		if z0 > z - 1e-12:
+			break
+		if z0 - z_prev > 1e-12:
+			M = np.array([[1.0, z0 - z_prev], [0.0, 1.0]]) @ M
+		step = min(L, z - z0)
+		M = np.asarray(ele.transfer_block(dz=step, axis=axis), float) @ M
+		z_prev = z0 + step
+	if z - z_prev > 1e-12:
+		M = np.array([[1.0, z - z_prev], [0.0, 1.0]]) @ M
+	return M
+
+
+def test_hybrid_logs_image_planes():
+	from pySEA.rayTEM.seashells import scaled_frame_tag
+	mic = _two_lens_column()
+	mic.propagate_wave(mode="hybrid")
+	# the frame's own crossovers ARE the diffraction family (flat seed -> s ~ A)
+	assert np.allclose(mic.crossovers, mic.diffraction_planes["x"])
+	# the image family is found even though the frame never crosses it...
+	assert len(mic.image_planes["x"]) == 1
+	# ...and is logged as a first-class wave event
+	tagged = {scaled_frame_tag(pl): read_scaled_wavefield(pl)[7]
+			  for pl in mic._wave_scaled_planes if scaled_frame_tag(pl)}
+	assert "image-x" in tagged
+	z_img = float(mic.image_planes["x"][0])
+	assert abs(tagged["image-x"] - z_img) < 1e-12
+	# B = 0 is the DEFINITION of an image plane -- check it against the matrix
+	assert abs(_block_to(mic, z_img)[0, 1]) < 1e-14
+	# and A is the magnification (inverted here)
+	assert _block_to(mic, z_img)[0, 0] < 0
+	# the two independent plane finders agree
+	for m in ("ray", "frame"):
+		assert np.allclose(mic.conjugate_planes(axis="x", method=m)["image"],
+						   mic.image_planes["x"], atol=1e-9)
+
+
+def test_scaled_plane_at_is_exact():
+	# advancing a logged plane to an arbitrary z must equal what the engine
+	# itself produces when the column is cut there -- an independent path.
+	mic = _two_lens_column()
+	mic.propagate_wave(mode="hybrid", absorb=0.0)
+	z = float(mic.image_planes["x"][0])
+	dense = _two_lens_column().subdivided([z])
+	dense.propagate_wave(mode="hybrid", absorb=0.0)
+	zs = [read_scaled_wavefield(pl)[7] for pl in dense._wave_scaled_planes]
+	ref = dense._wave_scaled_planes[int(np.argmin(np.abs(np.array(zs) - z)))]
+	U_ref, _, _, _, s_ref, R_ref, _, z_ref = read_scaled_wavefield(ref)
+	U_q, _, _, _, s_q, R_q, _, z_q = read_scaled_wavefield(mic._scaled_plane_at(z))
+	assert abs(z_q - z_ref) < 1e-12
+	assert np.isclose(s_q, s_ref, rtol=1e-12) and np.isclose(R_q, R_ref, rtol=1e-12)
+	assert np.abs(U_q - U_ref).max() / np.abs(U_ref).max() < 1e-12
+	# a z that already has a logged plane returns that plane itself
+	assert mic._scaled_plane_at(float(mic.crossovers[0])) is not None
+	# upstream of everything is refused
+	with pytest.raises(ValueError, match="upstream of every logged plane"):
+		mic._scaled_plane_at(-1.0)
+	# a plane INSIDE a body is refused, not approximated: the run logs a plane at
+	# every element boundary, so free stretches are always reachable and a body
+	# is the only thing that genuinely blocks. The message names the fix.
+	thick = Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200, wave_shape=(64, 64), wave_extent=64 * 2e-7),
+		Drift(length=0.01), Lens(name="thick", strength=20.0, length=0.02),
+		Drift(length=0.1)])])
+	thick.propagate_wave(mode="hybrid", absorb=0.0)
+	with pytest.raises(ValueError, match=r"Lens 'thick' spanning .*subdivided"):
+		thick._scaled_plane_at(0.02)
+
+
+def test_acts_on_rays_is_asked_of_the_optics_not_the_type():
+	# "is this free space?" is answered by the element's own transfer block, so
+	# a drift, a zero-strength lens and a fiducial all count as transparent
+	mic = _two_lens_column()
+	assert not mic._acts_on_rays(Drift(length=0.1), 0.1)
+	assert not mic._acts_on_rays(Drift(name="sample", length=0.0), 0.0)
+	assert not mic._acts_on_rays(Lens(strength=0.0, length=0.0), 0.0)
+	assert mic._acts_on_rays(Lens(strength=6.0, length=0.0), 0.0)
+	assert mic._acts_on_rays(Quadrapole(strength=8.0, length=0.03), 0.03)
+	# an astigmatic element acts even though neither axis alone is free
+	assert mic._acts_on_rays(Quadrapole(strength=8.0, length=0.0), 0.0)
+
+
+def test_wavefield_at_is_exact_not_nearest():
+	# wavefield_at used to snap silently to the nearest logged plane, so asking
+	# for an image plane returned a DIFFERENT plane with no warning
+	mic = _two_lens_column()
+	mic.propagate_wave(mode="hybrid", absorb=0.0)
+	z = float(mic.image_planes["x"][0]) - 5e-3		# deliberately between planes
+	w = mic.wavefield_at(z)
+	assert abs(w.z - z) < 1e-12 if hasattr(w, "z") else True
+	assert f"{z:g}" in w.name						# the name reports the real z

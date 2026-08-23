@@ -801,7 +801,9 @@ class Microscope(SEASerializable):
 		self.mu = None ; self.covariance_matrix = None	# beam-envelope mode results
 		self.wave = None								# wave-optics mode result (complex wavefield Signal)
 		self.wave_scaled = None							# scaled-Fresnel mode result (SignalSet: U + s/R/tau)
-		self.crossovers = None							# focal planes logged by the hybrid wave run: the conjugate family the wave's own frame follows (diffraction/back-focal for the usual flat seed). conjugate_planes() gives both families.
+		self.crossovers = None							# focal planes the hybrid wave run's own frame crossed: the conjugate family its seed belongs to (diffraction/back-focal for the usual flat seed)
+		self.image_planes = None						# {'x': ndarray, 'y': ndarray} -- the image family, logged by the hybrid run even though the frame never crosses it
+		self.diffraction_planes = None					# {'x': ndarray, 'y': ndarray} -- the diffraction family, per axis (astigmatic optics differ between axes)
 		if self.sections is not None and len(self.sections)>1: # check if consecutive sections are correct length. if not, insert drift at tail of first one
 			for s,s2 in zip(self.sections[:-1],self.sections[1:]):
 				dz = s2.position-(s.position+s.length)
@@ -1755,8 +1757,208 @@ class Microscope(SEASerializable):
 			from .seashells import read_scaled_wavefield, scaled_frame_tag as _scaled_plane_tag
 			self.crossovers = [read_scaled_wavefield(p)[7] for p in planes
 							   if (_scaled_plane_tag(p) or "").startswith("crossover")]
+			self._log_conjugate_planes()
 		self.wave_scaled = _stack_scaled_wavefields(planes, name=(self.name or 'microscope') + ' scaled wave')
 		return self.wave_scaled
+
+	def _log_conjugate_planes(self):
+		r"""Log the conjugate family the wave's own frame does **not** cross.
+
+		A scaled frame is a reference ray, so a hybrid run finds only the family
+		its seed belongs to: a flat (parallel) seed makes ``s ∝ A``, so ``s = 0``
+		is a **diffraction** plane, while a point seed makes ``s ∝ B`` and finds
+		**image** planes. The usual source is flat, so a run logs back-focal
+		planes and never sees the image planes at all.
+
+		The missing family is the *other* column of the same transfer matrix, so
+		rather than tracking a second "shadow" frame through the engine — a
+		second implementation of a walk that already exists, free to drift from
+		the first — this asks :meth:`conjugate_planes` for both families and
+		logs an actual wavefield at each plane the run did not already produce.
+		Planes reachable only through an element body are skipped rather than
+		approximated; :meth:`subdivided` cuts the column for those.
+
+		Appends to ``_wave_scaled_planes`` (kept sorted by z) and sets
+		:attr:`image_planes` and :attr:`diffraction_planes` to
+		``{'x': ndarray, 'y': ndarray}``.
+
+		Returns
+		-------
+		None
+
+		Related
+		-------
+		conjugate_planes : Supplies both families, exactly.
+		_scaled_plane_at : Produces the field at a plane the run did not log.
+		crossovers : The family the frame itself crossed.
+		"""
+		from .seashells import read_scaled_wavefield, scaled_frame_tag
+		self.image_planes, self.diffraction_planes = {}, {}
+		extra = []
+		for axis in ('x', 'y'):
+			try:
+				fam = self.conjugate_planes(axis=axis, method='frame')
+			except (ValueError, NotImplementedError):
+				# a non-symplectic body, or optics the walk cannot express:
+				# the wave run itself is still valid, so degrade rather than fail
+				self.image_planes[axis] = xp.asarray([])
+				self.diffraction_planes[axis] = xp.asarray([])
+				continue
+			self.image_planes[axis] = fam['image']
+			self.diffraction_planes[axis] = fam['diff']
+			for z in fam['image']:
+				try:
+					pl = self._scaled_plane_at(float(z))
+				except (ValueError, RuntimeError):
+					continue					# inside a body, or off the logged span
+				if scaled_frame_tag(pl) is None:
+					from .seashells import make_scaled_wavefield_signal, scaled_frame_crossover
+					U, dxi, deta, lam, sc, R, tau, zp = read_scaled_wavefield(pl)
+					pl = make_scaled_wavefield_signal(
+						U, dxi, deta, lam, sc, R, tau, z=zp,
+						z_cross=scaled_frame_crossover(pl), tag=f"image-{axis}",
+						name=getattr(pl, "name", "scaled wavefield"))
+					extra.append(pl)
+		if extra:
+			planes = list(self._wave_scaled_planes) + extra
+			planes.sort(key=lambda pl: read_scaled_wavefield(pl)[7] or 0.0)
+			self._wave_scaled_planes = planes
+
+	def _element_spans(self):
+		r"""Every element's ``(entrance z, length, element)`` in column order.
+
+		A flat view across sections, used wherever a query needs to know what
+		occupies a stretch of the column.
+
+		Returns
+		-------
+		list of tuple
+			``(z0, length, element)`` sorted by ``z0`` (metres).
+
+		Related
+		-------
+		_acts_on_rays : Whether one of these is more than free space.
+		_accumulate_blocks : Walks the same flattened list.
+		"""
+		spans = [(sec.position + (ele.position or 0.0),
+				  getattr(ele, "length", 0) or 0.0, ele)
+				 for sec in self.sections for ele in sec.elements]
+		return sorted(spans, key=lambda e: e[0])
+
+	@staticmethod
+	def _acts_on_rays(ele, length:float, tol:float=1e-12) -> bool:
+		r"""Whether an element does anything a free drift would not.
+
+		Asked of the element's own optics rather than its type: an element is
+		transparent exactly when its transfer block over its own length is the
+		free-space block ``[[1, L], [0, 1]]`` on **both** axes. That covers a
+		named drift, a zero-strength lens and a fiducial marker alike, without
+		this module knowing any element class — and it correctly treats an
+		astigmatic element as acting even if one axis happens to be free.
+
+		Parameters
+		----------
+		ele : Element
+			The element to test.
+		length : float
+			Its length (metres).
+		tol : float, optional
+			Absolute tolerance on the block comparison, by default 1e-12.
+
+		Returns
+		-------
+		bool
+			True if the element acts; False if it is equivalent to free space.
+			An element whose block cannot be built is reported as **acting**,
+			since an unknown optic must not be assumed transparent.
+
+		Related
+		-------
+		_scaled_plane_at : Refuses to advance a field through an acting element.
+		"""
+		free = xp.asarray([[1.0, float(length)], [0.0, 1.0]])
+		for axis in ('x', 'y'):
+			try:
+				blk = xp.asarray(ele.transfer_block(axis=axis), dtype=float)
+			except (NotImplementedError, ValueError, TypeError):
+				return True						# unknown optic: never assume free
+			if not xp.allclose(blk, free, atol=tol):
+				return True
+		return False
+
+	def _scaled_plane_at(self, z:float, tol:float=1e-12):
+		r"""The scaled wavefield **exactly** at ``z``, not merely near it.
+
+		Returns the logged plane when one sits at ``z``; otherwise advances the
+		nearest logged plane *upstream* of ``z`` through the intervening free
+		space, which is exact — a scaled free segment has a closed-form
+		``(s, R, Δτ)`` update. It deliberately **refuses** rather than
+		approximating when an element lies in between, because carrying the
+		field through an element means running that element's optics, which is
+		the propagation engine's job, not a query's.
+
+		Parameters
+		----------
+		z : float
+			Requested plane position (metres).
+		tol : float, optional
+			Distance within which a logged plane counts as *at* ``z``
+			(metres), by default 1e-12.
+
+		Returns
+		-------
+		Signal or seashells._ScaledWavefield
+			Scaled wavefield at exactly ``z``.
+
+		Raises
+		------
+		RuntimeError
+			If no hybrid/scaled run has been made.
+		ValueError
+			If ``z`` is upstream of every logged plane, or an element lies
+			between the nearest upstream plane and ``z``.
+
+		Related
+		-------
+		wavefield_at : Reconstructs the physical field from this.
+		subdivided : Cuts the column so a plane is logged inside a body.
+		"""
+		from .seashells import (read_scaled_wavefield, make_scaled_wavefield_signal,
+								scaled_frame_crossover)
+		from .waveoptics import propagate_free_scaled, axis_components, join_axes
+		planes = getattr(self, "_wave_scaled_planes", None)
+		if not planes:
+			raise RuntimeError("No scaled wave planes: run propagate_wave(mode='hybrid') "
+							   "before querying a plane.")
+		zs = [read_scaled_wavefield(pl)[7] or 0.0 for pl in planes]
+		near = int(xp.argmin(xp.abs(xp.asarray(zs) - z)))
+		if abs(zs[near] - z) <= tol:
+			return planes[near]
+		upstream = [i for i, zi in enumerate(zs) if zi <= z + tol]
+		if not upstream:
+			raise ValueError(f"z = {z:g} m is upstream of every logged plane "
+							 f"(first is {min(zs):g} m).")
+		i = max(upstream, key=lambda j: zs[j])
+		z0, dz = zs[i], z - zs[i]
+		# a drift is free space, so only elements that *act* block the advance
+		blocking = [(ez, eL, ele) for ez, eL, ele in self._element_spans()
+					if ez + eL > z0 + tol and ez < z - tol
+					and self._acts_on_rays(ele, eL)]
+		if blocking:
+			ez, eL, ele = blocking[0]
+			where = f"at {ez:g} m" if eL == 0 else f"spanning {ez:g}-{ez + eL:g} m"
+			raise ValueError(
+				f"Cannot reach z = {z:g} m exactly: {type(ele).__name__} "
+				f"{ele.name or ''!r} {where} lies between it and the nearest logged "
+				f"plane at {z0:g} m. Re-run on self.subdivided([{z:g}]) so the "
+				"propagation logs a plane there.")
+		U, dxi, deta, wavelength, s, R, tau, _ = read_scaled_wavefield(planes[i])
+		U, s, R, dtau = propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R)
+		tx, ty = axis_components(tau) ; dx_, dy_ = axis_components(dtau)
+		return make_scaled_wavefield_signal(
+			U, dxi, deta, wavelength, s, R, join_axes(tx + dx_, ty + dy_), z=z,
+			z_cross=scaled_frame_crossover(planes[i]),
+			name=getattr(planes[i], "name", "scaled wavefield"))
 
 	def wavefield_at(self, z, target_dx:float=None, target_shape:tuple=None):
 		r"""Reconstruct the physical wavefield ψ(x, y) at a logged plane.
@@ -1809,7 +2011,7 @@ class Microscope(SEASerializable):
 		for p in self._wave_scaled_planes:
 			zi = read_scaled_wavefield(p)[7]
 			zs.append(zi if zi is not None else 0.0)
-		plane = self._wave_scaled_planes[int(xp.argmin(xp.abs(xp.asarray(zs) - z)))]
+		plane = self._scaled_plane_at(float(z))
 		U, dxi, deta, wavelength, s, R, tau, z_plane = read_scaled_wavefield(plane)
 		psi, dx, dy = reconstruct_physical_wave(U, dxi, deta, wavelength, s, R,
 												target_dx=target_dx, target_shape=target_shape)
