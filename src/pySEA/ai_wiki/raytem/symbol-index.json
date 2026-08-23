@@ -22,7 +22,7 @@
     "name": "aperture_mask",
     "qualname": "aperture_mask",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 2105,
+    "source_lineno": 2160,
     "signature": "aperture_mask(field, dx, dy, radius, antialias)",
     "doc": "Apply a hard circular aperture to a field."
   },
@@ -40,7 +40,7 @@
     "name": "apply_thin_lens_scaled",
     "qualname": "apply_thin_lens_scaled",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1587,
+    "source_lineno": 1642,
     "signature": "apply_thin_lens_scaled(s, R, power)",
     "doc": "Absorb a thin-lens focusing power into the scaled curvature state."
   },
@@ -67,7 +67,7 @@
     "name": "axis_components",
     "qualname": "axis_components",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 363,
+    "source_lineno": 418,
     "signature": "axis_components(value)",
     "doc": "Split a scalar-or-pair frame quantity into its (x, y) components."
   },
@@ -76,7 +76,7 @@
     "name": "bandlimited_disk",
     "qualname": "bandlimited_disk",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 2145,
+    "source_lineno": 2200,
     "signature": "bandlimited_disk(shape, dx, dy, radius)",
     "doc": "Exactly alias-free sampling of the sharp disk :math:`\\Theta(a - r)`."
   },
@@ -85,7 +85,7 @@
     "name": "beam_support_extents",
     "qualname": "beam_support_extents",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1202,
+    "source_lineno": 1257,
     "signature": "beam_support_extents(U, dxi, deta, threshold)",
     "doc": "Per-axis half-widths of the beam's support on the \u03be/\u03b7 grid."
   },
@@ -94,7 +94,7 @@
     "name": "beam_support_radius",
     "qualname": "beam_support_radius",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1166,
+    "source_lineno": 1221,
     "signature": "beam_support_radius(U, dxi, deta, threshold)",
     "doc": "Per-axis half-width of the beam's support on the \u03be grid."
   },
@@ -112,7 +112,7 @@
     "name": "boundary_window",
     "qualname": "boundary_window",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1626,
+    "source_lineno": 1681,
     "signature": "boundary_window(shape, margin)",
     "doc": "Absorbing-boundary window: 1 in the interior, radial cosine \u2192 0 at the edge."
   },
@@ -130,7 +130,7 @@
     "name": "change_scaled_frame",
     "qualname": "change_scaled_frame",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1296,
+    "source_lineno": 1351,
     "signature": "change_scaled_frame(U, dxi, deta, wavelength, s_old, R_old, R_new, s_new, safety)",
     "doc": "Re-express the same physical wave in a different scaled frame (Eq 5)."
   },
@@ -274,7 +274,7 @@
     "name": "factor_wave",
     "qualname": "factor_wave",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1419,
+    "source_lineno": 1474,
     "signature": "factor_wave(psi, dx, dy, wavelength, s, R)",
     "doc": "Factor an ordinary paraxial wave into the scaled representation (handoff Eq 55)."
   },
@@ -355,7 +355,7 @@
     "name": "focal_phase",
     "qualname": "focal_phase",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 308,
+    "source_lineno": 363,
     "signature": "focal_phase(field, dx, dy, wavelength, power_x, power_y)",
     "doc": "Apply a (possibly astigmatic) thin focusing phase."
   },
@@ -364,7 +364,7 @@
     "name": "fourier_resample",
     "qualname": "fourier_resample",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1469,
+    "source_lineno": 1524,
     "signature": "fourier_resample(field, d_in, n_out, d_out)",
     "doc": "Band-limited (Fourier-domain) resampling of a 2D field."
   },
@@ -391,7 +391,7 @@
     "name": "join_axes",
     "qualname": "join_axes",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 391,
+    "source_lineno": 446,
     "signature": "join_axes(vx, vy)",
     "doc": "Join per-axis frame components, collapsing to a scalar when equal."
   },
@@ -427,7 +427,7 @@
     "name": "linear_phase",
     "qualname": "linear_phase",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 277,
+    "source_lineno": 332,
     "signature": "linear_phase(shape, dx, dy, wavelength, tilt_x, tilt_y)",
     "doc": "Real-space linear phase ramp (wavefront tilt / dipole steering)."
   },
@@ -571,7 +571,7 @@
     "name": "min_representable_curvature",
     "qualname": "min_representable_curvature",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1239,
+    "source_lineno": 1294,
     "signature": "min_representable_curvature(n, dxi, wavelength, s, safety, x_max)",
     "doc": "Smallest reference-curvature radius a scaled frame can absorb or release."
   },
@@ -679,7 +679,7 @@
     "name": "Prism",
     "qualname": "Prism",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2527,
+    "source_lineno": 2541,
     "signature": "class Prism",
     "doc": ""
   },
@@ -697,7 +697,7 @@
     "name": "propagate_free_scaled",
     "qualname": "propagate_free_scaled",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1670,
+    "source_lineno": 1725,
     "signature": "propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min, absorb)",
     "doc": "Propagate the scaled field U through one free segment of length ``dz``."
   },
@@ -706,7 +706,7 @@
     "name": "propagate_free_scaled_hybrid",
     "qualname": "propagate_free_scaled_hybrid",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1766,
+    "source_lineno": 1821,
     "signature": "propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross, safety, s_min, absorb, crossover)",
     "doc": "Propagate one free segment with automatic frame switching at crossovers."
   },
@@ -715,7 +715,7 @@
     "name": "propagate_quadratic_segment_hybrid",
     "qualname": "propagate_quadratic_segment_hybrid",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 956,
+    "source_lineno": 1011,
     "signature": "propagate_quadratic_segment_hybrid(U, dxi, deta, wavelength, dz, s, R, kappa, z, z_cross, safety, s_min, absorb, crossover, rotate)",
     "doc": "A segment traversal that can switch frames **inside** the body."
   },
@@ -724,7 +724,7 @@
     "name": "propagate_quadratic_segment_scaled",
     "qualname": "propagate_quadratic_segment_scaled",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 736,
+    "source_lineno": 791,
     "signature": "propagate_quadratic_segment_scaled(U, dxi, deta, wavelength, dz, s, R, kappa, s_min, absorb, rotate)",
     "doc": "Propagate the scaled field through a constant-curvature segment."
   },
@@ -796,7 +796,7 @@
     "name": "reconstruct_physical_wave",
     "qualname": "reconstruct_physical_wave",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1505,
+    "source_lineno": 1560,
     "signature": "reconstruct_physical_wave(U, dxi, deta, wavelength, s, R, target_dx, target_shape)",
     "doc": "Reconstruct the ordinary paraxial wave from the scaled representation."
   },
@@ -832,7 +832,7 @@
     "name": "rotate_field",
     "qualname": "rotate_field",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 461,
+    "source_lineno": 516,
     "signature": "rotate_field(U, angle)",
     "doc": "Rotate a sampled complex field about the optical axis, band-limited-exactly."
   },
@@ -859,7 +859,7 @@
     "name": "scaled_delta_tau",
     "qualname": "scaled_delta_tau",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 416,
+    "source_lineno": 471,
     "signature": "scaled_delta_tau(dz, s0, R0)",
     "doc": "Scaled propagation increment \u0394\u03c4 for a linear-s free segment."
   },
@@ -868,7 +868,7 @@
     "name": "scaled_delta_tau_quadratic",
     "qualname": "scaled_delta_tau_quadratic",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 652,
+    "source_lineno": 707,
     "signature": "scaled_delta_tau_quadratic(dz, s0, R0, kappa)",
     "doc": "Scaled increment \u0394\u03c4 across a constant-curvature segment."
   },
@@ -904,7 +904,7 @@
     "name": "segment_block",
     "qualname": "segment_block",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 545,
+    "source_lineno": 600,
     "signature": "segment_block(dz, kappa)",
     "doc": "The ``(A, B)`` row of a constant-curvature segment's transfer block."
   },
@@ -913,7 +913,7 @@
     "name": "segment_zero",
     "qualname": "segment_zero",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 596,
+    "source_lineno": 651,
     "signature": "segment_zero(dz, s0, u0, kappa)",
     "doc": "First zero of the reference scale strictly inside a segment, if any."
   },
@@ -943,6 +943,15 @@
     "source_lineno": 942,
     "signature": "class Source",
     "doc": "Source element class. Source element can be put in a MicroscopeSection and then propagating \"through\" the section will mean the starting rays r0 are generated by the Source (instead of requiring the user pass in starting rays)"
+  },
+  {
+    "kind": "function",
+    "name": "spherical_phase",
+    "qualname": "spherical_phase",
+    "path": "src/pySEA/rayTEM/waveoptics.py",
+    "source_lineno": 277,
+    "signature": "spherical_phase(shape, dx, dy, wavelength, Cs, power)",
+    "doc": "Real-space quartic phase of third-order spherical aberration."
   },
   {
     "kind": "class",
@@ -1450,6 +1459,15 @@
   },
   {
     "kind": "function",
+    "name": "test_lens_phase_carries_the_quartic_in_both_representations",
+    "qualname": "test_lens_phase_carries_the_quartic_in_both_representations",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 2014,
+    "signature": "test_lens_phase_carries_the_quartic_in_both_representations()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_mid_element_crossover_lands_on_the_analytic_plane",
     "qualname": "test_mid_element_crossover_lands_on_the_analytic_plane",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -1581,6 +1599,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 1352,
     "signature": "test_quadrupole_scaled_segment_declaration()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_ray_kick_is_the_gradient_of_the_wave_screen",
+    "qualname": "test_ray_kick_is_the_gradient_of_the_wave_screen",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 1990,
+    "signature": "test_ray_kick_is_the_gradient_of_the_wave_screen()",
     "doc": ""
   },
   {
@@ -1729,6 +1756,15 @@
   },
   {
     "kind": "function",
+    "name": "test_spherical_aberration_degrades_the_wave_focus",
+    "qualname": "test_spherical_aberration_degrades_the_wave_focus",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 2039,
+    "signature": "test_spherical_aberration_degrades_the_wave_focus()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_spherical_aberration_kick_matches_the_closed_form",
     "qualname": "test_spherical_aberration_kick_matches_the_closed_form",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -1837,6 +1873,15 @@
   },
   {
     "kind": "function",
+    "name": "test_undersampled_aberration_screen_is_refused",
+    "qualname": "test_undersampled_aberration_screen_is_refused",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 2060,
+    "signature": "test_undersampled_aberration_screen_is_refused()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_walk_refuses_non_symplectic_body",
     "qualname": "test_walk_refuses_non_symplectic_body",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -1903,7 +1948,7 @@
     "name": "tilt_phase",
     "qualname": "tilt_phase",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 336,
+    "source_lineno": 391,
     "signature": "tilt_phase(field, dx, dy, wavelength, tilt_x, tilt_y)",
     "doc": "Apply a linear phase ramp that tilts the wavefront (dipole steering)."
   },

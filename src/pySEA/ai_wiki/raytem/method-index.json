@@ -1122,7 +1122,7 @@
     "signature": "aberration_kick(self, r0)",
     "doc": "Third-order spherical aberration: the ray kick :math:`-C_s r^2 \\vec{r}/f^4`.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2424,
+    "source_lineno": 2438,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 329,
     "wiki_method_lineno": null
@@ -1134,7 +1134,7 @@
     "signature": "calibration_from_f_and_I(self, f, I, rotationPerAmp)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2487,
+    "source_lineno": 2501,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 329,
     "wiki_method_lineno": 348
@@ -1146,7 +1146,7 @@
     "signature": "__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)",
     "doc": "Prism.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2528,
+    "source_lineno": 2542,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 354,
     "wiki_method_lineno": 358
@@ -1158,7 +1158,7 @@
     "signature": "focus_matrix(self)",
     "doc": "Transfer matrix for the entrance/exit surfaces of the spectrometer used for ray propogation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2581,
+    "source_lineno": 2595,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 354,
     "wiki_method_lineno": 362
@@ -1170,7 +1170,7 @@
     "signature": "bending_matrix(self, s)",
     "doc": "Transfer matrix for the bending of the spectrometer used for ray propogation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2600,
+    "source_lineno": 2614,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 354,
     "wiki_method_lineno": 366
@@ -1182,7 +1182,7 @@
     "signature": "transfer_matrix(self)",
     "doc": "Transfer matrix for ray propogation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2619,
+    "source_lineno": 2633,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 354,
     "wiki_method_lineno": 370
@@ -1194,7 +1194,7 @@
     "signature": "propagate_wave(self, signal, mode, s_min, log, absorb, crossover, rotate)",
     "doc": "Wave-optics propagation through a prism/spectrometer (not implemented).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2631,
+    "source_lineno": 2645,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": 354,
     "wiki_method_lineno": null
@@ -3313,6 +3313,54 @@
   },
   {
     "class": null,
+    "method": "test_ray_kick_is_the_gradient_of_the_wave_screen",
+    "kind": "method",
+    "signature": "test_ray_kick_is_the_gradient_of_the_wave_screen()",
+    "doc": "",
+    "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 1990,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_lens_phase_carries_the_quartic_in_both_representations",
+    "kind": "method",
+    "signature": "test_lens_phase_carries_the_quartic_in_both_representations()",
+    "doc": "",
+    "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 2014,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_spherical_aberration_degrades_the_wave_focus",
+    "kind": "method",
+    "signature": "test_spherical_aberration_degrades_the_wave_focus()",
+    "doc": "",
+    "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 2039,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_undersampled_aberration_screen_is_refused",
+    "kind": "method",
+    "signature": "test_undersampled_aberration_screen_is_refused()",
+    "doc": "",
+    "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 2060,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
     "method": "test_relativistic_wavelength_known_values",
     "kind": "method",
     "signature": "test_relativistic_wavelength_known_values()",
@@ -3601,12 +3649,24 @@
   },
   {
     "class": null,
+    "method": "spherical_phase",
+    "kind": "method",
+    "signature": "spherical_phase(shape, dx, dy, wavelength, Cs, power)",
+    "doc": "Real-space quartic phase of third-order spherical aberration.",
+    "source_path": "src/pySEA/rayTEM/waveoptics.py",
+    "source_lineno": 277,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
     "method": "linear_phase",
     "kind": "method",
     "signature": "linear_phase(shape, dx, dy, wavelength, tilt_x, tilt_y)",
     "doc": "Real-space linear phase ramp (wavefront tilt / dipole steering).",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 277,
+    "source_lineno": 332,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 81,
     "wiki_method_lineno": null
@@ -3618,7 +3678,7 @@
     "signature": "focal_phase(field, dx, dy, wavelength, power_x, power_y)",
     "doc": "Apply a (possibly astigmatic) thin focusing phase.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 308,
+    "source_lineno": 363,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 89,
     "wiki_method_lineno": null
@@ -3630,7 +3690,7 @@
     "signature": "tilt_phase(field, dx, dy, wavelength, tilt_x, tilt_y)",
     "doc": "Apply a linear phase ramp that tilts the wavefront (dipole steering).",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 336,
+    "source_lineno": 391,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 93,
     "wiki_method_lineno": null
@@ -3642,7 +3702,7 @@
     "signature": "axis_components(value)",
     "doc": "Split a scalar-or-pair frame quantity into its (x, y) components.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 363,
+    "source_lineno": 418,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 148,
     "wiki_method_lineno": null
@@ -3654,7 +3714,7 @@
     "signature": "join_axes(vx, vy)",
     "doc": "Join per-axis frame components, collapsing to a scalar when equal.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 391,
+    "source_lineno": 446,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -3666,7 +3726,7 @@
     "signature": "scaled_delta_tau(dz, s0, R0)",
     "doc": "Scaled propagation increment \u0394\u03c4 for a linear-s free segment.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 416,
+    "source_lineno": 471,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 128,
     "wiki_method_lineno": null
@@ -3678,7 +3738,7 @@
     "signature": "rotate_field(U, angle)",
     "doc": "Rotate a sampled complex field about the optical axis, band-limited-exactly.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 461,
+    "source_lineno": 516,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 156,
     "wiki_method_lineno": null
@@ -3690,7 +3750,7 @@
     "signature": "segment_block(dz, kappa)",
     "doc": "The ``(A, B)`` row of a constant-curvature segment's transfer block.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 545,
+    "source_lineno": 600,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 167,
     "wiki_method_lineno": null
@@ -3702,7 +3762,7 @@
     "signature": "segment_zero(dz, s0, u0, kappa)",
     "doc": "First zero of the reference scale strictly inside a segment, if any.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 596,
+    "source_lineno": 651,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -3714,7 +3774,7 @@
     "signature": "scaled_delta_tau_quadratic(dz, s0, R0, kappa)",
     "doc": "Scaled increment \u0394\u03c4 across a constant-curvature segment.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 652,
+    "source_lineno": 707,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 184,
     "wiki_method_lineno": null
@@ -3726,7 +3786,7 @@
     "signature": "propagate_quadratic_segment_scaled(U, dxi, deta, wavelength, dz, s, R, kappa, s_min, absorb, rotate)",
     "doc": "Propagate the scaled field through a constant-curvature segment.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 736,
+    "source_lineno": 791,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 208,
     "wiki_method_lineno": null
@@ -3738,7 +3798,7 @@
     "signature": "propagate_quadratic_segment_hybrid(U, dxi, deta, wavelength, dz, s, R, kappa, z, z_cross, safety, s_min, absorb, crossover, rotate)",
     "doc": "A segment traversal that can switch frames **inside** the body.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 956,
+    "source_lineno": 1011,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -3750,7 +3810,7 @@
     "signature": "beam_support_radius(U, dxi, deta, threshold)",
     "doc": "Per-axis half-width of the beam's support on the \u03be grid.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1166,
+    "source_lineno": 1221,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 243,
     "wiki_method_lineno": null
@@ -3762,7 +3822,7 @@
     "signature": "beam_support_extents(U, dxi, deta, threshold)",
     "doc": "Per-axis half-widths of the beam's support on the \u03be/\u03b7 grid.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1202,
+    "source_lineno": 1257,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -3774,7 +3834,7 @@
     "signature": "min_representable_curvature(n, dxi, wavelength, s, safety, x_max)",
     "doc": "Smallest reference-curvature radius a scaled frame can absorb or release.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1239,
+    "source_lineno": 1294,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 265,
     "wiki_method_lineno": null
@@ -3786,7 +3846,7 @@
     "signature": "change_scaled_frame(U, dxi, deta, wavelength, s_old, R_old, R_new, s_new, safety)",
     "doc": "Re-express the same physical wave in a different scaled frame (Eq 5).",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1296,
+    "source_lineno": 1351,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 272,
     "wiki_method_lineno": null
@@ -3798,7 +3858,7 @@
     "signature": "factor_wave(psi, dx, dy, wavelength, s, R)",
     "doc": "Factor an ordinary paraxial wave into the scaled representation (handoff Eq 55).",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1419,
+    "source_lineno": 1474,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 133,
     "wiki_method_lineno": null
@@ -3810,7 +3870,7 @@
     "signature": "fourier_resample(field, d_in, n_out, d_out)",
     "doc": "Band-limited (Fourier-domain) resampling of a 2D field.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1469,
+    "source_lineno": 1524,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 137,
     "wiki_method_lineno": null
@@ -3822,7 +3882,7 @@
     "signature": "reconstruct_physical_wave(U, dxi, deta, wavelength, s, R, target_dx, target_shape)",
     "doc": "Reconstruct the ordinary paraxial wave from the scaled representation.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1505,
+    "source_lineno": 1560,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 143,
     "wiki_method_lineno": null
@@ -3834,7 +3894,7 @@
     "signature": "apply_thin_lens_scaled(s, R, power)",
     "doc": "Absorb a thin-lens focusing power into the scaled curvature state.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1587,
+    "source_lineno": 1642,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 237,
     "wiki_method_lineno": null
@@ -3846,7 +3906,7 @@
     "signature": "boundary_window(shape, margin)",
     "doc": "Absorbing-boundary window: 1 in the interior, radial cosine \u2192 0 at the edge.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1626,
+    "source_lineno": 1681,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 111,
     "wiki_method_lineno": null
@@ -3858,7 +3918,7 @@
     "signature": "propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min, absorb)",
     "doc": "Propagate the scaled field U through one free segment of length ``dz``.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1670,
+    "source_lineno": 1725,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 251,
     "wiki_method_lineno": null
@@ -3870,7 +3930,7 @@
     "signature": "propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross, safety, s_min, absorb, crossover)",
     "doc": "Propagate one free segment with automatic frame switching at crossovers.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1766,
+    "source_lineno": 1821,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 283,
     "wiki_method_lineno": null
@@ -3882,7 +3942,7 @@
     "signature": "aperture_mask(field, dx, dy, radius, antialias)",
     "doc": "Apply a hard circular aperture to a field.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 2105,
+    "source_lineno": 2160,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 97,
     "wiki_method_lineno": null
@@ -3894,7 +3954,7 @@
     "signature": "bandlimited_disk(shape, dx, dy, radius)",
     "doc": "Exactly alias-free sampling of the sharp disk :math:`\\Theta(a - r)`.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 2145,
+    "source_lineno": 2200,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 104,
     "wiki_method_lineno": null

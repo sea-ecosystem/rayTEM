@@ -1,7 +1,21 @@
 # Plan — when planes become surfaces (aberrations and multipoles)
 
 **For:** Eric + the other contributor
-**Status:** proposal only, nothing implemented
+**Status:** steps 1, 2 and the first half of 3 are implemented on
+`Signal_and_propagation_additions` (2026-08-23). Remaining: the wave-side
+`chi(q)` *reader* and the ray/wave coefficient comparison (step 3's second
+half), then multipoles (step 4).
+
+**One correction to this plan, found in implementation.** Section 3's suggested
+fit basis, `z = z0 + c20 r^2 + c22 r^2 cos 2(phi - phi22) + ...`, scales every
+term with `r^2`. That is wrong for **paraxial astigmatism**: a quadrupole splits
+the focus by azimuth but *not* by aperture radius, because both transverse
+components scale together, so a ray at azimuth 0 meets the axis at the x focus
+whatever its height. Only *aperture* aberrations grow as `r^2`. Fitting a
+quadrupole to the `r^2` two-fold term reported 729 um where the real half-split
+is 506 um. The implemented basis carries an `r`-independent two-fold term
+separately; with a single sampled radius the two are degenerate and returned as
+`nan` rather than guessed.
 **Related:** `TODO_DONE_plane-calculus.md` (the paraxial machinery this extends),
 `PLAN_2026-08-21_matrix-conjugate-planes.md` (the `A = 0` / `B = 0` criterion)
 

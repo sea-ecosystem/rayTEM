@@ -7,6 +7,54 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-23 — [Done] Wave side of spherical aberration (focal-surfaces step 3a)
+**Goal:** get the aberration into the wave path as the residual screen it physically is, from the *same* chi the ray side uses.
+**Why:** a wave screen and a ray kick derived separately could disagree and nothing would notice.
+- [x] `waveoptics.spherical_phase`
+- [x] `Lens.phase_shift` carries it, fixed and scaled
+- [x] ray/wave consistency test
+
+**Outcome:** One `chi = -k Cs r^4 / 4f^4` on the lens plane; the ray kick is its
+gradient `(1/k) dchi/dr`, not a separately derived expression. Substituting the
+ray relation `r = -f theta` gives the familiar angular form `-k Cs theta^4/4`,
+i.e. the `Cs lambda^3 q^4 / 4` term of the usual aberration function.
+
+`Lens.phase_shift` carries it both ways: added to the real-space screen on the
+fixed path, and on the scaled path the parabola is absorbed into the curvature
+as before while the **quartic stays as a residual screen on U** at `x = s*xi` —
+a quadratic frame cannot absorb a quartic. That is exactly why the paraxial
+crossover does not move when Cs is switched on, which is the behaviour the plan
+predicted and it now demonstrably does.
+
+**Verification that distinguishes "is the gradient" from "is close":** the FD
+error between kick and screen-gradient falls as `dx^2`, ratios 4.00 and 4.00
+over two refinements. A fixed tolerance would not have told those apart.
+Doubling `s` scales the screen by 16, as `r^4` must.
+
+**Two things that looked like null results and were not:**
+- At a 4 um aperture the quartic is ~4e-8 rad — aberration is genuinely
+  invisible there, so my first "no effect" test was measuring nothing.
+- A **fixed grid cannot show this at a realistic aperture either**: at
+  f = 45 mm the *parabola* alone is ~1e7 rad on such a grid. The scaled path is
+  the only one that can, which is what it exists for. On a 6.7 mrad aperture
+  with Cs = 1 mm the focus broadens and its peak falls monotonically
+  (0.02512 -> 0.02434 -> 0.02200 for Cs = 0, 0.5, 1 mm) while the crossover
+  stays pinned at 46.000000 mm.
+
+**The sampling guard earns its keep here.** The quartic grows as `r^4`, so it
+out-runs the grid faster than anything else in a column: at half the sampling
+of the passing test it is refused (4.51 rad/pixel) rather than aliased into a
+plausible-looking focus. Both the passing and the refused case are tested.
+
+**Not done — step 3's second half:** a reader that fits `chi(q)` from the logged
+plane and reports coefficients comparable with the ray-side fit. Worth flagging
+why it needs care rather than being a quick addition: at realistic parameters
+the aberration disc (`Cs alpha^3` ~ 0.3 nm here) and the diffraction disc
+(`lambda/alpha` ~ 0.37 nm) are the same size, so a fit has to separate them
+rather than assume one dominates. The honest independent check is against the
+closed-form back-focal-plane field, `FT[A(r) exp(i chi)]`, which tests the whole
+propagation chain without reusing the screen. 108 tests green (was 104).
+
 ## 2026-08-23 — [Done] Spherical aberration + focal_surface (aberrated-focal-surfaces step 2)
 **Goal:** a real aberration source, and the surface a plane becomes once one exists.
 **Why:** step 1 pinned the criterion; without an aberration source `focal_surface` would return a constant.
