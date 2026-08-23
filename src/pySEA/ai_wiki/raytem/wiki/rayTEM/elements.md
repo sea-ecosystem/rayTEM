@@ -29,19 +29,19 @@
 | Quadrapole | 266 |
 |   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 270 |
 |   `Quadrapole.transfer_matrix(self)` | 274 |
-| Dipole | 280 |
-|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 284 |
-|   `Dipole.transfer_matrix(self)` | 288 |
-|   `Dipole.propagate_ray(self, r0, z, z0)` | 292 |
-| Lens | 298 |
-|   `Lens.__init__(self, name, length, strength, calibration, position)` | 302 |
-|   `Lens.transfer_matrix(self)` | 310 |
-|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 317 |
-| Prism | 323 |
-|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 327 |
-|   `Prism.focus_matrix(self)` | 331 |
-|   `Prism.bending_matrix(self, s)` | 335 |
-|   `Prism.transfer_matrix(self)` | 339 |
+| Dipole | 311 |
+|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 315 |
+|   `Dipole.transfer_matrix(self)` | 319 |
+|   `Dipole.propagate_ray(self, r0, z, z0)` | 323 |
+| Lens | 329 |
+|   `Lens.__init__(self, name, length, strength, calibration, position)` | 333 |
+|   `Lens.transfer_matrix(self)` | 341 |
+|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 348 |
+| Prism | 354 |
+|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 358 |
+|   `Prism.focus_matrix(self)` | 362 |
+|   `Prism.bending_matrix(self, s)` | 366 |
+|   `Prism.transfer_matrix(self)` | 370 |
 <!-- END AUTO-GENERATED TOC -->
 
 # elements.py
@@ -273,7 +273,38 @@ Asymmetric focusing element: focuses in x while defocusing in y (or vice versa).
 
 ### `Quadrapole.transfer_matrix(self)`
 
-For thin quads (length=0) uses the thin-lens approximation matrix directly. For thick quads (length>0) uses the cos/sin solution to the Hill equation (Brown 1983 p. 46): the x and y 2×2 matrices differ in the sign of the quadrupole term, producing focusing in one plane and defocusing in the other. Both 2×2 matrices are assembled separately via `fix_mat_dims` then matrix-multiplied.
+A quadrupole focuses one transverse axis and defocuses the other, so the
+equation of motion `u'' ∓ k²u = 0` (`k = |K|`) is **harmonic** on the focusing
+axis and **hyperbolic** on the defocusing one (Brown 1983 p. 46):
+
+```
+focusing:    [[ cos(kL),  sin(kL)/k ], [ -k sin(kL),  cos(kL) ]]     det = 1
+defocusing:  [[ cosh(kL), sinh(kL)/k ], [ +k sinh(kL), cosh(kL) ]]   det = 1
+```
+
+Thin quads (`length = 0`) are the impulsive limit: a pure kick of `∓K²` taken
+from `focal_powers`. Both 2×2 blocks are assembled separately via
+`fix_mat_dims` then matrix-multiplied.
+
+**Convention: `K > 0` focuses x and defocuses y**; reversing the sign of `K`
+swaps the axes. This holds identically in the thin and thick branches.
+
+All three of `transfer_matrix`, `transfer_xblock` and `focal_powers` read one
+private helper, `_body_block(dz, axis)` (which picks its law from
+`_axis_focuses(axis)`), so they cannot drift apart — `transfer_xblock` matches
+`transfer_matrix`'s sub-block exactly, not approximately.
+
+Two defects fixed here (issue #3 steps 1–2); both were live before 2026-08-23:
+
+- the defocusing axis reused `cos`/`sin`, giving `det = cos(2|KL|)` — **0.7518**
+  for strength 12 over a 30 mm body, so a quarter of the phase-space area
+  vanished (violating Liouville), emittance was not conserved, and the block's
+  halves did not compose (`M(L/2)² ≠ M(L)`, residual 6.4e-2);
+- the off-diagonal `B` term was `S/K` with a **signed** `K`, so it went negative
+  for `K < 0`, which a drift-like term must not.
+
+A **skew** (rotated) quadrupole is not supported — that couples x and y, so it
+cannot be written as two independent 2×2 blocks. Tracked as issue #3 step 4.
 
 ---
 

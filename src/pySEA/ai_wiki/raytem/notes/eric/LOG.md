@@ -7,14 +7,56 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
-## 2026-08-23 — [Under Construction] Thick quadrupole: symplecticity + axis convention (issue #3 steps 1-2)
+## 2026-08-23 — [Done] Thick quadrupole: symplecticity + axis convention (issue #3 steps 1-2)
 **Goal:** make the thick quadrupole block symplectic and give thin and thick one shared axis convention (K > 0 focuses x).
 **Why:** the thick y-block `[[C, S/K], [+K S, C]]` has det = cos(2|KL|) = 0.75 over a 30 mm body — 25%% of phase-space area lost, violating Liouville; and thin/thick currently disagree on which axis focuses, so a quadrupole changes behavior when you give it a length.
-- [ ] symplectic blocks (trig on the focusing axis, cosh/sinh on the defocusing one)
-- [ ] k = |K| in the B term (currently signed, so it inverts for K < 0)
-- [ ] one convention in both branches; drop the thin X,Y swap
-- [ ] single body-block helper shared by transfer_matrix / transfer_xblock / focal_powers
-- [ ] tests: det == 1, halves compose, emittance invariant, thin/thick agree on sign
+- [x] symplectic blocks (trig on the focusing axis, cosh/sinh on the defocusing one)
+- [x] k = |K| in the B term (currently signed, so it inverts for K < 0)
+- [x] one convention in both branches; drop the thin X,Y swap
+- [x] single body-block helper shared by transfer_matrix / transfer_xblock / focal_powers
+- [x] tests: det == 1, halves compose, emittance invariant, thin/thick agree on sign
+
+**Outcome:** Issue #3 steps 1-2 done. A quadrupole focuses one axis and
+defocuses the other, so `u'' -+ k^2 u = 0` is harmonic on one and **hyperbolic**
+on the other; the thick branch used cos/sin on both, so the defocusing block had
+`det = cos(2|KL|)` = **0.7518** for strength 12 over 30 mm. A quarter of the
+phase-space area vanished, emittance was not conserved, and the halves did not
+compose (6.4e-2). The defocusing axis is now `[[cosh, sinh/k], [+k sinh, cosh]]`.
+
+Two things the plan had not caught, both found while writing the fix:
+(a) the `B` term was `S/K` with a **signed** `K`, so it went *negative* for
+`K < 0` — a drift-like term must not, and this was wrong independently of the
+cosh defect; (b) in the thin branch, focusing did not actually depend on
+`sign(K)` at all except through the `X,Y` swap, since `-K**2` focuses x for
+either sign — so the convention fix had to touch the magnitudes, not just
+delete the swap.
+
+Convention (Eric's call): **K > 0 focuses x, defocuses y**, now identical in
+both branches. All of it lives in one private `_body_block(dz, axis)` reading
+`_axis_focuses(axis)`, consumed by `transfer_matrix`, `transfer_xblock` and
+`focal_powers` — which is what makes `transfer_xblock` match the matrix
+sub-block to **0.0 exactly** across a K/L sweep, rather than by careful
+duplication as before.
+
+Numbers: `|det - 1| < 2.4e-14` and `M(L/2)^2 = M(L)` to 3.6e-15 over
+K in +-{0.3, 1, 12, 30} x L in {5, 30, 100} mm x both axes; transverse 4x4 det
+= 1.000000000000; `propagate_moments` conserves `sqrt(det Sigma)` on both axes
+to 1e-12 (ratio 1.000000000000); a short thick quad approaches the thin kick
+`K^2 L` (ratio 0.99999976 at L = 0.1 mm). The `_accumulate_xblocks`
+symplecticity guard stopped firing on quadrupoles **by itself**, as designed —
+its test now uses a deliberately non-symplectic stub, since its original
+subject is fixed. `basic_column` is unaffected: all three of its quadrupoles
+sit at zero strength. 88 tests green (was 85).
+
+Note for the defocusing axis: `|1/f| = k*sinh(kL)` grows without bound in `kL`,
+where the old `sin` folded over. That asymmetry is real — at strength 12 over
+30 mm the two axes differ (4.2273 vs 4.4139) — and it now shows up in
+`focal_powers`, hence in the wave path's saddle screen too.
+
+**Not done:** step 3 (the per-axis scaled segment, `Quadrapole.scaled_segment()`)
+and step 4, skew. Skew needs an angle parameter and x-y coupling, so it is a
+feature rather than a sign fix — a rotated quadrupole cannot be written as two
+independent 2x2 blocks at all.
 
 ## 2026-08-23 — [Done] Revert the P1 wave-seam generalization
 **Goal:** back out yesterday's `phase_shift(kind=)` / `amplitude_mask` rework and restore the three `propagate_wave` overrides.

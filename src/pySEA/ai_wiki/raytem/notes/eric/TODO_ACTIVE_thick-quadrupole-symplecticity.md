@@ -4,6 +4,8 @@
 **Issue:** [sea-ecosystem/rayTEM#3](https://github.com/sea-ecosystem/rayTEM/issues/3)
 **Plan:** [PLAN_2026-08-22_thick-quadrupole-symplecticity.md](PLAN_2026-08-22_thick-quadrupole-symplecticity.md)
 
+**Steps 1-2 landed 2026-08-23** (`70f81b4`); step 3 is next, step 4 deferred.
+
 **Unblocked 2026-08-23.** Eric settled the convention: **K > 0 focuses x and
 defocuses y**, in both the thin and thick branches. Steps 1-2 in progress.
 Skew (the quad angle) is acknowledged as needed but is a separate feature —
@@ -15,13 +17,13 @@ it cannot be expressed as two independent 2x2 blocks. Step 3 stays queued.
 - [x] mitigation: symplecticity guard in `Microscope._accumulate_xblocks`
       refuses a non-symplectic body, naming the determinant
 - [x] issue #3 filed with reproducer, plan inlined
-- [ ] step 1 — thick block symplectic (defocusing axis -> cosh/sinh);
+- [x] step 1 — thick block symplectic (defocusing axis -> cosh/sinh);
       det == 1, halves compose, thin limit, emittance invariant
-- [ ] step 1b — the B term uses signed `1/K`, so it goes *negative* for K < 0
+- [x] step 1b — the B term uses signed `1/K`, so it goes *negative* for K < 0
       (a drift-like term must not); use k = |K| in the block
-- [ ] step 2 — one axis convention for thin AND thick (K > 0 focuses x),
+- [x] step 2 — one axis convention for thin AND thick (K > 0 focuses x),
       stated in the docstring; removes the thin `X,Y` swap
-- [ ] step 2b — one private body-block helper feeding `transfer_matrix`,
+- [x] step 2b — one private body-block helper feeding `transfer_matrix`,
       `transfer_xblock` and `focal_powers`, so the three cannot drift apart
 - [ ] step 3 — generalize the segment propagator (element-agnostic name,
       per-axis strengths) and add `Quadrapole.scaled_segment()`; wave line foci

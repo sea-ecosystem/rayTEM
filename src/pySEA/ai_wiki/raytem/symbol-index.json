@@ -166,7 +166,7 @@
     "name": "Dipole",
     "qualname": "Dipole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1716,
+    "source_lineno": 1833,
     "signature": "class Dipole",
     "doc": ""
   },
@@ -409,7 +409,7 @@
     "name": "Lens",
     "qualname": "Lens",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1937,
+    "source_lineno": 2054,
     "signature": "class Lens",
     "doc": "Lens element class for round lenses / symmetric focusing. https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example or Brown1983 page 105"
   },
@@ -679,7 +679,7 @@
     "name": "Prism",
     "qualname": "Prism",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2223,
+    "source_lineno": 2340,
     "signature": "class Prism",
     "doc": ""
   },
@@ -1459,6 +1459,15 @@
   },
   {
     "kind": "function",
+    "name": "test_quadrupole_axis_convention_thin_and_thick",
+    "qualname": "test_quadrupole_axis_convention_thin_and_thick",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 1470,
+    "signature": "test_quadrupole_axis_convention_thin_and_thick()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_rays_signalset_view",
     "qualname": "test_rays_signalset_view",
     "path": "src/pySEA/rayTEM/tests/test_wave_and_envelope.py",
@@ -1617,6 +1626,24 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 1256,
     "signature": "test_thick_lens_wave_rotation_matches_ray_larmor()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_thick_quadrupole_conserves_emittance",
+    "qualname": "test_thick_quadrupole_conserves_emittance",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 1499,
+    "signature": "test_thick_quadrupole_conserves_emittance()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_thick_quadrupole_is_symplectic",
+    "qualname": "test_thick_quadrupole_is_symplectic",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 1449,
+    "signature": "test_thick_quadrupole_is_symplectic()",
     "doc": ""
   },
   {
