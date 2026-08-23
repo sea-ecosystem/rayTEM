@@ -495,25 +495,36 @@ def _(load_trimmed, np, read_scaled_wavefield):
 def _(mo):
 	mo.md(
 		r"""
-		### Why the second object disagrees — a limitation, not a bug
+		### The second object exercises mid-element frame switching
 
-		The object at −50 mm reproduces all five image planes to **0.000 nm**.
-		The one at −500 mm matches only its *first* plane, then diverges.
+		Both objects now reproduce all five image planes. The one at −500 mm is
+		the interesting case: its second predicted plane, 320.474 mm, falls
+		**inside C3's body** (0.320–0.340 m), where the scaled frame is singular.
 
-		The cause is worth knowing. Its second predicted image plane, 320.474 mm,
-		falls **inside C3's body** (0.320–0.340 m). The scaled frame cannot cross
-		`s = 0` inside a body, so the hybrid engine flattens before it
-		(measurably: `flatten` events at 0.314916 and 0.340) and carries a flat
-		frame through — and **a frame switch re-seeds the frame as a different
-		reference ray**. Every crossover after that belongs to the new ray, not
-		to the original object, so the run crosses at 419.803 mm instead of
-		320.474 mm.
+		That used to fail in two compounding ways. The engine could only switch
+		frames in free segments, so it flattened *around* C3 and recorded the
+		crossover as `z + |R|` — a straight-line extrapolation through the
+		element — putting the plane at 419.803 mm, 99 mm out. And because the
+		frame that crossed was then abandoned rather than restored, every plane
+		*downstream* was wrong too, by 94–594 µm.
 
-		The run does not fail; it silently continues on a different conjugate
-		family. So **a wave run's crossovers are that seed's family only up to
-		its first mid-body flatten** — past that, use the analytic planes, which
-		are matrix arithmetic and never switch frames. Lifting this means
-		mid-element frame switching.
+		A body now runs the flatten → cross → rediverge policy with **its own
+		law**: the crossing is located by the medium, and the rediverge rebuilds
+		the original ray's curvature as `B(d)/D(d)` — which is the familiar `d`
+		only in free space. Restoring the ray is what fixes the downstream
+		planes:
+
+		| plane | before | after |
+		|---|---|---|
+		| 2 (inside C3) | 99 mm | 20 nm |
+		| 3 | 594 µm | 0.058 nm |
+		| 4 | 99 µm | 0.011 nm |
+		| 5 | 234 µm | 0.026 nm |
+
+		The residual 20 nm is a different thing: the *free* engine flattening at
+		0.314916, just before C3, and extrapolating `z + |R|` through it. That
+		needs the engine to see downstream optics, which it cannot from inside a
+		free segment.
 		"""
 	)
 	return

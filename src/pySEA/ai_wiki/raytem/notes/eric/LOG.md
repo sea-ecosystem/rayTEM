@@ -7,6 +7,70 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-23 — [Done] Mid-element frame switching
+**Goal:** let a crossover that falls inside an element body be crossed, and the plane reported where it actually is.
+**Why:** Eric: "fix the mid-element frame switching issue first... just do it." It was worse than a refusal — see below.
+- [x] `propagate_quadratic_segment_hybrid`: flatten/cross/rediverge using the segment's own law
+- [x] restore the original ray past the crossing, so downstream planes stay right
+- [x] tests, docs, notebook
+
+**Outcome:** Done. The starting symptom was that a crossover inside a body was
+refused. The real behaviour was worse: the free engine flattened **around** the
+body and recorded the crossover as `z + |R|`, a straight-line extrapolation
+through the element as if it were empty — so the plane was reported in the wrong
+place *silently*, not reported as unavailable.
+
+Fixing it needed three things a free segment never needs, all because a focusing
+medium keeps bending the frame:
+
+1. **A flat frame does not stay flat.** The medium re-converges it at once, so
+   the flatten criterion re-fires every step and the axis never crosses.
+   Suppressed while that axis has a crossing pending.
+2. **The crossing is not at `z + |R|`.** Located with the body's law inside it
+   and straight-line past it (`_crossing_from`).
+3. **The rediverge cannot require a flat frame, nor use `R = d`.** By the time
+   the frame reaches the crossing the medium has re-curved it (measured
+   R = -3.66, not inf), so the branch never fired. And a ray that crossed at
+   `z_c` has curvature `B(d)/D(d)` of the *medium* — which is the familiar `d`
+   only when `kappa = 0`.
+
+**Restoring the ray mattered as much as logging the plane.** My first cut logged
+the in-body crossover correctly (99 mm -> 20 nm) but left every *downstream*
+plane wrong by 94-594 um, because the frame that crossed was abandoned. A fourth
+bug hid behind that: with the marker pending, the step ran to the body exit in
+one go, so the rediverge point was never examined — the step now stops where the
+rediverge first becomes representable.
+
+basic_column, point object at -500 mm, image planes (nm from analytic):
+
+| plane | before | after |
+|---|---|---|
+| 1 | 0.000 | 0.000 |
+| 2 (inside C3) | **99 mm** | 20.4 |
+| 3 | 594 um | 0.058 |
+| 4 | 99 um | 0.011 |
+| 5 | 234 um | 0.026 |
+
+The common case is untouched **by construction**: with no interior zero and no
+pending marker the traversal makes a single exact call and returns its output
+unchanged (asserted bit-identical for both a thick lens and a thick quadrupole),
+so flat-seeded runs still put all five diffraction planes at 0.000 um.
+
+**Residual, different in kind:** the 20 nm on plane 2 is the *free* engine
+flattening at 0.314916, just before C3, and extrapolating `z + |R|` through it —
+the same straight-through assumption, now on the other side of the boundary.
+Closing it needs the engine to see what optics lie downstream of a flatten,
+which it cannot from inside a free segment. 6 parts in 1e8; documented, not
+chased.
+
+**Correction to my previous LOG entry:** I wrote there that "a frame switch
+re-seeds the frame as a different reference ray". That was wrong as a general
+claim — the free engine records `z_cross` from the *pre*-switch frame and the
+rediverge restores the ray with `R = z - z_cross`, which is why flat-seeded runs
+were always exact. The real defect was narrower: that restore is a free-space
+identity, and it silently fails when an element sits between the flatten and the
+rediverge. 99 tests green (was 96).
+
 ## 2026-08-23 — [Done] Wave image planes (D5) + `wavefield_at` exactness
 **Goal:** make a hybrid run find and log image planes, not just back-focal planes.
 **Why:** Eric: "for the wave optics plane finding we need to find the image planes first. I think we only found the back focal planes." Correct — and the reason is structural.

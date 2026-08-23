@@ -131,9 +131,9 @@ and is propagated by the *same* angular-spectrum kernel over `Δτ`
   curvature-kick route. This matters: treating a thick lens as *drift L/2 →
   kick → drift L/2* misplaced every crossover on `basic_column` by 422–4808 µm,
   and a thick quadrupole's by 72–2315 µm; the exact segment puts both on the
-  ray-traced diffraction planes to **0.0 µm**. The one limitation is a
-  crossover landing *inside* a body, where this frame is singular and the code
-  raises rather than guessing — mid-element frame switching is not implemented.
+  ray-traced diffraction planes to **0.0 µm**. A crossover landing *inside* a
+  body makes this frame singular; the body switches frames there rather than
+  refusing (see **Mid-element frame switching** below).
 
   ### One closed form for every segment: `Δτ = B / (s₀ · s_L)`
 
@@ -363,32 +363,53 @@ not an error in the advance, but it does mean *field* comparisons between
 differently-cut columns should run at `absorb = 0`. Plane positions are
 unaffected either way.
 
-### Limitation: a mid-body flatten re-seeds the frame
+### Mid-element frame switching
 
-The scaled frame cannot cross `s = 0` inside an element body — documented above,
-where the code raises rather than guessing. The hybrid engine's response is to
-**flatten before the body** and carry a flat frame through it. That is safe for
-the field, but it has a consequence for plane finding that is easy to miss:
+A crossover can fall **inside** an element body. The scaled frame is singular
+there, and for a long time the engine only switched frames in free segments, so
+the exact traversal simply refused. What the free engine did instead was worse
+than refusing: it flattened *around* the body and recorded the crossover as
+`z + |R|`, which extrapolates straight through the element as though it were
+empty — reporting the plane in the wrong place, silently.
 
-**a frame switch re-seeds the frame as a different reference ray.** After a
-flatten, `s` is no longer proportional to the `A` or `B` of the original seed,
-so subsequent `s = 0` crossings belong to the new ray, not to the original
-object. The run does not fail; it silently continues on a different conjugate
-family.
+A body now runs the same flatten → cross → rediverge policy using **its own
+law** (`propagate_quadratic_segment_hybrid`). Three things differ from free
+space, all because a focusing medium keeps bending the frame:
 
-Measured on `basic_column` with a point object at z = −500 mm: the first image
-plane is found exactly (178.036758 mm), but the second predicted one,
-320.474 mm, falls inside C3's body (0.320–0.340 m). The engine flattens at
-0.314916 and 0.340 instead and crosses at 0.419803 mm — 99 mm away — and the
-remaining planes are off by 94–560 µm. The same column with the object at
-−50 mm, where no plane lands in a body, reproduces all five image planes to
-**0.000 nm**.
+- **A flat frame does not stay flat.** The medium re-converges it immediately,
+  so the flatten criterion would re-fire every step and the axis would never
+  cross. It is suppressed while that axis has a crossover pending.
+- **The crossing is not at `z + |R|`.** It is found with the body's law while
+  inside it and straight-line past it (`_crossing_from`).
+- **The rediverge cannot require a flat frame, and cannot use `R = d`.** By the
+  time the frame reaches the crossing the medium has already re-curved it, and
+  a ray that crossed at `z_c` has curvature `B(d)/D(d)` of the *medium* at
+  distance `d` past it — which reduces to the familiar `d` only when `κ = 0`.
 
-So: **a wave run's crossovers are that seed's conjugate family only up to its
-first mid-body flatten.** Past that, use the analytic planes
-(`conjugate_planes`), which are unaffected — they are matrix arithmetic and
-never switch frames. Lifting this properly means mid-element frame switching,
-which would let the engine cross inside a body and keep the original ray.
+Restoring the ray matters as much as logging the plane: without the rediverge,
+every plane *downstream* of the in-body crossing is wrong too. On `basic_column`
+with a point object at −500 mm, whose second image plane (320.474 mm) sits
+inside C3's body (0.320–0.340):
+
+| image plane | before | after |
+|---|---|---|
+| 1 | 0.000 nm | 0.000 nm |
+| 2 (inside C3) | **99 mm** | 20 nm |
+| 3 | 594 µm | 0.058 nm |
+| 4 | 99 µm | 0.011 nm |
+| 5 | 234 µm | 0.026 nm |
+
+The common case is untouched by construction: with no interior zero and no
+pending marker the traversal is a single exact call, bit-identical to before, so
+ordinary thick lenses and quadrupoles are unaffected — flat-seeded runs still
+put all five diffraction planes at 0.000 µm.
+
+**Remaining, and different in kind:** the 20 nm on plane 2 is the *free* engine
+flattening at 0.314916, just before C3, and recording `z + |R|` — the same
+straight-through extrapolation, now on the other side of the boundary. Closing
+it needs the engine to know what optics lie downstream of the flatten, which it
+cannot see from inside a free segment. 20 nm in 320 mm is 6 parts in 10⁸, so it
+is documented rather than chased.
 
 ## Other remedies (roadmap)
 

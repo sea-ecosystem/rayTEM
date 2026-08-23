@@ -695,7 +695,9 @@ def scaled_delta_tau_quadratic(dz: float, s0: float, R0: float, kappa: float) ->
 		If the reference scale passes through zero inside the segment — the
 		crossover lies *within the element body*, where this frame is singular
 		(the integral diverges). Switch frames before entering, or shorten the
-		step; mid-element frame switching is not implemented.
+		step. :func:`propagate_quadratic_segment_hybrid` does exactly that and is
+		what the hybrid driver calls; this exact form deliberately has no
+		switching policy of its own.
 
 	Related
 	-------
@@ -720,9 +722,9 @@ def scaled_delta_tau_quadratic(dz: float, s0: float, R0: float, kappa: float) ->
 	if z_zero is not None:
 		raise ValueError(f"Scaled frame reaches s = 0 inside the segment body (at "
 						 f"{z_zero:.6g} m of {dz:.6g} m): the crossover lies within "
-						 "the element, where this frame is singular. Switch frames "
-						 "before the element, or stop the step there (mid-element "
-						 "frame switching is not implemented).")
+						 "the element, where this frame is singular. Use "
+						 "propagate_quadratic_segment_hybrid, which switches frames "
+						 "inside the body, or stop the step before the crossing.")
 	A, B = segment_block(dz, kappa)
 	s_end = A * s0 + B * u0
 	if s_end == 0:
