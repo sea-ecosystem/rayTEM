@@ -10,7 +10,7 @@ accumulated 2x2, which is simultaneously the wave frame's own arithmetic
 (the frame IS a reference ray) and the ray matrices — so one implementation
 answers all three and the three methods must agree.
 
-- [x] `Element.transfer_xblock(dz, axis)` seam: rotating-frame 2x2 for a
+- [x] `Element.transfer_block(dz, axis)` seam: rotating-frame 2x2 for a
       partial or full length (base = drift + thin kick; `Lens` = cos/sin)
 - [x] (1) wave image planes: same walk with the conjugate seed -> `B = 0`.
       The frame update *is* the 2x2, so this must reproduce the analytic and

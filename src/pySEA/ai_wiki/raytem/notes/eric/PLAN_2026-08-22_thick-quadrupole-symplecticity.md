@@ -32,10 +32,10 @@ the intended convention needs restating rather than reverse-engineering.
 
 ## 2. What is already in place (mitigation, not a fix)
 
-- `Element.transfer_xblock(dz, axis)` — the rotating-frame 2×2 at a **partial**
+- `Element.transfer_block(dz, axis)` — the rotating-frame 2×2 at a **partial**
   length. `Quadrapole`'s override mirrors `transfer_matrix` *exactly*,
   defect included, so plane finding never silently diverges from ray tracing.
-- `Microscope._accumulate_xblocks` guards `det == 1` on any element with a body
+- `Microscope._accumulate_blocks` guards `det == 1` on any element with a body
   and raises, naming the determinant, rather than reporting untrustworthy
   planes. This is a **general** check, so it will stop firing by itself once
   the matrix is fixed — no follow-up edit needed.
@@ -81,15 +81,15 @@ A thick quadrupole should get the same treatment, but cannot yet:
 2. there is no correct per-axis body law to mirror until step 1 lands.
 
 So the order is: fix the matrix, then generalize the propagator (element-
-agnostic name + per-axis strengths), then add `Quadrapole.scaled_segment()`
-mirroring `Lens.scaled_segment()`. Acceptance: a thick-quad column's wave line
+agnostic name + per-axis strengths), then add `Quadrapole._scaled_segment()`
+mirroring `Lens._scaled_segment()`. Acceptance: a thick-quad column's wave line
 foci match the ray-traced and analytic planes to ~1e-9, and the symplecticity
 guard no longer fires.
 
 **Related architectural point (Eric):** no element should own a propagation
 method — the ray side is the model, where an element declares
 `transfer_matrix()` and the generic `propagate_ray` consumes it. The wave side
-mostly follows this (`phase_shift`, `scaled_segment` are declarations consumed
+mostly follows this (`phase_shift`, `_scaled_segment` are declarations consumed
 by the generic `propagate_wave`), but three elements still override
 `propagate_wave` itself: `Source`, `Aperture`, `Prism`. Those overrides exist
 because their wave action is not a phase — a seed and an amplitude mask — so

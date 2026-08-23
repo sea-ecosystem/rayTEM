@@ -16,7 +16,7 @@ P=K sin(KL) -> drift L/2, which misplaces every crossover (measured: C1 by
 - [x] `waveoptics.propagate_thick_lens_scaled(...)` — frame (s, R) via the
       element's own cos/sin 2x2, U over dtau; raise actionably if s -> 0
       inside the body (mid-element frame switching is a separate follow-up)
-- [x] element seam: `Element.scaled_segment()` (None) / `Lens.scaled_segment()`
+- [x] element seam: `Element._scaled_segment()` (None) / `Lens._scaled_segment()`
       (quadratic, K) so `L == 0` keeps the thin-lens path and `L > 0` takes
       the segment path — both kept
 - [x] tests: thick-lens crossover now matches the ray/analytic value; thin

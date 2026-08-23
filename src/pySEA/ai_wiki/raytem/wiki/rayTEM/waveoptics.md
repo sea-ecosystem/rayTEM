@@ -177,7 +177,7 @@ implemented).
 ### `propagate_quadratic_segment_scaled(U, dxi, deta, wavelength, dz, s, R, K, s_min=1e-3, absorb=0.0, rotate=False)`
 The honest thick body: **not** a phase screen but a *medium*, carried as one
 segment. A `waveoptics` primitive, not an element method: elements declare
-`scaled_segment()` and the generic `Element._propagate_wave_scaled` consumes
+`_scaled_segment()` and the generic `Element._propagate_wave_scaled` consumes
 it, exactly as `transfer_matrix` feeds `propagate_ray`. The frame advances by the element's own 2×2 applied to `(s, s/R)` —
 legitimate because the frame *is* a reference ray — and U propagates over the
 segment's own Δτ with the usual carrier-free kernel. **No screen, no

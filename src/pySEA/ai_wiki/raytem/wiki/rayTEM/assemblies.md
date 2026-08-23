@@ -28,7 +28,7 @@
 |   `Microscope.propagate_ray(self, r0, z, verbose)` | 172 |
 |   `Microscope.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 176 |
 |   `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)` | 187 |
-|   `Element.transfer_xblock(dz=None, axis='x')` — the shared seam | 189 |
+|   `Element.transfer_block(dz=None, axis='x')` — the shared seam | 189 |
 |   `Microscope.conjugate_planes(axis='x', method='frame', reference=None, x0=1e-6, theta0=1e-6)` | 211 |
 |   `Microscope.beam_waists(axis='x', sigma0=None)` | 242 |
 |   `Microscope.subdivided(zpts)` | 271 |
@@ -186,7 +186,7 @@ the frame-switching engine (the back-focal / image planes).
 
 ### `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)`
 
-### `Element.transfer_xblock(dz=None, axis='x')` — the shared seam
+### `Element.transfer_block(dz=None, axis='x')` — the shared seam
 The rotating-frame 2×2 `[[A, B], [C, D]]` for one transverse axis, at a
 **partial** length. This is what makes planes *inside* a body exact instead of
 interpolated between its faces. Each element carries its body's own law —
@@ -220,7 +220,7 @@ reference.
 `method='ray'` (default) traces the four reference rays through
 `postprocessing.findPlanes` — the repo's established convention.
 `method='frame'` accumulates the transfer blocks
-(`_accumulate_xblocks`) and solves both conditions in closed form — exact, and
+(`_accumulate_blocks`) and solves both conditions in closed form — exact, and
 **this is the same calculation the scaled wave frame performs while
 propagating**, since the frame is a reference ray `(h, u) = (s, s/R)`: `s → 0`
 on a flat seed is `A = 0`, on a point seed is `B = 0`. So the wave's own

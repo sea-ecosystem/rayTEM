@@ -46,7 +46,7 @@ to the exact paraxial root when aberrations vanish (a useful self-test).
 3. For each sample, trace a small bundle and find the z of **least confusion**
    — minimum RMS radius. In a drift the RMS radius is quadratic in z, so this
    is a closed-form vertex, not a search; inside a body use the element's own
-   partial block (`Element.transfer_xblock`, already in place).
+   partial block (`Element.transfer_block`, already in place).
 4. Return `z_focus(r, phi)` samples plus a fit. Suggested basis, because it
    maps onto how these are measured and corrected:
    `z(r, phi) = z_0 + c_20 r^2 + c_22 r^2 cos 2(phi - phi_22) + c_31 r^3 cos(phi - phi_31) + ...`

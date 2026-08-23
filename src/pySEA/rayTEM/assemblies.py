@@ -1233,7 +1233,7 @@ class Microscope(SEASerializable):
 											  position=sec.position))
 		return Microscope(name=scope.name, sections=sections)
 
-	def _accumulate_xblocks(self, axis:Literal['x','y']='x', reference=None):
+	def _accumulate_blocks(self, axis:Literal['x','y']='x', reference=None):
 		"""Walk the column accumulating the 2x2 block, yielding per-element state.
 
 		The single mechanism behind :meth:`conjugate_planes` and
@@ -1272,7 +1272,7 @@ class Microscope(SEASerializable):
 
 		Related
 		-------
-		Element.transfer_xblock : Supplies each element's block.
+		Element.transfer_block : Supplies each element's block.
 		conjugate_planes, beam_waists : Consumers.
 		"""
 		z_ref = 0.0
@@ -1297,10 +1297,10 @@ class Microscope(SEASerializable):
 			if start > z0 + 1e-12:				# reference falls inside this element
 				# homogeneous body: the block from depth (start-z0) to L is the
 				# element's own block over the remaining length
-				M = xp.asarray(ele.transfer_xblock(dz=z0 + L - start, axis=axis),
+				M = xp.asarray(ele.transfer_block(dz=z0 + L - start, axis=axis),
 							   dtype=float) @ M
 				continue
-			blk = xp.asarray(ele.transfer_xblock(axis=axis), dtype=float)
+			blk = xp.asarray(ele.transfer_block(axis=axis), dtype=float)
 			if L > 0:
 				# a real element conserves phase-space area (Liouville), so its
 				# block must be symplectic; without that, partial-length
@@ -1315,8 +1315,8 @@ class Microscope(SEASerializable):
 						"(a defocusing body should be cosh/sinh, not cos/sin); until "
 						"then, model it as thin (length = 0).")
 			yield z0, ele, L, M, lambda dz, _e=ele: xp.asarray(
-				_e.transfer_xblock(dz=dz, axis=axis), dtype=float)
-			M = xp.asarray(ele.transfer_xblock(axis=axis), dtype=float) @ M
+				_e.transfer_block(dz=dz, axis=axis), dtype=float)
+			M = xp.asarray(ele.transfer_block(axis=axis), dtype=float) @ M
 
 	def _element_roots(self, ele, L, block, P0, Q0):
 		"""Solve ``m00(dz)*P0 + m01(dz)*Q0 = 0`` inside one element.
@@ -1521,7 +1521,7 @@ class Microscope(SEASerializable):
 				out[family] = xp.asarray([zFromFractional(zs, f) for f in idx])
 		else:
 			out = {'diff': [], 'image': []}
-			for z0, ele, L, M, block in self._accumulate_xblocks(axis=axis,
+			for z0, ele, L, M, block in self._accumulate_blocks(axis=axis,
 																 reference=reference):
 				A, B, C, D = M[0, 0], M[0, 1], M[1, 0], M[1, 1]
 				for family, (P0, Q0) in (('diff', (A, C)), ('image', (B, D))):
@@ -1604,7 +1604,7 @@ class Microscope(SEASerializable):
 							 "[<xx'>, <x'x'>]] explicitly.")
 		emittance = float(xp.sqrt(max(xp.linalg.det(S0), 0.0)))
 		zs, widths = [], []
-		for z0, ele, L, M, block in self._accumulate_xblocks(axis=axis):
+		for z0, ele, L, M, block in self._accumulate_blocks(axis=axis):
 			S = M @ S0 @ M.T				# covariance at this element's entrance
 			# waist where Sigma_12 = 0; the same root condition as a plane, with
 			# (P0, Q0) = (Sigma_12, Sigma_22) since d(Sigma_12)/ddz = Sigma_22

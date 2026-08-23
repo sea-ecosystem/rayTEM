@@ -626,7 +626,7 @@ def propagate_quadratic_segment_scaled(U: np.ndarray, dxi: float, deta: float,
 	r"""Propagate the scaled field through a constant-``K`` quadratic-index segment.
 
 	The honest treatment of any element that declares itself a quadratic
-	segment (:meth:`elements.Element.scaled_segment` — today a thick round
+	segment (:meth:`elements.Element._scaled_segment` — today a thick round
 	lens): rather than a thin kick placed between two half-length drifts, the
 	element is one **segment** whose scale law is sinusoidal. The frame advances
 	by the element's own transfer block,

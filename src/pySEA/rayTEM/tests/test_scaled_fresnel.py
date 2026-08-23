@@ -1195,8 +1195,8 @@ def test_thick_lens_segment_matches_transfer_matrix():
 	# U is untouched apart from the segment's own tau propagation: energy conserved
 	assert np.isclose((np.abs(U)**2).sum(), (np.abs(U0)**2).sum(), rtol=1e-9)
 	# and a thin lens of the same power still takes the kick path
-	assert Lens(strength=6.0, length=0.0).scaled_segment() is None
-	assert lens.scaled_segment() == ('quadratic', K)
+	assert Lens(strength=6.0, length=0.0)._scaled_segment() is None
+	assert lens._scaled_segment() == ('quadratic', K)
 
 
 @pytest.mark.skipif(not sea_available, reason="basic_column.sea requires sea_eco")
@@ -1278,9 +1278,9 @@ def test_thick_lens_wave_rotation_matches_ray_larmor():
 	assert np.isclose((np.abs(U_rot)**2).sum(), (np.abs(U_no)**2).sum(), rtol=1e-12)
 
 
-# --- one plane calculus: transfer_xblock, conjugate families, waists --------------
+# --- one plane calculus: transfer_block, conjugate families, waists --------------
 
-def test_transfer_xblock_matches_transfer_matrix():
+def test_transfer_block_matches_transfer_matrix():
 	# the partial-length seam must be the SAME optics as the ray matrices
 	import os
 	from pySEA.rayTEM.assemblies import load_microscope
@@ -1294,15 +1294,15 @@ def test_transfer_xblock_matches_transfer_matrix():
 			L = getattr(ele, "length", 0) or 0
 			M6 = ele.transfer_matrix()
 			stored = np.array([[M6[0, 0], M6[0, 1]], [M6[1, 0], M6[1, 1]]], float)
-			mine = np.asarray(ele.transfer_xblock(), float)
+			mine = np.asarray(ele.transfer_block(), float)
 			if isinstance(ele, Lens) and L > 0 and (ele._effective_strength() or 0):
 				mine = mine * np.cos(ele._effective_strength() * L)	# Larmor factor
 			worst = max(worst, abs(stored - mine).max()) ; n += 1
 	assert n > 40 and worst < 1e-12
 	# a homogeneous body's halves compose exactly
 	lens = Lens(strength=34.72, length=0.02)
-	full = np.asarray(lens.transfer_xblock(), float)
-	half = np.asarray(lens.transfer_xblock(dz=0.01), float)
+	full = np.asarray(lens.transfer_block(), float)
+	half = np.asarray(lens.transfer_block(dz=0.01), float)
 	assert np.abs(half @ half - full).max() < 1e-12
 
 
@@ -1399,28 +1399,28 @@ def test_beam_waists_match_analytic_focal_shift():
 		mic.beam_waists(axis="x", sigma0=np.zeros((2, 2)))
 
 
-def test_transfer_xblock_refuses_to_invent_a_kick_in_a_body():
+def test_transfer_block_refuses_to_invent_a_kick_in_a_body():
 	# a finite-length element with focusing power must carry its body's own
 	# law -- splitting it into a kick between drifts is exactly the
 	# approximation the scaled path was corrected to avoid, so the base class
 	# refuses rather than guessing
 	class BodyWithoutLaw(Lens):
-		def transfer_xblock(self, dz=None, axis='x'):
-			return super(Lens, self).transfer_xblock(dz=dz, axis=axis)
+		def transfer_block(self, dz=None, axis='x'):
+			return super(Lens, self).transfer_block(dz=dz, axis=axis)
 	with pytest.raises(NotImplementedError, match="no partial propagator"):
-		BodyWithoutLaw(strength=10.0, length=0.02).transfer_xblock()
+		BodyWithoutLaw(strength=10.0, length=0.02).transfer_block()
 	# elements with no focusing power are exact free space at any depth
-	assert np.allclose(Drift(length=0.05).transfer_xblock(), [[1, 0.05], [0, 1]])
-	assert np.allclose(Dipole(strength=1e-5, length=0.02).transfer_xblock(),
+	assert np.allclose(Drift(length=0.05).transfer_block(), [[1, 0.05], [0, 1]])
+	assert np.allclose(Dipole(strength=1e-5, length=0.02).transfer_block(),
 					   [[1, 0.02], [0, 1]])
 	# a thin element IS an impulsive kick -- exact, no body to traverse
 	thin = Lens(strength=6.0, length=0.0)
-	assert np.allclose(thin.transfer_xblock(), [[1, 0], [-thin.focal_power(), 1]])
+	assert np.allclose(thin.transfer_block(), [[1, 0], [-thin.focal_power(), 1]])
 	# and a thick lens/quad body carries a harmonic law whose halves compose
 	for ele in (Lens(strength=34.72, length=0.02),
 				Quadrapole(strength=12.0, length=0.03)):
-		full = np.asarray(ele.transfer_xblock(axis='x'), float)
-		half = np.asarray(ele.transfer_xblock(dz=ele.length / 2, axis='x'), float)
+		full = np.asarray(ele.transfer_block(axis='x'), float)
+		half = np.asarray(ele.transfer_block(dz=ele.length / 2, axis='x'), float)
 		assert np.abs(half @ half - full).max() < 1e-12
 		assert np.isclose(np.linalg.det(full), 1.0, atol=1e-12)		# symplectic
 
@@ -1433,13 +1433,13 @@ def test_walk_refuses_non_symplectic_body():
 	# so the guard needs its own subject.
 	class _LossyBody(Drift):
 		"""A body whose block loses phase-space area. Not physical; a test probe."""
-		def transfer_xblock(self, dz=None, axis='x'):
+		def transfer_block(self, dz=None, axis='x'):
 			"""Return a deliberately non-symplectic block (det = 0.75)."""
 			step = self.length if dz is None else float(dz)
 			return np.asarray([[1.0, step], [0.0, 0.75]])
 
 	bad = _LossyBody(length=0.03)
-	assert not np.isclose(np.linalg.det(np.asarray(bad.transfer_xblock(), float)), 1.0)
+	assert not np.isclose(np.linalg.det(np.asarray(bad.transfer_block(), float)), 1.0)
 	mic = Microscope(sections=[MicroscopeSection(elements=[
 		Source(voltage=200), bad, Drift(length=0.2)])])
 	with pytest.raises(ValueError, match="non-symplectic"):
@@ -1453,9 +1453,9 @@ def test_thick_quadrupole_is_symplectic():
 		for L in (0.005, 0.03, 0.1):
 			q = Quadrapole(strength=K, length=L)
 			for axis in ("x", "y"):
-				M = np.asarray(q.transfer_xblock(axis=axis), float)
+				M = np.asarray(q.transfer_block(axis=axis), float)
 				assert np.isclose(np.linalg.det(M), 1.0, atol=1e-12), (K, L, axis)
-				half = np.asarray(q.transfer_xblock(dz=L / 2, axis=axis), float)
+				half = np.asarray(q.transfer_block(dz=L / 2, axis=axis), float)
 				assert np.allclose(half @ half, M, atol=1e-12), (K, L, axis)
 	# the full transverse 4x4 is symplectic too
 	M = np.asarray(Quadrapole(strength=12.0, length=0.03).transfer_matrix(), float)
@@ -1493,7 +1493,7 @@ def test_quadrupole_axis_convention_thin_and_thick():
 	# computed as S/K with a signed K, so it inverted for K < 0
 	for K in (-12.0, 12.0):
 		for axis in ("x", "y"):
-			assert Quadrapole(strength=K, length=0.03).transfer_xblock(axis=axis)[0, 1] > 0
+			assert Quadrapole(strength=K, length=0.03).transfer_block(axis=axis)[0, 1] > 0
 
 
 def test_thick_quadrupole_conserves_emittance():

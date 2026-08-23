@@ -12,9 +12,9 @@ Skew (the quad angle) is acknowledged as needed but is a separate feature —
 the class has no angle parameter, and a rotated quadrupole couples x and y, so
 it cannot be expressed as two independent 2x2 blocks. Step 3 stays queued.
 
-- [x] mitigation: `Element.transfer_xblock` mirrors `transfer_matrix` exactly
+- [x] mitigation: `Element.transfer_block` mirrors `transfer_matrix` exactly
       (defect included) so plane finding never diverges from ray tracing
-- [x] mitigation: symplecticity guard in `Microscope._accumulate_xblocks`
+- [x] mitigation: symplecticity guard in `Microscope._accumulate_blocks`
       refuses a non-symplectic body, naming the determinant
 - [x] issue #3 filed with reproducer, plan inlined
 - [x] step 1 — thick block symplectic (defocusing axis -> cosh/sinh);
@@ -24,9 +24,9 @@ it cannot be expressed as two independent 2x2 blocks. Step 3 stays queued.
 - [x] step 2 — one axis convention for thin AND thick (K > 0 focuses x),
       stated in the docstring; removes the thin `X,Y` swap
 - [x] step 2b — one private body-block helper feeding `transfer_matrix`,
-      `transfer_xblock` and `focal_powers`, so the three cannot drift apart
+      `transfer_block` and `focal_powers`, so the three cannot drift apart
 - [ ] step 3 — generalize the segment propagator (element-agnostic name,
-      per-axis strengths) and add `Quadrapole.scaled_segment()`; wave line foci
+      per-axis strengths) and add `Quadrapole._scaled_segment()`; wave line foci
       match ray/analytic to ~1e-9; guard stops firing on its own
 - [x] step 3b — **dropped.** Tried and reverted 2026-08-23: an aperture is not
       expressible as a phase (exp(i*chi) is unimodular), but it is the only

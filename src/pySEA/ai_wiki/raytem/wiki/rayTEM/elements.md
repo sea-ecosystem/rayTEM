@@ -11,7 +11,7 @@
 |   `Element.transfer_matrix(self)` | 101 |
 |   `Element.propagate_ray(self, r0, z, z0)` | 105 |
 |   `Element.phase_shift(self, dimensions, wavelength, scaled=False, s=1.0)` | 111 |
-|   `Element.scaled_segment(self)` | 135 |
+|   `Element._scaled_segment(self)` | 135 |
 |   `Element.propagate_wave(self, signal, mode='fixed', s_min=1e-3, log=None, absorb=0.1, crossover='flat', rotate=False)` | 146 |
 |   `Element.propagate(self, *args, kind='ray', **kwargs)` | 182 |
 | Source | 191 |
@@ -132,10 +132,10 @@ full-length kernel (empty program at zero length), scaled path returns
 `(0.0, None)`. Source/Aperture/Prism override it to fail loudly because their
 wave action is not a phase.
 
-### `Element.scaled_segment(self)`
+### `Element._scaled_segment(self)`
 Lets an element declare itself a **segment** rather than a point event for the
 scaled wave path. Base `Element` returns `None` ("treat me as a kick and/or
-screen inside free space"); `Lens.scaled_segment` returns `('quadratic', K)`
+screen inside free space"); `Lens._scaled_segment` returns `('quadratic', K)`
 when `length > 0` and `K != 0`, because a thick round lens is a
 quadratic-index medium the frame can follow exactly (sinusoidal `s(z)`,
 closed-form Δτ, no screen). `length == 0` returns `None`, so a thin lens keeps
@@ -289,9 +289,9 @@ from `focal_powers`. Both 2×2 blocks are assembled separately via
 **Convention: `K > 0` focuses x and defocuses y**; reversing the sign of `K`
 swaps the axes. This holds identically in the thin and thick branches.
 
-All three of `transfer_matrix`, `transfer_xblock` and `focal_powers` read one
+All three of `transfer_matrix`, `transfer_block` and `focal_powers` read one
 private helper, `_body_block(dz, axis)` (which picks its law from
-`_axis_focuses(axis)`), so they cannot drift apart — `transfer_xblock` matches
+`_axis_focuses(axis)`), so they cannot drift apart — `transfer_block` matches
 `transfer_matrix`'s sub-block exactly, not approximately.
 
 Two defects fixed here (issue #3 steps 1–2); both were live before 2026-08-23:

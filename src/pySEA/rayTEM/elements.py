@@ -371,8 +371,12 @@ class Element(SEASerializable):
 		return self._phase_program(dimensions, wavelength, None,
 								   self.name or type(self).__name__)
 
-	def transfer_xblock(self, dz:float=None, axis:Literal['x','y']='x') -> xp.ndarray:
+	def transfer_block(self, dz:float=None, axis:Literal['x','y']='x') -> xp.ndarray:
 		r"""Rotating-frame 2x2 transfer block for one transverse axis.
+
+		(Renamed from ``transfer_xblock``: the ``x`` meant *transverse*, not the
+		x axis, which made ``transfer_xblock(axis='y')`` read as a
+		contradiction.)
 
 		The ``(position, angle)`` sub-block of :meth:`transfer_matrix` for a
 		single axis, with the Larmor rotation left out — the frame
@@ -385,7 +389,7 @@ class Element(SEASerializable):
 		plane falling *inside* an element body can be located exactly rather
 		than interpolated between its faces. The base implementation is a thin
 		kick followed by free space, which is right for every point-like
-		element; :meth:`Lens.transfer_xblock` overrides it with the ``cos/sin``
+		element; :meth:`Lens.transfer_block` overrides it with the ``cos/sin``
 		law of a thick body.
 
 		Parameters
@@ -405,7 +409,7 @@ class Element(SEASerializable):
 		Related
 		-------
 		transfer_matrix : The full 6x6 ray matrix (rotation included).
-		Lens.transfer_xblock : The thick-body override.
+		Lens.transfer_block : The thick-body override.
 		Microscope.conjugate_planes : Accumulates these to locate planes.
 
 		Notes
@@ -431,11 +435,11 @@ class Element(SEASerializable):
 			f"({L} m) and focusing power, but no partial propagator. Splitting it "
 			"into a kick between drifts is exactly the approximation the scaled "
 			"path was corrected to avoid, so it is not done here: give this class "
-			"a transfer_xblock override carrying its body's own law (see "
-			"Lens.transfer_xblock / Quadrapole.transfer_xblock), or model the "
+			"a transfer_block override carrying its body's own law (see "
+			"Lens.transfer_block / Quadrapole.transfer_block), or model the "
 			"element as thin (length = 0).")
 
-	def scaled_segment(self):
+	def _scaled_segment(self):
 		r"""Report this element as a *segment* for the scaled wave path, if it is one.
 
 		Most elements act on the scaled representation as a point event: a
@@ -445,6 +449,13 @@ class Element(SEASerializable):
 		the scaled factorization can carry it exactly as one segment whose scale
 		law is sinusoidal instead of linear, with no screen and no kick. This
 		hook lets such an element say so.
+
+		Driver-only, hence private: it is consumed by
+		:meth:`_propagate_wave_scaled` and never called by user code. The
+		boolean half of the question is derivable from ``length`` alone, but the
+		*payload* is not — a drift is a medium too (``K = 0``, free space) and a
+		dipole is a medium that is not quadratic-index, so the driver needs the
+		law and the strength, not just "do I occupy space".
 
 		Returns
 		-------
@@ -801,7 +812,7 @@ class Element(SEASerializable):
 			return U, s, R, tau, z, z_cross
 
 		L = getattr(self, "length", 0)
-		segment = self.scaled_segment()
+		segment = self._scaled_segment()
 		if segment is not None and L != 0:
 			# quadratic-index medium: one exact segment, no screen and no kick
 			from .waveoptics import propagate_quadratic_segment_scaled
@@ -1587,7 +1598,7 @@ class Quadrapole(Element):
 		r"""The exact 2x2 body block over ``dz``, for one transverse axis.
 
 		The single source of truth for thick-quadrupole ray optics:
-		:meth:`transfer_matrix`, :meth:`transfer_xblock` and
+		:meth:`transfer_matrix`, :meth:`transfer_block` and
 		:meth:`focal_powers` all read it, so they cannot drift apart. A
 		quadrupole body is a medium of constant strength, so with
 		:math:`k = |K|` the motion is harmonic on the focusing axis and
@@ -1629,7 +1640,7 @@ class Quadrapole(Element):
 		Related
 		-------
 		_axis_focuses : Picks the trig or hyperbolic law.
-		transfer_matrix, transfer_xblock, focal_powers : The three consumers.
+		transfer_matrix, transfer_block, focal_powers : The three consumers.
 
 		Notes
 		-----
@@ -1647,10 +1658,10 @@ class Quadrapole(Element):
 		c, sn = xp.cosh(kz), xp.sinh(kz)
 		return xp.asarray([[c, sn / k], [k * sn, c]])
 
-	def transfer_xblock(self, dz:float=None, axis:Literal['x','y']='x') -> xp.ndarray:
+	def transfer_block(self, dz:float=None, axis:Literal['x','y']='x') -> xp.ndarray:
 		r"""Rotating-frame 2x2 block of a quadrupole, exact at any partial length.
 
-		Overrides :meth:`Element.transfer_xblock`. A thick quadrupole body is a
+		Overrides :meth:`Element.transfer_block`. A thick quadrupole body is a
 		medium of constant strength, so its block is exact at any depth: harmonic
 		on the focusing axis, hyperbolic on the defocusing one (see
 		:meth:`_body_block`, which this and :meth:`transfer_matrix` share).
@@ -1683,7 +1694,7 @@ class Quadrapole(Element):
 		L = self.length or 0.0
 		step = L if dz is None else float(dz)
 		if L <= 0 or self._effective_strength() == 0:
-			return super().transfer_xblock(dz=step, axis=axis)
+			return super().transfer_block(dz=step, axis=axis)
 		return self._body_block(step, axis)
 
 	def focal_powers(self) -> tuple:
@@ -1746,7 +1757,7 @@ class Quadrapole(Element):
 
 		Related
 		-------
-		_body_block : The per-axis body law, shared with :meth:`transfer_xblock`.
+		_body_block : The per-axis body law, shared with :meth:`transfer_block`.
 		_axis_focuses : The sign convention.
 		focal_powers : The thin-equivalent powers, signed the same way.
 
@@ -2221,10 +2232,10 @@ class Lens(Element):
 		f,rot = FR(*res['x'])
 		print( "fitted focuses to",f,"and with rotation of",rot )
 		return res['x']
-	def transfer_xblock(self, dz:float=None, axis:Literal['x','y']='x') -> xp.ndarray:
+	def transfer_block(self, dz:float=None, axis:Literal['x','y']='x') -> xp.ndarray:
 		r"""Rotating-frame 2x2 block of a round lens, exact at any partial length.
 
-		Overrides :meth:`Element.transfer_xblock`. A thick lens body is a medium
+		Overrides :meth:`Element.transfer_block`. A thick lens body is a medium
 		of constant strength ``K``, so its block is sinusoidal and exact for any
 		distance into it:
 
@@ -2252,21 +2263,21 @@ class Lens(Element):
 
 		Related
 		-------
-		scaled_segment : Reports the same body to the scaled wave path.
+		_scaled_segment : Reports the same body to the scaled wave path.
 		waveoptics.propagate_quadratic_segment_scaled : Advances the wave frame by it.
 		"""
 		L = self.length or 0.0
 		step = L if dz is None else float(dz)
 		K = self._effective_strength()
 		if L <= 0 or K == 0:
-			return super().transfer_xblock(dz=step, axis=axis)
+			return super().transfer_block(dz=step, axis=axis)
 		c, s = xp.cos(K * step), xp.sin(K * step)
 		return xp.asarray([[c, s / K], [-K * s, c]])
 
-	def scaled_segment(self):
+	def _scaled_segment(self):
 		r"""A thick round lens is a quadratic-index segment; a thin one is not.
 
-		Overrides :meth:`Element.scaled_segment`. With ``length > 0`` the lens
+		Overrides :meth:`Element._scaled_segment`. With ``length > 0`` the lens
 		body is a medium of constant strength ``K``, which the scaled frame
 		follows exactly (sinusoidal ``s(z)``, closed-form Δτ, no phase screen).
 		With ``length == 0`` there is no body to traverse, so the thin-lens
