@@ -1818,3 +1818,50 @@ def test_mid_element_crossover_lands_on_the_analytic_plane():
 	# 94-594 um out, because the rediverge had abandoned the original ray
 	for z in predicted:
 		assert abs(measured - float(z)).min() < 1e-7, float(z)
+
+
+# --- waists are minima, and least confusion == the conjugate plane ----------------
+
+@pytest.mark.skipif(not sea_available, reason="basic_column.sea requires sea_eco")
+def test_beam_waists_returns_minima_not_stationary_points():
+	# Sigma_12 = 0 is STATIONARY, not minimal. Differentially
+	# Sigma_11' = 2 Sigma_12 and Sigma_12' = Sigma_22 - kappa Sigma_11, so
+	# Sigma_11'' = 2(Sigma_22 - kappa Sigma_11). Free space (kappa = 0) is always
+	# a minimum, but inside a focusing body the lens can reverse the divergence
+	# and the root is the beam's WIDEST point. Those must not be reported.
+	import os
+	from pySEA.rayTEM.assemblies import load_microscope
+	here = os.path.dirname(os.path.abspath(__file__))
+	scope = load_microscope(os.path.join(here, "..", "microscopes", "basic_column.sea"))
+
+	def block_to(z, axis="x"):
+		M, z_prev = np.eye(2), 0.0
+		for z0, L, ele in scope._element_spans():
+			if z0 > z - 1e-12:
+				break
+			if z0 - z_prev > 1e-12:
+				M = np.array([[1.0, z0 - z_prev], [0.0, 1.0]]) @ M
+			step = min(L, z - z0)
+			M = np.asarray(ele.transfer_block(dz=step, axis=axis), float) @ M
+			z_prev = z0 + step
+		if z - z_prev > 1e-12:
+			M = np.array([[1.0, z - z_prev], [0.0, 1.0]]) @ M
+		return M
+
+	Sigma = np.diag([0.0, 1e-6**2])					# a point source
+	waists = [float(z) for z in scope.beam_waists(axis="x", sigma0=Sigma)["z"]]
+	assert waists, "no waists found"
+	h = 2e-4
+	for z in waists:
+		here_, before, after = (block_to(z)[0, 1]**2,
+								block_to(z - h)[0, 1]**2,
+								block_to(z + h)[0, 1]**2)
+		assert here_ < before and here_ < after, f"z={z} is not a minimum"
+
+	# LEAST CONFUSION == the conjugate plane. For a point source Sigma_11 = B^2,
+	# so the minima of the beam size are exactly the B = 0 image planes -- and
+	# the two are computed by completely different routes (covariance transport
+	# vs solving B = 0 on the accumulated blocks).
+	image = [float(z) for z in scope.conjugate_planes(axis="x", method="frame")["image"]]
+	assert len(waists) == len(image)
+	assert np.allclose(waists, image, atol=1e-12)

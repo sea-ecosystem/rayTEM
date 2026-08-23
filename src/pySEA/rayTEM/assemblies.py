@@ -1398,6 +1398,8 @@ class Microscope(SEASerializable):
 		-------
 		list of float
 			Waist positions inside the element, metres from its entrance.
+			Only **minima** of the beam size: a stationary point that is a
+			local maximum is not a waist and is discarded.
 
 		Related
 		-------
@@ -1412,8 +1414,25 @@ class Microscope(SEASerializable):
 			if denom == 0 and S[0, 1] == 0:
 				return []
 			two_theta = xp.arctan2(-2 * K * S[0, 1], denom)
-			roots = [(two_theta + n * xp.pi) / (2 * K) for n in range(-2, 4)]
-			return sorted(min(float(d), L) for d in roots if 1e-15 < d <= L + 1e-15)
+			roots = sorted(min(float(d), L)
+						   for d in ((two_theta + n * xp.pi) / (2 * K)
+									 for n in range(-2, 4))
+						   if 1e-15 < d <= L + 1e-15)
+			# Sigma_12 = 0 is *stationary*, not minimal. Differentially
+			# Sigma_11' = 2 Sigma_12 and Sigma_12' = Sigma_22 - kappa Sigma_11,
+			# so Sigma_11'' = 2(Sigma_22 - kappa Sigma_11): a root is a waist
+			# only where that is positive. Inside a focusing body it can be
+			# negative -- the lens reverses the divergence, so the beam is at
+			# its WIDEST there. Free space (kappa = 0) is always a minimum,
+			# which is why this only bites inside bodies.
+			kappa = K**2
+			out = []
+			for d in roots:
+				M = xp.asarray(block(d), dtype=float)
+				Sd = M @ S @ M.T
+				if Sd[1, 1] - kappa * Sd[0, 0] > 0:
+					out.append(d)
+			return out
 		if S[1, 1] == 0:
 			return []
 		dz = -S[0, 1] / S[1, 1]				# free space: Sigma_12 + dz*Sigma_22
