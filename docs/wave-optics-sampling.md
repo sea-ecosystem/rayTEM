@@ -124,25 +124,90 @@ and is propagated by the *same* angular-spectrum kernel over `Δτ`
   `Δx = |s|·Δξ`, so a converging beam is followed at constant relative
   resolution. `Δτ = Δz / (s₀²[1 + Δz/R₀])` in closed form (verified against
   the numerical integral in the test suite).
-- **Thick lenses are exact too, and cost U nothing.** A thick round lens is a
-  quadratic-index *medium*, not a screen: in the scaled frame it is one
-  segment whose scale law is sinusoidal, `s(z) = s₀cos(Kz) + (u₀/K)sin(Kz)`,
-  with its own closed-form `Δτ = [tan(KL − φ) + tan φ]/(K·C²)`
-  (`C² = s₀² + (u₀/K)²`, `tan φ = u₀/(K s₀)`). U takes no screen and no kick —
-  it just propagates over that Δτ. Thin lenses (`length == 0`) keep the
+- **Thick elements are exact too, and cost U nothing.** An element with a body
+  and a finite strength is a *medium*, not a screen: in the scaled frame it is
+  one **segment** whose scale law the frame follows exactly, taking no phase
+  screen and no curvature kick. Thin elements (`length == 0`) keep the
   curvature-kick route. This matters: treating a thick lens as *drift L/2 →
   kick → drift L/2* misplaced every crossover on `basic_column` by 422–4808 µm,
-  and the exact segment puts them on the ray-traced diffraction planes to
-  0.0 µm. The one limitation is a crossover landing *inside* a lens body,
-  where this frame is singular and the code raises rather than guessing —
-  mid-element frame switching is not implemented.
+  and a thick quadrupole's by 72–2315 µm; the exact segment puts both on the
+  ray-traced diffraction planes to **0.0 µm**. The one limitation is a
+  crossover landing *inside* a body, where this frame is singular and the code
+  raises rather than guessing — mid-element frame switching is not implemented.
+
+  ### One closed form for every segment: `Δτ = B / (s₀ · s_L)`
+
+  Each segment obeys `u″ + κu = 0` for a signed curvature `κ` (1/m²), so the
+  regime depends on its sign — and a **quadrupole is both at once**, focusing
+  one transverse axis and defocusing the other:
+
+  | `κ` | regime | `(A, B)` |
+  |---|---|---|
+  | `> 0` | focusing (harmonic) | `(cos kL, sin(kL)/k)` |
+  | `= 0` | free space | `(1, L)` |
+  | `< 0` | defocusing (hyperbolic) | `(cosh kL, sinh(kL)/k)` |
+
+  The obvious implementation is three closed forms for `τ = ∫dz/s²`, one per
+  regime, plus their degenerate cases — and that is what the code originally
+  had for the focusing case alone, carrying a phase angle `φ` and a
+  `Δτ = [tan(kΔz − φ) + tan φ]/(k·C²)` with `C² = s₀² + (u₀/k)²`,
+  `tan φ = u₀/(k s₀)`.
+
+  None of that is necessary. For **any** segment whose transfer block has unit
+  determinant,
+
+  ```
+  Δτ = B / (s₀ · s_L),     s_L = A·s₀ + B·u₀,     u₀ = s₀/R₀
+  ```
+
+  where `(A, B)` is the segment's own transfer row. The reason is the
+  Wronskian: if `s₁` solves the equation, the second independent solution is
+  `s₂ = s₁∫dz/s₁²`, and `det M = 1` fixes the constant, so the integral *is*
+  an entry of the transfer matrix. Symplecticity is not a side condition here —
+  it is what makes the formula exist.
+
+  Three consequences worth stating plainly:
+
+  - **Free space, harmonic and hyperbolic are one formula, not three.** The
+    free-space form `Δτ = Δz/(s₀²[1 + Δz/R₀])` is just `B = Δz`. Adding the
+    hyperbolic axis for thick quadrupoles required no new derivation at all.
+  - **No branch handling and no `tan` blowups.** The phase-angle form goes
+    singular at `kΔz − φ = π/2` even when `s` never vanishes there; `B/(s₀s_L)`
+    is finite wherever the physics is, and the only genuine singularity — `s`
+    reaching zero — is a real beam crossover, detected separately and per-law
+    by `waveoptics.segment_zero`.
+  - **The wave path consumes the ray path's own declaration.** `(A, B)` is the
+    first row of the block the element already publishes as `transfer_block`
+    for ray tracing, which is legitimate precisely because *the frame is a
+    reference ray*: `(s, s/R)` transforms exactly as `(h, u)` does. The two
+    propagation modes cannot drift apart, because there is only one statement
+    of the element's optics.
+
+  Verified against numerical `∫dz/s²` to ~1e-16 in all three regimes
+  (`test_segment_delta_tau_closed_form_all_regimes`).
+
+  Because `κ` is declared **per axis**, one propagator
+  (`waveoptics.propagate_quadratic_segment_scaled`) serves a thick round lens
+  (equal positive curvature) and a thick quadrupole (`+κ`, `−κ`) alike: the two
+  axes accumulate different `Δτ`, and the paraxial kernel is separable, so an
+  anisotropic `(Δτ_x, Δτ_y)` still costs one transform pair. A defocusing axis
+  has **no crossover to find** unless the beam enters converging hard enough to
+  reach the axis before the defocusing takes over — `segment_zero` encodes
+  exactly that condition (`|u₀/k| > |s₀|`) rather than scanning for it.
+
 - **Larmor rotation is available** (`propagate_wave(..., rotate=True)`): each
   thick lens rotates the field by `−K·L`, the same angle the ray path applies,
   via an exact unitary three-shear Fourier rotation. Off by default because it
   is analytically a no-op for rotationally symmetric fields, where it would
-  only add resampling noise.
-- **Non-quadratic phases still apply to U** (quadrupole saddle, dipole tilt,
-  future aberrations), evaluated at physical coordinates `x = s·ξ` and
+  only add resampling noise. The **element declares the angle** (part of its
+  `_scaled_segment()` payload) rather than the propagator deriving it from the
+  strength — a quadrupole has no axial field and so declares zero, and a
+  rotation on an anisotropic segment is refused outright, since Larmor rotation
+  mixes the transverse axes.
+- **Non-quadratic phases still apply to U** (dipole tilt, future aberrations —
+  *not* the quadrupole saddle, which is purely quadratic per axis and is
+  absorbed into `(R_x, R_y)` when thin or carried as a segment when thick),
+  evaluated at physical coordinates `x = s·ξ` and
   protected by a per-pixel `|Δχ| < π` sampling guard — stigmator-scale
   strengths pass; over-strong settings fail loudly instead of aliasing.
 - **Plotting through the standard `show`.**
