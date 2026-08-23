@@ -1619,9 +1619,15 @@ class Microscope(SEASerializable):
 			sigma0 = xp.asarray([[cov[0][i, i], cov[0][i, j]],
 								 [cov[0][j, i], cov[0][j, j]]], dtype=float)
 		S0 = xp.asarray(sigma0, dtype=float)
-		if not xp.all(xp.isfinite(S0)) or S0[1, 1] <= 0:
-			raise ValueError("beam_waists needs a finite entrance covariance with a "
-							 "positive angular variance; pass sigma0=[[<xx>, <xx'>], "
+		# A perfectly PARALLEL seed has zero angular variance. That is a
+		# legitimate beam -- it simply never focuses in free space, which the
+		# per-segment solve already reports by finding no root there, and it
+		# acquires angular spread at the first lens. Rejecting it would have
+		# made this method able to express a point source but not a collimated
+		# beam, i.e. the image family but not the diffraction family.
+		if not xp.all(xp.isfinite(S0)) or S0[0, 0] < 0 or S0[1, 1] < 0:
+			raise ValueError("beam_waists needs a finite entrance covariance with "
+							 "non-negative variances; pass sigma0=[[<xx>, <xx'>], "
 							 "[<xx'>, <x'x'>]] explicitly.")
 		emittance = float(xp.sqrt(max(xp.linalg.det(S0), 0.0)))
 		zs, widths = [], []

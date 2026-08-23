@@ -1865,3 +1865,16 @@ def test_beam_waists_returns_minima_not_stationary_points():
 	image = [float(z) for z in scope.conjugate_planes(axis="x", method="frame")["image"]]
 	assert len(waists) == len(image)
 	assert np.allclose(waists, image, atol=1e-12)
+
+	# and the criterion covers BOTH families: a PARALLEL seed has Sigma_11 = A^2,
+	# so its minima are the A = 0 diffraction planes. A perfectly collimated beam
+	# has zero angular variance, which used to be refused outright -- leaving the
+	# method able to express a point source but not a collimated beam.
+	parallel = [float(z) for z in
+				scope.beam_waists(axis="x", sigma0=np.diag([1e-6**2, 0.0]))["z"]]
+	diff = [float(z) for z in scope.conjugate_planes(axis="x", method="frame")["diff"]]
+	assert len(parallel) == len(diff)
+	assert np.allclose(parallel, diff, atol=1e-12)
+	# a negative variance is still nonsense and still refused
+	with pytest.raises(ValueError, match="non-negative variances"):
+		scope.beam_waists(axis="x", sigma0=np.diag([-1.0, 1e-12]))
