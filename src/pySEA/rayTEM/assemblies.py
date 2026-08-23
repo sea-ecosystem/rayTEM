@@ -1554,6 +1554,242 @@ class Microscope(SEASerializable):
 		out['image_offset'] = out['image'] - z_ref
 		return out
 
+	def focal_surface(self, family:Literal['diff','image']='diff',
+					  aperture:float=1e-4, radii:int=6, azimuths:int=8,
+					  reference=None) -> dict:
+		r"""Where the beam actually focuses, as a function of aperture position.
+
+		:meth:`conjugate_planes` answers the paraxial question, and its answer is
+		a **plane** because the transfer matrix is linear: `A = 0` and `B = 0`
+		know nothing about where in the beam you look. Aberrations break that.
+		The focus acquires a dependence on aperture radius and azimuth, and the
+		plane becomes a **surface** — spherical aberration bends it into a
+		paraboloid of revolution, astigmatism splits it in two, an N-fold
+		multipole gives it N lobes.
+
+		This traces real rays, so it sees whatever
+		:meth:`elements.Element.aberration_kick` declares. Each sampled ray is
+		followed to its closest approach to the axis, which is exact rather than
+		searched: between elements a ray is straight, so ``r²(z)`` is a quadratic
+		with a closed-form vertex.
+
+		With no aberration anywhere the surface is **flat and equal to the
+		paraxial plane**, which is the acceptance test rather than a
+		coincidence — it is what makes the criterion trustworthy once
+		aberrations are switched on.
+
+		Parameters
+		----------
+		family : {'diff', 'image'}, optional
+			Which conjugate family to map, by default ``'diff'``. ``'diff'``
+			launches rays parallel to the axis (their focus is the back-focal
+			surface); ``'image'`` launches them from an on-axis object point.
+		aperture : float, optional
+			Extent of the sampled bundle, by default 1e-4. A **height** in
+			metres for ``'diff'``, an **angle** in radians for ``'image'``.
+		radii : int, optional
+			Number of radial samples across the aperture, by default 6.
+			The on-axis sample is excluded (it has no focus of its own).
+		azimuths : int, optional
+			Number of azimuthal samples, by default 8. One is enough for
+			rotationally symmetric optics; more resolves astigmatism and
+			N-fold terms.
+		reference : str, float, or None, optional
+			Forwarded to :meth:`conjugate_planes` for the paraxial reference
+			plane, by default None (the column entrance).
+
+		Returns
+		-------
+		dict
+			``{'radius', 'azimuth', 'z', 'z_paraxial', 'sag', 'fit'}``.
+			``radius``/``azimuth``/``z`` are flat arrays, one entry per sampled
+			ray. ``sag`` is the peak-to-valley of ``z`` — read it first: while it
+			is ~0 the plane is still an adequate description. ``fit`` holds the
+			least-squares coefficients (see :meth:`_fit_surface`): ``astig`` is
+			the aperture-**independent** two-fold splitting a quadrupole makes,
+			``c20`` the rotationally symmetric aperture term (``-Cs alpha²`` for
+			a single lens), and ``c22`` an aperture-dependent two-fold term.
+			Separating the first two matters: a quadrupole splits the focus by
+			azimuth but not by aperture radius, so fitting it to an ``r²`` term
+			would report an aperture aberration that is not there.
+
+		Raises
+		------
+		ValueError
+			If ``family`` is unknown, or the column has no paraxial plane of
+			that family to reference.
+
+		Related
+		-------
+		conjugate_planes : The paraxial answer this degenerates to.
+		elements.Element.aberration_kick : What makes the surface non-flat.
+		beam_waists : The same least-confusion idea, for a whole bundle.
+
+		Examples
+		--------
+		>>> surf = scope.focal_surface(family='diff', aperture=3e-4)  # doctest: +SKIP
+		>>> surf['sag']                                               # doctest: +SKIP
+		"""
+		if family not in ('diff', 'image'):
+			raise ValueError(f"family must be 'diff' or 'image', got {family!r}.")
+		planes = self.conjugate_planes(axis='x', method='frame', reference=reference)
+		if not len(planes[family]):
+			raise ValueError(f"this column has no paraxial {family!r} plane to "
+							 "reference; focal_surface describes the departure "
+							 "from one.")
+		z_paraxial = float(planes[family][0])
+
+		rho = xp.linspace(0.0, 1.0, int(radii) + 1)[1:]		# skip the axis
+		phi = xp.linspace(0.0, 2 * xp.pi, int(azimuths), endpoint=False)
+		RR, PP = xp.meshgrid(rho, phi, indexing='ij')
+		RR, PP = RR.ravel(), PP.ravel()
+		r0 = xp.zeros((RR.size, len(convention)))
+		if family == 'diff':								# parallel bundle
+			r0[:, columnByName('x')] = aperture * RR * xp.cos(PP)
+			r0[:, columnByName('y')] = aperture * RR * xp.sin(PP)
+		else:												# from an axial point
+			r0[:, columnByName('xt')] = aperture * RR * xp.cos(PP)
+			r0[:, columnByName('yt')] = aperture * RR * xp.sin(PP)
+
+		rays = xp.asarray(self.propagate_ray(r0.copy()))
+		# look for the focus downstream of the optics: an 'image' bundle leaves
+		# an on-axis point, so every one of its rays is exactly on the axis at
+		# launch, and that is not a focus
+		acting = [ez for ez, eL, ele in self._element_spans()
+				  if self._acts_on_rays(ele, eL)]
+		z_min = min(acting) if acting else None
+		z_focus = xp.asarray([self._axis_approach(rays[:, i, :], z_min=z_min)
+							  for i in range(RR.size)], dtype=float)
+		finite = xp.isfinite(z_focus)
+		sag = float(z_focus[finite].max() - z_focus[finite].min()) if finite.any() else 0.0
+		return {'radius': RR * aperture, 'azimuth': PP, 'z': z_focus,
+				'z_paraxial': z_paraxial, 'sag': sag,
+				'fit': self._fit_surface(RR, PP, z_focus)}
+
+	@staticmethod
+	def _axis_approach(ray_track:xp.ndarray, z_min:float=None) -> float:
+		r"""The z at which one traced ray comes closest to the optical axis.
+
+		Between elements a ray is straight, so
+		``r²(z) = (x + z x')² + (y + z y')²`` is a quadratic in ``z`` with the
+		closed-form vertex ``z = -(x x' + y y')/(x'² + y'²)``. Each free segment
+		is tested for a vertex lying inside it; the last segment is left open,
+		so a focus past the final element is still found.
+
+		Parameters
+		----------
+		ray_track : xp.ndarray
+			One ray's state at every logged plane, shape
+			``(n_planes, len(convention))``.
+		z_min : float, optional
+			Ignore approaches at or before this z, by default None. Needed for a
+			bundle launched from an on-axis point: every such ray is *on* the
+			axis where it starts, which is not a focus.
+
+		Returns
+		-------
+		float
+			Position of closest approach (metres), or ``nan`` for a ray that
+			never converges (a perfectly parallel or diverging ray).
+
+		Related
+		-------
+		focal_surface : Collects this over a sampled bundle.
+		"""
+		ix, ixt = columnByName('x'), columnByName('xt')
+		iy, iyt, iz = columnByName('y'), columnByName('yt'), columnByName('z')
+		best, best_r2 = float('nan'), float('inf')
+		n = ray_track.shape[0]
+		for p in range(n):
+			x, xt = float(ray_track[p, ix]), float(ray_track[p, ixt])
+			y, yt = float(ray_track[p, iy]), float(ray_track[p, iyt])
+			z_p = float(ray_track[p, iz])
+			denom = xt * xt + yt * yt
+			if denom == 0:
+				continue
+			dz = -(x * xt + y * yt) / denom
+			span = (float(ray_track[p + 1, iz]) - z_p) if p + 1 < n else float('inf')
+			if dz < -1e-12 or dz > span + 1e-12:
+				continue								# vertex is not in this segment
+			if z_min is not None and z_p + dz <= z_min + 1e-12:
+				continue								# upstream of all the optics
+			r2 = (x + dz * xt)**2 + (y + dz * yt)**2
+			if r2 < best_r2:
+				best_r2, best = r2, z_p + dz
+		return best
+
+	@staticmethod
+	def _fit_surface(rho:xp.ndarray, phi:xp.ndarray, z:xp.ndarray) -> dict:
+		r"""Least-squares fit of a sampled focal surface to a small basis.
+
+		Two effects have to be told apart, and they scale differently with
+		aperture radius:
+
+		- **paraxial astigmatism** (a quadrupole, a stigmator) splits the focus
+		  by azimuth but **not** by aperture radius — a ray at azimuth 0 meets
+		  the axis at the x focus whatever its height, because both transverse
+		  components scale together. It is an ``r``-independent
+		  :math:`\cos 2\phi`.
+		- **aperture aberrations** (spherical, and an aperture-dependent
+		  two-fold term) grow as :math:`r^2`.
+
+		So the basis is
+
+		.. math::
+
+			z = z_0 + a_2\cos 2(\phi - \phi_{a})
+			      + c_{20} r^2 + c_{22} r^2 \cos 2(\phi - \phi_{22})
+
+		on the normalised aperture radius. Fitting only the :math:`r^2` terms
+		would push a quadrupole's splitting into ``c22`` and report an aperture
+		aberration that is not there.
+
+		Parameters
+		----------
+		rho : xp.ndarray
+			Normalised aperture radius of each sample, in ``(0, 1]``.
+		phi : xp.ndarray
+			Azimuth of each sample (radians).
+		z : xp.ndarray
+			Focus position of each sample (metres).
+
+		Returns
+		-------
+		dict
+			``{'z0', 'astig', 'phi_astig', 'c20', 'c22', 'phi22'}`` — metres,
+			angles in radians. ``astig`` is the aperture-independent
+			half-splitting (a quadrupole's), ``c20`` the rotationally symmetric
+			aperture term (``-Cs alpha²`` for one lens), ``c22`` the
+			aperture-dependent two-fold term. All ``nan`` when there are too few
+			finite samples, and the ``r``-dependent pair is reported as ``nan``
+			when only one radius was sampled, which cannot separate them.
+
+		Related
+		-------
+		focal_surface : Supplies the samples.
+		"""
+		keys = ('z0', 'astig', 'phi_astig', 'c20', 'c22', 'phi22')
+		good = xp.isfinite(z)
+		r, p, zz = rho[good], phi[good], z[good]
+		if r.size < 6:
+			return {k: float('nan') for k in keys}
+		one_radius = bool(xp.allclose(r, r[0]))
+		cols = [xp.ones_like(r), xp.cos(2 * p), xp.sin(2 * p)]
+		if not one_radius:					# r^2 terms are only separable with >1 radius
+			cols += [r**2, r**2 * xp.cos(2 * p), r**2 * xp.sin(2 * p)]
+		coef, *_ = xp.linalg.lstsq(xp.stack(cols, axis=1), zz, rcond=None)
+		z0, a2c, a2s = (float(v) for v in coef[:3])
+		out = {'z0': z0, 'astig': float(xp.hypot(a2c, a2s)),
+			   'phi_astig': float(xp.arctan2(a2s, a2c) / 2)}
+		if one_radius:
+			out.update({'c20': float('nan'), 'c22': float('nan'),
+						'phi22': float('nan')})
+		else:
+			c20, c2c, c2s = (float(v) for v in coef[3:])
+			out.update({'c20': c20, 'c22': float(xp.hypot(c2c, c2s)),
+						'phi22': float(xp.arctan2(c2s, c2c) / 2)})
+		return out
+
 	def beam_waists(self, axis:Literal['x','y']='x', sigma0:xp.ndarray=None) -> dict:
 		r"""Locate the beam-envelope waists (minimum-width planes), in metres.
 

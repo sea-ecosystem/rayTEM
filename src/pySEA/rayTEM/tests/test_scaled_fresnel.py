@@ -1881,3 +1881,105 @@ def test_beam_waists_returns_minima_not_stationary_points():
 		scope.beam_waists(axis="x", sigma0=np.diag([-1.0, 1e-12]))
 	with pytest.raises(ValueError, match="at least one of them positive"):
 		scope.beam_waists(axis="x", sigma0=np.zeros((2, 2)))
+
+
+# --- aberrations: the ray kick, and planes becoming surfaces ----------------------
+
+_F_AB = 0.045
+
+def _aberrated_column(Cs=0.0, quad=None):
+	els = [Source(voltage=200), Drift(length=0.01),
+		   Lens(name="OL", strength=np.sqrt(1 / _F_AB), Cs=Cs)]
+	if quad is not None:
+		els.append(Quadrapole(strength=quad))
+	els.append(Drift(length=0.06))
+	return Microscope(sections=[MicroscopeSection(elements=els)])
+
+
+def test_spherical_aberration_kick_matches_the_closed_form():
+	# chi = -k r^2/2f - k Cs r^4/4f^4  ->  the kick beyond the matrix is
+	# -(Cs/f^4) x r^2, so a ray entering parallel at h crosses the axis at
+	# z = f/(1 + Cs h^2/f^3), the classic longitudinal spherical aberration.
+	Cs, f = 1e-3, _F_AB
+	lens = Lens(strength=np.sqrt(1 / f), Cs=Cs)
+	r0 = np.zeros((3, 6))
+	r0[:, 0] = [0.0, 1e-4, 2e-4]
+	dxt, dyt = lens.aberration_kick(r0)
+	assert np.allclose(dxt, [-Cs * (1 / f)**4 * h**3 for h in r0[:, 0]], rtol=1e-12)
+	assert np.allclose(dyt, 0.0)
+	# an ideal lens declares nothing at all, so aberration-free columns are
+	# bit-for-bit unchanged
+	assert Lens(strength=np.sqrt(1 / f)).aberration_kick(r0) is None
+	assert Lens(strength=0.0, Cs=Cs).aberration_kick(r0) is None		# no power
+	assert Drift(length=0.1).aberration_kick(r0) is None
+
+	# the traced caustic matches the closed form
+	mic = _aberrated_column(Cs=Cs)
+	hs = np.array([1e-5, 5e-5, 1e-4, 2e-4, 3e-4])
+	r0 = np.zeros((hs.size, 6))
+	r0[:, 0] = hs
+	rays = np.asarray(mic.propagate_ray(r0.copy()))
+	z_cross = rays[-1][0, 4] - rays[-1][:, 0] / rays[-1][:, 1]
+	exact = 0.01 + f / (1 + Cs * hs**2 / f**3)
+	assert np.allclose(z_cross, exact, atol=1e-12)
+	# and the PARAXIAL plane is untouched -- aberration is the departure from it
+	assert np.isclose(float(mic.conjugate_planes(axis="x")["diff"][0]), 0.01 + f,
+					  atol=1e-12)
+
+
+def test_focal_surface_is_flat_without_aberration():
+	# the acceptance test from the plan: with no aberration the surface must
+	# degenerate to the paraxial plane exactly
+	surf = _aberrated_column().focal_surface(family="diff", aperture=3e-4)
+	assert surf["sag"] < 1e-12
+	assert np.allclose(surf["z"], surf["z_paraxial"], atol=1e-12)
+	assert abs(surf["fit"]["c20"]) < 1e-12 and abs(surf["fit"]["astig"]) < 1e-12
+	# the image family likewise -- but it needs a column that HAS one. With the
+	# object 10 mm before a 45 mm lens the image is virtual, and focal_surface
+	# says so rather than inventing a reference.
+	with pytest.raises(ValueError, match="no paraxial 'image' plane"):
+		_aberrated_column().focal_surface(family="image", aperture=5e-3)
+	real = Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200), Drift(length=0.1),
+		Lens(strength=np.sqrt(1 / _F_AB)), Drift(length=0.12)])])
+	surf = real.focal_surface(family="image", aperture=5e-3)
+	assert surf["sag"] < 1e-12
+	assert np.allclose(surf["z"], surf["z_paraxial"], atol=1e-12)
+	with pytest.raises(ValueError, match="family must be"):
+		_aberrated_column().focal_surface(family="bogus")
+
+
+def test_focal_surface_separates_spherical_from_astigmatism():
+	# Cs bows the surface into a paraboloid of revolution: c20 = -Cs alpha^2 at
+	# the sampled edge, with no two-fold component
+	Cs, a = 1e-3, 3e-4
+	surf = _aberrated_column(Cs=Cs).focal_surface(family="diff", aperture=a,
+												  azimuths=16)
+	assert np.isclose(surf["fit"]["c20"], -Cs * (a / _F_AB)**2, rtol=1e-3)
+	assert abs(surf["fit"]["astig"]) < 1e-9
+	assert surf["sag"] > 0
+
+	# a quadrupole splits it by AZIMUTH but not by aperture radius, so it must
+	# land in `astig` and not in the r^2 terms. Fitting everything to r^2 would
+	# report an aperture aberration that is not there.
+	mic = _aberrated_column(quad=0.5)
+	surf = mic.focal_surface(family="diff", aperture=a, azimuths=16)
+	px = float(mic.conjugate_planes(axis="x")["diff"][0])
+	py = float(mic.conjugate_planes(axis="y")["diff"][0])
+	assert np.isclose(surf["fit"]["astig"], abs(py - px) / 2, rtol=1e-3)
+	assert abs(surf["fit"]["c20"]) < 1e-9
+
+	# both together superpose, each recovered independently
+	mic = _aberrated_column(Cs=Cs, quad=0.5)
+	surf = mic.focal_surface(family="diff", aperture=a, azimuths=16)
+	assert np.isclose(surf["fit"]["c20"], -Cs * (a / _F_AB)**2, rtol=1e-2)
+	assert np.isclose(surf["fit"]["astig"], abs(py - px) / 2, rtol=1e-3)
+
+
+def test_focal_surface_single_radius_cannot_separate_r_terms():
+	# with one radius the r-independent and r^2 terms are degenerate; say so
+	# rather than returning a fitted value that cannot be trusted
+	surf = _aberrated_column(Cs=1e-3).focal_surface(family="diff", aperture=3e-4,
+													radii=1, azimuths=8)
+	assert np.isnan(surf["fit"]["c20"]) and np.isnan(surf["fit"]["c22"])
+	assert np.isfinite(surf["fit"]["astig"])

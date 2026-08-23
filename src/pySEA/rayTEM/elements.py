@@ -439,6 +439,46 @@ class Element(SEASerializable):
 			"Lens.transfer_block / Quadrapole.transfer_block), or model the "
 			"element as thin (length = 0).")
 
+	def aberration_kick(self, r0:xp.ndarray):
+		r"""Declare this element's **non-linear** angular kick, if it has one.
+
+		:meth:`transfer_matrix` can only express optics that are linear in the
+		ray vector, which is the paraxial approximation. Everything an
+		aberration is lives outside it. This is the companion declaration:
+		the element states the extra angular deflection, and the generic
+		:meth:`propagate_ray` applies it — the same declare/consume split the
+		matrix already uses, so no element needs its own propagation method.
+
+		Returning ``None`` (the base class) means "I am exactly my matrix",
+		which keeps aberration-free columns bit-for-bit unchanged.
+
+		Parameters
+		----------
+		r0 : xp.ndarray
+			Rays **entering** the element, shape ``(n_rays, len(convention))``.
+			The kick is evaluated at the entrance coordinates.
+
+		Returns
+		-------
+		tuple of xp.ndarray or None
+			``(delta_xt, delta_yt)`` in radians, each shape ``(n_rays,)``, or
+			``None`` when the element is purely linear.
+
+		Related
+		-------
+		Lens.aberration_kick : Spherical aberration on a round lens.
+		transfer_matrix : The linear part, which this deliberately does not touch.
+		propagate_ray : The generic consumer.
+
+		Notes
+		-----
+		The paraxial planes from :meth:`assemblies.Microscope.conjugate_planes`
+		are unaffected by this by construction: they are properties of the
+		matrix, and aberration is defined as the *departure* from them. That is
+		why the kick is kept out of the matrix rather than linearized into it.
+		"""
+		return None
+
 	def _scaled_segment(self):
 		r"""Report this element as a *segment* for the scaled wave path, if it is one.
 
@@ -548,6 +588,13 @@ class Element(SEASerializable):
 		rf[:,columnByName("y")] += getattr(self,"shift_y",0)
 		rf[:,columnByName("xt")] += getattr(self,"tilt_x",0)
 		rf[:,columnByName("yt")] += getattr(self,"tilt_y",0)
+		# aberration: the part of the element's optics that is NOT a matrix.
+		# Declared by the element, applied here, exactly as transfer_matrix is.
+		kick = self.aberration_kick(r0)
+		if kick is not None:
+			dxt, dyt = kick
+			rf[:,columnByName("xt")] += dxt
+			rf[:,columnByName("yt")] += dyt
 
 		return rf
 
@@ -2137,13 +2184,16 @@ class Lens(Element):
 		calibration : list or float, optional
 			if a float is provided, a linear scaling will be applied to strength
 			if a list is provided, terms are used in a series: strength =A+B*nominal+C*nominal^(1/2)+D*nominal^(1/3)+...
+		Cs : float, optional
+			Third-order spherical aberration coefficient (metres), by default 0
+			(an ideal lens). See :meth:`aberration_kick`.
 		position : float, optional
 			The position of the element along the z-axis, by default None
 		rotation : bool, optional
 			if set to False, lens rotation for finite-thickness lenses is overridden and turned off.
 		"""
 	def __init__(self, name:str='', length:float=0.,
-				 strength:float=0, calibration:float=None,
+				 strength:float=0, calibration:float=None, Cs:float=0.0,
 				 position:float=None) -> SEASerializable:
 		
 		if length == 0: kind = 'Thin lens'
@@ -2155,6 +2205,7 @@ class Lens(Element):
 		self.strength = strength
 		self.calibration = calibration
 		self.rotation = 0
+		self.Cs = Cs					# spherical aberration (metres); 0 = ideal lens
 
 
 	def _effective_strength(self) -> float:
@@ -2396,6 +2447,69 @@ class Lens(Element):
 		ny, nx, dy, dx = grid_of(dimensions)
 		chi = quadratic_phase((ny, nx), dx, dy, wavelength, P, P) if P != 0 else None
 		return self._phase_program(dimensions, wavelength, chi, self.name or "lens")
+
+	def aberration_kick(self, r0:xp.ndarray):
+		r"""Third-order spherical aberration: the ray kick :math:`-C_s r^2 \vec{r}/f^4`.
+
+		Overrides :meth:`Element.aberration_kick`. A real round lens focuses
+		marginal rays too strongly. Writing the lens phase with its leading
+		non-parabolic term,
+
+		.. math::
+
+			\chi = -\frac{k}{2f}r^2 - \frac{k\,C_s}{4f^4}r^4 ,
+			\qquad \theta' = \frac{1}{k}\frac{\partial\chi}{\partial r}
+			= -\frac{r}{f} - \frac{C_s}{f^4}r^3
+
+		so the extra angular kick beyond the matrix is
+		:math:`\Delta\theta_x = -(C_s/f^4)\,x\,r^2` and likewise in y, with
+		:math:`r^2 = x^2 + y^2` — radial, as a round lens must be.
+
+		The familiar consequences follow from that one line. A ray entering
+		parallel at height ``h`` crosses the axis at
+
+		.. math::
+
+			z = \frac{f}{1 + C_s h^2/f^3} \approx f - C_s \alpha^2,
+			\qquad \alpha = h/f
+
+		— the **longitudinal** spherical aberration — and at the Gaussian focus
+		its transverse miss is :math:`-C_s\alpha^3`. Both are standard, and both
+		are used as tests rather than re-derived in code.
+
+		Parameters
+		----------
+		r0 : xp.ndarray
+			Rays entering the lens, shape ``(n_rays, len(convention))``.
+
+		Returns
+		-------
+		tuple of xp.ndarray or None
+			``(delta_xt, delta_yt)``, or ``None`` when ``Cs`` is 0 or the lens
+			has no power (in which case there is nothing to aberrate).
+
+		Related
+		-------
+		focal_power : Supplies ``1/f``.
+		assemblies.Microscope.focal_surface : Traces the caustic this produces.
+
+		Notes
+		-----
+		The kick is evaluated at the entrance coordinates, which is **exact for
+		a thin lens** (``length == 0``, where the matrix leaves position
+		unchanged). For a thick body it places the whole aberration at the
+		entrance face rather than distributing it along the body; a distributed
+		treatment would need the aberration integral through the medium.
+		"""
+		Cs = getattr(self, "Cs", 0.0) or 0.0
+		P = self.focal_power()
+		if Cs == 0 or P == 0:
+			return None
+		x = r0[:, columnByName("x")]
+		y = r0[:, columnByName("y")]
+		r2 = x**2 + y**2
+		scale = Cs * P**4					# Cs / f^4
+		return -scale * x * r2, -scale * y * r2
 
 	def calibration_from_f_and_I(self,f,I,rotationPerAmp=None):
 		print("for lens",self.name,"seeking a calibration factor C, which focuses strength",I,"to focal length",f,"and rotationPerAmp",rotationPerAmp)
