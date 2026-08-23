@@ -1556,7 +1556,7 @@ class Microscope(SEASerializable):
 
 	def focal_surface(self, family:Literal['diff','image']='diff',
 					  aperture:float=1e-4, radii:int=6, azimuths:int=8,
-					  reference=None) -> dict:
+					  reference=None, near=None, window:float=None) -> dict:
 		r"""Where the beam actually focuses, as a function of aperture position.
 
 		:meth:`conjugate_planes` answers the paraxial question, and its answer is
@@ -1597,6 +1597,21 @@ class Microscope(SEASerializable):
 		reference : str, float, or None, optional
 			Forwarded to :meth:`conjugate_planes` for the paraxial reference
 			plane, by default None (the column entrance).
+		near : int, float, str, or None, optional
+			**Which** focus to describe. A real column has several planes of a
+			given family, and a ray bundle crosses the axis at every one of
+			them, so the surface has to be told which. An ``int`` indexes the
+			paraxial planes in column order, a ``float`` is a z in metres, a
+			``str`` is a name from :attr:`named_positions`; ``None`` (default)
+			takes the first. Getting this wrong is not subtle — on
+			``basic_column`` an objective-aperture bundle crosses at the
+			condenser foci long before the objective, and the unrestricted
+			answer is a 130 mm "sag" that belongs to a different lens.
+		window : float, optional
+			Half-width of the z range searched around the selected plane
+			(metres). By default half the distance to the nearest neighbouring
+			plane of the same family, which keeps each surface inside its own
+			focus.
 
 		Returns
 		-------
@@ -1633,11 +1648,27 @@ class Microscope(SEASerializable):
 		if family not in ('diff', 'image'):
 			raise ValueError(f"family must be 'diff' or 'image', got {family!r}.")
 		planes = self.conjugate_planes(axis='x', method='frame', reference=reference)
-		if not len(planes[family]):
+		fam = xp.asarray(planes[family], dtype=float)
+		if not fam.size:
 			raise ValueError(f"this column has no paraxial {family!r} plane to "
 							 "reference; focal_surface describes the departure "
 							 "from one.")
-		z_paraxial = float(planes[family][0])
+		if near is None:
+			idx = 0
+		elif isinstance(near, str):
+			idx = int(xp.argmin(xp.abs(fam - self.named_positions[near])))
+		elif isinstance(near, (int, xp.integer)) and not isinstance(near, bool):
+			idx = int(near)
+		else:
+			idx = int(xp.argmin(xp.abs(fam - float(near))))
+		if not -fam.size <= idx < fam.size:
+			raise ValueError(f"near={near!r} selects plane {idx} of "
+							 f"{fam.size} {family!r} planes.")
+		z_paraxial = float(fam[idx])
+		if window is None:
+			others = xp.abs(fam - z_paraxial)
+			others = others[others > 1e-12]
+			window = float(others.min()) / 2 if others.size else xp.inf
 
 		rho = xp.linspace(0.0, 1.0, int(radii) + 1)[1:]		# skip the axis
 		phi = xp.linspace(0.0, 2 * xp.pi, int(azimuths), endpoint=False)
@@ -1658,7 +1689,15 @@ class Microscope(SEASerializable):
 		acting = [ez for ez, eL, ele in self._element_spans()
 				  if self._acts_on_rays(ele, eL)]
 		z_min = min(acting) if acting else None
-		z_focus = xp.asarray([self._axis_approach(rays[:, i, :], z_min=z_min)
+		if xp.isfinite(window):
+			# search only this focus: a bundle crosses the axis at every plane
+			# of the family, so an unrestricted minimum can report a different
+			# lens's focus entirely
+			z_min = max(z_min, z_paraxial - window) if z_min is not None \
+				else z_paraxial - window
+		z_max = z_paraxial + window if xp.isfinite(window) else None
+		z_focus = xp.asarray([self._axis_approach(rays[:, i, :], z_min=z_min,
+												  z_max=z_max)
 							  for i in range(RR.size)], dtype=float)
 		finite = xp.isfinite(z_focus)
 		sag = float(z_focus[finite].max() - z_focus[finite].min()) if finite.any() else 0.0
@@ -1667,7 +1706,8 @@ class Microscope(SEASerializable):
 				'fit': self._fit_surface(RR, PP, z_focus)}
 
 	@staticmethod
-	def _axis_approach(ray_track:xp.ndarray, z_min:float=None) -> float:
+	def _axis_approach(ray_track:xp.ndarray, z_min:float=None,
+					   z_max:float=None) -> float:
 		r"""The z at which one traced ray comes closest to the optical axis.
 
 		Between elements a ray is straight, so
@@ -1685,6 +1725,9 @@ class Microscope(SEASerializable):
 			Ignore approaches at or before this z, by default None. Needed for a
 			bundle launched from an on-axis point: every such ray is *on* the
 			axis where it starts, which is not a focus.
+		z_max : float, optional
+			Ignore approaches beyond this z, by default None. With ``z_min`` it
+			confines the answer to one focus of a multi-crossover column.
 
 		Returns
 		-------
@@ -1713,6 +1756,8 @@ class Microscope(SEASerializable):
 				continue								# vertex is not in this segment
 			if z_min is not None and z_p + dz <= z_min + 1e-12:
 				continue								# upstream of all the optics
+			if z_max is not None and z_p + dz >= z_max - 1e-12:
+				continue								# a different focus
 			r2 = (x + dz * xt)**2 + (y + dz * yt)**2
 			if r2 < best_r2:
 				best_r2, best = r2, z_p + dz
