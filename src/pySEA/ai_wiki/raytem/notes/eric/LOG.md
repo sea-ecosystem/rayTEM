@@ -7,6 +7,64 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-23 — [Done] Spherical aberration + focal_surface (aberrated-focal-surfaces step 2)
+**Goal:** a real aberration source, and the surface a plane becomes once one exists.
+**Why:** step 1 pinned the criterion; without an aberration source `focal_surface` would return a constant.
+- [x] `Element.aberration_kick` declaration + generic consumption in `propagate_ray`
+- [x] `Lens(Cs=...)`
+- [x] `Microscope.focal_surface` with sag + fit
+- [x] tests
+
+**Outcome:** `Element.aberration_kick` is the companion declaration to
+`transfer_matrix`: the matrix can only express optics *linear* in the ray
+vector — that **is** the paraxial approximation — and an aberration is by
+definition what lies outside it. The element declares the extra angular
+deflection, the generic `propagate_ray` applies it. Base returns `None`, so
+aberration-free columns are bit-for-bit unchanged and the paraxial planes are
+untouched *by construction*, which is exactly what lets aberration be defined as
+the departure from them.
+
+`Lens(Cs=...)`: from `chi = -k r²/2f - k Cs r⁴/4f⁴` the kick is
+`-(Cs/f⁴)·x·r²`, radial as a round lens must be. Traced rays reproduce
+`z = f/(1 + Cs h²/f³)` to 1e-12 — the classic longitudinal spherical aberration
+`-Cs alpha²` — with the paraxial plane still at `f` exactly.
+
+`Microscope.focal_surface` traces a sampled bundle and takes each ray's closest
+approach to the axis, closed-form rather than searched (between elements a ray
+is straight, so `r²(z)` is a quadratic with a vertex). Reports samples, sag, and
+a fit. **Acceptance met:** with no aberration the surface is flat and equals the
+paraxial plane to 1e-12.
+
+**The fit basis needed correcting, and the reason generalizes.** I first used
+the plan's `z = z0 + c20 r² + c22 r² cos2(phi-phi22)` — every term scaling as
+`r²`. But **paraxial astigmatism does not scale with aperture radius**: a
+quadrupole splits the focus by azimuth only, because both transverse components
+scale together, so a ray at azimuth 0 meets the axis at the x focus whatever its
+height. Aperture aberrations *do* grow as `r²`. Fitting everything to `r²` put a
+quadrupole's splitting into `c22` and reported an aperture aberration that was
+not there — **729 um where the real half-split is 506 um**. The basis now
+carries an `r`-independent two-fold term separately; with one radius the two are
+degenerate and returned as `nan` rather than guessed.
+
+| column | astig | c20 | expected |
+|---|---|---|---|
+| ideal lens | 0 | 0 | — |
+| Cs = 1 mm | 0 | -0.0444 um | `-Cs alpha²` = -0.0444 um |
+| quadrupole | 506.250 um | 0 | half-split 506.314 um |
+| both | 506.250 um | -0.0444 um | superposes, no cross-talk |
+
+**Two things found while testing, both kept as behaviour:** a single-lens column
+with the object 10 mm before a 45 mm lens has **no real image plane** (the image
+is virtual), and `focal_surface` says so rather than inventing a reference. And
+an `image` bundle leaves an on-axis point, so every ray is *on* the axis at
+launch — the closest-approach search has to be bounded downstream of the optics
+or it returns the launch plane. Both are now tested.
+
+**Plan Q2 (coefficients on the Element or the Microscope) answered by default,
+not by decision:** per-element, because that is how they are measured and it
+composes without a transport rule. Say if you want system-level totals instead.
+104 tests green (was 100).
+
 ## 2026-08-23 — [Done] Least-confusion criterion locked down (aberrated-focal-surfaces step 1)
 **Goal:** pin the criterion `focal_surface` will use, in the aberration-free case where it must degenerate to the paraxial roots.
 **Why:** [PLAN_2026-08-22_aberrated-focal-surfaces.md](PLAN_2026-08-22_aberrated-focal-surfaces.md) step 1 — "no new physics, pure scaffolding, and it locks the criterion down".
