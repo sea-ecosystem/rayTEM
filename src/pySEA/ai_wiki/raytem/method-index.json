@@ -3361,6 +3361,30 @@
   },
   {
     "class": null,
+    "method": "test_wave_matches_closed_form_back_focal_plane",
+    "kind": "method",
+    "signature": "test_wave_matches_closed_form_back_focal_plane()",
+    "doc": "",
+    "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 2086,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_reconstruction_zero_fills_beyond_the_modelled_field",
+    "kind": "method",
+    "signature": "test_reconstruction_zero_fills_beyond_the_modelled_field()",
+    "doc": "",
+    "source_path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 2112,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_scaled_fresnel.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
     "method": "test_relativistic_wavelength_known_values",
     "kind": "method",
     "signature": "test_relativistic_wavelength_known_values()",
@@ -3894,7 +3918,7 @@
     "signature": "apply_thin_lens_scaled(s, R, power)",
     "doc": "Absorb a thin-lens focusing power into the scaled curvature state.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1642,
+    "source_lineno": 1662,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 237,
     "wiki_method_lineno": null
@@ -3906,7 +3930,7 @@
     "signature": "boundary_window(shape, margin)",
     "doc": "Absorbing-boundary window: 1 in the interior, radial cosine \u2192 0 at the edge.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1681,
+    "source_lineno": 1701,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 111,
     "wiki_method_lineno": null
@@ -3918,7 +3942,7 @@
     "signature": "propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min, absorb)",
     "doc": "Propagate the scaled field U through one free segment of length ``dz``.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1725,
+    "source_lineno": 1745,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 251,
     "wiki_method_lineno": null
@@ -3930,7 +3954,7 @@
     "signature": "propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross, safety, s_min, absorb, crossover)",
     "doc": "Propagate one free segment with automatic frame switching at crossovers.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1821,
+    "source_lineno": 1841,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 283,
     "wiki_method_lineno": null
@@ -3942,7 +3966,7 @@
     "signature": "aperture_mask(field, dx, dy, radius, antialias)",
     "doc": "Apply a hard circular aperture to a field.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 2160,
+    "source_lineno": 2180,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 97,
     "wiki_method_lineno": null
@@ -3954,7 +3978,7 @@
     "signature": "bandlimited_disk(shape, dx, dy, radius)",
     "doc": "Exactly alias-free sampling of the sharp disk :math:`\\Theta(a - r)`.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 2200,
+    "source_lineno": 2220,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 104,
     "wiki_method_lineno": null

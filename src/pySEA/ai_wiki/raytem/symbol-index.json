@@ -22,7 +22,7 @@
     "name": "aperture_mask",
     "qualname": "aperture_mask",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 2160,
+    "source_lineno": 2180,
     "signature": "aperture_mask(field, dx, dy, radius, antialias)",
     "doc": "Apply a hard circular aperture to a field."
   },
@@ -40,7 +40,7 @@
     "name": "apply_thin_lens_scaled",
     "qualname": "apply_thin_lens_scaled",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1642,
+    "source_lineno": 1662,
     "signature": "apply_thin_lens_scaled(s, R, power)",
     "doc": "Absorb a thin-lens focusing power into the scaled curvature state."
   },
@@ -76,7 +76,7 @@
     "name": "bandlimited_disk",
     "qualname": "bandlimited_disk",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 2200,
+    "source_lineno": 2220,
     "signature": "bandlimited_disk(shape, dx, dy, radius)",
     "doc": "Exactly alias-free sampling of the sharp disk :math:`\\Theta(a - r)`."
   },
@@ -112,7 +112,7 @@
     "name": "boundary_window",
     "qualname": "boundary_window",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1681,
+    "source_lineno": 1701,
     "signature": "boundary_window(shape, margin)",
     "doc": "Absorbing-boundary window: 1 in the interior, radial cosine \u2192 0 at the edge."
   },
@@ -697,7 +697,7 @@
     "name": "propagate_free_scaled",
     "qualname": "propagate_free_scaled",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1725,
+    "source_lineno": 1745,
     "signature": "propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min, absorb)",
     "doc": "Propagate the scaled field U through one free segment of length ``dz``."
   },
@@ -706,7 +706,7 @@
     "name": "propagate_free_scaled_hybrid",
     "qualname": "propagate_free_scaled_hybrid",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 1821,
+    "source_lineno": 1841,
     "signature": "propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross, safety, s_min, absorb, crossover)",
     "doc": "Propagate one free segment with automatic frame switching at crossovers."
   },
@@ -1621,6 +1621,15 @@
   },
   {
     "kind": "function",
+    "name": "test_reconstruction_zero_fills_beyond_the_modelled_field",
+    "qualname": "test_reconstruction_zero_fills_beyond_the_modelled_field",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 2112,
+    "signature": "test_reconstruction_zero_fills_beyond_the_modelled_field()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_relativistic_wavelength_known_values",
     "qualname": "test_relativistic_wavelength_known_values",
     "path": "src/pySEA/rayTEM/tests/test_wave_and_envelope.py",
@@ -1905,6 +1914,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 501,
     "signature": "test_wave_kind_aperture_matches__aperture_wave()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_wave_matches_closed_form_back_focal_plane",
+    "qualname": "test_wave_matches_closed_form_back_focal_plane",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 2086,
+    "signature": "test_wave_matches_closed_form_back_focal_plane()",
     "doc": ""
   },
   {

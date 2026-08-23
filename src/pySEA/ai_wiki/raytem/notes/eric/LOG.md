@@ -7,6 +7,48 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-23 — [Done] Wave path verified against the closed-form BFP (step 3b)
+**Goal:** check the aberrated wave path against something it does not itself compute.
+**Why:** comparing the applied screen against the screen proves nothing; the plan asked for a real cross-check.
+- [x] closed-form back-focal-plane comparison
+- [x] fixed the resampling replica it exposed
+
+**Outcome:** One focal length past a lens the field is
+`FT[A(r) exp(i chi_ab)]` at `q = x'/(lambda f)`. Reproducing it exercises the
+*whole* chain — parabola into the frame, quartic left as a screen on U,
+carrier-free kernel, hybrid frame switching, reconstruction — while reusing none
+of it. **Agreement: 4.1e-4 (Cs = 0) and 5.1e-4 (Cs = 1 mm)** on peak-normalised
+intensities.
+
+Two things had to be right before the comparison meant anything, both worth
+remembering for future cross-checks: **the same aperture model on both sides**
+(the source seeds a *band-limited* disc, so a binary reference differs by ~1e-2
+for that reason alone and it would have been easy to blame the propagation), and
+**the same grid**, so no interpolation sits in between.
+
+**Bug found by the check — a resampling replica.**
+`reconstruct_physical_wave`'s target-grid path is band-limited and therefore
+*periodic*, so requesting a grid spanning **more** than the modelled field of
+view came back filled with **replicas of the beam**. Here the native
+reconstruction spans 17.2 nm while the requested grid spans 41.3 nm, and a
+replica of the central peak sat 213 px out at **0.95 of full intensity, where
+the true field is exactly zero** — a bright feature in a region where nothing
+was ever propagated. Now zero-filled outside the modelled field, which is what
+"not modelled" means, with the docstring pointing at `target_shape` rather than
+a coarser `target_dx` for covering more area.
+
+Worth stressing how it surfaced: the check read **0.95** instead of 5e-4, and
+the discrepancy was present with `Cs = 0` too — which is what said "this is not
+about aberration". A test that only looked at the central region, or only at the
+aberrated case, would have missed it entirely.
+
+**Remaining in step 3:** a `chi(q)` *fitter* that reports coefficients from a
+logged plane. The propagation is now verified, so a fitter can be trusted once
+written; the difficulty is physical rather than mechanical — at these parameters
+the aberration disc (`Cs alpha^3` ~ 0.3 nm) and the diffraction disc
+(`lambda/alpha` ~ 0.37 nm) are the same size, so a fit must separate them rather
+than assume one dominates. 110 tests green (was 108).
+
 ## 2026-08-23 — [Done] Wave side of spherical aberration (focal-surfaces step 3a)
 **Goal:** get the aberration into the wave path as the residual screen it physically is, from the *same* chi the ray side uses.
 **Why:** a wave screen and a ray kick derived separately could disagree and nothing would notice.
