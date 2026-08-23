@@ -274,6 +274,61 @@ def quadratic_phase(shape: tuple, dx: float, dy: float, wavelength: float,
 	return -k * (power_x * X**2 + power_y * Y**2) / 2
 
 
+def spherical_phase(shape: tuple, dx: float, dy: float, wavelength: float,
+					Cs: float, power: float) -> np.ndarray:
+	r"""Real-space quartic phase of third-order spherical aberration.
+
+	The leading non-parabolic term of a real round lens, written on the lens
+	plane:
+
+	.. math::
+
+		\chi = -\frac{k\,C_s}{4 f^4}\,r^4 , \qquad r^2 = x^2 + y^2
+
+	This is the **same** :math:`\chi` the ray side differentiates: the extra
+	angular kick a ray receives is :math:`\theta' = k^{-1}\partial\chi/\partial r
+	= -(C_s/f^4) r^3`, which is
+	:meth:`elements.Lens.aberration_kick`. Keeping one expression for both
+	representations is the point — a wave screen and a ray kick that were
+	derived separately could disagree, and nothing would notice.
+
+	Substituting the ray relation at the lens, :math:`r = -f\theta`, turns it
+	into the familiar angular form :math:`\chi = -k C_s \theta^4/4`, i.e. the
+	:math:`\frac{1}{4}C_s\lambda^3 q^4` term of the usual aberration function
+	with :math:`\theta = \lambda q`.
+
+	Parameters
+	----------
+	shape : tuple of int
+		Field shape ``(ny, nx)``.
+	dx, dy : float
+		Sample spacings (metres, or physical spacings ``s·Δξ`` on a scaled grid).
+	wavelength : float
+		Wavelength (metres).
+	Cs : float
+		Third-order spherical aberration coefficient (metres).
+	power : float
+		Focal power ``1/f`` (1/metres).
+
+	Returns
+	-------
+	np.ndarray
+		Real phase array χ (radians), shape ``(ny, nx)``.
+
+	Related
+	-------
+	quadratic_phase : The ideal (parabolic) part of the same lens.
+	elements.Lens.aberration_kick : The ray-side gradient of this.
+
+	Examples
+	--------
+	>>> chi = spherical_phase((4, 4), 1e-6, 1e-6, 2.5e-12, 1e-3, 22.2)  # doctest: +SKIP
+	"""
+	X, Y = transverse_coordinates(shape, dx, dy)
+	k = 2 * np.pi / wavelength
+	return -k * Cs * power**4 * (X**2 + Y**2)**2 / 4
+
+
 def linear_phase(shape: tuple, dx: float, dy: float, wavelength: float,
 				 tilt_x: float, tilt_y: float) -> np.ndarray:
 	r"""Real-space linear phase ramp (wavefront tilt / dipole steering).

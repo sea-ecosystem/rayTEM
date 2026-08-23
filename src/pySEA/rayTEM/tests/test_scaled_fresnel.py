@@ -1983,3 +1983,90 @@ def test_focal_surface_single_radius_cannot_separate_r_terms():
 													radii=1, azimuths=8)
 	assert np.isnan(surf["fit"]["c20"]) and np.isnan(surf["fit"]["c22"])
 	assert np.isfinite(surf["fit"]["astig"])
+
+
+# --- the wave side of aberration: one chi, two representations -------------------
+
+def test_ray_kick_is_the_gradient_of_the_wave_screen():
+	# THE consistency check between the two descriptions. The ray kick and the
+	# wave screen are not independently derived: chi = -k Cs r^4 / 4f^4 and the
+	# kick is (1/k) dchi/dr. Verified by finite difference, whose error must fall
+	# as dx^2 -- a fixed tolerance would not distinguish "agrees" from "agrees to
+	# within the discretisation I happened to choose".
+	f, Cs = 0.045, 1e-3
+	lens = Lens(strength=np.sqrt(1 / f), Cs=Cs)
+	P, k = lens.focal_power(), 2 * np.pi / LAM
+	errs = []
+	for n, dx in ((256, 4e-7), (512, 2e-7), (1024, 1e-7)):
+		chi = wo.spherical_phase((n, n), dx, dx, LAM, Cs, P)
+		X, Y = wo.transverse_coordinates((n, n), dx, dx)
+		grad = np.gradient(chi, dx, axis=1)[n // 2, :] / k
+		r0 = np.zeros((n, 6))
+		r0[:, 0], r0[:, 2] = X[n // 2, :], Y[n // 2, :]
+		kick = lens.aberration_kick(r0)[0]
+		m = np.abs(X[n // 2, :]) < 2e-5
+		errs.append(np.abs(grad[m] - kick[m]).max())
+	assert errs[0] > 0
+	for a, b in zip(errs, errs[1:]):
+		assert 3.5 < a / b < 4.5, f"second-order convergence expected, got {a / b}"
+
+
+def test_lens_phase_carries_the_quartic_in_both_representations():
+	f, Cs, grid = 0.045, 1e-3, ((64, 64), 2e-6, 2e-6)
+	ideal = Lens(strength=np.sqrt(1 / f))
+	real = Lens(strength=np.sqrt(1 / f), Cs=Cs)
+
+	# scaled: the parabola is absorbed into the curvature, the quartic CANNOT be
+	# (the frame is quadratic by construction) so it stays as a residual screen
+	P_i, screen_i = ideal.phase_shift(grid, LAM, scaled=True)
+	P_r, screen_r = real.phase_shift(grid, LAM, scaled=True)
+	assert screen_i is None							# an ideal lens: U+ = U-
+	assert P_r == P_i								# aberration does not change 1/f
+	assert screen_r is not None
+	# the screen is the quartic, at the frame's physical coordinates
+	expected = wo.spherical_phase((64, 64), 2e-6, 2e-6, LAM, Cs, P_r)
+	assert np.allclose(np.asarray(screen_r.data), expected, rtol=1e-12)
+	# ...so doubling s quadruples it (r^4 at x = s*xi)
+	_, screen_s = real.phase_shift(grid, LAM, scaled=True, s=2.0)
+	assert np.allclose(np.asarray(screen_s.data), 16.0 * expected, rtol=1e-12)
+
+	# fixed: the quartic is added to the same real-space screen
+	chi_i = np.asarray(ideal.phase_shift(grid, LAM)[0].data)
+	chi_r = np.asarray(real.phase_shift(grid, LAM)[0].data)
+	assert np.allclose(chi_r - chi_i, expected, rtol=1e-12)
+
+
+def test_spherical_aberration_degrades_the_wave_focus():
+	# the physical signature: the focus broadens and its peak falls, while the
+	# PARAXIAL crossover does not move -- the frame is quadratic, so it absorbs
+	# the parabola and nothing else
+	f, a = 0.045, 3e-4
+	peaks, zs = [], []
+	for Cs in (0.0, 1e-3):
+		mic = Microscope(sections=[MicroscopeSection(elements=[
+			Source(voltage=200, wave_shape=(256, 256), wave_extent=1.4e-3,
+				   wave_kind="aperture", aperture_radius=a),
+			Drift(length=0.001), Lens(strength=np.sqrt(1 / f), Cs=Cs),
+			Drift(length=0.05)])])
+		mic.propagate_wave(mode="hybrid", absorb=0.0)
+		z = float(mic.crossovers[0])
+		I = np.abs(np.asarray(mic.wavefield_at(z).data))**2
+		peaks.append(I.max() / I.sum())
+		zs.append(z)
+	assert np.isclose(zs[0], zs[1], atol=1e-12), "the paraxial plane must not move"
+	assert peaks[1] < peaks[0], "Cs must degrade the focus"
+
+
+def test_undersampled_aberration_screen_is_refused():
+	# the quartic grows as r^4, so it out-runs the grid faster than anything
+	# else in the column. The guard must catch that rather than alias it into
+	# a plausible-looking focus: this is the SAME setup as the test above at
+	# half the sampling.
+	f, a = 0.045, 3e-4
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200, wave_shape=(128, 128), wave_extent=1.4e-3,
+			   wave_kind="aperture", aperture_radius=a),
+		Drift(length=0.001), Lens(strength=np.sqrt(1 / f), Cs=1e-3),
+		Drift(length=0.05)])])
+	with pytest.raises(ValueError, match="under-sampled on the scaled grid"):
+		mic.propagate_wave(mode="hybrid", absorb=0.0)

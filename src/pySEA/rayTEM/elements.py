@@ -2436,16 +2436,30 @@ class Lens(Element):
 		-------
 		list or tuple
 			``scaled=False``: ``[kernel(L/2), screen(χ), kernel(L/2)]``.
-			``scaled=True``: ``(1/f, None)`` — the entire quadratic phase is
-			absorbed into the curvature state (Eq 45) and ``U⁺ = U⁻`` (Eq 15).
+			``scaled=True``: ``(1/f, screen)`` — the parabola is absorbed into
+			the curvature state (Eq 45), and the ``Cs`` quartic, which a
+			quadratic frame cannot absorb, stays as a residual screen on ``U``
+			(``None`` for an ideal lens, giving ``U⁺ = U⁻``, Eq 15).
 		"""
-		from .waveoptics import quadratic_phase
+		from .waveoptics import quadratic_phase, spherical_phase, axis_components
 		from .seashells import grid_of
 		P = self.focal_power()
-		if scaled:
-			return float(P), None
+		Cs = getattr(self, "Cs", 0.0) or 0.0
 		ny, nx, dy, dx = grid_of(dimensions)
+		if scaled:
+			if Cs == 0 or P == 0:
+				return float(P), None
+			# the parabola is absorbed into the curvature exactly as before; the
+			# QUARTIC cannot be -- the frame is quadratic by construction -- so
+			# it stays as a residual screen on U, at physical coords x = s*xi.
+			# That is the aberration function, in the place it belongs.
+			s_x, s_y = axis_components(s)
+			chi = spherical_phase((ny, nx), s_x * dx, s_y * dy, wavelength, Cs, P)
+			return float(P), _screen_item(chi, dx, dy, self.name or "lens")
 		chi = quadratic_phase((ny, nx), dx, dy, wavelength, P, P) if P != 0 else None
+		if Cs != 0 and P != 0:
+			quartic = spherical_phase((ny, nx), dx, dy, wavelength, Cs, P)
+			chi = quartic if chi is None else chi + quartic
 		return self._phase_program(dimensions, wavelength, chi, self.name or "lens")
 
 	def aberration_kick(self, r0:xp.ndarray):
