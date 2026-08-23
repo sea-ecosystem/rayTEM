@@ -1625,9 +1625,12 @@ class Microscope(SEASerializable):
 		# acquires angular spread at the first lens. Rejecting it would have
 		# made this method able to express a point source but not a collimated
 		# beam, i.e. the image family but not the diffraction family.
-		if not xp.all(xp.isfinite(S0)) or S0[0, 0] < 0 or S0[1, 1] < 0:
+		if (not xp.all(xp.isfinite(S0)) or S0[0, 0] < 0 or S0[1, 1] < 0
+				or S0[0, 0] + S0[1, 1] <= 0):
 			raise ValueError("beam_waists needs a finite entrance covariance with "
-							 "non-negative variances; pass sigma0=[[<xx>, <xx'>], "
+							 "non-negative variances, at least one of them positive "
+							 "(a beam with neither size nor divergence is not a "
+							 "beam); pass sigma0=[[<xx>, <xx'>], "
 							 "[<xx'>, <x'x'>]] explicitly.")
 		emittance = float(xp.sqrt(max(xp.linalg.det(S0), 0.0)))
 		zs, widths = [], []

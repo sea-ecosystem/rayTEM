@@ -1515,7 +1515,8 @@ def test_beam_waists_match_analytic_focal_shift():
 		for z in zs])
 	brute = zs[np.where(np.diff(np.sign(s12)) != 0)[0]]
 	assert min(abs(brute - w2["z"][0])) < 2 * (L / 40000)
-	with pytest.raises(ValueError, match="finite entrance covariance"):
+	# neither size nor divergence is not a beam
+	with pytest.raises(ValueError, match="at least one of them positive"):
 		mic.beam_waists(axis="x", sigma0=np.zeros((2, 2)))
 
 
@@ -1878,3 +1879,5 @@ def test_beam_waists_returns_minima_not_stationary_points():
 	# a negative variance is still nonsense and still refused
 	with pytest.raises(ValueError, match="non-negative variances"):
 		scope.beam_waists(axis="x", sigma0=np.diag([-1.0, 1e-12]))
+	with pytest.raises(ValueError, match="at least one of them positive"):
+		scope.beam_waists(axis="x", sigma0=np.zeros((2, 2)))
