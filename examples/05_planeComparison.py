@@ -421,8 +421,9 @@ def _(analytic_planes, crossovers, flat_elements, np, ray, scope):
 				print(f"{_fam:>6} {_z*1e3:14.5f} {_zr*1e3:12.5f} {_dr*1e6:11.1f} "
 					  f"{_zw*1e3:11.5f} {_dw*1e6:12.1f}")
 			else:
+				# the image family is no longer '--': see the point-seeded cell
 				print(f"{_fam:>6} {_z*1e3:14.5f} {_zr*1e3:12.5f} {_dr*1e6:11.1f} "
-					  f"{'--':>11} {'--':>12}")
+					  f"{'(pt seed)':>11} {'see below':>12}")
 
 	_thick = [(z0, e, L) for z0, e, L in flat_elements(scope)
 			  if L > 0 and e.kind != "Drift"]
@@ -439,23 +440,112 @@ def _(analytic_planes, crossovers, flat_elements, np, ray, scope):
 def _(mo):
 	mo.md(
 		r"""
-		## Why the wave frame sits mm away
+		## Image planes from the wave — the column that used to read `--`
 
-		The wave offsets are **not** an error in the frame arithmetic — on a
-		thin-lens column all three methods agree to 0 nm. They are the scaled
-		path's documented treatment of a **thick** element: *drift L/2 → thin kick
-		`P` → drift L/2*, whereas the ray path uses the exact
-		`[[cos(KL), sin(KL)/K], [−K sin(KL), cos(KL)]]`.
+		A scaled frame **is** a reference ray, so a run finds only the conjugate
+		family its **seed** belongs to:
 
-		For a collimated ray, measuring from the lens **exit**:
+		| seed | `s(z) ∝` | its `s = 0` is |
+		|---|---|---|
+		| flat (parallel) | `A(z)` | a **diffraction** / back-focal plane |
+		| point | `B(z)` | an **image** plane |
+
+		The default source is flat, which is exactly why the image column was
+		blank: the wave never crossed those planes. Seeding a **point** instead
+		makes the run measure the image family by propagation — independently of
+		the matrix, not derived from it.
+
+		A point at `z = -R₀` produces, at the entrance, the frame `s = R₀·u₀`,
+		`u = u₀`, i.e. `R = R₀`. So each measured plane is compared against the
+		analytic plane conjugate to *that* object (`reference=-R₀`), not to the
+		entrance.
+		"""
+	)
+	return
+
+
+@app.cell
+def _(load_trimmed, np, read_scaled_wavefield):
+	def image_planes_from_wave(R0):
+		"""Crossovers of a point-seeded run = image planes of a point at z=-R0."""
+		_m = load_trimmed()
+		_w0 = _m.sections[0].elements[0].wave(mode="scaled")
+		_U, _dxi, _deta, _lam, *_ = read_scaled_wavefield(_w0)
+		from pySEA.rayTEM.seashells import make_scaled_wavefield_signal
+		_seed = make_scaled_wavefield_signal(_U, _dxi, _deta, _lam,
+											 s=1.0, R=R0, tau=0.0, z=0.0)
+		_m.propagate_wave(wave0=_seed, mode="hybrid", absorb=0.0)
+		return [float(_z) for _z in _m.crossovers]
+
+	for _R0 in (0.05, 0.5):
+		_meas = image_planes_from_wave(_R0)
+		_pred = load_trimmed().conjugate_planes(axis="x", method="frame",
+											   reference=-_R0)["image"]
+		print(f"\nvirtual object at z = {-_R0*1e3:+.1f} mm")
+		print(f"  {'#':>2} {'analytic (mm)':>15} {'wave measured (mm)':>20} {'delta (nm)':>12}")
+		print("  " + "-" * 53)
+		for _i, _z in enumerate(_pred, 1):
+			_a = np.asarray(_meas)
+			_zw = _a[np.argmin(abs(_a - _z))] if _a.size else np.nan
+			print(f"  {_i:>2} {_z*1e3:15.6f} {_zw*1e3:20.6f} {abs(_zw-_z)*1e9:12.3f}")
+	return image_planes_from_wave,
+
+
+@app.cell(hide_code=True)
+def _(mo):
+	mo.md(
+		r"""
+		### Why the second object disagrees — a limitation, not a bug
+
+		The object at −50 mm reproduces all five image planes to **0.000 nm**.
+		The one at −500 mm matches only its *first* plane, then diverges.
+
+		The cause is worth knowing. Its second predicted image plane, 320.474 mm,
+		falls **inside C3's body** (0.320–0.340 m). The scaled frame cannot cross
+		`s = 0` inside a body, so the hybrid engine flattens before it
+		(measurably: `flatten` events at 0.314916 and 0.340) and carries a flat
+		frame through — and **a frame switch re-seeds the frame as a different
+		reference ray**. Every crossover after that belongs to the new ray, not
+		to the original object, so the run crosses at 419.803 mm instead of
+		320.474 mm.
+
+		The run does not fail; it silently continues on a different conjugate
+		family. So **a wave run's crossovers are that seed's family only up to
+		its first mid-body flatten** — past that, use the analytic planes, which
+		are matrix arithmetic and never switch frames. Lifting this means
+		mid-element frame switching.
+		"""
+	)
+	return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+	mo.md(
+		r"""
+		## What the thick-lens segment fixed (historical)
+
+		The `d_wave` column above is now **0.0 µm everywhere**. It was not always:
+		the scaled path used to treat a **thick** element as *drift L/2 → thin
+		kick `P` → drift L/2*, while the ray path used the exact
+		`[[cos(KL), sin(KL)/K], [−K sin(KL), cos(KL)]]`. That put every crossover
+		on this column 422–4808 µm off.
+
+		The table below is why, and it is still worth reading as a measure of how
+		wrong the thin-kick approximation is per lens. For a collimated ray,
+		measuring from the lens **exit**:
 
 		- exact: `d = cos(KL) / (K sin(KL))`
 		- thin-equivalent: `d = 1/(K sin(KL)) − L/2`
 
-		The difference below is a per-lens property of the column, and it accounts
-		for the measured offsets exactly (C1 predicts 422.3 µm; the table's first
-		crossover is off by 422.3 µm). Later crossovers drift further because the
-		position *and* angle error after each lens is then magnified downstream.
+		C1 alone predicts 422.3 µm, which is exactly what the first crossover used
+		to be off by; later crossovers drifted further because the position *and*
+		angle error after each lens is magnified downstream.
+
+		A thick element is now carried as an exact **segment** — a
+		constant-curvature medium the frame follows rather than a screen — so
+		none of this error remains. The same treatment covers a thick quadrupole,
+		with opposite curvature on the two axes.
 		"""
 	)
 	return
