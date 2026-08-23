@@ -1813,3 +1813,8 @@ def test_mid_element_crossover_lands_on_the_analytic_plane():
 	run.propagate_wave(wave0=seed, mode="hybrid", absorb=0.0)
 	measured = np.asarray(run.crossovers, float)
 	assert abs(measured - z_in_body[0]).min() < 1e-6		# was ~0.099 m off
+	# and the ray is RESTORED past the body, so the planes downstream of the
+	# in-body crossing land on their analytic positions too -- they used to be
+	# 94-594 um out, because the rediverge had abandoned the original ray
+	for z in predicted:
+		assert abs(measured - float(z)).min() < 1e-7, float(z)

@@ -1070,11 +1070,12 @@ def propagate_quadratic_segment_hybrid(U: np.ndarray, dxi: float, deta: float,
 		for a in range(2):
 			A_a = k * 1.2 * exts[a] * pitches[a] / (safety * np.pi)
 			R_a, s_a = RR[a], ss[a]
-			heading_a = zc[a] is not None and z < zc[a] - tol
-			if not np.isinf(R_a) and R_a < 0 and not heading_a:
-				# `not heading_a`: a flat frame inside a FOCUSING medium is
-				# re-converged by the medium at once, so without this the
-				# criterion re-fires every step and the axis never crosses
+			if not np.isinf(R_a) and R_a < 0 and zc[a] is None:
+				# `zc[a] is None`: while a crossing is pending or awaiting its
+				# rediverge, this axis is mid-way through restoring one ray. A
+				# flat frame inside a FOCUSING medium is re-converged by the
+				# medium at once, so without this the criterion re-fires every
+				# step and the axis never crosses.
 				R_switch = R_a**2 / (A_a * s_a**2)
 				if crossover != 'flat':
 					R_switch /= 2
@@ -1095,7 +1096,7 @@ def propagate_quadratic_segment_hybrid(U: np.ndarray, dxi: float, deta: float,
 					logged.append((tag, U, s_j, R_j, t_j, z, z_j))
 					fired = True
 					break
-			elif np.isinf(R_a) and zc[a] is not None and z >= zc[a] - tol:
+			elif zc[a] is not None and z >= zc[a] - tol:
 				d = z - zc[a]
 				if d >= A_a * s_a**2 - tol:
 					# a ray that crossed at zc has (s, u) = block(d)(0, u_c), so
@@ -1128,6 +1129,14 @@ def propagate_quadratic_segment_hybrid(U: np.ndarray, dxi: float, deta: float,
 				step = min(step, zero * 0.5)			# halve in on the singularity
 			if zc[a] is not None and z < zc[a] - tol:
 				step = min(step, zc[a] - z)				# split at the crossover
+			elif zc[a] is not None:
+				# past the crossing and awaiting the rediverge: stop where it
+				# first becomes representable, or the loop would run to the body
+				# exit in one step and abandon the ray it is restoring
+				A_a = k * 1.2 * exts[a] * pitches[a] / (safety * np.pi)
+				need = A_a * ss[a]**2 - (z - zc[a])
+				if need > tol:
+					step = min(step, need)
 		step = max(step, tol)
 		heading = [zc[a] is not None and z < zc[a] - tol for a in range(2)]
 		U, s_j, R_j, dt = propagate_quadratic_segment_scaled(
@@ -1143,12 +1152,9 @@ def propagate_quadratic_segment_hybrid(U: np.ndarray, dxi: float, deta: float,
 			if heading[a] and z >= zc[a] - tol:
 				s_j, R_j, t_j, z_j = snapshot()
 				logged.append(("crossover-" + names[a], U, s_j, R_j, t_j, z, z_j))
-				# consume the marker unconditionally: inside a medium the frame
-				# does not stay flat, so the free engine's flat-frame rediverge
-				# does not apply -- the medium supplies the curvature itself,
-				# and leaving the marker set would strand the axis (unable to
-				# rediverge, re-flattening every step)
-				zc[a] = None
+				# the marker is NOT consumed here: the rediverge needs it to
+				# rebuild the original ray's curvature, B(d)/D(d) with
+				# d = z - z_cross. It is cleared there.
 	if rotate:
 		U = rotate_field(U, rotate)
 	s_j, R_j, t_j, z_j = snapshot()
