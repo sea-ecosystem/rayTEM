@@ -7,6 +7,15 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-23 — [Under Construction] Thick quadrupole: symplecticity + axis convention (issue #3 steps 1-2)
+**Goal:** make the thick quadrupole block symplectic and give thin and thick one shared axis convention (K > 0 focuses x).
+**Why:** the thick y-block `[[C, S/K], [+K S, C]]` has det = cos(2|KL|) = 0.75 over a 30 mm body — 25%% of phase-space area lost, violating Liouville; and thin/thick currently disagree on which axis focuses, so a quadrupole changes behavior when you give it a length.
+- [ ] symplectic blocks (trig on the focusing axis, cosh/sinh on the defocusing one)
+- [ ] k = |K| in the B term (currently signed, so it inverts for K < 0)
+- [ ] one convention in both branches; drop the thin X,Y swap
+- [ ] single body-block helper shared by transfer_matrix / transfer_xblock / focal_powers
+- [ ] tests: det == 1, halves compose, emittance invariant, thin/thick agree on sign
+
 ## 2026-08-23 — [Done] Revert the P1 wave-seam generalization
 **Goal:** back out yesterday's `phase_shift(kind=)` / `amplitude_mask` rework and restore the three `propagate_wave` overrides.
 **Why:** Eric's architectural correction. Three separate things were wrong with it.
