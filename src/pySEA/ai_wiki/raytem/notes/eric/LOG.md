@@ -7,6 +7,58 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-23 — [Done] Least-confusion criterion locked down (aberrated-focal-surfaces step 1)
+**Goal:** pin the criterion `focal_surface` will use, in the aberration-free case where it must degenerate to the paraxial roots.
+**Why:** [PLAN_2026-08-22_aberrated-focal-surfaces.md](PLAN_2026-08-22_aberrated-focal-surfaces.md) step 1 — "no new physics, pure scaffolding, and it locks the criterion down".
+- [x] criterion verified against `conjugate_planes` for both families
+- [x] two bugs found and fixed on the way
+
+**Outcome:** The criterion is settled, and it needed **no new scaffolding** —
+the existing covariance machinery already expresses it, once two real bugs were
+out of the way. Least confusion is now verified to reproduce *both* conjugate
+families exactly, by a route wholly independent of the transfer-block root
+solve:
+
+| seed | `Sigma_11` | its minima are |
+|---|---|---|
+| point (`diag(0, theta^2)`) | `B^2 theta^2` | the **B = 0 image** planes |
+| parallel (`diag(x^2, 0)`) | `A^2 x^2` | the **A = 0 diffraction** planes |
+
+Both match `conjugate_planes` on basic_column to 1e-12.
+
+**Bug 1 — `beam_waists` reported maxima as waists.** `_waist_roots` solved
+`Sigma_12 = 0`, which is *stationary*, not minimal. Differentially
+`Sigma_11' = 2 Sigma_12` and `Sigma_12' = Sigma_22 - kappa Sigma_11`, so
+`Sigma_11'' = 2(Sigma_22 - kappa Sigma_11)`. In free space `kappa = 0` and every
+stationary point is a minimum — which is why this hid — but **inside a focusing
+body the lens reverses the divergence and the root is the beam's widest point**.
+On basic_column with a point seed, five of ten reported waists were maxima, one
+inside each of C1, C3, OL2, PL1, PL3. Now classified by the sign of
+`Sigma_22 - kappa Sigma_11`. This was mine, introduced with `_waist_roots`
+earlier in this branch.
+
+**Bug 2 — a collimated beam was refused.** The guard demanded a strictly
+positive *angular* variance, so a perfectly parallel seed raised. It is a
+legitimate beam: it never focuses in free space (which the per-segment solve
+already reports by finding no root) and gains divergence at the first lens. The
+effect was that `beam_waists` could express a point source but not a collimated
+one — the image family but not the diffraction family. Relaxed to non-negative
+variances with at least one positive, so the degenerate all-zero seed is still
+refused.
+
+**Deviation from the plan, deliberate:** step 1 called for a
+`Microscope.focal_surface(...)` API. I have *not* added it. In the linear regime
+it would return a constant surface for every field point and azimuth, because
+the paraxial transfer really has no field dependence — so it would be an API
+with nothing to say until an aberration source exists. The criterion it needed
+is now pinned by tests, which was the actual point of step 1; `focal_surface`
+should land together with step 2 (Cs on a round lens) so its first output is a
+real surface with a non-zero sag. Flagging rather than silently reordering.
+
+**Also settles plan open question 1 partly:** the ray side's criterion is the
+minimum of the second moment, which is basis-free — the Seidel-vs-Zernike choice
+only arises at the *fit* stage, not the measurement. 100 tests green (was 99).
+
 ## 2026-08-23 — [Done] Mid-element frame switching
 **Goal:** let a crossover that falls inside an element body be crossed, and the plane reported where it actually is.
 **Why:** Eric: "fix the mid-element frame switching issue first... just do it." It was worse than a refusal — see below.
