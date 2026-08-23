@@ -448,7 +448,8 @@ class Element(SEASerializable):
 		**thick round lens** is different — it is a quadratic-index *medium*, so
 		the scaled factorization can carry it exactly as one segment whose scale
 		law is sinusoidal instead of linear, with no screen and no kick. This
-		hook lets such an element say so.
+		hook lets such an element say so — and a thick **quadrupole** likewise,
+		with opposite curvature on the two axes.
 
 		Driver-only, hence private: it is consumed by
 		:meth:`_propagate_wave_scaled` and never called by user code. The
@@ -460,9 +461,14 @@ class Element(SEASerializable):
 		Returns
 		-------
 		tuple or None
-			``('quadratic', K)`` for a constant-strength focusing medium of
-			strength ``K`` (1/metres), or ``None`` (the base class) meaning
-			"treat me as a point event inside free space".
+			``('quadratic', kappa, larmor)`` for a constant-curvature medium, or
+			``None`` (the base class) meaning "treat me as a point event inside
+			free space". ``kappa`` is the signed curvature in 1/metres² of
+			``u'' + kappa·u = 0`` — positive focuses (harmonic), negative
+			defocuses (hyperbolic) — scalar for an isotropic medium or an
+			``(x, y)`` pair for an astigmatic one. ``larmor`` is the body's
+			rotation angle in radians, declared by the element because only it
+			knows whether it has an axial field.
 
 		Related
 		-------
@@ -816,10 +822,10 @@ class Element(SEASerializable):
 		if segment is not None and L != 0:
 			# quadratic-index medium: one exact segment, no screen and no kick
 			from .waveoptics import propagate_quadratic_segment_scaled
-			_kind, K = segment
-			U, s, R, dt = propagate_quadratic_segment_scaled(U, dxi, deta, wavelength, L,
-													  s, R, K, s_min=s_min,
-													  absorb=absorb, rotate=rotate)
+			_kind, kappa, larmor = segment
+			U, s, R, dt = propagate_quadratic_segment_scaled(
+				U, dxi, deta, wavelength, L, s, R, kappa, s_min=s_min,
+				absorb=absorb, rotate=(larmor if rotate else 0.0))
 			tau = tau_add(tau, dt) ; z += L
 			return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
 												z=z, z_cross=z_cross, name=name)
@@ -1697,6 +1703,42 @@ class Quadrapole(Element):
 			return super().transfer_block(dz=step, axis=axis)
 		return self._body_block(step, axis)
 
+	def _scaled_segment(self):
+		r"""A thick quadrupole is a segment too — with opposite curvature per axis.
+
+		Overrides :meth:`Element._scaled_segment`. The quadrupole body is a
+		medium of constant strength that **focuses one transverse axis and
+		defocuses the other**, so its signed curvature is ``(+K², −K²)`` in the
+		order set by :meth:`_axis_focuses` (``K > 0`` focuses x). The scaled
+		frame follows each axis exactly — harmonic on one, hyperbolic on the
+		other — so a thick quadrupole costs the sampled field nothing, exactly
+		as a thick round lens does.
+
+		With ``length == 0`` there is no body to traverse and the thin route is
+		used instead: :meth:`phase_shift` absorbs the per-axis powers into
+		``(R_x, R_y)``.
+
+		Returns
+		-------
+		tuple or None
+			``('quadratic', (kappa_x, kappa_y), 0.0)`` when this quadrupole has
+			a finite length and nonzero strength, else ``None``. The Larmor
+			angle is **zero**: a quadrupole has no axial field, so unlike a round
+			lens it does not rotate the beam.
+
+		Related
+		-------
+		Lens._scaled_segment : The isotropic case.
+		_axis_focuses : Sets which axis gets the positive curvature.
+		phase_shift : Supplies the thin-quadrupole curvature kick.
+		"""
+		K = self._effective_strength()
+		if self.length > 0 and K != 0:
+			kappa = float(K**2)
+			pair = (kappa, -kappa) if self._axis_focuses('x') else (-kappa, kappa)
+			return ('quadratic', pair, 0.0)
+		return None
+
 	def focal_powers(self) -> tuple:
 		r"""Return the astigmatic focusing powers ``(1/f_x, 1/f_y)``.
 
@@ -2287,17 +2329,21 @@ class Lens(Element):
 		Returns
 		-------
 		tuple or None
-			``('quadratic', K)`` when this lens has a finite length and nonzero
-			strength, else ``None``.
+			``('quadratic', kappa, larmor)`` when this lens has a finite length
+			and nonzero strength, else ``None``. A round lens is isotropic and
+			focusing, so ``kappa = K**2`` on both axes; ``larmor = -K*L`` is the
+			body's rotation angle, declared here rather than re-derived by the
+			propagator (a quadrupole has none).
 
 		Related
 		-------
+		Quadrapole._scaled_segment : The astigmatic case, ``(+kappa, -kappa)``.
 		phase_shift : Supplies the thin-lens curvature kick.
 		waveoptics.propagate_quadratic_segment_scaled : Propagates the segment.
 		"""
 		K = self._effective_strength()
 		if self.length > 0 and K != 0:
-			return ('quadratic', float(K))
+			return ('quadratic', float(K**2), float(-K * self.length))
 		return None
 
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):

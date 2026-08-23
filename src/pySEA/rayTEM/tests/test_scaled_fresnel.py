@@ -1155,28 +1155,60 @@ def test_conjugate_planes_feed_zpts_to_log_image_planes():
 
 # --- thick lens as an exact scaled segment ----------------------------------------
 
-def test_thick_lens_delta_tau_closed_form():
-	# the sinusoidal-s(z) tau integral, against the numerical integral, and its
-	# K -> 0 limit against the free-space (linear-s) form
+def test_segment_delta_tau_closed_form_all_regimes():
+	# tau = B/(s0*s_L) is law-agnostic: verify it against the numerical integral
+	# for FOCUSING (harmonic), DEFOCUSING (hyperbolic) and free-space segments.
 	rng = np.random.default_rng(11)
-	for _ in range(30):
-		s0 = rng.uniform(0.2, 2.0)
-		K = rng.uniform(5, 200) * rng.choice([-1, 1])
-		R0 = np.inf if rng.random() < 0.3 else rng.uniform(0.05, 2.0) * rng.choice([-1, 1])
-		dz = rng.uniform(1e-4, 0.4 / abs(K))		# short of the first zero of s
-		u0 = 0.0 if np.isinf(R0) else s0 / R0
-		zg = np.linspace(0, dz, 100001)
-		sg = s0 * np.cos(K * zg) + (u0 / K) * np.sin(K * zg)
-		if np.abs(sg).min() < 1e-6:
-			continue
-		numeric = np.trapezoid(1.0 / sg**2, zg)
-		assert np.isclose(wo.scaled_delta_tau_quadratic(dz, s0, R0, K), numeric, rtol=1e-6)
-	# K -> 0 degenerates to the drift form
-	assert np.isclose(wo.scaled_delta_tau_quadratic(0.02, 1.3, np.inf, 1e-9),
+	for defocusing in (False, True):
+		checked = 0
+		for _ in range(40):
+			s0 = rng.uniform(0.2, 2.0)
+			k = rng.uniform(5, 200)
+			R0 = np.inf if rng.random() < 0.3 else rng.uniform(0.05, 2.0) * rng.choice([-1, 1])
+			dz = rng.uniform(1e-4, 0.4 / k)			# short of the first zero of s
+			u0 = 0.0 if np.isinf(R0) else s0 / R0
+			zg = np.linspace(0, dz, 100001)
+			if defocusing:
+				sg = s0 * np.cosh(k * zg) + (u0 / k) * np.sinh(k * zg)
+				kappa = -k**2
+			else:
+				sg = s0 * np.cos(k * zg) + (u0 / k) * np.sin(k * zg)
+				kappa = k**2
+			if np.abs(sg).min() < 1e-6:
+				continue
+			numeric = np.trapezoid(1.0 / sg**2, zg)
+			assert np.isclose(wo.scaled_delta_tau_quadratic(dz, s0, R0, kappa),
+							  numeric, rtol=1e-6), (kappa, s0, R0, dz)
+			checked += 1
+		assert checked > 20, "sweep degenerated"
+	# kappa -> 0 degenerates to the drift form, and kappa == 0 IS the drift form
+	assert np.isclose(wo.scaled_delta_tau_quadratic(0.02, 1.3, np.inf, 1e-18),
 					  wo.scaled_delta_tau(0.02, 1.3, np.inf), rtol=1e-9)
+	assert np.isclose(wo.scaled_delta_tau_quadratic(0.02, 1.3, -0.7, 0.0),
+					  wo.scaled_delta_tau(0.02, 1.3, -0.7), rtol=1e-12)
 	# a crossover inside the body is refused, naming where
-	with pytest.raises(ValueError, match="inside the thick lens body"):
-		wo.scaled_delta_tau_quadratic(0.05, 1.0, -0.01, 30.0)
+	with pytest.raises(ValueError, match="inside the segment body"):
+		wo.scaled_delta_tau_quadratic(0.05, 1.0, -0.01, 30.0**2)
+	# a DEFOCUSING segment entered flat can never cross over...
+	wo.scaled_delta_tau_quadratic(10.0, 1.0, np.inf, -30.0**2)
+	# ...but one entered converging hard enough still can
+	with pytest.raises(ValueError, match="inside the segment body"):
+		wo.scaled_delta_tau_quadratic(0.05, 1.0, -0.01, -30.0**2)
+
+
+def test_segment_block_regimes():
+	# the (A, B) row: harmonic, linear, hyperbolic -- all with unit determinant
+	dz = 0.02
+	for kappa in (900.0, 0.0, -900.0):
+		A, B = wo.segment_block(dz, kappa)
+		D = wo._segment_slope(dz, 0.0, 1.0, kappa)		# D = du/du0
+		C = wo._segment_slope(dz, 1.0, 0.0, kappa)		# C = du/ds0
+		assert np.isclose(A * D - B * C, 1.0, atol=1e-12), kappa
+	assert wo.segment_block(dz, 0.0) == (1.0, dz)
+	assert wo.segment_block(0.0, 900.0) == (1.0, 0.0)
+	# focusing oscillates, defocusing grows
+	assert wo.segment_block(0.2, 900.0)[0] < 1.0
+	assert wo.segment_block(0.2, -900.0)[0] > 1.0
 
 
 def test_thick_lens_segment_matches_transfer_matrix():
@@ -1186,7 +1218,7 @@ def test_thick_lens_segment_matches_transfer_matrix():
 	K, L = lens._effective_strength(), lens.length
 	U0 = wo.gaussian_field((64, 64), 1e-7, 1e-7, 5e-7, 5e-7)
 	U, s, R, dtau = wo.propagate_quadratic_segment_scaled(U0, 1e-7, 1e-7, LAM, L,
-												   1.0, np.inf, K)
+												   1.0, np.inf, K**2)
 	M = lens.transfer_matrix()
 	c = np.cos(K * L)					# the Larmor rotation scales the x-block by cos(KL)
 	A, C = M[0, 0] / c, M[1, 0] / c
@@ -1196,7 +1228,7 @@ def test_thick_lens_segment_matches_transfer_matrix():
 	assert np.isclose((np.abs(U)**2).sum(), (np.abs(U0)**2).sum(), rtol=1e-9)
 	# and a thin lens of the same power still takes the kick path
 	assert Lens(strength=6.0, length=0.0)._scaled_segment() is None
-	assert lens._scaled_segment() == ('quadratic', K)
+	assert lens._scaled_segment() == ('quadratic', K**2, -K * L)
 
 
 @pytest.mark.skipif(not sea_available, reason="basic_column.sea requires sea_eco")
@@ -1267,15 +1299,103 @@ def test_thick_lens_wave_rotation_matches_ray_larmor():
 		I = np.abs(U)**2
 		return np.arctan2((I * Y).sum() / I.sum(), (I * X).sum() / I.sum())
 
-	U_no, *_ = wo.propagate_quadratic_segment_scaled(U0, dxi, dxi, LAM, L, 1.0, np.inf, K)
-	U_rot, *_ = wo.propagate_quadratic_segment_scaled(U0, dxi, dxi, LAM, L, 1.0, np.inf, K,
-											   rotate=True)
+	U_no, *_ = wo.propagate_quadratic_segment_scaled(U0, dxi, dxi, LAM, L, 1.0,
+													 np.inf, K**2)
+	U_rot, *_ = wo.propagate_quadratic_segment_scaled(U0, dxi, dxi, LAM, L, 1.0,
+													  np.inf, K**2, rotate=-K * L)
 	lens.transfer_matrix()					# sets lens.rotation as the ray path does
 	assert np.isclose(lens.rotation, -K * L, rtol=1e-12)
 	assert np.isclose(azimuth(U_no), 0.0, atol=1e-6)			# default: no rotation
 	assert np.isclose(azimuth(U_rot), -K * L, atol=1e-3)		# opt-in: ray's angle
+	# and the element is what declares that angle -- the propagator never
+	# re-derives it from the strength (a quadrupole declares 0.0)
+	assert lens._scaled_segment() == ('quadratic', K**2, -K * L)
 	# and the rotation is energy-neutral
 	assert np.isclose((np.abs(U_rot)**2).sum(), (np.abs(U_no)**2).sum(), rtol=1e-12)
+
+
+def test_thick_quadrupole_is_an_exact_scaled_segment():
+	from pySEA.rayTEM.seashells import scaled_frame_tag
+	# issue #3 step 3. A thick quadrupole is a medium like a thick lens, but with
+	# OPPOSITE curvature per axis: harmonic on the focusing one, hyperbolic on
+	# the defocusing one. Its wave crossover must land on the ray-traced
+	# diffraction plane, where the thin-kick route sat 72-2315 um away.
+	def column(strength, length, exact=True):
+		q = Quadrapole(name="TQ", strength=strength, length=length)
+		if not exact:
+			q._scaled_segment = lambda: None			# force the thin-kick route
+		mic = Microscope(sections=[MicroscopeSection(elements=[
+			Source(voltage=200, wave_shape=(128, 128), wave_extent=128 * 4e-7),
+			Drift(length=0.02), q, Drift(length=1.4)])])
+		ray = mic.conjugate_planes(axis="x")["diff"]
+		mic.propagate_wave(mode="hybrid")
+		wave = [read_scaled_wavefield(pl)[7] for pl in mic._wave_scaled_planes
+				if scaled_frame_tag(pl) == "crossover-x"]
+		return ray[0], wave[0]
+
+	for strength, length in ((8.0, 0.03), (12.0, 0.03), (20.0, 0.05)):
+		z_ray, z_exact = column(strength, length)
+		_, z_thin = column(strength, length, exact=False)
+		assert abs(z_exact - z_ray) < 1e-9, (strength, length, z_exact, z_ray)
+		assert abs(z_thin - z_ray) > 10e-6			# the approximation it replaces
+	# the DEFOCUSING axis has no crossover at all -- it must not invent one
+	q = Quadrapole(strength=8.0, length=0.03)
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200, wave_shape=(128, 128), wave_extent=128 * 4e-7),
+		Drift(length=0.02), q, Drift(length=0.9)])])
+	assert len(mic.conjugate_planes(axis="y")["diff"]) == 0
+	mic.propagate_wave(mode="hybrid")
+	tags = [scaled_frame_tag(pl) for pl in mic._wave_scaled_planes]
+	assert "crossover-x" in tags and "crossover-y" not in tags
+
+
+def test_quadrupole_scaled_segment_declaration():
+	# the declaration itself: signed curvature per axis, and NO Larmor angle
+	# (a quadrupole has no axial field, unlike a round lens)
+	q = Quadrapole(strength=8.0, length=0.03)
+	kind, kappa, larmor = q._scaled_segment()
+	assert kind == "quadratic" and larmor == 0.0
+	assert kappa == (64.0, -64.0)					# K > 0 focuses x
+	assert Quadrapole(strength=-8.0, length=0.03)._scaled_segment()[1] == (-64.0, 64.0)
+	# thin and zero-strength quadrupoles are point events, not segments
+	assert Quadrapole(strength=8.0, length=0.0)._scaled_segment() is None
+	assert Quadrapole(strength=0.0, length=0.03)._scaled_segment() is None
+	# the curvature agrees in sign with the ray convention, on both axes
+	for K in (-8.0, 8.0):
+		q = Quadrapole(strength=K, length=0.03)
+		kx, ky = q._scaled_segment()[1]
+		assert (kx > 0) == q._axis_focuses("x")
+		assert (ky > 0) == q._axis_focuses("y")
+
+
+def test_segment_propagator_is_per_axis():
+	# the two axes accumulate DIFFERENT dtau through one anisotropic segment,
+	# and the frame advances by each axis's own law
+	n, dxi, L = 64, 1e-7, 0.03
+	U0 = wo.gaussian_field((n, n), dxi, dxi, 5e-7, 5e-7)
+	kappa = (64.0, -64.0)
+	U, s, R, dtau = wo.propagate_quadratic_segment_scaled(
+		U0, dxi, dxi, LAM, L, 1.0, np.inf, kappa)
+	assert isinstance(dtau, tuple) and dtau[0] != dtau[1]
+	# focusing axis contracts the frame, defocusing expands it
+	assert s[0] < 1.0 < s[1]
+	assert np.isclose(s[0], np.cos(8.0 * L), rtol=1e-12)
+	assert np.isclose(s[1], np.cosh(8.0 * L), rtol=1e-12)
+	# an isotropic call still returns scalars, and matches the round-lens path
+	Ui, si, Ri, ti = wo.propagate_quadratic_segment_scaled(
+		U0, dxi, dxi, LAM, L, 1.0, np.inf, 64.0)
+	assert not isinstance(si, tuple) and not isinstance(ti, tuple)
+	assert np.isclose(si, np.cos(8.0 * L), rtol=1e-12)
+	# energy is conserved with no absorber
+	assert np.isclose((np.abs(U)**2).sum(), (np.abs(U0)**2).sum(), rtol=1e-9)
+	# a rotation on an anisotropic segment is refused, not silently dropped
+	with pytest.raises(NotImplementedError, match="mixes the transverse axes"):
+		wo.propagate_quadratic_segment_scaled(U0, dxi, dxi, LAM, L, 1.0, np.inf,
+											  kappa, rotate=0.3)
+	# an interior crossover names which axis failed
+	with pytest.raises(ValueError, match=r"\[x axis\]"):
+		wo.propagate_quadratic_segment_scaled(U0, dxi, dxi, LAM, 0.05, 1.0,
+											  -0.01, kappa)
 
 
 # --- one plane calculus: transfer_block, conjugate families, waists --------------

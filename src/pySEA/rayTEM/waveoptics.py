@@ -542,29 +542,134 @@ def rotate_field(U: np.ndarray, angle: float) -> np.ndarray:
 	return shear_x(out, t)
 
 
-def scaled_delta_tau_quadratic(dz: float, s0: float, R0: float, K: float) -> float:
-	r"""Scaled increment Δτ across a constant-``K`` quadratic-index segment.
+def segment_block(dz: float, kappa: float) -> tuple:
+	r"""The ``(A, B)`` row of a constant-curvature segment's transfer block.
 
-	An element with a finite body and finite focusing strength is not a phase
-	screen but a **medium** — a thick round lens today, a thick quadrupole once
-	its per-axis block lands. Inside it the reference scale obeys the same
-	equation as a ray in that medium,
+	A segment of signed curvature :math:`\kappa` obeys :math:`u'' + \kappa u = 0`,
+	whose solution over ``dz`` is harmonic, linear or hyperbolic according to the
+	sign of :math:`\kappa`. Only the first row is returned, because that is all
+	the scaled frame needs: :math:`s(dz) = A s_0 + B u_0`.
+
+	============  ==========================  ==================================
+	:math:`\kappa`  regime                      :math:`(A, B)`
+	============  ==========================  ==================================
+	``> 0``       focusing (harmonic)         :math:`(\cos k\,dz,\ \sin(k\,dz)/k)`
+	``= 0``       free space                  :math:`(1,\ dz)`
+	``< 0``       defocusing (hyperbolic)     :math:`(\cosh k\,dz,\ \sinh(k\,dz)/k)`
+	============  ==========================  ==================================
+
+	with :math:`k = \sqrt{|\kappa|}` in both non-trivial rows. Every case has
+	unit determinant, so :func:`scaled_delta_tau_quadratic`'s closed form applies
+	uniformly.
+
+	Parameters
+	----------
+	dz : float
+		Distance through the segment (metres).
+	kappa : float
+		Signed curvature (1/metres²). Positive focuses, negative defocuses.
+
+	Returns
+	-------
+	tuple of float
+		``(A, B)``.
+
+	Related
+	-------
+	scaled_delta_tau_quadratic : Uses ``B`` for the closed-form Δτ.
+	segment_zero : Finds where ``s`` vanishes under the same law.
+
+	Examples
+	--------
+	>>> A, B = segment_block(0.0, 900.0)
+	>>> (round(A, 12), round(B, 12))
+	(1.0, 0.0)
+	"""
+	if kappa == 0:
+		return 1.0, float(dz)
+	k = np.sqrt(abs(kappa))
+	if kappa > 0:
+		return float(np.cos(k * dz)), float(np.sin(k * dz) / k)
+	return float(np.cosh(k * dz)), float(np.sinh(k * dz) / k)
+
+
+def segment_zero(dz: float, s0: float, u0: float, kappa: float):
+	r"""First zero of the reference scale strictly inside a segment, if any.
+
+	The scaled frame is singular where :math:`s(z) = 0` — that is a beam
+	crossover, and :math:`\tau = \int dz/s^2` diverges there. The closed-form Δτ
+	cannot see an interior zero (it reads only the endpoints), so it is detected
+	here from the law.
+
+	A **focusing** segment oscillates and can cross zero repeatedly; a
+	**defocusing** one, :math:`s = a\cosh kz + b\sinh kz`, crosses at most once
+	and only when :math:`|b| > |a|` (an entering beam converging hard enough to
+	reach the axis before the defocusing takes over); free space crosses at most
+	once.
+
+	Parameters
+	----------
+	dz : float
+		Segment length (metres).
+	s0 : float
+		Reference scale at entry.
+	u0 : float
+		Reference slope at entry (``s0/R0``, or 0 on a flat frame).
+	kappa : float
+		Signed curvature (1/metres²).
+
+	Returns
+	-------
+	float or None
+		Position of the first interior zero (metres from entry), or ``None``.
+
+	Related
+	-------
+	segment_block : The same law, as a transfer block.
+	scaled_delta_tau_quadratic : Raises on what this finds.
+	"""
+	tol = 1e-12 * max(abs(dz), 1.0)
+	inside = lambda z: (z is not None) and (tol < z < dz - tol)
+	if kappa == 0:
+		z = None if u0 == 0 else -s0 / u0
+		return z if inside(z) else None
+	k = np.sqrt(abs(kappa))
+	if kappa > 0:
+		# s = C cos(k z - phi) vanishes at z = (phi + pi/2 + n pi)/k
+		phi = np.arctan2(u0 / k, s0)
+		hits = sorted(z for n in range(-(int(k * abs(dz) / np.pi) + 2),
+									   int(k * abs(dz) / np.pi) + 3)
+					  if inside(z := (phi + np.pi / 2 + n * np.pi) / k))
+		return hits[0] if hits else None
+	# s = a cosh(kz) + b sinh(kz) vanishes iff |b| > |a|, at atanh(-a/b)/k
+	a, b = s0, u0 / k
+	if b == 0 or abs(a) >= abs(b):
+		return None
+	z = np.arctanh(-a / b) / k
+	return float(z) if inside(z) else None
+
+
+def scaled_delta_tau_quadratic(dz: float, s0: float, R0: float, kappa: float) -> float:
+	r"""Scaled increment Δτ across a constant-curvature segment.
+
+	An element with a finite body and finite strength is not a phase screen but
+	a **medium**: a thick round lens (focusing on both axes) or a thick
+	quadrupole (focusing on one, defocusing on the other). Inside it the
+	reference scale obeys the same equation as a ray in that medium,
+	:math:`s'' + \kappa s = 0`, so :math:`\tau = \int dz/s^2` is closed form —
+	and, remarkably, in a form that does not depend on which regime the segment
+	is in:
 
 	.. math::
 
-		s(z) = s_0\cos(Kz) + \frac{u_0}{K}\sin(Kz), \qquad u_0 = s_0/R_0
+		\Delta\tau = \frac{B}{s_0\, s(\Delta z)}, \qquad s(\Delta z) = A s_0 + B u_0
 
-	(the ``[[\cos, \sin/K], [-K\sin, \cos]]`` block of the element's own
-	transfer matrix), so :math:`\tau = \int dz/s^2` is again closed form.
-	Writing :math:`s(z) = C\cos(Kz - \varphi)` with
-	:math:`C^2 = s_0^2 + (u_0/K)^2` and :math:`\tan\varphi = u_0/(K s_0)`:
-
-	.. math::
-
-		\Delta\tau = \frac{\tan(K\,\Delta z - \varphi) + \tan\varphi}{K\,C^2}
-
-	This is the quadratic-medium counterpart of :func:`scaled_delta_tau` (whose
-	linear ``s(z)`` is the ``K → 0`` limit).
+	with :math:`(A, B)` the segment's own transfer row (:func:`segment_block`)
+	and :math:`u_0 = s_0/R_0`. This is a consequence of :math:`\det M = 1`: for
+	any solution :math:`s_1`, the second independent solution is
+	:math:`s_1\int dz/s_1^2`, and unit Wronskian fixes the constant. Free space
+	(:math:`B = \Delta z`) reproduces :func:`scaled_delta_tau` exactly, so the
+	harmonic, hyperbolic and linear cases are one formula rather than three.
 
 	Parameters
 	----------
@@ -575,8 +680,9 @@ def scaled_delta_tau_quadratic(dz: float, s0: float, R0: float, K: float) -> flo
 	R0 : float
 		Reference radius of curvature at the segment start (metres);
 		``numpy.inf`` for a flat reference wavefront.
-	K : float
-		Focusing strength of the medium (1/metres, nonzero).
+	kappa : float
+		Signed curvature of the medium (1/metres²): positive focuses (harmonic),
+		negative defocuses (hyperbolic), zero is free space.
 
 	Returns
 	-------
@@ -587,64 +693,69 @@ def scaled_delta_tau_quadratic(dz: float, s0: float, R0: float, K: float) -> flo
 	------
 	ValueError
 		If the reference scale passes through zero inside the segment — the
-		crossover lies *within the lens body*, where this frame is singular
+		crossover lies *within the element body*, where this frame is singular
 		(the integral diverges). Switch frames before entering, or shorten the
 		step; mid-element frame switching is not implemented.
 
 	Related
 	-------
-	scaled_delta_tau : The free-space (linear ``s``) form.
-	propagate_quadratic_segment_scaled : Consumes this.
+	scaled_delta_tau : The free-space form, which this generalizes.
+	segment_block, segment_zero : The law, and its singularity.
+	propagate_quadratic_segment_scaled : Consumes this, per axis.
 
 	Notes
 	-----
-	The divergence is the ordinary crossover singularity of a converging
-	frame, not a new pathology: it is the same ``s → 0`` the hybrid policy
-	flattens through in free space.
+	The divergence is the ordinary crossover singularity of a converging frame,
+	not a new pathology: it is the same ``s → 0`` the hybrid policy flattens
+	through in free space. A purely defocusing segment entered flat or diverging
+	can never reach it.
+
+	Examples
+	--------
+	>>> round(scaled_delta_tau_quadratic(0.05, 1.0, np.inf, 0.0), 12)   # free
+	0.05
 	"""
 	u0 = 0.0 if np.isinf(R0) else s0 / R0
-	phi = np.arctan2(u0 / K, s0)
-	C2 = s0**2 + (u0 / K)**2
-	# s(z) = C cos(K z - phi) vanishes at z = (phi + pi/2 + n*pi)/K
-	n_max = int(abs(K * dz) / np.pi) + 2
-	tol = 1e-12 * max(abs(dz), 1.0)
-	for n in range(-n_max, n_max + 1):
-		z_zero = (phi + np.pi / 2 + n * np.pi) / K
-		if tol < z_zero < dz - tol:
-			raise ValueError(f"Scaled frame reaches s = 0 inside the thick lens body "
-							 f"(at {z_zero:.6g} m of {dz:.6g} m): the crossover lies "
-							 "within the element, where this frame is singular. Switch "
-							 "frames before the element, or stop the step there "
-							 "(mid-element frame switching is not implemented).")
-	return (np.tan(K * dz - phi) + np.tan(phi)) / (K * C2)
+	z_zero = segment_zero(dz, s0, u0, kappa)
+	if z_zero is not None:
+		raise ValueError(f"Scaled frame reaches s = 0 inside the segment body (at "
+						 f"{z_zero:.6g} m of {dz:.6g} m): the crossover lies within "
+						 "the element, where this frame is singular. Switch frames "
+						 "before the element, or stop the step there (mid-element "
+						 "frame switching is not implemented).")
+	A, B = segment_block(dz, kappa)
+	s_end = A * s0 + B * u0
+	if s_end == 0:
+		raise ValueError("Scaled frame reaches s = 0 exactly at the segment exit; "
+						 "stop the step short of the crossover.")
+	return float(B / (s0 * s_end))
 
 
 def propagate_quadratic_segment_scaled(U: np.ndarray, dxi: float, deta: float,
-								wavelength: float, dz: float, s, R, K: float,
-								s_min: float = 1e-3, absorb: float = 0.0,
-								rotate: bool = False) -> tuple:
-	r"""Propagate the scaled field through a constant-``K`` quadratic-index segment.
+									   wavelength: float, dz: float, s, R, kappa,
+									   s_min: float = 1e-3, absorb: float = 0.0,
+									   rotate: float = 0.0) -> tuple:
+	r"""Propagate the scaled field through a constant-curvature segment.
 
-	The honest treatment of any element that declares itself a quadratic
-	segment (:meth:`elements.Element._scaled_segment` — today a thick round
-	lens): rather than a thin kick placed between two half-length drifts, the
-	element is one **segment** whose scale law is sinusoidal. The frame advances
-	by the element's own transfer block,
+	The honest treatment of any element that declares itself a segment
+	(:meth:`elements.Element._scaled_segment`): rather than a thin kick placed
+	between two half-length drifts, the element is one **medium**, and the frame
+	follows its scale law exactly. The frame advances by the element's own
+	transfer row (:func:`segment_block`) applied to :math:`(s, s/R)` —
+	legitimate because the frame *is* a reference ray — and the reduced field
+	``U`` propagates over the segment's own Δτ
+	(:func:`scaled_delta_tau_quadratic`) with the same carrier-free kernel used
+	for free space. **No phase screen and no curvature kick are applied**: the
+	scaled factorization solves the paraxial equation in a constant-curvature
+	medium exactly, so a thick body costs ``U`` nothing in sampling, exactly
+	like a drift.
 
-	.. math::
-
-		\begin{pmatrix} s \\ s/R \end{pmatrix}^+ =
-		\begin{pmatrix} \cos K\Delta z & \sin(K\Delta z)/K \\
-		-K\sin K\Delta z & \cos K\Delta z \end{pmatrix}
-		\begin{pmatrix} s \\ s/R \end{pmatrix}^-
-
-	— legitimate because the frame *is* a reference ray, ``(h, u) = (s, s/R)``
-	— and the reduced field U propagates over the segment's own Δτ
-	(:func:`scaled_delta_tau_quadratic`) with the same carrier-free kernel used for
-	free space. **No phase screen and no curvature kick are applied**: the
-	scaled factorization solves the paraxial equation in a quadratic-index
-	medium exactly, so a thick body costs U nothing in sampling, exactly like a
-	drift.
+	``kappa`` is **per-axis**, so this covers a thick round lens (equal positive
+	curvature on both axes) and a thick **quadrupole** (:math:`+\kappa` on one
+	axis, :math:`-\kappa` on the other) with the same code: the two axes simply
+	accumulate different Δτ, and the paraxial kernel is separable, so an
+	anisotropic :math:`(\Delta\tau_x, \Delta\tau_y)` is applied in one transform
+	pair at no extra cost.
 
 	Parameters
 	----------
@@ -657,91 +768,146 @@ def propagate_quadratic_segment_scaled(U: np.ndarray, dxi: float, deta: float,
 	dz : float
 		Length of body traversed (metres). ``0`` returns the state unchanged.
 	s, R : float or Sequence[float]
-		Frame state at the entrance (``R = numpy.inf`` = flat). Per-axis pairs
-		are rejected: this segment is isotropic, so an anisotropic frame would
-		need an anisotropic (per-axis ``K``) medium and a separable kernel —
-		see the thick-quadrupole work.
-	K : float
-		Focusing strength of the body (1/metres); ``0`` degenerates to a drift.
+		Frame state at the entrance (``R = numpy.inf`` = flat), scalar or an
+		``(x, y)`` pair.
+	kappa : float or Sequence[float]
+		Signed curvature of the medium (1/metres²), scalar or per-axis: positive
+		focuses (harmonic), negative defocuses (hyperbolic), zero degenerates to
+		a drift.
 	s_min : float, optional
 		Crossover backstop on the exit scale, by default ``1e-3``.
 	absorb : float, optional
-		Absorbing-boundary margin forwarded to the sub-stepped propagation
-		(see :func:`propagate_free_scaled`), by default 0.
-	rotate : bool, optional
-		Apply the body's **Larmor rotation** ``-K·dz`` to the field
-		(:func:`rotate_field`), by default False. The ray path always rotates
-		(``Lens.rotation = -K L``, accumulated on ``.R``), so set this when the
-		field is not rotationally symmetric and the wave must share the ray
-		frame. It is analytically a no-op for a rotationally symmetric field,
-		where it would only add resampling noise — hence the default.
+		Absorbing-boundary margin forwarded to the sub-stepped propagation (see
+		:func:`propagate_free_scaled`), by default 0.
+	rotate : float, optional
+		**Larmor rotation angle** of the body in radians, applied to the field
+		with :func:`rotate_field`; 0 (default) applies none. The element declares
+		this — a round lens rotates by ``−K·L``, a quadrupole not at all — so
+		this function never derives it from the strength. It is analytically a
+		no-op for a rotationally symmetric field, where it would only add
+		resampling noise.
 
 	Returns
 	-------
 	tuple
-		``(U_out, s_out, R_out, dtau)``.
+		``(U_out, s_out, R_out, dtau)``; the last three are scalars when the
+		frame and curvature are isotropic and ``(x, y)`` pairs otherwise.
 
 	Raises
 	------
-	NotImplementedError
-		If the incoming frame is anisotropic (``s_x != s_y``).
 	ValueError
-		If the frame reaches ``s = 0`` inside the body, or the exit scale
-		violates ``|s_out| > s_min``.
+		If the frame reaches ``s = 0`` inside the body on either axis (the
+		message names which), or an exit scale violates ``|s_out| > s_min``.
+	NotImplementedError
+		If a rotation is requested on an anisotropic segment or frame.
 
 	Related
 	-------
-	propagate_free_scaled : The linear-``s`` counterpart.
-	scaled_delta_tau_quadratic : The Δτ closed form.
-	apply_thin_lens_scaled : What a *thin* (``length == 0``) lens does instead.
+	propagate_free_scaled : The ``kappa = 0`` counterpart.
+	scaled_delta_tau_quadratic, segment_block : The per-axis law.
+	apply_thin_lens_scaled : What a *thin* (``length == 0``) element does instead.
+
+	Notes
+	-----
+	Anisotropic rotation is refused: a Larmor rotation mixes the transverse
+	axes, so it is only meaningful where those axes are equivalent. No element
+	declares both at once today — a quadrupole has no axial field, hence no
+	Larmor rotation.
 
 	Examples
 	--------
 	>>> U, s, R, dtau = propagate_quadratic_segment_scaled(
-	...     U0, 1e-7, 1e-7, 2.5e-12, 0.02, 1.0, np.inf, 34.7)   # doctest: +SKIP
+	...     U0, 1e-7, 1e-7, 2.5e-12, 0.02, 1.0, np.inf, 34.7**2)   # doctest: +SKIP
 	"""
 	if dz == 0:
 		return U.astype(complex, copy=True), s, R, 0.0
 	s_x, s_y = axis_components(s)
 	R_x, R_y = axis_components(R)
-	if s_x != s_y or R_x != R_y:
-		raise NotImplementedError(
-			"propagate_quadratic_segment_scaled needs an isotropic frame; this frame is "
-			f"anisotropic (s = {s}, R = {R}). An isotropic segment cannot be applied "
-			"per-axis — reconcile the axes first, or model the element as thin.")
-	if K == 0:
-		return propagate_free_scaled(U, dxi, deta, wavelength, dz, s_x, R_x,
+	k_x, k_y = axis_components(kappa)
+	if k_x == 0 and k_y == 0:
+		return propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R,
 									 s_min=s_min, absorb=absorb)
-	u0 = 0.0 if np.isinf(R_x) else s_x / R_x
-	dtau = scaled_delta_tau_quadratic(dz, s_x, R_x, K)	# also guards s = 0 inside
-	c, sn = np.cos(K * dz), np.sin(K * dz)
-	s_out = c * s_x + (sn / K) * u0
-	u_out = -K * sn * s_x + c * u0
-	if abs(s_out) <= s_min:
-		raise ValueError(f"Scaled frame reaches |s| = {abs(s_out):.3e} <= s_min = "
-						 f"{s_min} at the quadratic-segment exit; switch frames before the "
-						 "element, or lower s_min knowingly.")
-	R_out = np.inf if u_out == 0 else s_out / u_out
-	# U evolves purely by the segment's own dtau (no screen, no kick)
+	if rotate and (k_x != k_y or s_x != s_y or R_x != R_y):
+		raise NotImplementedError(
+			"Larmor rotation mixes the transverse axes, so it is only defined on "
+			f"an isotropic segment and frame (got kappa = {kappa}, s = {s}, "
+			f"R = {R}). Drop the rotation, or reconcile the axes first.")
+
+	out = []
+	for axis, s_a, R_a, k_a in (('x', s_x, R_x, k_x), ('y', s_y, R_y, k_y)):
+		try:
+			dtau_a = scaled_delta_tau_quadratic(dz, s_a, R_a, k_a)
+		except ValueError as exc:				# name the axis: a quadrupole can
+			raise ValueError(f"[{axis} axis] {exc}") from exc	# fail on one only
+		A, B = segment_block(dz, k_a)
+		u_a = 0.0 if np.isinf(R_a) else s_a / R_a
+		# the frame IS a reference ray, so it advances by the segment's own block
+		s_out = A * s_a + B * u_a
+		u_out = _segment_slope(dz, s_a, u_a, k_a)
+		if abs(s_out) <= s_min:
+			raise ValueError(f"Scaled frame reaches |s| = {abs(s_out):.3e} <= s_min = "
+							 f"{s_min} at the {axis}-axis segment exit; switch frames "
+							 "before the element, or lower s_min knowingly.")
+		out.append((s_out, np.inf if u_out == 0 else s_out / u_out, dtau_a))
+	(sx_out, Rx_out, dtau_x), (sy_out, Ry_out, dtau_y) = out
+
+	# U evolves purely by the segment's own dtau, per axis (no screen, no kick)
+	dtau = join_axes(dtau_x, dtau_y)
 	if absorb and absorb > 0:
 		n = U.shape[0]
 		band = absorb * n * abs(dxi)
 		dtau_step = 2 * band * abs(dxi) / wavelength
-		n_steps = max(1, int(np.ceil(abs(dtau) / dtau_step)))
+		n_steps = max(1, int(np.ceil(max(abs(dtau_x), abs(dtau_y)) / dtau_step)))
 		W = boundary_window(U.shape, margin=absorb)
 		U_out = U.astype(complex, copy=True) * W
+		sub = join_axes(dtau_x / n_steps, dtau_y / n_steps)
 		for _ in range(n_steps):
-			U_out = angular_spectrum_propagate(U_out, dxi, deta, wavelength,
-											   dtau / n_steps, include_carrier=False)
+			U_out = angular_spectrum_propagate(U_out, dxi, deta, wavelength, sub,
+											   include_carrier=False)
 			U_out = U_out * W
 	else:
 		U_out = angular_spectrum_propagate(U, dxi, deta, wavelength, dtau,
 										   include_carrier=False)
 	if rotate:
-		# Larmor rotation of the body; commutes with the isotropic propagation
-		# above, so applying the whole angle once here is exact
-		U_out = rotate_field(U_out, -K * dz)
-	return U_out, s_out, R_out, dtau
+		# commutes with the isotropic propagation above, so applying the whole
+		# angle once here is exact
+		U_out = rotate_field(U_out, rotate)
+	return U_out, join_axes(sx_out, sy_out), join_axes(Rx_out, Ry_out), dtau
+
+
+def _segment_slope(dz: float, s0: float, u0: float, kappa: float) -> float:
+	r"""Reference slope at the exit of a constant-curvature segment.
+
+	The second row of the segment's transfer block applied to
+	:math:`(s_0, u_0)` — the companion of :func:`segment_block`, split out
+	because only the frame advance needs it.
+
+	Parameters
+	----------
+	dz : float
+		Distance through the segment (metres).
+	s0 : float
+		Reference scale at entry.
+	u0 : float
+		Reference slope at entry.
+	kappa : float
+		Signed curvature (1/metres²).
+
+	Returns
+	-------
+	float
+		Reference slope at ``dz``.
+
+	Related
+	-------
+	segment_block : The first row, and the regime table.
+	"""
+	if kappa == 0:
+		return float(u0)
+	k = np.sqrt(abs(kappa))
+	if kappa > 0:
+		return float(-k * np.sin(k * dz) * s0 + np.cos(k * dz) * u0)
+	return float(k * np.sinh(k * dz) * s0 + np.cosh(k * dz) * u0)
 
 
 def beam_support_radius(U: np.ndarray, dxi: float, deta: float,
