@@ -7,6 +7,56 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-23 — [Done] Thick quadrupole as an exact scaled segment (issue #3 step 3)
+**Goal:** carry a thick quadrupole in the scaled wave path exactly, as the thick round lens already is.
+**Why:** a thick quad was approximated as a thin kick between two half-length drifts, putting its wave crossover 72-2315 um off the ray-traced diffraction plane.
+- [x] per-axis signed curvature in the segment propagator; drop the anisotropic refusal
+- [x] `Quadrapole._scaled_segment()`
+- [x] tests + wiki
+
+**Outcome:** Done, and the generalization paid for itself. **Δτ has a
+law-agnostic closed form.** For any segment whose block has unit determinant,
+
+    Δτ = B / (s0 * s(dz)),   s(dz) = A*s0 + B*u0
+
+with `(A, B)` the segment's own transfer row. It is a Wronskian consequence of
+`det M = 1` (for any solution s1, the second independent solution is
+`s1*∫dz/s1²`, and unit Wronskian fixes the constant). So free space, harmonic
+and hyperbolic collapse to **one formula instead of three** — the previous
+implementation carried a phase angle φ and a `tan(kΔz − φ) + tan φ` form that
+only worked for the focusing case, and deriving the hyperbolic counterpart
+separately would have meant three branches plus their degenerate cases.
+Verified against numerical `∫dz/s²` to ~1e-16 in all three regimes. It also
+ties Δτ directly to the block the element already declares for the ray side,
+which is the same declare/consume shape as `transfer_matrix` -> `propagate_ray`.
+
+Interface changes: `scaled_delta_tau_quadratic` now takes a **signed curvature**
+`kappa` (1/m², of `u'' + kappa*u = 0`) instead of a focusing-only strength `K`;
+new `segment_block` (the (A, B) row), `_segment_slope` (the second row) and
+`segment_zero` (interior crossover, per law — a focusing segment can cross
+repeatedly, a defocusing one *at most once* and only when entered converging
+hard enough, free space at most once). `propagate_quadratic_segment_scaled`
+takes per-axis kappa and no longer refuses anisotropic frames: the two axes
+accumulate different Δτ and the paraxial kernel is separable, so one transform
+pair still does it; errors name the failing axis.
+
+`rotate` changed from a bool to the **Larmor angle in radians**. The propagator
+was deriving `-K*dz` itself, which is only right for a round lens; now the
+element declares it (`_scaled_segment()` returns `('quadratic', kappa, larmor)`
+— Lens `(K**2, -K*L)`, Quadrapole `((+K², -K²), 0.0)`, since a quadrupole has no
+axial field). A rotation on an anisotropic segment is refused rather than
+silently applied, because Larmor rotation mixes the axes.
+
+**Payoff:** a thick-quad column's wave crossover now lands on the ray-traced
+diffraction plane to **0.0000 um** at every strength/length tested (8.0/30mm,
+12.0/30mm, 8.0/80mm, 20.0/50mm), where the thin-kick route sat 72, 164, 1424
+and 2315 um away. The defocusing axis correctly logs **no** crossover — it never
+had one to find. 92 tests green (was 89).
+
+**Issue #3 is now closed except step 4 (skew).** Skew stays a feature, not a
+sign fix: a rotated quadrupole couples x and y, so it cannot be written as two
+independent 2x2 blocks, and the class has no angle parameter.
+
 ## 2026-08-23 — [Done] Thick quadrupole: symplecticity + axis convention (issue #3 steps 1-2)
 **Goal:** make the thick quadrupole block symplectic and give thin and thick one shared axis convention (K > 0 focuses x).
 **Why:** the thick y-block `[[C, S/K], [+K S, C]]` has det = cos(2|KL|) = 0.75 over a 30 mm body — 25%% of phase-space area lost, violating Liouville; and thin/thick currently disagree on which axis focuses, so a quadrupole changes behavior when you give it a length.
