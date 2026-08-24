@@ -2165,3 +2165,109 @@ def test_reconstruction_zero_fills_beyond_the_modelled_field():
 	assert outside.any(), "test needs a genuinely wider request"
 	assert np.all(I[outside] == 0.0), "no field was modelled out there"
 	assert I[~outside].max() > 0										# and the beam survives
+
+
+# --- Krivanek aberration function, orders 1 to 5 ---------------------------------
+
+def test_krivanek_terms_have_the_right_order_and_symmetry():
+	# each term must go as theta^(n+1) radially and have m-fold azimuthal
+	# symmetry, i.e. 2m sign changes around a circle
+	n, dx, P = 256, 2e-6, 22.2222
+	for name, (order, m) in wo.KRIVANEK_TERMS.items():
+		chi = wo.aberration_phase((n, n), dx, dx, LAM,
+								  {name: 1e-3 if order >= 3 else 1e-8}, P)
+		idx = np.arange(10, 120)
+		line = chi[n // 2, n // 2 + idx]
+		power = np.polyfit(np.log(idx), np.log(np.abs(line)), 1)[0]
+		assert abs(power - (order + 1)) < 1e-6, (name, power)
+		t = np.linspace(0, 2 * np.pi, 721, endpoint=False)
+		xi = (n // 2 + 60 * np.cos(t)).astype(int)
+		yi = (n // 2 + 60 * np.sin(t)).astype(int)
+		assert np.sum(np.diff(np.sign(chi[yi, xi])) != 0) == 2 * m, name
+	# C3 IS spherical aberration, so the older helper must agree exactly
+	a = wo.aberration_phase((64, 64), dx, dx, LAM, {'C3': 1e-3}, P)
+	b = wo.spherical_phase((64, 64), dx, dx, LAM, 1e-3, P)
+	assert np.abs(a - b).max() < 1e-17
+	# and the errors are actionable
+	with pytest.raises(KeyError, match="not a Krivanek term"):
+		wo.aberration_phase((8, 8), dx, dx, LAM, {'C7': 1.0}, P)
+	with pytest.raises(ValueError, match="rotationally symmetric"):
+		wo.aberration_phase((8, 8), dx, dx, LAM, {'C3': (1.0, 0.5)}, P)
+	with pytest.raises(ValueError, match="nonzero focal power"):
+		wo.aberration_phase((8, 8), dx, dx, LAM, {'C3': 1.0}, 0.0)
+
+
+def test_first_order_terms_are_absorbed_into_the_frame():
+	# C1 and A1 are QUADRATIC in the pupil angle, and the scaled frame is
+	# exactly a quadratic, so they belong in the curvature -- not in a screen
+	# the frame exists to avoid.
+	f = 0.045
+	P = 1 / f
+	lens = Lens(strength=np.sqrt(P), aberrations={'C1': 5e-4})
+	P_x, P_y, residual = lens.aberration_powers()
+	assert residual == {}								# nothing left for U
+	assert np.isclose(P_x, P + 5e-4 * P**2, rtol=1e-12)	# dP = C1 P^2
+	assert P_x == P_y									# C1 is isotropic
+	# A1 aligned to the axes gives the quadrupole's own (+P, -P) shape
+	for angle, sign in ((0.0, +1.0), (np.pi / 2, -1.0)):
+		lens = Lens(strength=np.sqrt(P), aberrations={'A1': (2e-4, angle)})
+		P_x, P_y, residual = lens.aberration_powers()
+		assert residual == {}
+		assert np.isclose(P_x, P + sign * 2e-4 * P**2, rtol=1e-12)
+		assert np.isclose(P_y, P - sign * 2e-4 * P**2, rtol=1e-12)
+	# a ROTATED A1 is skew astigmatism, which (R_x, R_y) cannot express, so it
+	# stays a screen rather than being silently mis-absorbed
+	lens = Lens(strength=np.sqrt(P), aberrations={'A1': (2e-4, 0.3)})
+	P_x, P_y, residual = lens.aberration_powers()
+	assert np.isclose(P_x, P) and P_x == P_y and list(residual) == ['A1']
+	# higher orders always stay a screen
+	lens = Lens(strength=np.sqrt(P), aberrations={'C1': 1e-4, 'C3': 1e-3,
+												 'A3': (1e-3, 0.2)})
+	P_x, _, residual = lens.aberration_powers()
+	assert np.isclose(P_x, P + 1e-4 * P**2, rtol=1e-12)
+	assert sorted(residual) == ['A3', 'C3']
+
+
+def test_C1_moves_the_wave_crossover_but_not_the_ray_matrix():
+	# C1 absorbed into the frame means the wave focus moves to 1/(P + C1 P^2).
+	# The RAY matrix does not see it, because transfer_matrix is built from
+	# `strength` alone -- an asymmetry that is real and deliberate for now.
+	f = 0.045
+	P = 1 / f
+	for C1, f_eff in ((0.0, f), (5e-4, 1 / (P + 5e-4 * P**2))):
+		mic = Microscope(sections=[MicroscopeSection(elements=[
+			Source(voltage=200, wave_shape=(128, 128), wave_extent=3e-4,
+				   wave_kind="aperture", aperture_radius=6e-5),
+			Lens(strength=np.sqrt(P), aberrations={'C1': C1}),
+			Drift(length=0.06)])])
+		mic.propagate_wave(mode="hybrid", absorb=0.0)
+		assert np.isclose(float(mic.crossovers[0]), f_eff, rtol=1e-6), C1
+		# the ray matrix stays put
+		assert np.isclose(float(mic.conjugate_planes(axis="x",
+													 method="frame")["diff"][0]),
+						  f, rtol=1e-12)
+
+
+def test_aberrations_survive_a_sea_round_trip():
+	# .sea stores SCALARS only -- a dict or an array attribute breaks the
+	# writer -- so each term is its own float attribute. This is what pins that.
+	import os, tempfile
+	from pySEA.rayTEM.assemblies import load_microscope
+	cwd = os.getcwd()
+	try:
+		os.chdir(tempfile.mkdtemp())
+		mic = Microscope(sections=[MicroscopeSection(elements=[
+			Source(size=(1, 1), np_xy=(3, 3), angle=(1, 1), na_xy=(3, 3)),
+			Drift(length=1),
+			Lens(strength=3, length=.1,
+				 aberrations={'A1': (3e-4, 0.7), 'C5': 1e-2}),
+			Drift(length=1)])])
+		mic.propagate_ray()
+		mic.to_sea("t.sea")
+		lens = [e for sec in load_microscope("t.sea").sections
+				for e in sec.elements if isinstance(e, Lens)][0]
+		got = lens.aberration_coefficients()
+		assert np.isclose(got['A1'][0], 3e-4) and np.isclose(got['A1'][1], 0.7)
+		assert np.isclose(got['C5'], 1e-2)
+	finally:
+		os.chdir(cwd)

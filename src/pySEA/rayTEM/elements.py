@@ -2192,14 +2192,38 @@ class Lens(Element):
 			if a list is provided, terms are used in a series: strength =A+B*nominal+C*nominal^(1/2)+D*nominal^(1/3)+...
 		Cs : float, optional
 			Third-order spherical aberration coefficient (metres), by default 0
-			(an ideal lens). See :meth:`aberration_kick`.
+			(an ideal lens). A convenience alias for the Krivanek ``C3`` term;
+			see :meth:`aberration_kick` for its ray-side effect.
+		aberrations : dict, optional
+			Krivanek axial aberration coefficients through fifth order,
+			``{name: value}`` or ``{name: (value, angle)}`` — see
+			:data:`waveoptics.KRIVANEK_TERMS` for the names and
+			:meth:`aberration_coefficients` for how they combine with ``Cs``.
+			This is a convenience for construction only: each term is unpacked
+			into its own scalar attribute (``lens.A1``, and ``lens.A1_angle``
+			for the non-round terms), which is what keeps a lens writable to
+			``.sea`` — that writer stores scalars, not containers. Set or read
+			them directly afterwards. These act on the **wave** path; the ray
+			path currently implements ``C3`` alone.
 		position : float, optional
 			The position of the element along the z-axis, by default None
 		rotation : bool, optional
 			if set to False, lens rotation for finite-thickness lenses is overridden and turned off.
 		"""
+	# Stored per-term (the .sea writer takes scalars, not containers) but set
+	# through the single `aberrations` kwarg, so the reload filter -- which keeps
+	# only constructor parameters -- needs them named explicitly.
+	_restore_attrs = tuple(
+		n for name, (_o, m) in {
+			'C1': (1, 0), 'A1': (1, 2), 'B2': (2, 1), 'A2': (2, 3),
+			'C3': (3, 0), 'S3': (3, 2), 'A3': (3, 4), 'B4': (4, 1),
+			'D4': (4, 3), 'A4': (4, 5), 'C5': (5, 0), 'S5': (5, 2),
+			'R5': (5, 4), 'A5': (5, 6),
+		}.items() for n in ((name,) if m == 0 else (name, name + "_angle")))
+
 	def __init__(self, name:str='', length:float=0.,
 				 strength:float=0, calibration:float=None, Cs:float=0.0,
+				 aberrations:dict=None,
 				 position:float=None) -> SEASerializable:
 		
 		if length == 0: kind = 'Thin lens'
@@ -2212,6 +2236,30 @@ class Lens(Element):
 		self.calibration = calibration
 		self.rotation = 0
 		self.Cs = Cs					# spherical aberration (metres); 0 = ideal lens
+		# Krivanek coefficients live as FLAT SCALARS, one attribute per term (plus
+		# an orientation for the non-round ones). Not a dict, and not an array:
+		# the .sea writer stores scalars only, and both of those break it -- and
+		# .sea stability is a core rule, so the storage form is not negotiable.
+		from .waveoptics import KRIVANEK_TERMS
+		for _name, (_n, _m) in KRIVANEK_TERMS.items():
+			setattr(self, _name, 0.0)
+			if _m:
+				setattr(self, _name + "_angle", 0.0)
+		for _name, _spec in (aberrations or {}).items():
+			if _name not in KRIVANEK_TERMS:
+				raise KeyError(f"{_name!r} is not a Krivanek term; expected one of "
+							   f"{sorted(KRIVANEK_TERMS)}.")
+			_m = KRIVANEK_TERMS[_name][1]
+			if xp.ndim(_spec) == 0:
+				setattr(self, _name, float(_spec))
+			else:
+				_v, _a = (float(_q) for _q in _spec)
+				if _m == 0 and _a != 0.0:
+					raise ValueError(f"{_name!r} is rotationally symmetric (m = 0) "
+									 "and has no orientation; drop the angle.")
+				setattr(self, _name, _v)
+				if _m:
+					setattr(self, _name + "_angle", _a)
 
 
 	def _effective_strength(self) -> float:
@@ -2443,30 +2491,149 @@ class Lens(Element):
 		list or tuple
 			``scaled=False``: ``[kernel(L/2), screen(χ), kernel(L/2)]``.
 			``scaled=True``: ``(1/f, screen)`` — the parabola is absorbed into
-			the curvature state (Eq 45), and the ``Cs`` quartic, which a
-			quadratic frame cannot absorb, stays as a residual screen on ``U``
-			(``None`` for an ideal lens, giving ``U⁺ = U⁻``, Eq 15).
+			the curvature state (Eq 45), and the **aberration function** from
+			:meth:`aberration_coefficients`, which a quadratic frame cannot
+			absorb, stays as a residual screen on ``U`` (``None`` for an ideal
+			lens, giving ``U⁺ = U⁻``, Eq 15).
 		"""
-		from .waveoptics import quadratic_phase, spherical_phase, axis_components
+		from .waveoptics import quadratic_phase, aberration_phase, axis_components
 		from .seashells import grid_of
 		P = self.focal_power()
-		Cs = getattr(self, "Cs", 0.0) or 0.0
+		coeffs = self.aberration_coefficients()
 		ny, nx, dy, dx = grid_of(dimensions)
 		if scaled:
-			if Cs == 0 or P == 0:
+			if not coeffs or P == 0:
 				return float(P), None
+			# first-order terms are QUADRATIC, so they belong in the frame's
+			# curvature, not in a screen the frame exists to avoid
+			P_x, P_y, coeffs = self.aberration_powers()
+			powers = float(P_x) if P_x == P_y else (float(P_x), float(P_y))
+			if not coeffs:
+				return powers, None
 			# the parabola is absorbed into the curvature exactly as before; the
-			# QUARTIC cannot be -- the frame is quadratic by construction -- so
-			# it stays as a residual screen on U, at physical coords x = s*xi.
-			# That is the aberration function, in the place it belongs.
+			# aberration function CANNOT be -- the frame is quadratic by
+			# construction, and every Krivanek term here is of higher order or
+			# lower symmetry -- so it stays as a residual screen on U at
+			# physical coords x = s*xi. That is the aberration function, in the
+			# place it belongs.
 			s_x, s_y = axis_components(s)
-			chi = spherical_phase((ny, nx), s_x * dx, s_y * dy, wavelength, Cs, P)
-			return float(P), _screen_item(chi, dx, dy, self.name or "lens")
+			chi = aberration_phase((ny, nx), s_x * dx, s_y * dy, wavelength,
+								   coeffs, P)
+			return powers, _screen_item(chi, dx, dy, self.name or "lens")
 		chi = quadratic_phase((ny, nx), dx, dy, wavelength, P, P) if P != 0 else None
-		if Cs != 0 and P != 0:
-			quartic = spherical_phase((ny, nx), dx, dy, wavelength, Cs, P)
-			chi = quartic if chi is None else chi + quartic
+		if coeffs and P != 0:
+			extra = aberration_phase((ny, nx), dx, dy, wavelength, coeffs, P)
+			chi = extra if chi is None else chi + extra
 		return self._phase_program(dimensions, wavelength, chi, self.name or "lens")
+
+	def aberration_powers(self) -> tuple:
+		r"""Split the aberration function into frame powers and a residual.
+
+		The scaled frame *is* a quadratic: :math:`(s, R)` can represent any
+		phase of the form :math:`x^2/2R`. So the **first-order** Krivanek terms,
+		which are quadratic in the pupil angle, do not belong in the residual
+		screen at all — they belong in the curvature, exactly as the lens's own
+		parabola does:
+
+		- ``C1`` (defocus, :math:`m = 0`) is isotropic and quadratic, so it is a
+		  pure change of focal power, :math:`\Delta P = C_1 P^2`.
+		- ``A1`` (twofold astigmatism, :math:`m = 2`) is quadratic but
+		  astigmatic, giving :math:`\pm A_1 P^2` on the two axes — the same
+		  ``(P, -P)`` shape a quadrupole absorbs into :math:`(R_x, R_y)`.
+
+		Everything of second order and above is genuinely non-quadratic and
+		stays as a screen on ``U``. Absorbing the low-order terms is not merely
+		tidy: a quadratic screen is precisely what the scaled frame exists to
+		avoid, and leaving ``C1`` in the screen would both waste sampling and
+		put the logged crossover in the wrong place.
+
+		Returns
+		-------
+		tuple
+			``(power_x, power_y, residual)``: the per-axis focal powers
+			including the lens's own, and the coefficients that must still be
+			applied to ``U``. ``power_x == power_y`` for a round lens with no
+			``A1``.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		aberration_coefficients : The full set this splits.
+		phase_shift : The consumer.
+
+		Notes
+		-----
+		``A1`` is absorbed only when its orientation is a multiple of
+		:math:`\pi/2`, i.e. aligned with the grid axes. A rotated quadratic is a
+		**skew** astigmatism, which a per-axis :math:`(R_x, R_y)` frame cannot
+		represent — the frame would need off-diagonal terms — so a rotated
+		``A1`` is left in the residual screen instead. Same limitation as a skew
+		quadrupole.
+		"""
+		P = float(self.focal_power())
+		coeffs = self.aberration_coefficients()
+		residual = {}
+		P_x = P_y = P
+		for name, spec in coeffs.items():
+			value = float(spec) if xp.ndim(spec) == 0 else float(spec[0])
+			angle = 0.0 if xp.ndim(spec) == 0 else float(spec[1])
+			if name == 'C1':						# isotropic quadratic: pure power
+				P_x += value * P**2
+				P_y += value * P**2
+				continue
+			if name == 'A1':
+				# aligned with the axes? cos(2(phi - a)) is then +-cos(2phi)
+				turns = angle / (xp.pi / 2)
+				if abs(turns - round(turns)) < 1e-12:
+					sign = 1.0 if round(turns) % 2 == 0 else -1.0
+					P_x += sign * value * P**2
+					P_y -= sign * value * P**2
+					continue
+				# rotated: skew astigmatism, which (R_x, R_y) cannot express
+			residual[name] = spec
+		return P_x, P_y, residual
+
+	def aberration_coefficients(self) -> dict:
+		"""This lens's Krivanek aberration coefficients, with ``Cs`` folded in.
+
+		``Cs`` is a convenience alias for the third-order spherical term
+		``C3``, so this merges the two into one dictionary. An explicit
+		``C3`` in :attr:`aberrations` wins, because naming the term is more
+		specific than using the alias, and mixing both is more likely a mistake
+		than an intent to add them.
+
+		Returns
+		-------
+		dict
+			``{name: value_or_(value, angle)}``, empty for an ideal lens.
+
+		Related
+		-------
+		waveoptics.aberration_phase : Consumes this to build the phase.
+		waveoptics.KRIVANEK_TERMS : The names and their (order, multiplicity).
+
+		Notes
+		-----
+		These describe the **wave** path in full. The ray path
+		(:meth:`aberration_kick`) implements ``C3`` only, so a lens carrying,
+		say, ``A3`` aberrates its wavefront but not its rays. That asymmetry is
+		deliberate for now and stated rather than hidden.
+		"""
+		from .waveoptics import KRIVANEK_TERMS
+		out = {}
+		for name, (n, m) in KRIVANEK_TERMS.items():
+			value = float(getattr(self, name, 0.0) or 0.0)
+			if value == 0.0:
+				continue
+			angle = float(getattr(self, name + "_angle", 0.0) or 0.0) if m else 0.0
+			out[name] = (value, angle) if m else value
+		Cs = getattr(self, "Cs", 0.0) or 0.0
+		if Cs and 'C3' not in out:
+			out['C3'] = float(Cs)
+		return out
 
 	def aberration_kick(self, r0:xp.ndarray):
 		r"""Third-order spherical aberration: the ray kick :math:`-C_s r^2 \vec{r}/f^4`.

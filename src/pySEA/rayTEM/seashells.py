@@ -815,5 +815,13 @@ def safeReinstantiate(source,cls):
 	cls = {"Drift":Drift, "QLens":Lens, "Thin lens":Lens, "Source":Source, "Microscope":Microscope, "Section":MicroscopeSection, "Dipole":Dipole, "Thin dipole":Dipole, "Quad":Quadrapole, "Thin quad":Quadrapole }[cls]
 	dic = source.__dict__
 	allowed_kwargs = inspect.signature(cls).parameters.keys()	# infer allowed kwargs from the class itself
-	dic = { k:v for k,v in dic.items() if k in allowed_kwargs }	# and filter kwargs to those accepted
-	return cls(**dic)
+	kwargs = { k:v for k,v in dic.items() if k in allowed_kwargs }	# and filter kwargs to those accepted
+	obj = cls(**kwargs)
+	# Attributes that are stored but are NOT constructor parameters would be
+	# silently dropped by the filter above, so a class may name them. Lens uses
+	# this for its Krivanek coefficients, which are set through one `aberrations`
+	# kwarg but stored as one scalar each (the .sea writer takes scalars only).
+	for name in getattr(cls, "_restore_attrs", ()):
+		if name in dic:
+			setattr(obj, name, dic[name])
+	return obj
