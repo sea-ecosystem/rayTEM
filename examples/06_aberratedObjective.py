@@ -5,9 +5,10 @@ Five panels:
 A  the column, with OL1 and the plane examined marked.
 B  the OL diffraction plane with an ideal OL1 -- every ray crosses at one point.
 C  the same plane with Cs = 1 mm -- the rays cross over a 40 nm spread: a caustic.
-D  the focal surface. The ISOLATED lens follows the closed form -Cs alpha^2
-   exactly, which validates the implementation; OL1 inside the column does not,
-   and should not, for two stated reasons.
+D  the focal surface. The ISOLATED thin lens follows the closed form
+   -Cs alpha^2 exactly, which validates the implementation; OL1 inside the
+   column does not, and should not: the beam arrives converging, and OL1 is
+   10 mm thick so its aberration is distributed along the body.
 E  the same aberration in the WAVE path, as a Strehl loss at the focus.
 
 Run: python examples/06_aberratedObjective.py   (writes figures/)
@@ -94,7 +95,8 @@ axD.set_ylim(-115, 22)
 axD.text(0.03, 0.05,
 	"the red curve is NOT expected to follow the closed form:\n"
 	"  • the condenser delivers a CONVERGING beam to OL1\n"
-	"  • OL1 is 10 mm thick; the kick sits at its entrance face",
+	"  • OL1 is 10 mm THICK, so its aberration is distributed\n"
+	"    along the body, not applied at one plane",
 	transform=axD.transAxes, fontsize=7.6, color="tab:red")
 
 # ---- E: the wave, same lens, same aberration ----------------------------

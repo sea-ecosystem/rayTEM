@@ -461,8 +461,12 @@ class Element(SEASerializable):
 		Returns
 		-------
 		tuple of xp.ndarray or None
-			``(delta_xt, delta_yt)`` in radians, each shape ``(n_rays,)``, or
-			``None`` when the element is purely linear.
+			``(delta_x, delta_y, delta_xt, delta_yt)`` — offsets in metres and
+			radians, each shape ``(n_rays,)`` — or ``None`` when the element is
+			purely linear. A point-like element contributes angle only, but a
+			**body** also displaces the ray: its aberration acts part-way
+			through and the remaining length converts that kick into a
+			position offset as well.
 
 		Related
 		-------
@@ -592,7 +596,9 @@ class Element(SEASerializable):
 		# Declared by the element, applied here, exactly as transfer_matrix is.
 		kick = self.aberration_kick(r0)
 		if kick is not None:
-			dxt, dyt = kick
+			dx, dy, dxt, dyt = kick
+			rf[:,columnByName("x")] += dx
+			rf[:,columnByName("y")] += dy
 			rf[:,columnByName("xt")] += dxt
 			rf[:,columnByName("yt")] += dyt
 
@@ -2509,11 +2515,29 @@ class Lens(Element):
 
 		Notes
 		-----
-		The kick is evaluated at the entrance coordinates, which is **exact for
-		a thin lens** (``length == 0``, where the matrix leaves position
-		unchanged). For a thick body it places the whole aberration at the
-		entrance face rather than distributing it along the body; a distributed
-		treatment would need the aberration integral through the medium.
+		A **thin** lens (``length == 0``) takes one impulsive kick at its plane,
+		which is exact. A **thick** body distributes the perturbation along its
+		length: a slice ``dz`` acts on the *local* ray height
+		:math:`r(z)`, and the remaining body then carries that kick to the exit,
+		turning part of it into a position offset. To first order,
+
+		.. math::
+
+			\Delta x_{exit} = -c\!\int_0^L\! r(z)^2 x(z)\, B(L-z)\,dz, \quad
+			\Delta\theta_{exit} = -c\!\int_0^L\! r(z)^2 x(z)\, D(L-z)\,dz
+
+		with :math:`c = C_s/(f^4 L)` — chosen so the ``L -> 0`` limit is the thin
+		kick — and :math:`B, D` entries of the body's own
+		:meth:`transfer_block` over the *remaining* length. The integral is
+		Simpson over 64 slices.
+
+		This matters on a real objective. OL1 in ``basic_column`` is 10 mm thick
+		with :math:`KL = 1.30`, and putting the whole aberration at its entrance
+		face over-estimates the exit angle by **3.3x**: :math:`r(z)` falls as the
+		body focuses, and the kick from each slice is then itself focused by the
+		rest of the body. Both effects reduce it, and the weight
+		:math:`D(L-z) = \cos K(L-z)` is what makes the factor 0.31 rather than
+		the 0.51 that :math:`\int\cos^3` alone would suggest.
 		"""
 		Cs = getattr(self, "Cs", 0.0) or 0.0
 		P = self.focal_power()
@@ -2521,9 +2545,37 @@ class Lens(Element):
 			return None
 		x = r0[:, columnByName("x")]
 		y = r0[:, columnByName("y")]
-		r2 = x**2 + y**2
-		scale = Cs * P**4					# Cs / f^4
-		return -scale * x * r2, -scale * y * r2
+		L = self.length or 0.0
+		if L <= 0:							# thin: one impulsive kick, exact
+			r2 = x**2 + y**2
+			scale = Cs * P**4				# Cs / f^4
+			z = xp.zeros_like(x)
+			return z, z, -scale * x * r2, -scale * y * r2
+		# Thick: the perturbation is DISTRIBUTED along the body. A slice dz acts
+		# on the LOCAL ray height, and the rest of the body then turns that kick
+		# into a position offset too, so integrating is not the same as placing
+		# the whole thing at one face.
+		xt = r0[:, columnByName("xt")]
+		yt = r0[:, columnByName("yt")]
+		c = Cs * P**4 / L					# so the L -> 0 limit is the thin kick
+		n = 64								# Simpson over the body
+		zs = xp.linspace(0.0, L, n + 1)
+		w = xp.ones(n + 1) ; w[1:-1:2] = 4.0 ; w[2:-1:2] = 2.0
+		w = w * (L / n) / 3.0
+		dx = xp.zeros_like(x) ; dy = xp.zeros_like(y)
+		dxt = xp.zeros_like(x) ; dyt = xp.zeros_like(y)
+		for zi, wi in zip(zs, w):
+			A_i, B_i = self.transfer_block(dz=float(zi))[0]			# to the slice
+			x_i = A_i * x + B_i * xt
+			y_i = A_i * y + B_i * yt
+			r2_i = x_i**2 + y_i**2
+			rest = self.transfer_block(dz=float(L - zi))			# and onward
+			B_u, D_u = float(rest[0, 1]), float(rest[1, 1])
+			dx = dx - c * wi * x_i * r2_i * B_u
+			dy = dy - c * wi * y_i * r2_i * B_u
+			dxt = dxt - c * wi * x_i * r2_i * D_u
+			dyt = dyt - c * wi * y_i * r2_i * D_u
+		return dx, dy, dxt, dyt
 
 	def calibration_from_f_and_I(self,f,I,rotationPerAmp=None):
 		print("for lens",self.name,"seeking a calibration factor C, which focuses strength",I,"to focal length",f,"and rotationPerAmp",rotationPerAmp)

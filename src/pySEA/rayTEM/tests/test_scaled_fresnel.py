@@ -1904,9 +1904,10 @@ def test_spherical_aberration_kick_matches_the_closed_form():
 	lens = Lens(strength=np.sqrt(1 / f), Cs=Cs)
 	r0 = np.zeros((3, 6))
 	r0[:, 0] = [0.0, 1e-4, 2e-4]
-	dxt, dyt = lens.aberration_kick(r0)
+	dx, dy, dxt, dyt = lens.aberration_kick(r0)
 	assert np.allclose(dxt, [-Cs * (1 / f)**4 * h**3 for h in r0[:, 0]], rtol=1e-12)
 	assert np.allclose(dyt, 0.0)
+	assert np.allclose(dx, 0.0) and np.allclose(dy, 0.0)	# a thin lens does not displace
 	# an ideal lens declares nothing at all, so aberration-free columns are
 	# bit-for-bit unchanged
 	assert Lens(strength=np.sqrt(1 / f)).aberration_kick(r0) is None
@@ -1925,6 +1926,40 @@ def test_spherical_aberration_kick_matches_the_closed_form():
 	# and the PARAXIAL plane is untouched -- aberration is the departure from it
 	assert np.isclose(float(mic.conjugate_planes(axis="x")["diff"][0]), 0.01 + f,
 					  atol=1e-12)
+
+
+def test_thick_body_aberration_matches_the_perturbed_ray_equation():
+	# A thick lens distributes its aberration: a slice dz acts on the LOCAL ray
+	# height and the rest of the body carries that kick to the exit, giving a
+	# position offset as well as an angle one. Validated against direct
+	# integration of x'' = -K^2 x - c x r^2 through the body -- an independent
+	# route that uses none of the transfer-block machinery.
+	from scipy.integrate import solve_ivp
+	K, L, Cs = 129.80, 0.010, 1e-3			# OL1's real parameters
+	lens = Lens(strength=K, length=L, Cs=Cs)
+	c = Cs * lens.focal_power()**4 / L
+	A, B = np.cos(K * L), np.sin(K * L) / K
+	for h in (2e-5, 4e-5, 8e-5):
+		sol = solve_ivp(lambda z, u: [u[1], -K**2 * u[0] - c * u[0]**3],
+						[0, L], [h, 0.0], rtol=1e-12, atol=1e-18)
+		d_ode = (sol.y[0, -1] - A * h, sol.y[1, -1] + K * np.sin(K * L) * h)
+		r0 = np.zeros((1, 6)); r0[0, 0] = h
+		dx, dy, dxt, dyt = lens.aberration_kick(r0)
+		# first-order perturbation, so the residual is the second-order term and
+		# must stay small AND grow with h
+		assert abs(dx[0] / d_ode[0] - 1) < 1e-4, h
+		assert abs(dxt[0] / d_ode[1] - 1) < 1e-4, h
+	# the thin limit is untouched: no displacement, and the impulsive kick
+	thin = Lens(strength=np.sqrt(1 / 0.045), Cs=Cs)
+	r0 = np.zeros((2, 6)); r0[:, 0] = [1e-4, 2e-4]
+	dx, dy, dxt, dyt = thin.aberration_kick(r0)
+	assert np.all(dx == 0) and np.all(dy == 0)
+	assert np.allclose(dxt, [-Cs * (1 / 0.045)**4 * h**3 for h in r0[:, 0]], rtol=1e-12)
+	# distributing it is NOT the same as placing it at the entrance face: r(z)
+	# falls as the body focuses, so the entrance-face model over-estimates
+	entrance = -Cs * lens.focal_power()**4 * 8e-5**3
+	r0 = np.zeros((1, 6)); r0[0, 0] = 8e-5
+	assert abs(lens.aberration_kick(r0)[2][0]) < 0.7 * abs(entrance)
 
 
 def test_focal_surface_is_flat_without_aberration():
@@ -2003,7 +2038,7 @@ def test_ray_kick_is_the_gradient_of_the_wave_screen():
 		grad = np.gradient(chi, dx, axis=1)[n // 2, :] / k
 		r0 = np.zeros((n, 6))
 		r0[:, 0], r0[:, 2] = X[n // 2, :], Y[n // 2, :]
-		kick = lens.aberration_kick(r0)[0]
+		kick = lens.aberration_kick(r0)[2]			# (dx, dy, dxt, dyt)
 		m = np.abs(X[n // 2, :]) < 2e-5
 		errs.append(np.abs(grad[m] - kick[m]).max())
 	assert errs[0] > 0
