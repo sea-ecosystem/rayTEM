@@ -7,6 +7,62 @@ Status markers: `[Under Construction]` while in progress · `[Done]` when comple
 
 <!-- Add entries here as work is completed. See notes/ondrej/LOG.md for format reference. -->
 
+## 2026-08-23 — [Done] Aberration on the REAL objective, and distributed through its body
+**Goal:** show the aberration on a lens in `basic_column`, with pictures, and make the thick-lens treatment quantitative.
+**Why:** Eric: "I don't know what you are talking about because there are no visuals. Also, what lens are you aberrating?" Both fair — see below.
+- [x] `examples/06_aberratedObjective.py` + figure, on OL1
+- [x] `focal_surface(near=, window=)`
+- [x] distributed thick-body aberration
+- [x] validated against the perturbed ray ODE
+
+**Outcome, and the honest answer to "what lens":** **none of ours, until now.**
+Every Cs number I had reported came from a standalone toy lens built for the
+purpose; every lens in `basic_column` still had `Cs = 0`. `examples/06` now puts
+Cs = 1 mm on the actual objective **OL1** (f = 8 mm, 10 mm thick, z = 490 mm) and
+plots it — ray panels through `Microscope.show(plt_ax=)`, per the standing
+directive.
+
+**Putting it on a real column immediately broke `focal_surface`.** It took the
+*global* closest approach, and an objective-aperture bundle crosses the axis at
+the condenser foci long before the objective, so it reported a **130 mm "sag"
+belonging to a different lens**. New `near=` (which paraxial plane) and
+`window=` (how far to search, defaulting to half the gap to the neighbouring
+plane of the family). This was invisible on toy columns with one focus — a
+reminder that single-lens tests do not exercise plane selection at all.
+
+**Then the thick-body approximation had to go.** The whole aberration sat at the
+entrance face, exact only for a thin lens. A body's perturbation is
+*distributed*: a slice `dz` acts on the **local** `r(z)`, and the remaining body
+carries that kick to the exit, so it produces a position offset as well as an
+angle one. `aberration_kick`'s contract widened from `(dxt, dyt)` to
+`(dx, dy, dxt, dyt)` accordingly.
+
+Validated against **direct integration of `x'' = -K²x - c x r²`** through the
+body — an independent route using none of the transfer-block machinery.
+Agreement 1.1e-6 to 5.7e-6 relative over h = 20–80 um, with the residual growing
+as `h²`: exactly the second-order term a first-order perturbation omits, which
+is the signature you want rather than a flat tolerance.
+
+**Size of the correction, and a number I got wrong first:** on OL1 (`KL = 1.30`)
+the entrance-face model over-estimates the exit angle by **3.3x**. I initially
+estimated "roughly twofold" from `integral cos^3 / L = 0.51`, forgetting that
+each slice's kick is *itself focused by the rest of the body* — the `D(L-z) =
+cos K(L-z)` weight — which brings it to 0.31. Docstring corrected. OL1's fitted
+`c20` moves from **-40.3 to -63.7 nm**, sag 40.1 -> 63.2 nm.
+
+**A change I made and reverted:** `_check_screen_sampling` measures the phase
+step over the whole grid, and a quartic screen is 1235 rad at the grid edge of an
+f = 8 mm lens, so I switched it to measure at the beam support. Then I measured
+the support: the band-limited disc's tails exceed the 1e-6 threshold across the
+*entire* grid, so the beam genuinely does reach where the screen is steep and the
+original guard was right. Reverted; my earlier "the guard earns its keep" claim
+stands. The real consequence is a physical limit, now stated on the figure: at
+10 mrad on an 8 mm lens the screen cannot be sampled, so the wave panel runs at
+5 mrad where the Strehl loss is only 1.4%.
+
+Also: peak-normalising each wave curve **hid** that 1.4% entirely. Both are now
+scaled to the ideal peak. 111 tests green (was 110).
+
 ## 2026-08-23 — [Done] Wave path verified against the closed-form BFP (step 3b)
 **Goal:** check the aberrated wave path against something it does not itself compute.
 **Why:** comparing the applied screen against the screen proves nothing; the plan asked for a real cross-check.
