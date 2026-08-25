@@ -2255,6 +2255,85 @@ def aperture_transmission(shape: tuple, dx: float, dy: float, radius: float,
 	return np.clip(0.5 + (radius - r) / px, 0.0, 1.0)
 
 
+def resample_screen(data: np.ndarray, dx_src: float, dy_src: float,
+					shape: tuple, dx: float, dy: float) -> np.ndarray:
+	r"""Resample a supplied screen onto the grid actually being propagated.
+
+	A supplied screen — a measured wavefront, a fabricated plate, a Zernike fit
+	— comes on whatever grid it was made on, which is rarely the wave grid. It
+	is resampled **bilinearly**, deliberately: a hard-edged plate is the
+	commonest supplied screen, and band-limited resampling would ring across
+	its edge, putting oscillation into a field where the physics has none.
+	Bilinear blurs the edge over one pixel instead, which is the same thing
+	:func:`aperture_transmission` already does to suppress aliasing.
+
+	Both grids use the :func:`transverse_coordinates` centring, so this is a
+	pure change of sampling, not of position.
+
+	Where the target grid extends **beyond** the supplied screen, the screen is
+	filled with its **identity**: 0 for a real phase, 1 for a complex
+	transmission. That is the same convention as an absent screen — the element
+	does nothing where it is not defined. A screen meant to block outside its
+	extent must say so by covering the field, because nothing here can tell a
+	plate that ends from a plate in a holder.
+
+	Parameters
+	----------
+	data : np.ndarray
+		Screen on its own grid: real phase χ (radians) or complex transmission.
+	dx_src, dy_src : float
+		Sample spacings of ``data`` (metres).
+	shape : tuple of int
+		Target field shape ``(ny, nx)``.
+	dx, dy : float
+		Target sample spacings (metres).
+
+	Returns
+	-------
+	np.ndarray
+		The screen on the target grid, same dtype kind as ``data``.
+
+	Raises
+	------
+	ValueError
+		If a source spacing is zero, which leaves the source grid undefined.
+
+	Related
+	-------
+	elements.Element._combine_screen : The caller.
+	apply_phase : Applies the result.
+	aperture_transmission : The same one-pixel edge treatment, for the same reason.
+
+	Notes
+	-----
+	Complex screens are resampled component-wise, since the interpolator is
+	real-valued. Interpolating a transmission's real and imaginary parts is
+	correct where the phase varies slowly between samples, which is the same
+	condition every other screen operation already assumes.
+
+	Examples
+	--------
+	>>> resample_screen(plate, 1e-6, 1e-6, (256, 256), 5e-7, 5e-7)  # doctest: +SKIP
+	"""
+	from scipy.ndimage import map_coordinates
+	if dx_src == 0 or dy_src == 0:
+		raise ValueError("a supplied screen needs nonzero sample spacings to be resampled; "
+						 f"got dx={dx_src}, dy={dy_src}.")
+	data = np.asarray(data)
+	ny_s, nx_s = data.shape
+	X, Y = transverse_coordinates(shape, dx, dy)
+	# same centring on both grids, so this is purely a change of sampling
+	cols = X / dx_src + nx_s // 2
+	rows = Y / dy_src + ny_s // 2
+	coords = np.asarray([rows, cols])
+	identity = 1.0 if np.iscomplexobj(data) else 0.0
+	def _one(a, fill):
+		return map_coordinates(a, coords, order=1, mode="constant", cval=fill)
+	if np.iscomplexobj(data):
+		return _one(data.real, identity) + 1j * _one(data.imag, 0.0)
+	return _one(data, identity)
+
+
 def bandlimited_disk(shape: tuple, dx: float, dy: float, radius: float) -> np.ndarray:
 	r"""Exactly alias-free sampling of the sharp disk :math:`\Theta(a - r)`.
 

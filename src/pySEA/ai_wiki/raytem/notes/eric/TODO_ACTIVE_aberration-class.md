@@ -25,8 +25,9 @@ the reader extends to fifth order.
 - [x] `Element.screen`: a SUPPLIED screen, stored because it cannot be
       recomputed; `1` when absent; `_has_screen()` to branch without
       type-testing. Generated chi stays recomputed.
-- [ ] resample a supplied screen onto the propagation grid (currently refused
-      with an actionable error; a hard-edged plate must not be band-limited)
+- [x] resample a supplied screen onto the propagation grid -- bilinear, not
+      band-limited, so a hard-edged plate does not ring; refused only when the
+      screen carries no calibration to resample from
 - [x] folded `Aperture`'s WAVE behaviour into the screen mechanism; its
       `propagate_wave` override is gone, `apply_intensity` untouched
 - [ ] supplied screen through a VOLUME, not just one plane (3D signal)

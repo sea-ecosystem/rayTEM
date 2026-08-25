@@ -580,7 +580,7 @@ class Element(SEASerializable):
 		"""
 		from .seashells import grid_of
 		ny, nx, dy, dx = grid_of(dimensions)
-		chi = self._combine_screen(None, (ny, nx))		# None unless one was supplied
+		chi = self._combine_screen(None, (ny, nx), dx, dy)	# None unless one was supplied
 		if scaled:
 			return 0.0, (None if chi is None else _screen_item(chi, dx, dy,
 															   self.name or type(self).__name__))
@@ -748,7 +748,12 @@ class Element(SEASerializable):
 		return self._screen is not None
 
 	def _screen_data(self):
-		"""The supplied screen's raw array, unwrapped from a Signal if need be.
+		"""The supplied screen's array and its own sample spacings.
+
+		A screen supplied as a calibrated Signal knows the grid it was made on,
+		which is what lets it be resampled onto the propagation grid. A bare
+		array does not, so it reports ``None`` spacings and may only be used on
+		a grid of its own shape.
 
 		Parameters
 		----------
@@ -756,8 +761,9 @@ class Element(SEASerializable):
 
 		Returns
 		-------
-		numpy.ndarray or None
-			The array, or ``None`` when no screen is supplied.
+		tuple
+			``(data, dx, dy)`` with ``data`` ``None`` when no screen is
+			supplied, and ``dx``/``dy`` ``None`` for an uncalibrated array.
 
 		Raises
 		------
@@ -768,10 +774,19 @@ class Element(SEASerializable):
 		_combine_screen : The consumer.
 		"""
 		if self._screen is None:
-			return None
-		return xp.asarray(getattr(self._screen, "data", self._screen))
+			return None, None, None
+		data = xp.asarray(getattr(self._screen, "data", self._screen))
+		dims = getattr(self._screen, "dimensions", None)
+		if dims is None:
+			return data, None, None
+		from .seashells import grid_of
+		try:
+			_ny, _nx, dy, dx = grid_of(dims)
+		except Exception:					# an array-like without a usable calibration
+			return data, None, None
+		return data, float(dx), float(dy)
 
-	def _combine_screen(self, chi, shape:tuple):
+	def _combine_screen(self, chi, shape:tuple, dx:float=None, dy:float=None):
 		r"""Merge a generated phase with this element's supplied screen.
 
 		Both are screens, so they compose by multiplying transmissions. Two
@@ -780,14 +795,21 @@ class Element(SEASerializable):
 		result real — worth doing, because a real screen is half the memory and
 		is the only form the sampling guard can check.
 
+		A supplied screen on a different grid is **resampled** when it carries
+		its own calibration (i.e. it was supplied as a Signal), and refused
+		when it does not, because there is then nothing to resample *from*.
+
 		Parameters
 		----------
 		chi : xp.ndarray or None
 			Generated phase (radians), or ``None`` when the element generates
 			none.
 		shape : tuple of int
-			Shape of the grid being propagated on, used to reject a supplied
-			screen that does not match it.
+			Shape of the grid being propagated on.
+		dx, dy : float, optional
+			Sample spacings of that grid (metres), by default ``None``. Needed
+			only to resample a supplied screen; without them a shape match is
+			required.
 
 		Returns
 		-------
@@ -797,25 +819,34 @@ class Element(SEASerializable):
 		Raises
 		------
 		ValueError
-			If a supplied screen's shape differs from the propagation grid.
-			Resampling a supplied screen onto another grid is a separate
-			question — a hard-edged plate must not be band-limited into ringing
-			— so this refuses rather than guessing.
+			If a supplied screen's shape differs from the propagation grid and
+			it cannot be resampled — either it carries no calibration, or the
+			propagation grid's spacings were not passed in.
 
 		Related
 		-------
 		screen : Where the supplied half comes from.
+		waveoptics.resample_screen : The bilinear resampling, and why bilinear.
 		waveoptics.apply_phase : Applies the result.
 		"""
-		supplied = self._screen_data()
+		supplied, sdx, sdy = self._screen_data()
 		if supplied is None:
 			return chi
 		if tuple(supplied.shape) != tuple(shape):
-			raise ValueError(
-				f"screen on {self.name or type(self).__name__!r} is {tuple(supplied.shape)} "
-				f"but the wave grid is {tuple(shape)}; supply it on the propagation grid "
-				"(resampling a supplied screen is not done automatically -- a hard-edged "
-				"plate must not be band-limited into ringing).")
+			if sdx is None or dx is None:
+				raise ValueError(
+					f"screen on {self.name or type(self).__name__!r} is {tuple(supplied.shape)} "
+					f"but the wave grid is {tuple(shape)}, and it cannot be resampled: "
+					+ ("it carries no sample calibration (supply it as a Signal, not a bare "
+					   "array)." if sdx is None else
+					   "the propagation grid's spacings were not supplied."))
+			from .waveoptics import resample_screen
+			supplied = resample_screen(supplied, sdx, sdy, tuple(shape), dx, dy)
+		elif sdx is not None and dx is not None and not (
+				xp.isclose(sdx, dx) and xp.isclose(sdy, dy)):
+			# same shape, different pitch: still a different grid
+			from .waveoptics import resample_screen
+			supplied = resample_screen(supplied, sdx, sdy, tuple(shape), dx, dy)
 		if chi is None:
 			return supplied
 		if xp.iscomplexobj(supplied) or xp.iscomplexobj(chi):
@@ -1931,7 +1962,7 @@ class Aperture(Element):
 			s_x, s_y = axis_components(s)
 			px, py = s_x * dx, s_y * dy
 		T = aperture_transmission((ny, nx), px, py, self.radius).astype(complex)
-		T = self._combine_screen(T, (ny, nx))
+		T = self._combine_screen(T, (ny, nx), px, py)
 		if scaled:
 			return 0.0, _screen_item(T, dx, dy, self.name or "aperture")
 		return self._phase_program(dimensions, wavelength, T,
@@ -2931,7 +2962,8 @@ class Lens(Element):
 		ny, nx, dy, dx = grid_of(dimensions)
 		if scaled:
 			if not ab or P == 0:
-				bare = self._combine_screen(None, (ny, nx))
+				s_x, s_y = axis_components(s)
+				bare = self._combine_screen(None, (ny, nx), s_x * dx, s_y * dy)
 				return float(P), (None if bare is None else
 								  _screen_item(bare, dx, dy, self.name or "lens"))
 			# first-order terms are QUADRATIC, so they belong in the frame's
@@ -2948,13 +2980,13 @@ class Lens(Element):
 			# the place it belongs.
 			s_x, s_y = axis_components(s)
 			chi = residual.phase((ny, nx), s_x * dx, s_y * dy, wavelength, P)
-			chi = self._combine_screen(chi, (ny, nx))
+			chi = self._combine_screen(chi, (ny, nx), s_x * dx, s_y * dy)
 			return powers, _screen_item(chi, dx, dy, self.name or "lens")
 		chi = quadratic_phase((ny, nx), dx, dy, wavelength, P, P) if P != 0 else None
 		if ab and P != 0:
 			extra = ab.phase((ny, nx), dx, dy, wavelength, P)
 			chi = extra if chi is None else chi + extra
-		chi = self._combine_screen(chi, (ny, nx))
+		chi = self._combine_screen(chi, (ny, nx), dx, dy)
 		return self._phase_program(dimensions, wavelength, chi, self.name or "lens")
 
 	def aberration_powers(self) -> tuple:

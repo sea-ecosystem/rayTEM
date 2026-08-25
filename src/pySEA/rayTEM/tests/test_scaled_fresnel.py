@@ -2443,7 +2443,7 @@ def test_a_supplied_screen_is_stored_and_a_derivable_one_is_not():
 	lens.screen = None
 	assert lens.screen == 1 and not lens._has_screen()
 
-	# a mismatched grid is refused rather than silently resampled
+	# a mismatched grid with no calibration to resample from is refused
 	lens.screen = np.zeros((8, 8))
 	with pytest.raises(ValueError, match="wave grid"):
 		lens.phase_shift(grid, LAM)
@@ -2478,3 +2478,44 @@ def test_supplied_screen_and_aberrations_survive_reload_on_any_element():
 		assert Q.aberrations['C30'] == 2e-3
 	finally:
 		os.chdir(cwd)
+
+
+def test_a_calibrated_screen_is_resampled_onto_the_propagation_grid():
+	# A supplied screen arrives on whatever grid it was made on. If it carries
+	# its own calibration (i.e. it is a Signal) it can be resampled; a bare
+	# array cannot, because there is nothing to resample FROM.
+	from pySEA.rayTEM.seashells import make_screen_phase_signal
+	f, grid = 0.045, ((32, 32), 2e-6, 2e-6)
+	lens = Lens(strength=np.sqrt(1 / f))
+	generated = np.asarray(lens.phase_shift(grid, LAM)[0].data)
+
+	# a linear ramp resamples EXACTLY under bilinear, so this is a real check
+	# of the coordinate mapping and not just of "something came back"
+	Xs, Ys = wo.transverse_coordinates((16, 16), 4e-6, 4e-6)
+	lens.screen = make_screen_phase_signal(3.0 * Xs + 2.0 * Ys, 4e-6, 4e-6)
+	got = np.asarray(lens.phase_shift(grid, LAM)[0].data)
+	X, Y = wo.transverse_coordinates((32, 32), 2e-6, 2e-6)
+	assert np.allclose(got, generated + (3.0 * X + 2.0 * Y))
+
+	# beyond the supplied screen's extent the element does nothing: a real
+	# phase fills with 0, a complex transmission with 1
+	Xn, Yn = wo.transverse_coordinates((8, 8), 1e-6, 1e-6)
+	lens.screen = make_screen_phase_signal(np.ones((8, 8)), 1e-6, 1e-6)
+	got = np.asarray(lens.phase_shift(grid, LAM)[0].data) - generated
+	assert np.isclose(got[16, 16], 1.0) and np.isclose(got[0, 0], 0.0)
+
+	plate = np.full((8, 8), 0.5 + 0j)
+	lens.screen = make_screen_phase_signal(plate, 1e-6, 1e-6)
+	got = np.asarray(lens.phase_shift(grid, LAM)[0].data)
+	assert np.isclose(got[16, 16], 0.5 * np.exp(1j * generated[16, 16]))
+	assert np.isclose(got[0, 0], 1.0 * np.exp(1j * generated[0, 0]))		# fill = 1
+
+	# same shape but a different pitch is still a different grid
+	lens.screen = make_screen_phase_signal(np.ones((32, 32)), 8e-6, 8e-6)
+	got = np.asarray(lens.phase_shift(grid, LAM)[0].data) - generated
+	assert np.isclose(got[16, 16], 1.0) and np.isclose(got[0, 0], 1.0)	# inside its extent
+
+	# an uncalibrated bare array on the wrong grid is refused, not guessed at
+	lens.screen = np.zeros((8, 8))
+	with pytest.raises(ValueError, match="no sample calibration"):
+		lens.phase_shift(grid, LAM)
