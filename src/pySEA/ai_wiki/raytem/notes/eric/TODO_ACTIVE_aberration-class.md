@@ -23,5 +23,5 @@ the reader extends to fifth order.
 - [ ] `apply_aberrations=True` flag on every propagation method
 - [x] ray kick from `(1/k) grad chi` generically, all orders, on `Element`
 - [x] flat `C1/A1/...` attributes retired; `Lens.Cs` kept as a `C30` alias
-- [ ] retire `waveoptics.spherical_phase`/`aberration_phase`/`KRIVANEK_TERMS`
+- [x] retired `waveoptics.spherical_phase`/`aberration_phase`/`KRIVANEK_TERMS`
 - [ ] re-point `examples/06` at the new API

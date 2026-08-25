@@ -8,6 +8,7 @@ import pytest
 
 from pySEA.rayTEM import Source, Lens, Drift, Aperture, Dipole, Quadrapole, MicroscopeSection
 from pySEA.rayTEM import waveoptics as wo
+from pySEA.rayTEM.aberrations import Aberrations, KRIVANEK_TERMS
 from pySEA.rayTEM.seashells import phase_space_of, read_wavefield
 from pySEA.rayTEM.utilities import relativistic_wavelength
 
@@ -2033,7 +2034,7 @@ def test_ray_kick_is_the_gradient_of_the_wave_screen():
 	P, k = lens.focal_power, 2 * np.pi / LAM
 	errs = []
 	for n, dx in ((256, 4e-7), (512, 2e-7), (1024, 1e-7)):
-		chi = wo.spherical_phase((n, n), dx, dx, LAM, Cs, P)
+		chi = Aberrations({'C30': Cs}).phase((n, n), dx, dx, LAM, P)
 		X, Y = wo.transverse_coordinates((n, n), dx, dx)
 		grad = np.gradient(chi, dx, axis=1)[n // 2, :] / k
 		r0 = np.zeros((n, 6))
@@ -2059,7 +2060,7 @@ def test_lens_phase_carries_the_quartic_in_both_representations():
 	assert P_r == P_i								# aberration does not change 1/f
 	assert screen_r is not None
 	# the screen is the quartic, at the frame's physical coordinates
-	expected = wo.spherical_phase((64, 64), 2e-6, 2e-6, LAM, Cs, P_r)
+	expected = Aberrations({'C30': Cs}).phase((64, 64), 2e-6, 2e-6, LAM, P_r)
 	assert np.allclose(np.asarray(screen_r.data), expected, rtol=1e-12)
 	# ...so doubling s quadruples it (r^4 at x = s*xi)
 	_, screen_s = real.phase_shift(grid, LAM, scaled=True, s=2.0)
@@ -2137,7 +2138,7 @@ def test_wave_matches_closed_form_back_focal_plane():
 		# the same aperture model the source seeds, so the comparison is of the
 		# propagation and not of two different discs
 		A = wo.bandlimited_disk((n, n), dx, dx, a).astype(complex)
-		chi = wo.spherical_phase((n, n), dx, dx, lam, Cs, 1.0 / f) if Cs else 0.0
+		chi = Aberrations({'C30': Cs}).phase((n, n), dx, dx, lam, 1.0 / f) if Cs else 0.0
 		F = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(A * np.exp(1j * chi))))
 		I_ref = np.abs(F)**2
 		I_ref /= I_ref.max()
@@ -2173,9 +2174,9 @@ def test_krivanek_terms_have_the_right_order_and_symmetry():
 	# each term must go as theta^(n+1) radially and have m-fold azimuthal
 	# symmetry, i.e. 2m sign changes around a circle
 	n, dx, P = 256, 2e-6, 22.2222
-	for name, (order, m) in wo.KRIVANEK_TERMS.items():
-		chi = wo.aberration_phase((n, n), dx, dx, LAM,
-								  {name: 1e-3 if order >= 3 else 1e-8}, P)
+	for name, (order, m) in KRIVANEK_TERMS.items():
+		chi = Aberrations({name: 1e-3 if order >= 3 else 1e-8}).phase(
+			(n, n), dx, dx, LAM, P)
 		idx = np.arange(10, 120)
 		line = chi[n // 2, n // 2 + idx]
 		power = np.polyfit(np.log(idx), np.log(np.abs(line)), 1)[0]
@@ -2184,17 +2185,23 @@ def test_krivanek_terms_have_the_right_order_and_symmetry():
 		xi = (n // 2 + 60 * np.cos(t)).astype(int)
 		yi = (n // 2 + 60 * np.sin(t)).astype(int)
 		assert np.sum(np.diff(np.sign(chi[yi, xi])) != 0) == 2 * m, name
-	# C3 IS spherical aberration, so the older helper must agree exactly
-	a = wo.aberration_phase((64, 64), dx, dx, LAM, {'C3': 1e-3}, P)
-	b = wo.spherical_phase((64, 64), dx, dx, LAM, 1e-3, P)
-	assert np.abs(a - b).max() < 1e-17
+	# the imaginary component is the same term rotated by pi/2m, so an (a, b)
+	# pair and its magnitude at that orientation must agree
+	a, b = 3e-4, 4e-4
+	rot = np.arctan2(b, a) / 4					# C34 has m = 4
+	skew = Aberrations({'C34': (a, b)}).phase((64, 64), dx, dx, LAM, P)
+	X, Y = wo.transverse_coordinates((64, 64), dx, dx)
+	theta, phi = np.hypot(X, Y) * P, np.arctan2(Y, X)
+	k = 2 * np.pi / LAM
+	assert np.abs(skew - (-k * theta**4 / 4 * np.hypot(a, b)		# C34: n = 3
+						  * np.cos(4 * (phi - rot)))).max() < 1e-15
 	# and the errors are actionable
 	with pytest.raises(KeyError, match="not a Krivanek term"):
-		wo.aberration_phase((8, 8), dx, dx, LAM, {'C7': 1.0}, P)
+		Aberrations({'C37': 1.0})
 	with pytest.raises(ValueError, match="rotationally symmetric"):
-		wo.aberration_phase((8, 8), dx, dx, LAM, {'C3': (1.0, 0.5)}, P)
+		Aberrations({'C30': (1.0, 0.5)})
 	with pytest.raises(ValueError, match="nonzero focal power"):
-		wo.aberration_phase((8, 8), dx, dx, LAM, {'C3': 1.0}, 0.0)
+		Aberrations({'C30': 1.0}).phase((8, 8), dx, dx, LAM, 0.0)
 
 
 def test_first_order_terms_are_absorbed_into_the_frame():
