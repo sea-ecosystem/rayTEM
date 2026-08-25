@@ -25,10 +25,13 @@ the reader extends to fifth order.
 - [ ] `Element.screen`: a SUPPLIED screen Signal, stored because it cannot be
       recomputed. Generated chi stays recomputed -- coefficients are the
       storage. (fixed path first; scaled path needs resampling from x to xi)
-- [ ] fold `Aperture`'s mask into the screen mechanism (Eric: same function,
-      keep the space flag)
+- [ ] fold `Aperture`'s WAVE behaviour into the screen mechanism (Eric: keep
+      `apply_intensity` on the ray path separate -- move the wave side only)
 - [ ] supplied screen through a VOLUME, not just one plane (3D signal)
-- [ ] dot-access properties for the well-known Signals
+- [ ] dot-access properties for the well-known Signals, following
+      [PLAN_2026-08-25_derived-signal-properties.md](PLAN_2026-08-25_derived-signal-properties.md):
+      supplied -> stored; derivable -> recomputed, not stored; neither ->
+      identity (`1` for a screen)
 - [x] `apply_aberrations=True` flag on every propagation method
 - [x] ray kick from `(1/k) grad chi` generically, all orders, on `Element`
 - [x] flat `C1/A1/...` attributes retired; `Lens.Cs` kept as a `C30` alias

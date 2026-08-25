@@ -146,12 +146,21 @@ def _check_screen_sampling(chi, name:str):
 	than π between neighbouring samples aliases silently. This check fails
 	loudly instead (handoff Eqs 47–48 sampling requirement ``|∂χ/∂ξ| < π/Δξ``).
 
-	**Complex screens are exempt.** The guard exists to catch a *generated*
-	phase outrunning the grid it was sampled on — a steeper lens than the grid
-	can carry. A complex transmission is supplied, not generated, and the
-	commonest one is a hard-edged aperture, whose edge is a genuine
-	discontinuity rather than an aliasing artefact. Failing on that would
-	reject the very thing the complex form was added to express.
+	**Complex screens are skipped, because this check cannot see them.** What
+	it measures is ``|diff(data)|`` against π, which is a phase step only when
+	the data *is* a phase. On a complex transmission the same quantity mixes
+	modulus and phase and is bounded by ``2|T|``, so it sits below π even when
+	the phase underneath winds far faster than the grid can carry: a unit-
+	modulus screen stepping 3.78 rad per pixel — aliased — reports 1.90 and
+	passes. Running it on complex data would give false assurance, not
+	protection.
+
+	Checking ``arg(T)`` instead is not a fix either: it is undefined wherever
+	``T = 0``, and genuinely discontinuous at a plate's edge. Telling that edge
+	apart from aliasing needs to know how the screen was built, which a
+	supplied array does not record. So a supplied complex screen is the
+	caller's responsibility, and this says so rather than pretending to cover
+	it.
 
 	Parameters
 	----------

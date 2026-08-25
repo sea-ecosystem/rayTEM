@@ -2360,8 +2360,13 @@ def test_a_screen_may_be_complex_carrying_amplitude_and_phase_together():
 	q = wo.apply_phase(field, mask * np.exp(1j * chi), space="scattering")
 	assert np.allclose(q, np.fft.ifft2(np.fft.fft2(field) * mask * np.exp(1j * chi)))
 
-	# the sampling guard is for GENERATED phases outrunning their grid; a
-	# hard-edged supplied plate is a real discontinuity, not aliasing
+	# the sampling guard is skipped on complex screens because it CANNOT see
+	# them: it compares |diff(data)| to pi, which is a phase step only for real
+	# data. A unit-modulus screen winding 3.78 rad/pixel -- aliased -- reports
+	# 1.90 and would pass, so running it there is false assurance.
 	with pytest.raises(ValueError, match="under-sampled"):
 		_check_screen_sampling(np.arange(n * n).reshape(n, n) * 1.0, "steep")
-	_check_screen_sampling((mask * np.exp(1j * chi)).astype(complex), "plate")
+	aliased = np.exp(1j * np.arange(n * n).reshape(n, n) * 2.5)
+	assert np.abs(np.diff(np.angle(aliased), axis=1)).max() > np.pi	# truly aliased
+	assert np.abs(np.diff(aliased, axis=1)).max() < np.pi			# yet |dT| says fine
+	_check_screen_sampling(aliased, "plate")						# so: skipped, not judged
