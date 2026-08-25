@@ -22,7 +22,7 @@ the reader extends to fifth order.
       so it must NOT also fold into `focal_power`, which would double-count
 - [ ] phase screen as a Signal on the element dataset, manual or generated
 - [ ] dot-access properties for the well-known Signals
-- [ ] `apply_aberrations=True` flag on every propagation method
+- [x] `apply_aberrations=True` flag on every propagation method
 - [x] ray kick from `(1/k) grad chi` generically, all orders, on `Element`
 - [x] flat `C1/A1/...` attributes retired; `Lens.Cs` kept as a `C30` alias
 - [x] retired `waveoptics.spherical_phase`/`aberration_phase`/`KRIVANEK_TERMS`

@@ -2292,3 +2292,43 @@ def test_aberrations_survive_a_sea_round_trip():
 		assert np.isclose(got['C50'].real, 1e-2)
 	finally:
 		os.chdir(cwd)
+
+
+def test_apply_aberrations_false_gives_the_ideal_result_on_every_path():
+	# One flag per propagation method, default True, and it is implemented by
+	# detaching rather than by a per-aberration branch -- so it works the same
+	# on rays, moments and the wave, and would work on a path added tomorrow.
+	from pySEA.rayTEM.elements import suspended_aberrations
+	f, P = 0.045, 1 / 0.045
+	def column(ab):
+		return Microscope(sections=[MicroscopeSection(elements=[
+			Source(voltage=200, size=(1e-5, 1e-5), np_xy=(3, 3),
+				   angle=(1e-4, 1e-4), na_xy=(3, 3),
+				   wave_shape=(128, 128), wave_extent=3e-4,
+				   wave_kind="aperture", aperture_radius=6e-5),
+			Lens(strength=np.sqrt(P), aberrations=ab),
+			Drift(length=0.06)])])
+	real, ideal = column({'C10': 5e-4, 'C30': 1e-3}), column(None)
+
+	assert not np.allclose(real.propagate_ray(), ideal.propagate_ray())
+	assert np.allclose(real.propagate_ray(apply_aberrations=False),
+					   ideal.propagate_ray())
+	# the moments path transports Sigma' = M Sigma M^T and so is paraxial by
+	# construction -- it does not see aberrations either way. The flag is still
+	# accepted there, so a caller can pass it uniformly across all four kinds.
+	real.propagate_moments(apply_aberrations=False)
+	ideal.propagate_moments()
+	assert np.allclose(np.asarray(real.covariance_matrix.data),
+					   np.asarray(ideal.covariance_matrix.data))
+	real.propagate_wave(mode="hybrid", absorb=0.0, apply_aberrations=False)
+	ideal.propagate_wave(mode="hybrid", absorb=0.0)
+	assert np.isclose(float(real.crossovers[0]), float(ideal.crossovers[0]),
+					  rtol=1e-12)
+	# and the aberrations are still there afterwards, exception or not
+	lens = real.sections[0].elements[1]
+	assert lens.aberrations['C30'] == 1e-3
+	with pytest.raises(RuntimeError):
+		with suspended_aberrations([lens]):
+			assert lens.aberrations is None
+			raise RuntimeError("boom")
+	assert lens.aberrations['C30'] == 1e-3

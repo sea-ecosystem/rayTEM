@@ -7,7 +7,7 @@ import pickle
 import sys,inspect,os,datetime,shutil
 
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
-from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention,_propagate_method_name
+from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations
 from typing import Literal
 from .seashells import SEASerializable
 
@@ -506,7 +506,7 @@ class MicroscopeSection(SEASerializable):
 	def propagate_ray(self, r0:xp.ndarray=None,
 					   I0:xp.ndarray=None, R0:xp.ndarray=None,
 					   z: float = None,
-					   verbose=False):
+					   verbose=False, apply_aberrations:bool=True):
 		"""Propagate rays through every element in the section, bottom-up.
 
 		Intensity (``I``) and cumulative Larmor rotation (``R``) travel as separate
@@ -529,6 +529,12 @@ class MicroscopeSection(SEASerializable):
 		verbose : bool, optional
 			Print per-element progress, by default ``False``.
 
+		apply_aberrations : bool, optional
+			Whether elements' :attr:`elements.Element.aberrations` act, by
+			default True. ``False`` runs the same propagation with every
+			element ideal, which is how an aberrated result is compared
+			against its own unaberrated reference. Costs nothing when
+			nothing is aberrated.
 		Returns
 		-------
 		xp.ndarray
@@ -540,6 +546,9 @@ class MicroscopeSection(SEASerializable):
 		UserWarning
 			If ``r0`` is ``None`` and the first element is not a ``Source``.
 		"""
+		if not apply_aberrations:
+			with suspended_aberrations(self.elements):
+				return self.propagate_ray(r0, I0, R0, z=z, verbose=verbose)
 		#print("Section r0",r0)
 		if r0 is None:
 			if isinstance(self.elements[0], Source):
@@ -572,7 +581,7 @@ class MicroscopeSection(SEASerializable):
 		return self.rays
 
 	def propagate_moments(self, mu0:xp.ndarray=None, Sigma0:xp.ndarray=None,
-						   z: float = None):
+						   z: float = None, apply_aberrations:bool=True):
 		"""Propagate beam moments (mean + covariance) through every element.
 
 		The envelope-mode analog of :meth:`propagate_ray`: transports a mean state
@@ -592,6 +601,12 @@ class MicroscopeSection(SEASerializable):
 		z : float, optional
 			Unused placeholder mirroring :meth:`propagate_ray`, by default ``None``.
 
+		apply_aberrations : bool, optional
+			Whether elements' :attr:`elements.Element.aberrations` act, by
+			default True. ``False`` runs the same propagation with every
+			element ideal, which is how an aberrated result is compared
+			against its own unaberrated reference. Costs nothing when
+			nothing is aberrated.
 		Returns
 		-------
 		xp.ndarray
@@ -603,6 +618,9 @@ class MicroscopeSection(SEASerializable):
 		UserWarning
 			If moments are not provided and the first element is not a ``Source``.
 		"""
+		if not apply_aberrations:
+			with suspended_aberrations(self.elements):
+				return self.propagate_moments(mu0, Sigma0, z=z)
 		if mu0 is None or Sigma0 is None:
 			if isinstance(self.elements[0], Source):
 				mu0, Sigma0 = self.elements[0].moments()
@@ -623,7 +641,8 @@ class MicroscopeSection(SEASerializable):
 
 	def propagate_wave(self, wave0=None, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, absorb:float=0.1,
-				   crossover:Literal['flat','jump']='flat', rotate:bool=False):
+				   crossover:Literal['flat','jump']='flat', rotate:bool=False,
+					   apply_aberrations:bool=True):
 		r"""Propagate a wavefield through every element in the section.
 
 		The one wave-optics analog of :meth:`propagate_ray`, covering all three
@@ -653,6 +672,12 @@ class MicroscopeSection(SEASerializable):
 			Backstop crossover guard for the scaled/hybrid paths, by default
 			``1e-3``.
 
+		apply_aberrations : bool, optional
+			Whether elements' :attr:`elements.Element.aberrations` act, by
+			default True. ``False`` runs the same propagation with every
+			element ideal, which is how an aberrated result is compared
+			against its own unaberrated reference. Costs nothing when
+			nothing is aberrated.
 		Returns
 		-------
 		Signal or SignalSet or None
@@ -670,6 +695,10 @@ class MicroscopeSection(SEASerializable):
 			``mode='scaled'`` only: a single frame reaching its ``s = 0``
 			crossover (use ``mode='hybrid'`` to switch frames through it).
 		"""
+		if not apply_aberrations:
+			with suspended_aberrations(self.elements):
+				return self.propagate_wave(wave0, mode=mode, s_min=s_min, absorb=absorb,
+										   crossover=crossover, rotate=rotate)
 		if wave0 is None:
 			if isinstance(self.elements[0], Source):
 				wave0 = self.elements[0].wave(mode=mode)
@@ -1929,7 +1958,31 @@ class Microscope(SEASerializable):
 				'width': xp.asarray(widths)[order] if zs else xp.asarray([]),
 				'emittance': emittance}
 
-	def propagate_ray(self, r0:xp.ndarray=None, z: float = None, verbose=False):
+	def _all_elements(self) -> list:
+		"""Every element in the column, flattened across sections.
+
+		Used where an operation applies to the whole column rather than to one
+		section — currently only suspending aberrations, which must reach every
+		element the propagation will touch.
+
+		Returns
+		-------
+		list of Element
+			The elements, in column order. Empty when the microscope has no
+			sections yet.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		elements.suspended_aberrations : The consumer.
+		"""
+		return [e for sec in (self.sections or ()) for e in (sec.elements or ())]
+
+	def propagate_ray(self, r0:xp.ndarray=None, z: float = None, verbose=False,
+					   apply_aberrations:bool=True):
 		"""Propagate rays through every section, carrying intensity/rotation across boundaries.
 
 		Each section's exit intensity (``I``) and rotation (``R``) seed the next
@@ -1947,11 +2000,20 @@ class Microscope(SEASerializable):
 		verbose : bool, optional
 			Print per-element progress, by default ``False``.
 
+		apply_aberrations : bool, optional
+			Whether elements' :attr:`elements.Element.aberrations` act, by
+			default True. ``False`` runs the same propagation with every
+			element ideal, which is how an aberrated result is compared
+			against its own unaberrated reference. Costs nothing when
+			nothing is aberrated.
 		Returns
 		-------
 		xp.ndarray
 			Flattened geometric rays, shape ``(n_planes, n_rays, len(convention))``.
 		"""
+		if not apply_aberrations:
+			with suspended_aberrations(self._all_elements()):
+				return self.propagate_ray(r0, z=z, verbose=verbose)
 		r=r0 ; I=None ; R=None #; print("Microscope r0",r0)# starting rays/intensity/rotation fed into section.propagate
 		rs=[] ; Is=[] ; Rs=[]
 		for n,s in enumerate(self.sections):
@@ -1970,7 +2032,8 @@ class Microscope(SEASerializable):
 		self._planes = None
 		return self.rays
 
-	def propagate_moments(self, mu0:xp.ndarray=None, Sigma0:xp.ndarray=None, z: float = None):
+	def propagate_moments(self, mu0:xp.ndarray=None, Sigma0:xp.ndarray=None, z: float = None,
+						   apply_aberrations:bool=True):
 		"""Propagate beam moments through every section, chaining across boundaries.
 
 		Envelope-mode analog of :meth:`propagate_ray`. Each section's exit moments
@@ -1987,12 +2050,21 @@ class Microscope(SEASerializable):
 		z : float, optional
 			Unused placeholder mirroring :meth:`propagate_ray`, by default ``None``.
 
+		apply_aberrations : bool, optional
+			Whether elements' :attr:`elements.Element.aberrations` act, by
+			default True. ``False`` runs the same propagation with every
+			element ideal, which is how an aberrated result is compared
+			against its own unaberrated reference. Costs nothing when
+			nothing is aberrated.
 		Returns
 		-------
 		xp.ndarray
 			Flattened per-plane covariance matrices, shape
 			``(n_planes, len(convention), len(convention))``. Means are on ``self.mu``.
 		"""
+		if not apply_aberrations:
+			with suspended_aberrations(self._all_elements()):
+				return self.propagate_moments(mu0, Sigma0, z=z)
 		from .seashells import make_covariance_signal, as_ndarray
 		mu=mu0 ; S=Sigma0
 		mus=[] ; Ss=[]
@@ -2009,7 +2081,8 @@ class Microscope(SEASerializable):
 
 	def propagate_wave(self, wave0=None, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, absorb:float=0.1,
-				   crossover:Literal['flat','jump']='flat', rotate:bool=False):
+				   crossover:Literal['flat','jump']='flat', rotate:bool=False,
+					   apply_aberrations:bool=True):
 		r"""Propagate a wavefield through every section, chaining boundaries.
 
 		The one wave-optics analog of :meth:`propagate_ray`, covering all three
@@ -2034,6 +2107,12 @@ class Microscope(SEASerializable):
 			Backstop crossover guard for the scaled/hybrid paths, by default
 			``1e-3``.
 
+		apply_aberrations : bool, optional
+			Whether elements' :attr:`elements.Element.aberrations` act, by
+			default True. ``False`` runs the same propagation with every
+			element ideal, which is how an aberrated result is compared
+			against its own unaberrated reference. Costs nothing when
+			nothing is aberrated.
 		Returns
 		-------
 		Signal or SignalSet or None
@@ -2051,6 +2130,10 @@ class Microscope(SEASerializable):
 		wavefield_at : Reconstruct the physical wave at a requested plane.
 		crossovers : Focal-plane positions found by the hybrid run.
 		"""
+		if not apply_aberrations:
+			with suspended_aberrations(self._all_elements()):
+				return self.propagate_wave(wave0, mode=mode, s_min=s_min, absorb=absorb,
+										   crossover=crossover, rotate=rotate)
 		f = wave0
 		planes=[]
 		for s in self.sections:

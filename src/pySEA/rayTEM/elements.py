@@ -175,6 +175,124 @@ def _check_screen_sampling(chi, name:str):
 
 
 
+class suspended_aberrations:
+	"""Context manager that temporarily detaches elements' aberrations.
+
+	This is how ``apply_aberrations=False`` is implemented on every propagation
+	method. Detaching is preferable to a flag threaded down through three levels
+	of driver and four propagation kinds: an element already answers "am I
+	aberrated?" by looking at :attr:`Element.aberrations`, so removing them for
+	the duration of a run makes *every* path ideal at once, including any path
+	added later. Nothing in the propagation code has to know the flag exists.
+
+	Doing nothing (``suspend=False``, or no aberrated element) costs one
+	attribute read per element.
+
+	Parameters
+	----------
+	elements : Sequence[Element]
+		Elements to suspend. Safe to include elements with no aberrations.
+	suspend : bool, optional
+		Whether to actually detach, by default True. ``False`` makes the
+		context a no-op, so a caller can write
+		``with suspended_aberrations(elems, not apply_aberrations):``
+		unconditionally.
+
+	Attributes
+	----------
+	elements : list of Element
+		The elements being managed.
+	suspend : bool
+		Whether this context detaches anything.
+
+	Methods
+	-------
+	__enter__()
+		Detach and remember.
+	__exit__(*exc)
+		Restore, including when the body raised.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	assemblies.Microscope.propagate_ray : One of the callers.
+	Element.aberration_kick : What goes quiet while suspended.
+
+	Notes
+	-----
+	Restoration happens in ``__exit__``, so an exception mid-propagation cannot
+	leave a microscope silently de-aberrated.
+
+	Examples
+	--------
+	>>> with suspended_aberrations(section.elements):  # doctest: +SKIP
+	...     ideal = section.propagate_ray(r0)
+	"""
+
+	def __init__(self, elements:Sequence["Element"], suspend:bool=True):
+		"""Remember what to suspend.
+
+		Parameters
+		----------
+		elements : Sequence[Element]
+			Elements to suspend.
+		suspend : bool, optional
+			Whether to actually detach, by default True.
+
+		Raises
+		------
+		None
+		"""
+		self.elements = list(elements or ())
+		self.suspend = bool(suspend)
+		self._saved = []
+
+	def __enter__(self) -> "suspended_aberrations":
+		"""Detach each element's aberrations, remembering them.
+
+		Returns
+		-------
+		suspended_aberrations
+			Self, so the context can be named if a caller wants it.
+
+		Raises
+		------
+		None
+		"""
+		self._saved = []
+		if not self.suspend:
+			return self
+		for e in self.elements:
+			self._saved.append((e, getattr(e, "aberrations", None)))
+			e.aberrations = None
+		return self
+
+	def __exit__(self, *exc) -> bool:
+		"""Restore every detached set.
+
+		Parameters
+		----------
+		*exc : tuple
+			Exception triple, unused — this never suppresses.
+
+		Returns
+		-------
+		bool
+			False, so any exception from the body propagates.
+
+		Raises
+		------
+		None
+		"""
+		for e, ab in self._saved:
+			e.aberrations = ab
+		self._saved = []
+		return False
+
+
 def _as_aberrations(value) -> Aberrations:
 	"""Coerce a user-supplied aberration specification to an :class:`Aberrations`.
 
