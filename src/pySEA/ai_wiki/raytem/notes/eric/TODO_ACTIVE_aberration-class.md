@@ -13,14 +13,15 @@ directly and lives in rayTEM. Eric confirmed C10 folds into `focal_power()` and
 the reader extends to fifth order.
 
 - [x] cause of the serialization failure found: my probe, not the machinery
-- [ ] JSON `save()` needs a `to_dict` hook (Thomas's function — flag it)
-- [ ] `Aberrations` class: Krivanek `C_{n,m}` complex storage, `convention` attr
-- [ ] `from_metadata`, including the reader's outstanding a/b -> complex step
-- [ ] convention conversions (letters now; Seidel/Zernike later)
-- [ ] generic `phase()` and `gradient()`
+- [x] JSON `save()` now goes through `SEASerializable.to_json` (two sea-eco bugs fixed)
+- [x] `Aberrations` class: Krivanek `C_{n,m}` complex storage, `convention` attr
+- [x] `from_metadata`, including the reader's outstanding a/b -> complex step
+- [x] convention conversions (letters now; Seidel/Zernike later)
+- [x] generic `phase_at()`/`deflection_at()` (+ grid wrappers `phase`/`gradient`)
 - [ ] phase screen as a Signal on the element dataset, manual or generated
 - [ ] dot-access properties for the well-known Signals
 - [ ] `apply_aberrations=True` flag on every propagation method
-- [ ] ray kick from `(1/k) grad chi` generically, all orders
-- [ ] retire `spherical_phase`, `Lens.Cs`, the flat `C1/A1/...` attributes
+- [x] ray kick from `(1/k) grad chi` generically, all orders, on `Element`
+- [x] flat `C1/A1/...` attributes retired; `Lens.Cs` kept as a `C30` alias
+- [ ] retire `waveoptics.spherical_phase`/`aberration_phase`/`KRIVANEK_TERMS`
 - [ ] re-point `examples/06` at the new API

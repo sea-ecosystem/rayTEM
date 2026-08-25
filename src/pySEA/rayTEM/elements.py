@@ -9,6 +9,7 @@ import traceback,inspect
 from warnings import warn
 
 from .seashells import SEASerializable
+from .aberrations import Aberrations
 
 from copy import deepcopy
 
@@ -173,8 +174,53 @@ def _check_screen_sampling(chi, name:str):
 						 "strength, refine the wave grid, or enlarge the field of view.")
 
 
+
+def _as_aberrations(value) -> Aberrations:
+	"""Coerce a user-supplied aberration specification to an :class:`Aberrations`.
+
+	Element constructors accept either the object or a bare ``{name: value}``
+	mapping, so a quick script does not have to import the class. ``None``
+	stays ``None``, which is what "ideal, and cost nothing" looks like on the
+	propagation paths.
+
+	Parameters
+	----------
+	value : Aberrations, Mapping, or None
+		The specification given to an element.
+
+	Returns
+	-------
+	Aberrations or None
+		The object to store. A supplied :class:`Aberrations` is returned
+		unchanged (not copied), so a set shared between elements stays shared.
+
+	Raises
+	------
+	TypeError
+		If the value is neither a mapping, an :class:`Aberrations`, nor
+		``None``.
+
+	Related
+	-------
+	Element.aberration_kick : Consumes the result on the ray path.
+	aberrations.Aberrations : The storage class.
+
+	Examples
+	--------
+	>>> _as_aberrations({'C30': 1e-3})
+	Aberrations(C30=0.001+0j, convention='krivanek')
+	"""
+	if value is None or isinstance(value, Aberrations):
+		return value
+	if hasattr(value, "items"):
+		return Aberrations(dict(value.items()))
+	raise TypeError("aberrations must be an Aberrations object, a {name: value} "
+					f"mapping, or None; got {type(value).__name__}.")
+
+
 class Element(SEASerializable):
-	def __init__(self, name:str='', kind:str=None ) -> SEASerializable:
+	def __init__(self, name:str='', kind:str=None,
+				 aberrations=None ) -> SEASerializable:
 		"""General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional attributed can be defined at the inheriting class level. e.g. a Lens has a "strength", but a Drift section does not.
 		The base class carries a working transparent default for every propagation kind (identity transfer_matrix, phase shift of nothing), so inheriting classes only override what their physics requires: transfer_matrix and/or phase_shift, and *may* define a custom propagate_ray function if the standard "[ x₂ xθ₂ y₂ yθ₂ ....] = [6x6] @ [ x₁ xθ₁ y₁ yθ₁....]" is not applicable
 
@@ -184,9 +230,18 @@ class Element(SEASerializable):
 			Name given to the lens, by default ''
 		kind : str, optional
 			Type of element, by default None
+		aberrations : Aberrations or dict, optional
+			Axial wave aberrations in Krivanek ``C_{n,m}`` notation, by default
+			``None`` (ideal). Accepts an :class:`aberrations.Aberrations` or a
+			bare ``{name: value}`` mapping. Applied generically by
+			:meth:`aberration_kick` on the ray path and :meth:`phase_shift` on
+			the wave path, so no element needs per-aberration code.
 		"""
 		self.name = name
 		self.kind = kind
+		# Every element may carry aberrations; None means "I am exactly my
+		# matrix", so ideal columns stay bit-for-bit unchanged.
+		self.aberrations = _as_aberrations(aberrations)
 		self.length = 0		# transparent default: zero physical extent (subclasses overwrite)
 
 	#####################################
@@ -440,23 +495,29 @@ class Element(SEASerializable):
 			"element as thin (length = 0).")
 
 	def aberration_kick(self, r0:xp.ndarray):
-		r"""Declare this element's **non-linear** angular kick, if it has one.
+		r"""This element's **non-linear** angular kick, from its aberrations.
 
 		:meth:`transfer_matrix` can only express optics that are linear in the
 		ray vector, which is the paraxial approximation. Everything an
-		aberration is lives outside it. This is the companion declaration:
-		the element states the extra angular deflection, and the generic
+		aberration is lives outside it. This is the companion declaration: the
+		element states the extra deflection, and the generic
 		:meth:`propagate_ray` applies it — the same declare/consume split the
 		matrix already uses, so no element needs its own propagation method.
 
-		Returning ``None`` (the base class) means "I am exactly my matrix",
+		The kick is *not* written per aberration. It is the gradient of the
+		element's wave aberration function,
+		:math:`\Delta\theta = k^{-1}\nabla\chi`, which is exact in the eikonal
+		limit at **every** order, so the same code carries ``C10`` defocus,
+		``C30`` spherical and ``C56`` sixfold alike:
+		:meth:`aberrations.Aberrations.deflection_at` supplies it and this
+		method only decides *where along the element* it acts. An element with
+		no :attr:`aberrations` returns ``None`` — "I am exactly my matrix" —
 		which keeps aberration-free columns bit-for-bit unchanged.
 
 		Parameters
 		----------
 		r0 : xp.ndarray
 			Rays **entering** the element, shape ``(n_rays, len(convention))``.
-			The kick is evaluated at the entrance coordinates.
 
 		Returns
 		-------
@@ -465,23 +526,91 @@ class Element(SEASerializable):
 			radians, each shape ``(n_rays,)`` — or ``None`` when the element is
 			purely linear. A point-like element contributes angle only, but a
 			**body** also displaces the ray: its aberration acts part-way
-			through and the remaining length converts that kick into a
-			position offset as well.
+			through and the remaining length converts that kick into a position
+			offset as well.
+
+		Raises
+		------
+		None
+			An element with no aberrations, or no focal power to define a pupil
+			angle, returns ``None`` rather than raising.
 
 		Related
 		-------
-		Lens.aberration_kick : Spherical aberration on a round lens.
+		aberrations.Aberrations.deflection_at : The physics, for all orders.
+		aberrations.Aberrations.phase_at : The same function on the wave path.
 		transfer_matrix : The linear part, which this deliberately does not touch.
 		propagate_ray : The generic consumer.
 
 		Notes
 		-----
-		The paraxial planes from :meth:`assemblies.Microscope.conjugate_planes`
-		are unaffected by this by construction: they are properties of the
-		matrix, and aberration is defined as the *departure* from them. That is
-		why the kick is kept out of the matrix rather than linearized into it.
+		A **thin** element (``length == 0``) takes one impulsive kick at its
+		plane, which is exact. A **thick** body distributes the perturbation
+		along its length: a slice ``dz`` acts on the *local* ray height, and the
+		remaining body then carries that kick to the exit, turning part of it
+		into a position offset. To first order,
+
+		.. math::
+
+			\Delta x_{exit} = \frac{1}{L}\int_0^L\!\Delta\theta_x\big(r(z)\big)\,
+			   B(L-z)\,dz, \quad
+			\Delta\theta_{exit} = \frac{1}{L}\int_0^L\!
+			   \Delta\theta_x\big(r(z)\big)\,D(L-z)\,dz
+
+		with :math:`B, D` entries of the body's own :meth:`transfer_block` over
+		the *remaining* length, and the :math:`1/L` chosen so the
+		:math:`L \to 0` limit is the thin kick. The integral is Simpson over 64
+		slices.
+
+		This matters on a real objective. OL1 in ``basic_column`` is 10 mm thick
+		with :math:`KL = 1.30`, and putting the whole aberration at its entrance
+		face over-estimates the exit angle by **3.3x**: :math:`r(z)` falls as the
+		body focuses, and the kick from each slice is then itself focused by the
+		rest of the body. Both effects reduce it, and the weight
+		:math:`D(L-z) = \cos K(L-z)` is what makes the factor 0.31 rather than
+		the 0.51 that :math:`\int\cos^3` alone would suggest.
+
+		The paraxial planes from
+		:meth:`assemblies.Microscope.conjugate_planes` are unaffected by this by
+		construction: they are properties of the matrix, and aberration is
+		defined as the *departure* from them. That is why the kick is kept out
+		of the matrix rather than linearized into it.
 		"""
-		return None
+		ab = getattr(self, "aberrations", None)
+		P = getattr(self, "focal_power", 0.0) or 0.0
+		if not ab or P == 0:
+			return None
+		x = r0[:, columnByName("x")]
+		y = r0[:, columnByName("y")]
+		L = self.length or 0.0
+		if L <= 0:							# thin: one impulsive kick, exact
+			dxt, dyt = ab.deflection_at(x, y, P)
+			z = xp.zeros_like(x)
+			return z, z.copy(), dxt, dyt
+		# Thick: the perturbation is DISTRIBUTED along the body. A slice dz acts
+		# on the LOCAL ray height, and the rest of the body then turns that kick
+		# into a position offset too, so integrating is not the same as placing
+		# the whole thing at one face.
+		xt = r0[:, columnByName("xt")]
+		yt = r0[:, columnByName("yt")]
+		n = 64								# Simpson over the body
+		zs = xp.linspace(0.0, L, n + 1)
+		w = xp.ones(n + 1) ; w[1:-1:2] = 4.0 ; w[2:-1:2] = 2.0
+		w = w * (1.0 / n) / 3.0				# note: no L, so L -> 0 gives the thin kick
+		dx = xp.zeros_like(x) ; dy = xp.zeros_like(y)
+		dxt = xp.zeros_like(x) ; dyt = xp.zeros_like(y)
+		for zi, wi in zip(zs, w):
+			A_i, B_i = self.transfer_block(dz=float(zi))[0]			# to the slice
+			x_i = A_i * x + B_i * xt
+			y_i = A_i * y + B_i * yt
+			kx, ky = ab.deflection_at(x_i, y_i, P)
+			rest = self.transfer_block(dz=float(L - zi))			# and onward
+			B_u, D_u = float(rest[0, 1]), float(rest[1, 1])
+			dx = dx + wi * kx * B_u
+			dy = dy + wi * ky * B_u
+			dxt = dxt + wi * kx * D_u
+			dyt = dyt + wi * ky * D_u
+		return dx, dy, dxt, dyt
 
 	def _scaled_segment(self):
 		r"""Report this element as a *segment* for the scaled wave path, if it is one.
@@ -2194,35 +2323,21 @@ class Lens(Element):
 			if a list is provided, terms are used in a series: strength =A+B*nominal+C*nominal^(1/2)+D*nominal^(1/3)+...
 		Cs : float, optional
 			Third-order spherical aberration coefficient (metres), by default 0
-			(an ideal lens). A convenience alias for the Krivanek ``C3`` term;
-			see :meth:`aberration_kick` for its ray-side effect.
-		aberrations : dict, optional
-			Krivanek axial aberration coefficients through fifth order,
-			``{name: value}`` or ``{name: (value, angle)}`` — see
-			:data:`waveoptics.KRIVANEK_TERMS` for the names and
-			:meth:`aberration_coefficients` for how they combine with ``Cs``.
-			This is a convenience for construction only: each term is unpacked
-			into its own scalar attribute (``lens.A1``, and ``lens.A1_angle``
-			for the non-round terms), which is what keeps a lens writable to
-			``.sea`` — that writer stores scalars, not containers. Set or read
-			them directly afterwards. These act on the **wave** path; the ray
-			path currently implements ``C3`` alone.
+			(an ideal lens). A convenience alias for the Krivanek ``C30`` term,
+			folded into :attr:`aberrations` at construction.
+		aberrations : Aberrations or dict, optional
+			Axial wave aberrations in Krivanek ``C_{n,m}`` notation through
+			fifth order, by default ``None`` (an ideal lens). A dict is
+			converted; an :class:`aberrations.Aberrations` is attached as-is,
+			so one measured from an instrument's metadata can be moved onto a
+			simulated lens unchanged. Whatever is here acts on **both** the ray
+			and the wave path, at every order — see
+			:meth:`aberration_kick` and :meth:`phase_shift`.
 		position : float, optional
 			The position of the element along the z-axis, by default None
 		rotation : bool, optional
 			if set to False, lens rotation for finite-thickness lenses is overridden and turned off.
 		"""
-	# Stored per-term (the .sea writer takes scalars, not containers) but set
-	# through the single `aberrations` kwarg, so the reload filter -- which keeps
-	# only constructor parameters -- needs them named explicitly.
-	_restore_attrs = tuple(
-		n for name, (_o, m) in {
-			'C1': (1, 0), 'A1': (1, 2), 'B2': (2, 1), 'A2': (2, 3),
-			'C3': (3, 0), 'S3': (3, 2), 'A3': (3, 4), 'B4': (4, 1),
-			'D4': (4, 3), 'A4': (4, 5), 'C5': (5, 0), 'S5': (5, 2),
-			'R5': (5, 4), 'A5': (5, 6),
-		}.items() for n in ((name,) if m == 0 else (name, name + "_angle")))
-
 	def __init__(self, name:str='', length:float=0.,
 				 strength:float=0, calibration:float=None, Cs:float=0.0,
 				 aberrations:dict=None,
@@ -2237,31 +2352,14 @@ class Lens(Element):
 		self.strength = strength
 		self.calibration = calibration
 		self.rotation = 0
-		self.Cs = Cs					# spherical aberration (metres); 0 = ideal lens
-		# Krivanek coefficients live as FLAT SCALARS, one attribute per term (plus
-		# an orientation for the non-round ones). Not a dict, and not an array:
-		# the .sea writer stores scalars only, and both of those break it -- and
-		# .sea stability is a core rule, so the storage form is not negotiable.
-		from .waveoptics import KRIVANEK_TERMS
-		for _name, (_n, _m) in KRIVANEK_TERMS.items():
-			setattr(self, _name, 0.0)
-			if _m:
-				setattr(self, _name + "_angle", 0.0)
-		for _name, _spec in (aberrations or {}).items():
-			if _name not in KRIVANEK_TERMS:
-				raise KeyError(f"{_name!r} is not a Krivanek term; expected one of "
-							   f"{sorted(KRIVANEK_TERMS)}.")
-			_m = KRIVANEK_TERMS[_name][1]
-			if xp.ndim(_spec) == 0:
-				setattr(self, _name, float(_spec))
-			else:
-				_v, _a = (float(_q) for _q in _spec)
-				if _m == 0 and _a != 0.0:
-					raise ValueError(f"{_name!r} is rotationally symmetric (m = 0) "
-									 "and has no orientation; drop the angle.")
-				setattr(self, _name, _v)
-				if _m:
-					setattr(self, _name + "_angle", _a)
+		# One nested Aberrations object, not a scatter of flat scalars: it is a
+		# SEASerializable itself, so .sea and JSON carry it as a child node, and
+		# every order is applied by one generic expression rather than per term.
+		self.aberrations = _as_aberrations(aberrations)
+		if Cs:							# convenience alias for the C30 term
+			if self.aberrations is None:
+				self.aberrations = Aberrations()
+			self.aberrations.setdefault('C30', Cs)
 
 
 	@property
@@ -2479,6 +2577,11 @@ class Lens(Element):
 		1983 — the pure focusing relation, so a thick lens's Larmor rotation
 		never contaminates the wave-path power).
 
+		Any :attr:`aberrations` are added as the wave aberration function
+		:math:`\chi`, whatever terms they happen to contain — the same
+		:math:`\chi` the ray path differentiates, so the two representations
+		cannot drift apart.
+
 		Parameters
 		----------
 		dimensions : Dimensions or tuple
@@ -2488,45 +2591,55 @@ class Lens(Element):
 		scaled : bool, optional
 			See :meth:`Element.phase_shift`, by default False.
 		s : float, optional
-			Unused for a round lens (fully absorbed), by default 1.
+			Frame scale, used on the scaled path to place the screen at
+			physical coordinates ``x = s·xi``, by default 1.
 
 		Returns
 		-------
 		list or tuple
 			``scaled=False``: ``[kernel(L/2), screen(χ), kernel(L/2)]``.
-			``scaled=True``: ``(1/f, screen)`` — the parabola is absorbed into
-			the curvature state (Eq 45), and the **aberration function** from
-			:meth:`aberration_coefficients`, which a quadratic frame cannot
-			absorb, stays as a residual screen on ``U`` (``None`` for an ideal
-			lens, giving ``U⁺ = U⁻``, Eq 15).
+			``scaled=True``: ``(power, screen)`` — the parabola is absorbed into
+			the curvature state (Eq 45), together with the quadratic part of the
+			aberrations (:meth:`aberration_powers`), and the rest stays as a
+			residual screen on ``U`` (``None`` for an ideal lens, giving
+			``U⁺ = U⁻``, Eq 15). ``power`` is a scalar, or an ``(x, y)`` pair
+			when an aligned ``C12`` makes the two axes differ.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		aberrations.Aberrations.phase_at : Builds the aberration function.
+		aberration_kick : The ray-side gradient of the same function.
 		"""
-		from .waveoptics import quadratic_phase, aberration_phase, axis_components
+		from .waveoptics import quadratic_phase, axis_components
 		from .seashells import grid_of
 		P = self.focal_power
-		coeffs = self.aberration_coefficients()
+		ab = self.aberrations
 		ny, nx, dy, dx = grid_of(dimensions)
 		if scaled:
-			if not coeffs or P == 0:
+			if not ab or P == 0:
 				return float(P), None
 			# first-order terms are QUADRATIC, so they belong in the frame's
 			# curvature, not in a screen the frame exists to avoid
-			P_x, P_y, coeffs = self.aberration_powers()
+			P_x, P_y, residual = self.aberration_powers()
 			powers = float(P_x) if P_x == P_y else (float(P_x), float(P_y))
-			if not coeffs:
+			if not residual:
 				return powers, None
 			# the parabola is absorbed into the curvature exactly as before; the
-			# aberration function CANNOT be -- the frame is quadratic by
-			# construction, and every Krivanek term here is of higher order or
-			# lower symmetry -- so it stays as a residual screen on U at
-			# physical coords x = s*xi. That is the aberration function, in the
-			# place it belongs.
+			# rest of the aberration function CANNOT be -- the frame is
+			# quadratic by construction, and every remaining term is of higher
+			# order or lower symmetry -- so it stays as a residual screen on U
+			# at physical coords x = s*xi. That is the aberration function, in
+			# the place it belongs.
 			s_x, s_y = axis_components(s)
-			chi = aberration_phase((ny, nx), s_x * dx, s_y * dy, wavelength,
-								   coeffs, P)
+			chi = residual.phase((ny, nx), s_x * dx, s_y * dy, wavelength, P)
 			return powers, _screen_item(chi, dx, dy, self.name or "lens")
 		chi = quadratic_phase((ny, nx), dx, dy, wavelength, P, P) if P != 0 else None
-		if coeffs and P != 0:
-			extra = aberration_phase((ny, nx), dx, dy, wavelength, coeffs, P)
+		if ab and P != 0:
+			extra = ab.phase((ny, nx), dx, dy, wavelength, P)
 			chi = extra if chi is None else chi + extra
 		return self._phase_program(dimensions, wavelength, chi, self.name or "lens")
 
@@ -2539,25 +2652,25 @@ class Lens(Element):
 		screen at all — they belong in the curvature, exactly as the lens's own
 		parabola does:
 
-		- ``C1`` (defocus, :math:`m = 0`) is isotropic and quadratic, so it is a
-		  pure change of focal power, :math:`\Delta P = C_1 P^2`.
-		- ``A1`` (twofold astigmatism, :math:`m = 2`) is quadratic but
-		  astigmatic, giving :math:`\pm A_1 P^2` on the two axes — the same
+		- ``C10`` (defocus, :math:`m = 0`) is isotropic and quadratic, so it is
+		  a pure change of focal power, :math:`\Delta P = C_{10} P^2`.
+		- ``C12`` (twofold astigmatism, :math:`m = 2`) is quadratic but
+		  astigmatic, giving :math:`\pm C_{12} P^2` on the two axes — the same
 		  ``(P, -P)`` shape a quadrupole absorbs into :math:`(R_x, R_y)`.
 
 		Everything of second order and above is genuinely non-quadratic and
 		stays as a screen on ``U``. Absorbing the low-order terms is not merely
 		tidy: a quadratic screen is precisely what the scaled frame exists to
-		avoid, and leaving ``C1`` in the screen would both waste sampling and
+		avoid, and leaving ``C10`` in the screen would both waste sampling and
 		put the logged crossover in the wrong place.
 
 		Returns
 		-------
 		tuple
 			``(power_x, power_y, residual)``: the per-axis focal powers
-			including the lens's own, and the coefficients that must still be
-			applied to ``U``. ``power_x == power_y`` for a round lens with no
-			``A1``.
+			including the lens's own, and an :class:`aberrations.Aberrations`
+			holding the terms that must still be applied to ``U``.
+			``power_x == power_y`` for a round lens with no ``C12``.
 
 		Raises
 		------
@@ -2565,188 +2678,34 @@ class Lens(Element):
 
 		Related
 		-------
-		aberration_coefficients : The full set this splits.
+		aberrations.Aberrations : The storage this splits.
 		phase_shift : The consumer.
 
 		Notes
 		-----
-		``A1`` is absorbed only when its orientation is a multiple of
-		:math:`\pi/2`, i.e. aligned with the grid axes. A rotated quadratic is a
-		**skew** astigmatism, which a per-axis :math:`(R_x, R_y)` frame cannot
-		represent — the frame would need off-diagonal terms — so a rotated
-		``A1`` is left in the residual screen instead. Same limitation as a skew
-		quadrupole.
+		``C12`` is absorbed only when it is **aligned** with the grid axes,
+		which for a complex coefficient means a zero imaginary part. A rotated
+		quadratic is a *skew* astigmatism, which a per-axis :math:`(R_x, R_y)`
+		frame cannot represent — the frame would need off-diagonal terms — so a
+		skew ``C12`` is left in the residual screen instead. Same limitation as
+		a skew quadrupole.
 		"""
 		P = float(self.focal_power)
-		coeffs = self.aberration_coefficients()
-		residual = {}
+		residual = Aberrations()
 		P_x = P_y = P
-		for name, spec in coeffs.items():
-			value = float(spec) if xp.ndim(spec) == 0 else float(spec[0])
-			angle = 0.0 if xp.ndim(spec) == 0 else float(spec[1])
-			if name == 'C1':						# isotropic quadratic: pure power
-				P_x += value * P**2
-				P_y += value * P**2
+		if not self.aberrations:
+			return P_x, P_y, residual
+		for name, c in self.aberrations.items():
+			if name == 'C10':						# isotropic quadratic: pure power
+				P_x += c.real * P**2
+				P_y += c.real * P**2
 				continue
-			if name == 'A1':
-				# aligned with the axes? cos(2(phi - a)) is then +-cos(2phi)
-				turns = angle / (xp.pi / 2)
-				if abs(turns - round(turns)) < 1e-12:
-					sign = 1.0 if round(turns) % 2 == 0 else -1.0
-					P_x += sign * value * P**2
-					P_y -= sign * value * P**2
-					continue
-				# rotated: skew astigmatism, which (R_x, R_y) cannot express
-			residual[name] = spec
+			if name == 'C12' and c.imag == 0.0:		# aligned: +-a on the two axes
+				P_x += c.real * P**2
+				P_y -= c.real * P**2
+				continue
+			residual[name] = c
 		return P_x, P_y, residual
-
-	def aberration_coefficients(self) -> dict:
-		"""This lens's Krivanek aberration coefficients, with ``Cs`` folded in.
-
-		``Cs`` is a convenience alias for the third-order spherical term
-		``C3``, so this merges the two into one dictionary. An explicit
-		``C3`` in :attr:`aberrations` wins, because naming the term is more
-		specific than using the alias, and mixing both is more likely a mistake
-		than an intent to add them.
-
-		Returns
-		-------
-		dict
-			``{name: value_or_(value, angle)}``, empty for an ideal lens.
-
-		Related
-		-------
-		waveoptics.aberration_phase : Consumes this to build the phase.
-		waveoptics.KRIVANEK_TERMS : The names and their (order, multiplicity).
-
-		Notes
-		-----
-		These describe the **wave** path in full. The ray path
-		(:meth:`aberration_kick`) implements ``C3`` only, so a lens carrying,
-		say, ``A3`` aberrates its wavefront but not its rays. That asymmetry is
-		deliberate for now and stated rather than hidden.
-		"""
-		from .waveoptics import KRIVANEK_TERMS
-		out = {}
-		for name, (n, m) in KRIVANEK_TERMS.items():
-			value = float(getattr(self, name, 0.0) or 0.0)
-			if value == 0.0:
-				continue
-			angle = float(getattr(self, name + "_angle", 0.0) or 0.0) if m else 0.0
-			out[name] = (value, angle) if m else value
-		Cs = getattr(self, "Cs", 0.0) or 0.0
-		if Cs and 'C3' not in out:
-			out['C3'] = float(Cs)
-		return out
-
-	def aberration_kick(self, r0:xp.ndarray):
-		r"""Third-order spherical aberration: the ray kick :math:`-C_s r^2 \vec{r}/f^4`.
-
-		Overrides :meth:`Element.aberration_kick`. A real round lens focuses
-		marginal rays too strongly. Writing the lens phase with its leading
-		non-parabolic term,
-
-		.. math::
-
-			\chi = -\frac{k}{2f}r^2 - \frac{k\,C_s}{4f^4}r^4 ,
-			\qquad \theta' = \frac{1}{k}\frac{\partial\chi}{\partial r}
-			= -\frac{r}{f} - \frac{C_s}{f^4}r^3
-
-		so the extra angular kick beyond the matrix is
-		:math:`\Delta\theta_x = -(C_s/f^4)\,x\,r^2` and likewise in y, with
-		:math:`r^2 = x^2 + y^2` — radial, as a round lens must be.
-
-		The familiar consequences follow from that one line. A ray entering
-		parallel at height ``h`` crosses the axis at
-
-		.. math::
-
-			z = \frac{f}{1 + C_s h^2/f^3} \approx f - C_s \alpha^2,
-			\qquad \alpha = h/f
-
-		— the **longitudinal** spherical aberration — and at the Gaussian focus
-		its transverse miss is :math:`-C_s\alpha^3`. Both are standard, and both
-		are used as tests rather than re-derived in code.
-
-		Parameters
-		----------
-		r0 : xp.ndarray
-			Rays entering the lens, shape ``(n_rays, len(convention))``.
-
-		Returns
-		-------
-		tuple of xp.ndarray or None
-			``(delta_xt, delta_yt)``, or ``None`` when ``Cs`` is 0 or the lens
-			has no power (in which case there is nothing to aberrate).
-
-		Related
-		-------
-		focal_power : Supplies ``1/f``.
-		assemblies.Microscope.focal_surface : Traces the caustic this produces.
-
-		Notes
-		-----
-		A **thin** lens (``length == 0``) takes one impulsive kick at its plane,
-		which is exact. A **thick** body distributes the perturbation along its
-		length: a slice ``dz`` acts on the *local* ray height
-		:math:`r(z)`, and the remaining body then carries that kick to the exit,
-		turning part of it into a position offset. To first order,
-
-		.. math::
-
-			\Delta x_{exit} = -c\!\int_0^L\! r(z)^2 x(z)\, B(L-z)\,dz, \quad
-			\Delta\theta_{exit} = -c\!\int_0^L\! r(z)^2 x(z)\, D(L-z)\,dz
-
-		with :math:`c = C_s/(f^4 L)` — chosen so the ``L -> 0`` limit is the thin
-		kick — and :math:`B, D` entries of the body's own
-		:meth:`transfer_block` over the *remaining* length. The integral is
-		Simpson over 64 slices.
-
-		This matters on a real objective. OL1 in ``basic_column`` is 10 mm thick
-		with :math:`KL = 1.30`, and putting the whole aberration at its entrance
-		face over-estimates the exit angle by **3.3x**: :math:`r(z)` falls as the
-		body focuses, and the kick from each slice is then itself focused by the
-		rest of the body. Both effects reduce it, and the weight
-		:math:`D(L-z) = \cos K(L-z)` is what makes the factor 0.31 rather than
-		the 0.51 that :math:`\int\cos^3` alone would suggest.
-		"""
-		Cs = getattr(self, "Cs", 0.0) or 0.0
-		P = self.focal_power
-		if Cs == 0 or P == 0:
-			return None
-		x = r0[:, columnByName("x")]
-		y = r0[:, columnByName("y")]
-		L = self.length or 0.0
-		if L <= 0:							# thin: one impulsive kick, exact
-			r2 = x**2 + y**2
-			scale = Cs * P**4				# Cs / f^4
-			z = xp.zeros_like(x)
-			return z, z, -scale * x * r2, -scale * y * r2
-		# Thick: the perturbation is DISTRIBUTED along the body. A slice dz acts
-		# on the LOCAL ray height, and the rest of the body then turns that kick
-		# into a position offset too, so integrating is not the same as placing
-		# the whole thing at one face.
-		xt = r0[:, columnByName("xt")]
-		yt = r0[:, columnByName("yt")]
-		c = Cs * P**4 / L					# so the L -> 0 limit is the thin kick
-		n = 64								# Simpson over the body
-		zs = xp.linspace(0.0, L, n + 1)
-		w = xp.ones(n + 1) ; w[1:-1:2] = 4.0 ; w[2:-1:2] = 2.0
-		w = w * (L / n) / 3.0
-		dx = xp.zeros_like(x) ; dy = xp.zeros_like(y)
-		dxt = xp.zeros_like(x) ; dyt = xp.zeros_like(y)
-		for zi, wi in zip(zs, w):
-			A_i, B_i = self.transfer_block(dz=float(zi))[0]			# to the slice
-			x_i = A_i * x + B_i * xt
-			y_i = A_i * y + B_i * yt
-			r2_i = x_i**2 + y_i**2
-			rest = self.transfer_block(dz=float(L - zi))			# and onward
-			B_u, D_u = float(rest[0, 1]), float(rest[1, 1])
-			dx = dx - c * wi * x_i * r2_i * B_u
-			dy = dy - c * wi * y_i * r2_i * B_u
-			dxt = dxt - c * wi * x_i * r2_i * D_u
-			dyt = dyt - c * wi * y_i * r2_i * D_u
-		return dx, dy, dxt, dyt
 
 	def calibration_from_f_and_I(self,f,I,rotationPerAmp=None):
 		print("for lens",self.name,"seeking a calibration factor C, which focuses strength",I,"to focal length",f,"and rotationPerAmp",rotationPerAmp)

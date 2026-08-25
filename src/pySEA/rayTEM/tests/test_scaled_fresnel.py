@@ -2198,50 +2198,53 @@ def test_krivanek_terms_have_the_right_order_and_symmetry():
 
 
 def test_first_order_terms_are_absorbed_into_the_frame():
-	# C1 and A1 are QUADRATIC in the pupil angle, and the scaled frame is
+	# C10 and C12 are QUADRATIC in the pupil angle, and the scaled frame is
 	# exactly a quadratic, so they belong in the curvature -- not in a screen
 	# the frame exists to avoid.
 	f = 0.045
 	P = 1 / f
-	lens = Lens(strength=np.sqrt(P), aberrations={'C1': 5e-4})
+	lens = Lens(strength=np.sqrt(P), aberrations={'C10': 5e-4})
 	P_x, P_y, residual = lens.aberration_powers()
-	assert residual == {}								# nothing left for U
-	assert np.isclose(P_x, P + 5e-4 * P**2, rtol=1e-12)	# dP = C1 P^2
-	assert P_x == P_y									# C1 is isotropic
-	# A1 aligned to the axes gives the quadrupole's own (+P, -P) shape
-	for angle, sign in ((0.0, +1.0), (np.pi / 2, -1.0)):
-		lens = Lens(strength=np.sqrt(P), aberrations={'A1': (2e-4, angle)})
+	assert not residual									# nothing left for U
+	assert np.isclose(P_x, P + 5e-4 * P**2, rtol=1e-12)	# dP = C10 P^2
+	assert P_x == P_y									# C10 is isotropic
+	# C12 aligned to the axes gives the quadrupole's own (+P, -P) shape. With a
+	# complex coefficient "aligned" means a zero imaginary part, and the two
+	# orientations are just the sign of the real part.
+	for value, sign in ((2e-4, +1.0), (-2e-4, -1.0)):
+		lens = Lens(strength=np.sqrt(P), aberrations={'C12': value})
 		P_x, P_y, residual = lens.aberration_powers()
-		assert residual == {}
+		assert not residual
 		assert np.isclose(P_x, P + sign * 2e-4 * P**2, rtol=1e-12)
 		assert np.isclose(P_y, P - sign * 2e-4 * P**2, rtol=1e-12)
-	# a ROTATED A1 is skew astigmatism, which (R_x, R_y) cannot express, so it
-	# stays a screen rather than being silently mis-absorbed
-	lens = Lens(strength=np.sqrt(P), aberrations={'A1': (2e-4, 0.3)})
+	# a SKEW C12 (nonzero imaginary part) is astigmatism at 45 degrees, which
+	# (R_x, R_y) cannot express, so it stays a screen rather than being
+	# silently mis-absorbed
+	lens = Lens(strength=np.sqrt(P), aberrations={'C12': (1e-4, 1.5e-4)})
 	P_x, P_y, residual = lens.aberration_powers()
-	assert np.isclose(P_x, P) and P_x == P_y and list(residual) == ['A1']
+	assert np.isclose(P_x, P) and P_x == P_y and residual.names == ['C12']
 	# higher orders always stay a screen
-	lens = Lens(strength=np.sqrt(P), aberrations={'C1': 1e-4, 'C3': 1e-3,
-												 'A3': (1e-3, 0.2)})
+	lens = Lens(strength=np.sqrt(P), aberrations={'C10': 1e-4, 'C30': 1e-3,
+												 'C34': (1e-3, 2e-4)})
 	P_x, _, residual = lens.aberration_powers()
 	assert np.isclose(P_x, P + 1e-4 * P**2, rtol=1e-12)
-	assert sorted(residual) == ['A3', 'C3']
+	assert sorted(residual.names) == ['C30', 'C34']
 
 
-def test_C1_moves_the_wave_crossover_but_not_the_ray_matrix():
-	# C1 absorbed into the frame means the wave focus moves to 1/(P + C1 P^2).
+def test_C10_moves_the_wave_crossover_but_not_the_ray_matrix():
+	# C10 absorbed into the frame means the wave focus moves to 1/(P + C10 P^2).
 	# The RAY matrix does not see it, because transfer_matrix is built from
 	# `strength` alone -- an asymmetry that is real and deliberate for now.
 	f = 0.045
 	P = 1 / f
-	for C1, f_eff in ((0.0, f), (5e-4, 1 / (P + 5e-4 * P**2))):
+	for C10, f_eff in ((0.0, f), (5e-4, 1 / (P + 5e-4 * P**2))):
 		mic = Microscope(sections=[MicroscopeSection(elements=[
 			Source(voltage=200, wave_shape=(128, 128), wave_extent=3e-4,
 				   wave_kind="aperture", aperture_radius=6e-5),
-			Lens(strength=np.sqrt(P), aberrations={'C1': C1}),
+			Lens(strength=np.sqrt(P), aberrations={'C10': C10}),
 			Drift(length=0.06)])])
 		mic.propagate_wave(mode="hybrid", absorb=0.0)
-		assert np.isclose(float(mic.crossovers[0]), f_eff, rtol=1e-6), C1
+		assert np.isclose(float(mic.crossovers[0]), f_eff, rtol=1e-6), C10
 		# the ray matrix stays put
 		assert np.isclose(float(mic.conjugate_planes(axis="x",
 													 method="frame")["diff"][0]),
@@ -2249,8 +2252,8 @@ def test_C1_moves_the_wave_crossover_but_not_the_ray_matrix():
 
 
 def test_aberrations_survive_a_sea_round_trip():
-	# .sea stores SCALARS only -- a dict or an array attribute breaks the
-	# writer -- so each term is its own float attribute. This is what pins that.
+	# The coefficients live in a NESTED Aberrations object, which SEASerializable
+	# carries as a child node -- this is what pins that the nesting survives.
 	import os, tempfile
 	from pySEA.rayTEM.assemblies import load_microscope
 	cwd = os.getcwd()
@@ -2260,14 +2263,15 @@ def test_aberrations_survive_a_sea_round_trip():
 			Source(size=(1, 1), np_xy=(3, 3), angle=(1, 1), na_xy=(3, 3)),
 			Drift(length=1),
 			Lens(strength=3, length=.1,
-				 aberrations={'A1': (3e-4, 0.7), 'C5': 1e-2}),
+				 aberrations={'C12': (3e-4, -1e-4), 'C50': 1e-2}),
 			Drift(length=1)])])
 		mic.propagate_ray()
 		mic.to_sea("t.sea")
 		lens = [e for sec in load_microscope("t.sea").sections
 				for e in sec.elements if isinstance(e, Lens)][0]
-		got = lens.aberration_coefficients()
-		assert np.isclose(got['A1'][0], 3e-4) and np.isclose(got['A1'][1], 0.7)
-		assert np.isclose(got['C5'], 1e-2)
+		got = lens.aberrations
+		assert got.convention == 'krivanek'
+		assert np.isclose(got['C12'].real, 3e-4) and np.isclose(got['C12'].imag, -1e-4)
+		assert np.isclose(got['C50'].real, 1e-2)
 	finally:
 		os.chdir(cwd)
