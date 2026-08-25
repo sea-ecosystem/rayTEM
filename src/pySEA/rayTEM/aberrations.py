@@ -351,10 +351,9 @@ class Aberrations(SEASerializable):
 	def setdefault(self, name: str, value) -> complex:
 		"""Set a coefficient only if it is not already nonzero.
 
-		Used where a convenience alias must not silently overwrite an
-		explicitly named term — ``Lens(Cs=...)`` folds into ``C30``, but a
-		``C30`` given by name wins, because naming the term is the more
-		specific statement.
+		Used where a default must not silently overwrite a term the caller
+		named — an explicitly given coefficient wins, because naming the term
+		is the more specific statement.
 
 		Parameters
 		----------

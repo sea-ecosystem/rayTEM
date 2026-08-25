@@ -34,12 +34,15 @@ the reader extends to fifth order.
       becomes a symmetric multislice through the body; n = 1 reproduces the
       thin program term for term. Refused on the scaled path (the frame
       evolves through the body).
-- [ ] dot-access properties for the well-known Signals, following
+- [x] `rays_signalset` is a property; the identity half of the rule does not
+      apply to RESULTS (wave/rays/mu/covariance) -- they are computed or None.
+      Original item, for reference, following
       [PLAN_2026-08-25_derived-signal-properties.md](PLAN_2026-08-25_derived-signal-properties.md):
       supplied -> stored; derivable -> recomputed, not stored; neither ->
       identity (`1` for a screen)
 - [x] `apply_aberrations=True` flag on every propagation method
 - [x] ray kick from `(1/k) grad chi` generically, all orders, on `Element`
-- [x] flat `C1/A1/...` attributes retired; `Lens.Cs` kept as a `C30` alias
+- [x] flat `C1/A1/...` attributes retired; `Lens.Cs` removed entirely (it had
+      become a silent no-op as an attribute -- see LOG)
 - [x] retired `waveoptics.spherical_phase`/`aberration_phase`/`KRIVANEK_TERMS`
-- [ ] re-point `examples/06` at the new API
+- [x] re-point `examples/06` at the new API

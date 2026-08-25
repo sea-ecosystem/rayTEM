@@ -4,9 +4,9 @@ Five panels:
 
 A  the column, with OL1 and the plane examined marked.
 B  the OL diffraction plane with an ideal OL1 -- every ray crosses at one point.
-C  the same plane with Cs = 1 mm -- the rays cross over a 40 nm spread: a caustic.
+C  the same plane with C30 = 1 mm -- the rays cross over a 40 nm spread: a caustic.
 D  the focal surface. The ISOLATED thin lens follows the closed form
-   -Cs alpha^2 exactly, which validates the implementation; OL1 inside the
+   -C30 alpha^2 exactly, which validates the implementation; OL1 inside the
    column does not, and should not: the beam arrives converging, and OL1 is
    10 mm thick so its aberration is distributed along the body.
 E  the same aberration in the WAVE path, as a Strehl loss at the focus.
@@ -20,15 +20,19 @@ import pySEA.rayTEM
 from pySEA.rayTEM import Source, Drift, Lens, MicroscopeSection, Microscope
 from pySEA.rayTEM.assemblies import load_microscope
 from pySEA.rayTEM.elements import Lens as _L
+from pySEA.rayTEM.aberrations import Aberrations
 
 P = os.path.join(os.path.dirname(pySEA.rayTEM.__file__), "microscopes", "basic_column.sea")
 CS, H_MAX, F_OL = 1e-3, 1.04e-4, 8e-3
 
 def column(Cs):
+    # Aberrations are attached as a set of Krivanek C_{n,m} coefficients, not as
+    # a per-aberration attribute: spherical is C30, and the same object would
+    # carry astigmatism or coma with no change to anything downstream.
     m = load_microscope(P)
     for z, L, e in m._element_spans():
         if isinstance(e, _L) and e.name == "OL1":
-            e.Cs = Cs
+            e.aberrations = Aberrations({'C30': Cs}) if Cs else None
     return m
 
 def fan(m, n=15, h=H_MAX):
@@ -54,8 +58,8 @@ axA.text(z_par, axA.get_ylim()[0]*0.80, "  plane examined: 502.4876 mm",
 axA.set_xlabel("z (m)"); axA.set_ylabel("x (m)")
 
 # ---- B, C: the focus, ideal vs aberrated, identical axes -----------------
-for k, (Cs, lbl) in enumerate(((0.0, "B   OL1 ideal  (Cs = 0):  one crossing"),
-                               (CS, f"C   OL1 aberrated  (Cs = {CS*1e3:.0f} mm):  a caustic"))):
+for k, (Cs, lbl) in enumerate(((0.0, "B   OL1 ideal  (C30 = 0):  one crossing"),
+                               (CS, f"C   OL1 aberrated  (C30 = {CS*1e3:.0f} mm):  a caustic"))):
     ax = fig.add_subplot(gs[1, k])
     fan(column(Cs)).show(kind="ray", plt_ax=ax, regenerate=False,
                          conjugates=False, title=lbl)
@@ -71,13 +75,14 @@ for k, (Cs, lbl) in enumerate(((0.0, "B   OL1 ideal  (Cs = 0):  one crossing"),
 # ---- D: the surface ------------------------------------------------------
 axD = fig.add_subplot(gs[2, 0])
 iso = Microscope(sections=[MicroscopeSection(elements=[
-    Source(voltage=200), Lens(strength=np.sqrt(1 / F_OL), Cs=CS), Drift(length=0.02)])])
+    Source(voltage=200), Lens(strength=np.sqrt(1 / F_OL), aberrations={'C30': CS}),
+    Drift(length=0.02)])])
 si = iso.focal_surface(family="diff", aperture=10e-3 * F_OL, radii=12, azimuths=4)
 ai = si["radius"] / F_OL ; oi = np.argsort(ai)
 axD.plot(ai[oi]*1e3, (si["z"][oi]-si["z_paraxial"])*1e9, "o", ms=6, color="tab:blue",
          label="isolated thin lens, traced")
 aa = np.linspace(0, 10e-3, 100)
-axD.plot(aa*1e3, -CS*aa**2*1e9, "-", lw=1.6, color="k", label=r"closed form $-C_s\alpha^2$")
+axD.plot(aa*1e3, -CS*aa**2*1e9, "-", lw=1.6, color="k", label=r"closed form $-C_{30}\alpha^2$")
 m = column(CS)
 sc = m.focal_surface(family="diff", aperture=H_MAX, radii=12, azimuths=4, near=z_par)
 r0 = np.zeros((sc["radius"].size, 6)); r0[:, 0] = sc["radius"]
@@ -107,7 +112,8 @@ for Cs, c in ((0.0, "tab:blue"), (CS, "tab:red")):
     src = Source(voltage=200, wave_shape=(n_w, n_w), wave_extent=3.2e-4,
                  wave_kind="aperture", aperture_radius=a_w)
     mw = Microscope(sections=[MicroscopeSection(elements=[
-        src, Lens(strength=np.sqrt(1/f_w), Cs=Cs), Drift(length=f_w)])])
+        src, Lens(strength=np.sqrt(1/f_w), aberrations={'C30': Cs} if Cs else None),
+        Drift(length=f_w)])])
     mw.propagate_wave(mode="hybrid", absorb=0.0)
     w = mw.wavefield_at(float(mw.crossovers[0]))
     I = np.abs(np.asarray(w.data))**2
@@ -117,7 +123,7 @@ for Cs, c in ((0.0, "tab:blue"), (CS, "tab:red")):
     dxr = float(w.dimensions[-1].scale)
     r = (np.arange(n_w) - n_w//2) * dxr
     axE.plot(r*1e9, I[n_w//2, :], "-", color=c, lw=1.6,
-             label=f"Cs = {Cs*1e3:.0f} mm   (peak {I.max():.4f})")
+             label=f"C30 = {Cs*1e3:.0f} mm   (peak {I.max():.4f})")
     if Cs:
         strehl = I.max()
 axE.set_xlim(-1.0, 1.0)
@@ -127,14 +133,14 @@ axE.set_title(f"E   the WAVE focus, same lens, {a_w/f_w*1e3:.0f} mrad")
 axE.legend(fontsize=8); axE.grid(alpha=0.3)
 axE.text(0.03, 0.55,
 	f"Strehl = {strehl:.4f}\n"
-	r"peak quartic phase $kC_s\alpha^4/4$ = "
+	r"peak quartic phase $kC_{30}\alpha^4/4$ = "
 	f"{2*np.pi/2.5078e-12*CS*(a_w/f_w)**4/4:.2f} rad\n"
 	"small because 5 mrad is all this grid can\nsample: the screen goes as "
 	r"$r^4$",
 	transform=axE.transAxes, fontsize=7.6)
 
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures", "OL1_spherical_aberration.png")
-fig.suptitle("Spherical aberration applied to basic_column's objective OL1   (Cs = 1 mm)",
+fig.suptitle("Spherical aberration applied to basic_column's objective OL1   (C30 = 1 mm)",
              fontsize=14, y=0.995)
 fig.savefig(out, dpi=130, bbox_inches="tight")
 print("wrote", out)

@@ -2824,10 +2824,6 @@ class Lens(Element):
 		calibration : list or float, optional
 			if a float is provided, a linear scaling will be applied to strength
 			if a list is provided, terms are used in a series: strength =A+B*nominal+C*nominal^(1/2)+D*nominal^(1/3)+...
-		Cs : float, optional
-			Third-order spherical aberration coefficient (metres), by default 0
-			(an ideal lens). A convenience alias for the Krivanek ``C30`` term,
-			folded into :attr:`aberrations` at construction.
 		aberrations : Aberrations or dict, optional
 			Axial wave aberrations in Krivanek ``C_{n,m}`` notation through
 			fifth order, by default ``None`` (an ideal lens). A dict is
@@ -2842,7 +2838,7 @@ class Lens(Element):
 			if set to False, lens rotation for finite-thickness lenses is overridden and turned off.
 		"""
 	def __init__(self, name:str='', length:float=0.,
-				 strength:float=0, calibration:float=None, Cs:float=0.0,
+				 strength:float=0, calibration:float=None,
 				 aberrations:dict=None,
 				 position:float=None) -> SEASerializable:
 		
@@ -2859,10 +2855,6 @@ class Lens(Element):
 		# SEASerializable itself, so .sea and JSON carry it as a child node, and
 		# every order is applied by one generic expression rather than per term.
 		self.aberrations = _as_aberrations(aberrations)
-		if Cs:							# convenience alias for the C30 term
-			if self.aberrations is None:
-				self.aberrations = Aberrations()
-			self.aberrations.setdefault('C30', Cs)
 
 
 	@property

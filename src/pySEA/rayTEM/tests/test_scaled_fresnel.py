@@ -1897,7 +1897,7 @@ _F_AB = 0.045
 
 def _aberrated_column(Cs=0.0, quad=None):
 	els = [Source(voltage=200), Drift(length=0.01),
-		   Lens(name="OL", strength=np.sqrt(1 / _F_AB), Cs=Cs)]
+		   Lens(name="OL", strength=np.sqrt(1 / _F_AB), aberrations={'C30': Cs})]
 	if quad is not None:
 		els.append(Quadrapole(strength=quad))
 	els.append(Drift(length=0.06))
@@ -1909,7 +1909,7 @@ def test_spherical_aberration_kick_matches_the_closed_form():
 	# -(Cs/f^4) x r^2, so a ray entering parallel at h crosses the axis at
 	# z = f/(1 + Cs h^2/f^3), the classic longitudinal spherical aberration.
 	Cs, f = 1e-3, _F_AB
-	lens = Lens(strength=np.sqrt(1 / f), Cs=Cs)
+	lens = Lens(strength=np.sqrt(1 / f), aberrations={'C30': Cs})
 	r0 = np.zeros((3, 6))
 	r0[:, 0] = [0.0, 1e-4, 2e-4]
 	dx, dy, dxt, dyt = lens.aberration_kick(r0)
@@ -1919,7 +1919,7 @@ def test_spherical_aberration_kick_matches_the_closed_form():
 	# an ideal lens declares nothing at all, so aberration-free columns are
 	# bit-for-bit unchanged
 	assert Lens(strength=np.sqrt(1 / f)).aberration_kick(r0) is None
-	assert Lens(strength=0.0, Cs=Cs).aberration_kick(r0) is None		# no power
+	assert Lens(strength=0.0, aberrations={'C30': Cs}).aberration_kick(r0) is None		# no power
 	assert Drift(length=0.1).aberration_kick(r0) is None
 
 	# the traced caustic matches the closed form
@@ -1944,7 +1944,7 @@ def test_thick_body_aberration_matches_the_perturbed_ray_equation():
 	# route that uses none of the transfer-block machinery.
 	from scipy.integrate import solve_ivp
 	K, L, Cs = 129.80, 0.010, 1e-3			# OL1's real parameters
-	lens = Lens(strength=K, length=L, Cs=Cs)
+	lens = Lens(strength=K, length=L, aberrations={'C30': Cs})
 	c = Cs * lens.focal_power**4 / L
 	A, B = np.cos(K * L), np.sin(K * L) / K
 	for h in (2e-5, 4e-5, 8e-5):
@@ -1958,7 +1958,7 @@ def test_thick_body_aberration_matches_the_perturbed_ray_equation():
 		assert abs(dx[0] / d_ode[0] - 1) < 1e-4, h
 		assert abs(dxt[0] / d_ode[1] - 1) < 1e-4, h
 	# the thin limit is untouched: no displacement, and the impulsive kick
-	thin = Lens(strength=np.sqrt(1 / 0.045), Cs=Cs)
+	thin = Lens(strength=np.sqrt(1 / 0.045), aberrations={'C30': Cs})
 	r0 = np.zeros((2, 6)); r0[:, 0] = [1e-4, 2e-4]
 	dx, dy, dxt, dyt = thin.aberration_kick(r0)
 	assert np.all(dx == 0) and np.all(dy == 0)
@@ -2037,7 +2037,7 @@ def test_ray_kick_is_the_gradient_of_the_wave_screen():
 	# as dx^2 -- a fixed tolerance would not distinguish "agrees" from "agrees to
 	# within the discretisation I happened to choose".
 	f, Cs = 0.045, 1e-3
-	lens = Lens(strength=np.sqrt(1 / f), Cs=Cs)
+	lens = Lens(strength=np.sqrt(1 / f), aberrations={'C30': Cs})
 	P, k = lens.focal_power, 2 * np.pi / LAM
 	errs = []
 	for n, dx in ((256, 4e-7), (512, 2e-7), (1024, 1e-7)):
@@ -2057,7 +2057,7 @@ def test_ray_kick_is_the_gradient_of_the_wave_screen():
 def test_lens_phase_carries_the_quartic_in_both_representations():
 	f, Cs, grid = 0.045, 1e-3, ((64, 64), 2e-6, 2e-6)
 	ideal = Lens(strength=np.sqrt(1 / f))
-	real = Lens(strength=np.sqrt(1 / f), Cs=Cs)
+	real = Lens(strength=np.sqrt(1 / f), aberrations={'C30': Cs})
 
 	# scaled: the parabola is absorbed into the curvature, the quartic CANNOT be
 	# (the frame is quadratic by construction) so it stays as a residual screen
@@ -2089,7 +2089,7 @@ def test_spherical_aberration_degrades_the_wave_focus():
 		mic = Microscope(sections=[MicroscopeSection(elements=[
 			Source(voltage=200, wave_shape=(256, 256), wave_extent=1.4e-3,
 				   wave_kind="aperture", aperture_radius=a),
-			Drift(length=0.001), Lens(strength=np.sqrt(1 / f), Cs=Cs),
+			Drift(length=0.001), Lens(strength=np.sqrt(1 / f), aberrations={'C30': Cs}),
 			Drift(length=0.05)])])
 		mic.propagate_wave(mode="hybrid", absorb=0.0)
 		z = float(mic.crossovers[0])
@@ -2109,7 +2109,7 @@ def test_undersampled_aberration_screen_is_refused():
 	mic = Microscope(sections=[MicroscopeSection(elements=[
 		Source(voltage=200, wave_shape=(128, 128), wave_extent=1.4e-3,
 			   wave_kind="aperture", aperture_radius=a),
-		Drift(length=0.001), Lens(strength=np.sqrt(1 / f), Cs=1e-3),
+		Drift(length=0.001), Lens(strength=np.sqrt(1 / f), aberrations={'C30': 1e-3}),
 		Drift(length=0.05)])])
 	with pytest.raises(ValueError, match="under-sampled on the scaled grid"):
 		mic.propagate_wave(mode="hybrid", absorb=0.0)
@@ -2122,7 +2122,7 @@ def _bfp_setup(Cs, n=512, ext=1.4e-3, f=0.045, a=3e-4):
 	src = Source(voltage=200, wave_shape=(n, n), wave_extent=ext,
 				 wave_kind="aperture", aperture_radius=a)
 	mic = Microscope(sections=[MicroscopeSection(elements=[
-		src, Lens(strength=np.sqrt(1 / f), Cs=Cs), Drift(length=f)])])
+		src, Lens(strength=np.sqrt(1 / f), aberrations={'C30': Cs}), Drift(length=f)])])
 	return mic, float(src.wavelength), ext / n, f, a
 
 
