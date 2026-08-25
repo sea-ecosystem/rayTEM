@@ -722,8 +722,13 @@ class MicroscopeSection(SEASerializable):
 		self.wave_scaled = _stack_scaled_wavefields(fi, name=(self.name or 'section') + ' scaled wave')
 		return self.wave_scaled
 
+	@property
 	def rays_signalset(self):
-		"""Return a sea_eco ``SignalSet`` view of the traced rays (rays + I + R).
+		"""A sea_eco ``SignalSet`` view of the traced rays (rays + I + R).
+
+		A **property**, and deliberately not stored: it is a view built from
+		``rays``/``I``/``R``, which are the storage. Rebuilding it costs a
+		wrap; keeping a second copy in step with them costs correctness.
 
 		Wraps the most recent ray-mode result (``self.rays``/``self.I``/``self.R``)
 		as a calibrated ``SignalSet`` via the seashells seam, propagating first if
@@ -2410,8 +2415,13 @@ class Microscope(SEASerializable):
 		return make_wavefield_signal(psi, dx, dy, wavelength, z=z_plane,
 									 name=(self.name or 'microscope') + f' wavefield at z={z_plane:g}')
 
+	@property
 	def rays_signalset(self):
-		"""Return a sea_eco ``SignalSet`` view of the traced rays (rays + I + R).
+		"""A sea_eco ``SignalSet`` view of the traced rays (rays + I + R).
+
+		A **property**, and deliberately not stored: it is a view built from
+		``rays``/``I``/``R``, which are the storage. Rebuilding it costs a
+		wrap; keeping a second copy in step with them costs correctness.
 
 		Wraps the most recent ray-mode result (``self.rays``/``self.I``/``self.R``)
 		as a calibrated ``SignalSet`` via the seashells seam, propagating first if

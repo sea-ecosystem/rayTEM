@@ -220,7 +220,7 @@ def test_rays_signalset_view():
 		Drift(length=1), Lens(strength=3,length=0.1), Drift(length=1)])
 	microscope = Microscope(sections=[section])
 	microscope.propagate_ray()
-	ss = microscope.rays_signalset()
+	ss = microscope.rays_signalset
 	# three datasets sharing the plane_z / ray axes
 	names = sorted(getattr(d, "name", None) for d in ss.datasets)
 	assert names == ["I", "R", "rays"]
