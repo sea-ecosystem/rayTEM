@@ -142,27 +142,41 @@ def _check_screen_sampling(chi, name:str):
 	"""Guard against an aliased phase screen applied to the scaled field U.
 
 	The scaled path applies non-absorbable element phases (quadrupole saddle,
-	dipole tilt, future aberrations) explicitly to U; a screen whose phase steps
-	more than π between neighbouring samples aliases silently. This check fails
+	dipole tilt, aberrations) explicitly to U; a screen whose phase steps more
+	than π between neighbouring samples aliases silently. This check fails
 	loudly instead (handoff Eqs 47–48 sampling requirement ``|∂χ/∂ξ| < π/Δξ``).
+
+	**Complex screens are exempt.** The guard exists to catch a *generated*
+	phase outrunning the grid it was sampled on — a steeper lens than the grid
+	can carry. A complex transmission is supplied, not generated, and the
+	commonest one is a hard-edged aperture, whose edge is a genuine
+	discontinuity rather than an aliasing artefact. Failing on that would
+	reject the very thing the complex form was added to express.
 
 	Parameters
 	----------
 	chi : xp.ndarray
-		Real phase screen χ (radians), shape ``(ny, nx)``.
+		Screen data: real phase χ (radians), or a complex transmission (which
+		is passed through unchecked), shape ``(ny, nx)``.
 	name : str
 		Element/screen name for the error message.
 
 	Returns
 	-------
 	None
-		Passes silently when adequately sampled.
+		Passes silently when adequately sampled, or when the screen is complex.
 
 	Raises
 	------
 	ValueError
-		If the per-pixel phase step reaches π anywhere on the screen.
+		If the per-pixel phase step of a *real* screen reaches π anywhere.
+
+	Related
+	-------
+	waveoptics.apply_phase : The consumer, and the real/complex convention.
 	"""
+	if xp.iscomplexobj(chi):
+		return
 	step = 0.0
 	if chi.shape[1] > 1:
 		step = max(step, float(xp.abs(xp.diff(chi, axis=1)).max()))

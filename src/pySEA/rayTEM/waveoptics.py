@@ -160,39 +160,80 @@ def kernel_phase(shape: tuple, dx: float, dy: float, wavelength: float,
 	return chi
 
 
-def apply_phase(field: np.ndarray, phase: np.ndarray,
+def apply_phase(field: np.ndarray, screen: np.ndarray,
 				space: str = "position") -> np.ndarray:
-	r"""Apply a scalar phase to a field as :math:`e^{i\chi}` in its domain.
+	r"""Multiply a field by a screen, in the screen's own domain.
 
-	Real-space screens (``space='position'``) multiply the field directly;
-	reciprocal-space phases (``space='scattering'``, e.g. the free-space kernel)
-	are applied in the FFT domain. This is the single application primitive used
-	by both the fixed-grid and scaled wave propagators.
+	A **screen** is a transmission function: what the field is multiplied by at
+	one plane. Two forms are accepted, distinguished by dtype, because a real
+	array can only mean a phase and a complex one can only mean a full
+	transmission:
+
+	=========  ==================  =========================================
+	dtype      meaning             applied as
+	=========  ==================  =========================================
+	real       phase χ (radians)   :math:`e^{i\chi}` — unit modulus
+	complex    transmission T      ``T`` directly — modulus *and* phase
+	=========  ==================  =========================================
+
+	The complex form is what lets one object carry amplitude and phase
+	together, which a physical plate has: a binary aperture cutting the beam
+	*and* the phase its medium imparts are one screen, not two elements that
+	happen to sit at the same z.
+
+	``space`` is independent of that and says **where the multiply is diagonal**,
+	not where in the column the element sits. ``'position'`` multiplies the
+	field; ``'scattering'`` multiplies its spectrum (the free-space kernel, and
+	anything else naturally written in q). A phase plate in a back focal plane
+	is a ``'position'`` screen — the plane is reciprocal, the operation is
+	local.
+
+	This is the single application primitive used by both the fixed-grid and
+	scaled wave propagators.
 
 	Parameters
 	----------
 	field : np.ndarray
 		Complex field ``(ny, nx)``.
-	phase : np.ndarray
-		Real phase χ (radians), same shape as ``field`` (reciprocal phases in
-		unshifted fftfreq order).
+	screen : np.ndarray
+		Real phase χ (radians) or complex transmission ``T``, same shape as
+		``field`` (reciprocal-domain screens in unshifted fftfreq order).
 	space : {'position', 'scattering'}, optional
-		Domain of ``phase``, by default ``'position'``.
+		Domain the screen is diagonal in, by default ``'position'``.
 
 	Returns
 	-------
 	np.ndarray
-		Field with ``exp(i·phase)`` applied, shape ``(ny, nx)``.
+		The multiplied field, shape ``(ny, nx)``.
 
 	Raises
 	------
 	ValueError
 		If ``space`` is not ``'position'`` or ``'scattering'``.
+
+	Related
+	-------
+	seashells.make_screen_phase_signal : Builds a tagged position-domain screen.
+	seashells.make_kernel_phase_signal : Builds a tagged reciprocal-domain screen.
+	elements.Element.phase_shift : Declares the screens an element applies.
+
+	Notes
+	-----
+	A complex screen is **not** renormalized: it may absorb (``|T| < 1``, an
+	aperture or a lossy plate) or, if a caller supplies one, amplify. Nothing
+	here enforces ``|T| <= 1``, because a supplied screen is a statement about
+	the physics being modelled, not something this primitive can second-guess.
+
+	Examples
+	--------
+	>>> apply_phase(field, chi)                      # doctest: +SKIP
+	>>> apply_phase(field, mask * np.exp(1j * chi))  # doctest: +SKIP
 	"""
+	T = screen if np.iscomplexobj(screen) else np.exp(1j * screen)
 	if space == "position":
-		return field * np.exp(1j * phase)
+		return field * T
 	if space == "scattering":
-		return np.fft.ifft2(np.fft.fft2(field) * np.exp(1j * phase))
+		return np.fft.ifft2(np.fft.fft2(field) * T)
 	raise ValueError(f"Unknown phase space {space!r}; expected 'position' or 'scattering'.")
 
 

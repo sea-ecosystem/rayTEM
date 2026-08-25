@@ -20,7 +20,14 @@ the reader extends to fifth order.
 - [x] generic `phase_at()`/`deflection_at()` (+ grid wrappers `phase`/`gradient`)
 - [x] C10 reaches the rays (generic kick), matching the wave frame exactly --
       so it must NOT also fold into `focal_power`, which would double-count
-- [ ] phase screen as a Signal on the element dataset, manual or generated
+- [x] screens may be COMPLEX: real = phase chi (exp(i chi)), complex =
+      transmission T applied directly, so amplitude and phase are one object
+- [ ] `Element.screen`: a SUPPLIED screen Signal, stored because it cannot be
+      recomputed. Generated chi stays recomputed -- coefficients are the
+      storage. (fixed path first; scaled path needs resampling from x to xi)
+- [ ] fold `Aperture`'s mask into the screen mechanism (Eric: same function,
+      keep the space flag)
+- [ ] supplied screen through a VOLUME, not just one plane (3D signal)
 - [ ] dot-access properties for the well-known Signals
 - [x] `apply_aberrations=True` flag on every propagation method
 - [x] ray kick from `(1/k) grad chi` generically, all orders, on `Element`

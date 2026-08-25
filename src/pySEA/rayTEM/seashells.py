@@ -260,17 +260,23 @@ class _Phase:
 
 
 def make_screen_phase_signal(data, dx, dy, name="phase screen"):
-	"""Wrap a real-space phase screen χ(x, y) as a space-tagged Signal.
+	"""Wrap a real-space screen as a space-tagged Signal.
 
 	The returned Signal's transverse Dimensions carry the pixel calibration and
-	``space='position'``, which is how the wave propagators recognize a
-	real-space screen (multiply by ``exp(iχ)``). Falls back to :class:`_Phase`
-	when sea_eco is absent.
+	``space='position'``, which is how the wave propagators recognize a screen
+	applied by multiplying the field. Falls back to :class:`_Phase` when
+	sea_eco is absent.
+
+	The data may be **real**, meaning a phase χ in radians applied as
+	``exp(iχ)``, or **complex**, meaning a transmission ``T`` applied directly
+	— amplitude and phase in one object, which is what a physical plate has.
+	See :func:`waveoptics.apply_phase` for the convention.
 
 	Parameters
 	----------
 	data : numpy.ndarray
-		Real phase χ (radians), shape ``(ny, nx)``.
+		Real phase χ (radians) or complex transmission ``T``, shape
+		``(ny, nx)``.
 	dx, dy : float
 		Sample spacings of the grid the phase was built on (metres).
 	name : str, optional

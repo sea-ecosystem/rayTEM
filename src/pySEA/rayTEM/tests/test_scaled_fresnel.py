@@ -2332,3 +2332,36 @@ def test_apply_aberrations_false_gives_the_ideal_result_on_every_path():
 			assert lens.aberrations is None
 			raise RuntimeError("boom")
 	assert lens.aberrations['C30'] == 1e-3
+
+
+def test_a_screen_may_be_complex_carrying_amplitude_and_phase_together():
+	# A physical plate cuts the beam AND phase-shifts what gets through. Those
+	# are one object, not an aperture element plus a phase element that happen
+	# to share a z. A complex screen is that object: applied directly rather
+	# than exponentiated, so |T| is free to be anything.
+	from pySEA.rayTEM.elements import _check_screen_sampling
+	n = 32
+	field = np.exp(1j * np.linspace(0, 1, n * n).reshape(n, n))
+	chi = np.full((n, n), 0.37)
+	mask = np.zeros((n, n)) ; mask[8:24, 8:24] = 1.0
+
+	# real screen: unchanged behaviour, exp(i chi)
+	assert np.allclose(wo.apply_phase(field, chi), field * np.exp(1j * chi))
+	# and a real screen is exactly the complex screen of unit modulus
+	assert np.allclose(wo.apply_phase(field, chi),
+					   wo.apply_phase(field, np.exp(1j * chi).astype(complex)))
+	# complex screen: modulus survives, so the plate both blocks and shifts
+	out = wo.apply_phase(field, mask * np.exp(1j * chi))
+	assert np.allclose(out, field * mask * np.exp(1j * chi))
+	assert np.all(out[mask == 0] == 0)						# blocked
+	assert np.allclose(np.abs(out[mask == 1]), 1.0)			# and passed undimmed
+	# the space flag is orthogonal to the dtype: a complex screen works in the
+	# FFT domain too, where the multiply is diagonal in q rather than in x
+	q = wo.apply_phase(field, mask * np.exp(1j * chi), space="scattering")
+	assert np.allclose(q, np.fft.ifft2(np.fft.fft2(field) * mask * np.exp(1j * chi)))
+
+	# the sampling guard is for GENERATED phases outrunning their grid; a
+	# hard-edged supplied plate is a real discontinuity, not aliasing
+	with pytest.raises(ValueError, match="under-sampled"):
+		_check_screen_sampling(np.arange(n * n).reshape(n, n) * 1.0, "steep")
+	_check_screen_sampling((mask * np.exp(1j * chi)).astype(complex), "plate")
