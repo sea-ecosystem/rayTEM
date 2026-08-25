@@ -18,6 +18,8 @@ the reader extends to fifth order.
 - [x] `from_metadata`, including the reader's outstanding a/b -> complex step
 - [x] convention conversions (letters now; Seidel/Zernike later)
 - [x] generic `phase_at()`/`deflection_at()` (+ grid wrappers `phase`/`gradient`)
+- [x] C10 reaches the rays (generic kick), matching the wave frame exactly --
+      so it must NOT also fold into `focal_power`, which would double-count
 - [ ] phase screen as a Signal on the element dataset, manual or generated
 - [ ] dot-access properties for the well-known Signals
 - [ ] `apply_aberrations=True` flag on every propagation method

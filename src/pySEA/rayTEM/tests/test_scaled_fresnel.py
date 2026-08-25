@@ -2238,13 +2238,21 @@ def test_first_order_terms_are_absorbed_into_the_frame():
 	assert sorted(residual.names) == ['C30', 'C34']
 
 
-def test_C10_moves_the_wave_crossover_but_not_the_ray_matrix():
-	# C10 absorbed into the frame means the wave focus moves to 1/(P + C10 P^2).
-	# The RAY matrix does not see it, because transfer_matrix is built from
-	# `strength` alone -- an asymmetry that is real and deliberate for now.
+def test_C10_moves_the_wave_and_the_rays_by_the_same_amount():
+	# C10 is defocus: quadratic in the pupil angle, so the scaled frame absorbs
+	# it as a power change dP = C10 P^2 and the traced rays get it from the
+	# generic kick, which for n=1, m=0 is exactly -C10 P^2 x. The two must land
+	# on the same plane -- when the ray path implemented C3 alone they did not,
+	# and nothing noticed.
 	f = 0.045
 	P = 1 / f
 	for C10, f_eff in ((0.0, f), (5e-4, 1 / (P + 5e-4 * P**2))):
+		lens = Lens(strength=np.sqrt(P), aberrations={'C10': C10})
+		r0 = np.zeros((5, 6))
+		r0[:, 0] = np.linspace(1e-6, 1e-4, 5)			# a parallel bundle
+		rf = lens.propagate_ray(r0)
+		z = -rf[:, 0] / rf[:, 1]
+		assert np.allclose(z, f_eff, rtol=1e-12), C10	# and no spread: it is linear
 		mic = Microscope(sections=[MicroscopeSection(elements=[
 			Source(voltage=200, wave_shape=(128, 128), wave_extent=3e-4,
 				   wave_kind="aperture", aperture_radius=6e-5),
@@ -2252,7 +2260,9 @@ def test_C10_moves_the_wave_crossover_but_not_the_ray_matrix():
 			Drift(length=0.06)])])
 		mic.propagate_wave(mode="hybrid", absorb=0.0)
 		assert np.isclose(float(mic.crossovers[0]), f_eff, rtol=1e-6), C10
-		# the ray matrix stays put
+		# the paraxial MATRIX still reports the unaberrated plane, by
+		# construction: aberration is defined as the departure from it, which is
+		# why the kick is kept out of the matrix rather than linearized into it
 		assert np.isclose(float(mic.conjugate_planes(axis="x",
 													 method="frame")["diff"][0]),
 						  f, rtol=1e-12)
