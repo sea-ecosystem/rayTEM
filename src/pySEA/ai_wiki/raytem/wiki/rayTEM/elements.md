@@ -11,37 +11,37 @@
 |   `Element.transfer_matrix(self)` | 101 |
 |   `Element.propagate_ray(self, r0, z, z0)` | 105 |
 |   `Element.phase_shift(self, dimensions, wavelength, scaled=False, s=1.0)` | 111 |
-|   `Element._scaled_segment(self)` | 135 |
-|   `Element.propagate_wave(self, signal, mode='fixed', s_min=1e-3, log=None, absorb=0.1, crossover='flat', rotate=False)` | 146 |
-|   `Element.propagate(self, *args, kind='ray', **kwargs)` | 182 |
-| Source | 191 |
-|   `Source.__init__(self, name, size, np_xy, angle, na_xy, position)` | 195 |
-|   `Source.rays(self)` | 202 |
-|   `Source.propagate_ray(self, r0, **kwargs)` | 206 |
-|   `Source.wave(self, mode='fixed')` / `Source._aperture_wave(self, radius)` | 210 |
-| Aperture | 224 |
-|   `Aperture.__init__(self, name, radius, calibration, position)` | 228 |
-|   `Aperture.propagate_ray(self, r0, z, z0)` | 232 |
-|   `Aperture.propagate_wave(self, signal, mode='fixed', ...)` | 236 |
-| Drift | 252 |
-|   `Drift.__init__(self, name, length, calibration, position)` | 256 |
-|   `Drift.transfer_matrix(self)` | 260 |
-| Quadrapole | 266 |
-|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 270 |
-|   `Quadrapole.transfer_matrix(self)` | 274 |
-| Dipole | 311 |
-|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 315 |
-|   `Dipole.transfer_matrix(self)` | 319 |
-|   `Dipole.propagate_ray(self, r0, z, z0)` | 323 |
-| Lens | 329 |
-|   `Lens.__init__(self, name, length, strength, calibration, position)` | 333 |
-|   `Lens.transfer_matrix(self)` | 341 |
-|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 348 |
-| Prism | 354 |
-|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 358 |
-|   `Prism.focus_matrix(self)` | 362 |
-|   `Prism.bending_matrix(self, s)` | 366 |
-|   `Prism.transfer_matrix(self)` | 370 |
+|   `Element._scaled_segment(self)` | 175 |
+|   `Element.propagate_wave(self, signal, mode='fixed', s_min=1e-3, log=None, absorb=0.1, crossover='flat', rotate=False)` | 186 |
+|   `Element.propagate(self, *args, kind='ray', **kwargs)` | 222 |
+| Source | 231 |
+|   `Source.__init__(self, name, size, np_xy, angle, na_xy, position)` | 235 |
+|   `Source.rays(self)` | 242 |
+|   `Source.propagate_ray(self, r0, **kwargs)` | 246 |
+|   `Source.wave(self, mode='fixed')` / `Source._aperture_wave(self, radius)` | 250 |
+| Aperture | 264 |
+|   `Aperture.__init__(self, name, radius, calibration, position)` | 268 |
+|   `Aperture.propagate_ray(self, r0, z, z0)` | 272 |
+|   `Aperture.propagate_wave(self, signal, mode='fixed', ...)` | 276 |
+| Drift | 292 |
+|   `Drift.__init__(self, name, length, calibration, position)` | 296 |
+|   `Drift.transfer_matrix(self)` | 300 |
+| Quadrapole | 306 |
+|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 310 |
+|   `Quadrapole.transfer_matrix(self)` | 314 |
+| Dipole | 351 |
+|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 355 |
+|   `Dipole.transfer_matrix(self)` | 359 |
+|   `Dipole.propagate_ray(self, r0, z, z0)` | 363 |
+| Lens | 369 |
+|   `Lens.__init__(self, name, length, strength, calibration, position)` | 373 |
+|   `Lens.transfer_matrix(self)` | 381 |
+|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 388 |
+| Prism | 394 |
+|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 398 |
+|   `Prism.focus_matrix(self)` | 402 |
+|   `Prism.bending_matrix(self, s)` | 406 |
+|   `Prism.transfer_matrix(self)` | 410 |
 <!-- END AUTO-GENERATED TOC -->
 
 # elements.py
@@ -129,8 +129,48 @@ physical pitch s_x·dξ / s_y·dη on anisotropic frames); Drift reciprocal kern
 is **transparent** (the wave analog of the identity matrix): a phase of
 nothing plus free transport over its `length` — fixed path returns a single
 full-length kernel (empty program at zero length), scaled path returns
-`(0.0, None)`. Source/Aperture/Prism override it to fail loudly because their
+`(0.0, None)`.
+
+`Aperture` is **no longer** in the "fails loudly" set: since a screen may be
+complex, an aperture is simply a screen whose modulus is its transmission and
+whose phase is zero, so it declares itself through `phase_shift` like anything
+else and has no `propagate_wave` override. Its ray-path attenuation
+(`apply_intensity`) is a different quantity and stayed put. Source/Prism override
 wave action is not a phase.
+
+**Supplied screens.** `Element.screen` holds a screen the caller supplied
+rather than one the element generated — a measured wavefront, a fabricated
+plate, a Zernike fit. Three-way rule, and it is the storage policy for derived
+Signals generally:
+
+| state | `element.screen` returns | stored? |
+|---|---|---|
+| supplied | the Signal/array | **yes** — nothing can recompute it |
+| derivable from `aberrations` | — (recomputed in `phase_shift`) | no — coefficients are the storage |
+| neither | scalar `1` | nothing |
+
+`1` is the identity for the operation, so `field * element.screen` is a no-op
+that allocates nothing. The return type is polymorphic on purpose; code that
+needs to *branch* asks `_has_screen()` rather than type-testing.
+
+Combination happens in `_phase_program` (fixed) and `_scaled_screen` (scaled),
+**not** in each `phase_shift` — Drift, Quadrapole and Dipole were silently
+dropping supplied screens when it lived in the overrides, and that gap
+reappears with every new element. Real phases add and stay real; anything
+complex multiplies as transmissions.
+
+A supplied screen on a different grid is **resampled** when it carries its own
+calibration (i.e. was supplied as a Signal) and refused otherwise. A **3D**
+supplied screen is a *volume* — a medium described slice by slice — and
+`_phase_program` turns it into a symmetric multislice
+`[k(L/2n), S₀, k(L/n), S₁, …, S₍ₙ₋₁₎, k(L/2n)]`; at `n = 1` that is the thin
+program term for term. A generated phase folds into the centre slice. Volumes
+are refused on the scaled path, where `(s, R)` evolves through the body.
+
+Careful with dtype here: merging a complex screen into a real volume must
+convert it with `exp(iχ)`, not cast it. As a real array the slices are phases
+(0 = transparent); as a complex one they are transmissions (0 = opaque), so
+casting blacks out every slice the merge did not touch.
 
 ### `Element._scaled_segment(self)`
 Lets an element declare itself a **segment** rather than a point event for the

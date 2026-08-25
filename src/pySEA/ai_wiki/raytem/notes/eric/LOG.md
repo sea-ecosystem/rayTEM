@@ -1,6 +1,57 @@
 # Eric's Work Log
 
 Newest entries at top.
+
+## 2026-08-25 — [Done] Aberrations class, generic application, and screens
+**Goal:** aberrations in one class applied generically, and a screen that can
+carry amplitude as well as phase.
+**Why:** aberrations were 25 flat scalars on `Lens` plus a letter-named table in
+`waveoptics`, so the ray path implemented `C3` alone while the wave path
+implemented everything; and a screen was unit-modulus by construction, so no
+element could both block the beam and phase-shift it.
+- [x] `Aberrations(SEASerializable)` in true Krivanek `C_{n,m}` through 5th order
+- [x] generic `phase_at` / `deflection_at`; `Element.aberration_kick` no longer
+      knows which aberration it is applying
+- [x] `apply_aberrations=True` on all six drivers, via a suspend context
+- [x] screens may be complex; `Aperture` folded in; supplied screens; volumes
+- [x] sea-eco reader extended to 5th order (separate repo, own LOG entry)
+- [x] wiki: new `aberrations.md`, updated `elements.md` / `waveoptics.md`
+
+**Outcome:** 84 → 123 tests. Verified against the code replaced rather than
+against itself: C30 phase to 5e-20, aligned C12 to 7e-18, `deflection_at` vs a
+central difference to 2e-11 across seven terms of five orders, the C30 kick vs
+the old closed form to 5e-26, and `Aperture`'s masking bit-for-bit including
+the anisotropic ellipse.
+
+**Decisions worth remembering:**
+- **C10 must NOT fold into `focal_power`.** The generic kick already delivers
+  it — for n=1, m=0 the deflection is exactly `-C10·P²·x`, so rays cross at
+  `1/(P + C10 P²)`, matching the frame to 1e-12. Folding it in would apply it
+  twice, and `focal_power` is also the pupil-angle scale every other term is
+  measured against.
+- **Screen dtype carries meaning**: real = phase, complex = transmission. It
+  cannot be ambiguous, which is why it is not a flag.
+- `Lens.Cs` **removed**, not kept as an alias. Once the flat attributes went,
+  `lens.Cs = x` after construction silently did nothing — example 06 had been
+  running an unaberrated column because of it.
+
+**Bugs found along the way** (all fixed, all with regression tests):
+1. `safeReinstantiate` keeps only constructor kwargs, so `_screen` was dropped
+   on reload — and so were `aberrations` on any element that does not take them
+   as a kwarg. A `Quadrapole`'s coefficients were silently lost.
+2. Merging a complex screen into a real volume: first the imaginary part was
+   discarded by the assignment, then `astype()` "fixed" it while changing what
+   the untouched slices MEAN — real 0 is transparent, complex 0 is opaque, so
+   casting blacks out the volume. Converted with `exp(iχ)` instead.
+3. My own justification for exempting complex screens from the sampling guard
+   was wrong. It does not reject hard edges (a binary plate steps |ΔT| = 1.0,
+   under π). The real problem is that the guard cannot see complex data at all:
+   a screen winding 3.78 rad/px — aliased — reports 1.90 and passes.
+
+**For Ondrej:** if you attach aberrations to an element type that does not take
+them as a constructor kwarg, they now survive reload via
+`Element._restore_attrs`; add to that tuple rather than to a subclass if you
+add another non-kwarg stored attribute.
 Status markers: `[Under Construction]` while in progress · `[Done]` when complete.
 
 ---

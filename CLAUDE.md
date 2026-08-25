@@ -216,6 +216,7 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 ## Repo map
 
 - `src/pySEA/rayTEM/__init__.py`
+- `src/pySEA/rayTEM/aberrations.py` — Axial wave aberrations in Krivanek notation, and how to apply them.
 - `src/pySEA/rayTEM/AS2.py`
 - `src/pySEA/rayTEM/assemblies.py`
 - `src/pySEA/rayTEM/elements.py`
