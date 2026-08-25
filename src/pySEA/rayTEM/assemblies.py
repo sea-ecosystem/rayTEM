@@ -1350,7 +1350,7 @@ class Microscope(SEASerializable):
 		"""
 		if L <= 0:
 			return []
-		K = ele._effective_strength() if isinstance(ele, Lens) else 0
+		K = ele._effective_strength if isinstance(ele, Lens) else 0
 		if isinstance(ele, Lens) and (K or 0) != 0 and L > 0:
 			if P0 == 0 and Q0 == 0:
 				return []
@@ -1408,7 +1408,7 @@ class Microscope(SEASerializable):
 		"""
 		if L <= 0:
 			return []
-		K = ele._effective_strength() if isinstance(ele, Lens) else 0
+		K = ele._effective_strength if isinstance(ele, Lens) else 0
 		if isinstance(ele, Lens) and (K or 0) != 0:
 			denom = S[1, 1] - K**2 * S[0, 0]
 			if denom == 0 and S[0, 1] == 0:

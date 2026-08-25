@@ -43,7 +43,7 @@ def test_phase_shift_quadrupole_saddle():
 	cy = chi[-1, nx//2]      # pure-y sample
 	assert cx * cy < 0, "quadrupole must focus one axis and diverge the other"
 	# powers mirror focal_powers (P_x = -P_y)
-	P_x, P_y = quad.focal_powers()
+	P_x, P_y = quad.focal_powers
 	assert P_x == -P_y != 0
 
 def test_phase_shift_dipole_linear():
@@ -75,7 +75,7 @@ def test_phase_shift_scaled_split():
 	# the saddle is quadratic per axis, so the anisotropic frame holds all of it
 	quad = Quadrapole(strength=2.0, length=0.0)
 	power, screen = quad.phase_shift(GRID, LAM, scaled=True, s=0.5)
-	assert screen is None and power == quad.focal_powers()
+	assert screen is None and power == quad.focal_powers
 	assert power[0] == -power[1] and power[0] != 0
 	# Dipole: nothing absorbed, full linear phase applied to U
 	power, screen = Dipole(strength=1e-6, axis="y").phase_shift(GRID, LAM, scaled=True)
@@ -108,11 +108,11 @@ def test_fixed_path_refactor_regression():
 	f0, *_ = read_wavefield(sec.elements[0].wave())
 	ref = wo.angular_spectrum_propagate(f0, dx, dy, lam, 0.05)
 	ref = wo.focal_phase(ref, dx, dy, lam, 36.0, 36.0)
-	P_x, P_y = sec.elements[3].focal_powers() if hasattr(sec.elements[3], "focal_powers") else (0, 0)
+	P_x, P_y = sec.elements[3].focal_powers if hasattr(sec.elements[3], "focal_powers") else (0, 0)
 	# element order after section assembly: Source, Drift, Lens, Quad, Dipole, Drift
 	quad = [e for e in sec.elements if isinstance(e, Quadrapole)][0]
 	dip = [e for e in sec.elements if isinstance(e, Dipole)][0]
-	ref = wo.focal_phase(ref, dx, dy, lam, *quad.focal_powers())
+	ref = wo.focal_phase(ref, dx, dy, lam, *quad.focal_powers)
 	ref = wo.tilt_phase(ref, dx, dy, lam, *dip.effective_tilts())
 	ref = wo.angular_spectrum_propagate(ref, dx, dy, lam, 0.05)
 	assert np.allclose(data[-1], ref, atol=1e-12)
@@ -994,7 +994,7 @@ def test_astigmatic_line_foci_in_column_hybrid():
 	src = Source(voltage=200, wave_shape=(64, 64), wave_extent=64 * 2.5e-7,
 				 wave_kind="aperture", aperture_radius=5e-6)
 	quad = Quadrapole(strength=Kq, length=0.0)
-	P_x, P_y = quad.focal_powers()
+	P_x, P_y = quad.focal_powers
 	z_lens = 1e-3
 	fx = 1 / (1 / f + P_x)
 	fy = 1 / (1 / f + P_y)
@@ -1215,7 +1215,7 @@ def test_thick_lens_segment_matches_transfer_matrix():
 	# the frame advances by the element's OWN 2x2 block: s_out must equal the
 	# rotating-frame A element, and the crossover -R_out must equal -A/C
 	lens = Lens(strength=34.72, length=0.02)
-	K, L = lens._effective_strength(), lens.length
+	K, L = lens._effective_strength, lens.length
 	U0 = wo.gaussian_field((64, 64), 1e-7, 1e-7, 5e-7, 5e-7)
 	U, s, R, dtau = wo.propagate_quadratic_segment_scaled(U0, 1e-7, 1e-7, LAM, L,
 												   1.0, np.inf, K**2)
@@ -1289,7 +1289,7 @@ def test_thick_lens_wave_rotation_matches_ray_larmor():
 	# with rotate=True the wave picks up the same Larmor angle the ray path
 	# applies (Lens.rotation = -K L): an off-axis blob's azimuth must agree
 	lens = Lens(strength=34.72, length=0.02)
-	K, L = lens._effective_strength(), lens.length
+	K, L = lens._effective_strength, lens.length
 	n, dxi = 128, 1e-7
 	X, Y = wo.transverse_coordinates((n, n), dxi, dxi)
 	x0 = 20 * dxi
@@ -1415,8 +1415,8 @@ def test_transfer_block_matches_transfer_matrix():
 			M6 = ele.transfer_matrix()
 			stored = np.array([[M6[0, 0], M6[0, 1]], [M6[1, 0], M6[1, 1]]], float)
 			mine = np.asarray(ele.transfer_block(), float)
-			if isinstance(ele, Lens) and L > 0 and (ele._effective_strength() or 0):
-				mine = mine * np.cos(ele._effective_strength() * L)	# Larmor factor
+			if isinstance(ele, Lens) and L > 0 and (ele._effective_strength or 0):
+				mine = mine * np.cos(ele._effective_strength * L)	# Larmor factor
 			worst = max(worst, abs(stored - mine).max()) ; n += 1
 	assert n > 40 and worst < 1e-12
 	# a homogeneous body's halves compose exactly
@@ -1536,7 +1536,7 @@ def test_transfer_block_refuses_to_invent_a_kick_in_a_body():
 					   [[1, 0.02], [0, 1]])
 	# a thin element IS an impulsive kick -- exact, no body to traverse
 	thin = Lens(strength=6.0, length=0.0)
-	assert np.allclose(thin.transfer_block(), [[1, 0], [-thin.focal_power(), 1]])
+	assert np.allclose(thin.transfer_block(), [[1, 0], [-thin.focal_power, 1]])
 	# and a thick lens/quad body carries a harmonic law whose halves compose
 	for ele in (Lens(strength=34.72, length=0.02),
 				Quadrapole(strength=12.0, length=0.03)):
@@ -1594,21 +1594,21 @@ def test_quadrupole_axis_convention_thin_and_thick():
 	# branch never did, so giving a quadrupole a length flipped which axis
 	# converged.
 	for L in (0.0, 1e-3, 0.03):
-		P_x, P_y = Quadrapole(strength=12.0, length=L).focal_powers()
+		P_x, P_y = Quadrapole(strength=12.0, length=L).focal_powers
 		assert P_x > 0 > P_y, f"K > 0 must focus x at length {L}"
-		P_x, P_y = Quadrapole(strength=-12.0, length=L).focal_powers()
+		P_x, P_y = Quadrapole(strength=-12.0, length=L).focal_powers
 		assert P_y > 0 > P_x, f"K < 0 must focus y at length {L}"
 	# focal_powers agrees with the matrix it claims to mirror (-1/f = C')
 	for K in (-12.0, 12.0):
 		for L in (0.0, 0.03):
 			q = Quadrapole(strength=K, length=L)
-			P = q.focal_powers()
+			P = q.focal_powers
 			M = np.asarray(q.transfer_matrix(), float)
 			assert np.isclose(M[1, 0], -P[0], atol=1e-12), (K, L, "x")
 			assert np.isclose(M[3, 2], -P[1], atol=1e-12), (K, L, "y")
 	# a short thick quad approaches the thin kick K^2*L
 	K, L = 12.0, 1e-4
-	assert np.isclose(Quadrapole(strength=K, length=L).focal_powers()[0],
+	assert np.isclose(Quadrapole(strength=K, length=L).focal_powers[0],
 					  K**2 * L, rtol=1e-5)
 	# B stays drift-like (positive) for either sign of K -- it used to be
 	# computed as S/K with a signed K, so it inverted for K < 0
@@ -1937,7 +1937,7 @@ def test_thick_body_aberration_matches_the_perturbed_ray_equation():
 	from scipy.integrate import solve_ivp
 	K, L, Cs = 129.80, 0.010, 1e-3			# OL1's real parameters
 	lens = Lens(strength=K, length=L, Cs=Cs)
-	c = Cs * lens.focal_power()**4 / L
+	c = Cs * lens.focal_power**4 / L
 	A, B = np.cos(K * L), np.sin(K * L) / K
 	for h in (2e-5, 4e-5, 8e-5):
 		sol = solve_ivp(lambda z, u: [u[1], -K**2 * u[0] - c * u[0]**3],
@@ -1957,7 +1957,7 @@ def test_thick_body_aberration_matches_the_perturbed_ray_equation():
 	assert np.allclose(dxt, [-Cs * (1 / 0.045)**4 * h**3 for h in r0[:, 0]], rtol=1e-12)
 	# distributing it is NOT the same as placing it at the entrance face: r(z)
 	# falls as the body focuses, so the entrance-face model over-estimates
-	entrance = -Cs * lens.focal_power()**4 * 8e-5**3
+	entrance = -Cs * lens.focal_power**4 * 8e-5**3
 	r0 = np.zeros((1, 6)); r0[0, 0] = 8e-5
 	assert abs(lens.aberration_kick(r0)[2][0]) < 0.7 * abs(entrance)
 
@@ -2030,7 +2030,7 @@ def test_ray_kick_is_the_gradient_of_the_wave_screen():
 	# within the discretisation I happened to choose".
 	f, Cs = 0.045, 1e-3
 	lens = Lens(strength=np.sqrt(1 / f), Cs=Cs)
-	P, k = lens.focal_power(), 2 * np.pi / LAM
+	P, k = lens.focal_power, 2 * np.pi / LAM
 	errs = []
 	for n, dx in ((256, 4e-7), (512, 2e-7), (1024, 1e-7)):
 		chi = wo.spherical_phase((n, n), dx, dx, LAM, Cs, P)

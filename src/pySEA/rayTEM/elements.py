@@ -423,9 +423,9 @@ class Element(SEASerializable):
 		step = L if dz is None else float(dz)
 		power = 0.0
 		if isinstance(self, Quadrapole):
-			power = self.focal_powers()[0 if axis == 'x' else 1]
+			power = self.focal_powers[0 if axis == 'x' else 1]
 		elif hasattr(self, "focal_power"):
-			power = self.focal_power()
+			power = self.focal_power
 		if power == 0:
 			return xp.asarray([[1.0, step], [0.0, 1.0]])		# free space, exact
 		if L == 0:
@@ -1607,6 +1607,7 @@ class Quadrapole(Element):
 		self.strength = strength
 		self.calibration = calibration
 
+	@property
 	def _effective_strength(self) -> float:
 		"""Return the calibration-scaled quadrupole strength ``K``.
 
@@ -1667,7 +1668,7 @@ class Quadrapole(Element):
 		"""
 		if axis not in ('x', 'y'):
 			raise ValueError(f"axis must be 'x' or 'y', got {axis!r}.")
-		return (self._effective_strength() > 0) == (axis == 'x')
+		return (self._effective_strength > 0) == (axis == 'x')
 
 	def _body_block(self, dz:float, axis:Literal['x','y']='x') -> xp.ndarray:
 		r"""The exact 2x2 body block over ``dz``, for one transverse axis.
@@ -1723,7 +1724,7 @@ class Quadrapole(Element):
 		must stay positive for a forward step. The previous code wrote ``S/K``
 		with a *signed* ``K``, which inverted it for ``K < 0``.
 		"""
-		k = abs(self._effective_strength())
+		k = abs(self._effective_strength)
 		if k == 0 or dz == 0:
 			return xp.asarray([[1.0, float(dz)], [0.0, 1.0]])
 		kz = k * abs(float(dz))
@@ -1768,7 +1769,7 @@ class Quadrapole(Element):
 		"""
 		L = self.length or 0.0
 		step = L if dz is None else float(dz)
-		if L <= 0 or self._effective_strength() == 0:
+		if L <= 0 or self._effective_strength == 0:
 			return super().transfer_block(dz=step, axis=axis)
 		return self._body_block(step, axis)
 
@@ -1801,13 +1802,14 @@ class Quadrapole(Element):
 		_axis_focuses : Sets which axis gets the positive curvature.
 		phase_shift : Supplies the thin-quadrupole curvature kick.
 		"""
-		K = self._effective_strength()
+		K = self._effective_strength
 		if self.length > 0 and K != 0:
 			kappa = float(K**2)
 			pair = (kappa, -kappa) if self._axis_focuses('x') else (-kappa, kappa)
 			return ('quadratic', pair, 0.0)
 		return None
 
+	@property
 	def focal_powers(self) -> tuple:
 		r"""Return the astigmatic focusing powers ``(1/f_x, 1/f_y)``.
 
@@ -1833,7 +1835,7 @@ class Quadrapole(Element):
 		_body_block : The matrix these mirror.
 		phase_shift : Uses these powers for the saddle phase screen.
 		"""
-		k = abs(self._effective_strength())
+		k = abs(self._effective_strength)
 		if k == 0:
 			return 0.0, 0.0
 		if self.length == 0:
@@ -1891,14 +1893,14 @@ class Quadrapole(Element):
 		#m = xp.eye(6)#[...,None]*xp.ones_like(s) # TWP 2025/08/27 - adding ones_like expression so m is 6x6x1, otherwise eigsum in propagate will fail
 		#m = xp.eye(4) # quadrupole updates xθ from x and yθ from y
 
-		K = self._effective_strength()
+		K = self._effective_strength
 
 		if K==0:
 			return fix_mat_dims(xp.eye(4),["x","xt","y","yt"])
 
 		if self.length==0:
 			# impulsive limit: a pure kick, -1/f on the [1,0] entry
-			P_x, P_y = self.focal_powers()
+			P_x, P_y = self.focal_powers
 			X=xp.asarray([[ 1 , 0 ],
 					     [ -P_x , 1 ]])
 			Y=xp.asarray([[ 1 , 0 ],
@@ -1945,7 +1947,7 @@ class Quadrapole(Element):
 		"""
 		from .waveoptics import quadratic_phase
 		from .seashells import grid_of
-		P_x, P_y = self.focal_powers()
+		P_x, P_y = self.focal_powers
 		if scaled:
 			if P_x == 0 and P_y == 0:
 				return 0.0, None
@@ -2262,6 +2264,7 @@ class Lens(Element):
 					setattr(self, _name + "_angle", _a)
 
 
+	@property
 	def _effective_strength(self) -> float:
 		"""Return the calibration-scaled lens strength ``K``.
 
@@ -2291,6 +2294,7 @@ class Lens(Element):
 				K = sum( Kvals )
 		return K
 
+	@property
 	def focal_power(self) -> float:
 		r"""Return the focusing power ``1/f`` of this lens.
 
@@ -2307,7 +2311,7 @@ class Lens(Element):
 		-------
 		phase_shift : Uses this power for the quadratic phase screen.
 		"""
-		K = self._effective_strength()
+		K = self._effective_strength
 		if K == 0:
 			return 0.0
 		if self.length == 0:
@@ -2319,7 +2323,7 @@ class Lens(Element):
 		"""
 
 		# HANDLE CALIBRATION SCALING (shared with the wave path via _effective_strength)
-		K = self._effective_strength()
+		K = self._effective_strength
 
 		# FINITE LENGTH LENS, ZERO STRENGTH = DRIFT (try inserting a zero-strength lens and seeing if the result changes)
 		if K==0:
@@ -2431,7 +2435,7 @@ class Lens(Element):
 		"""
 		L = self.length or 0.0
 		step = L if dz is None else float(dz)
-		K = self._effective_strength()
+		K = self._effective_strength
 		if L <= 0 or K == 0:
 			return super().transfer_block(dz=step, axis=axis)
 		c, s = xp.cos(K * step), xp.sin(K * step)
@@ -2462,7 +2466,7 @@ class Lens(Element):
 		phase_shift : Supplies the thin-lens curvature kick.
 		waveoptics.propagate_quadratic_segment_scaled : Propagates the segment.
 		"""
-		K = self._effective_strength()
+		K = self._effective_strength
 		if self.length > 0 and K != 0:
 			return ('quadratic', float(K**2), float(-K * self.length))
 		return None
@@ -2498,7 +2502,7 @@ class Lens(Element):
 		"""
 		from .waveoptics import quadratic_phase, aberration_phase, axis_components
 		from .seashells import grid_of
-		P = self.focal_power()
+		P = self.focal_power
 		coeffs = self.aberration_coefficients()
 		ny, nx, dy, dx = grid_of(dimensions)
 		if scaled:
@@ -2573,7 +2577,7 @@ class Lens(Element):
 		``A1`` is left in the residual screen instead. Same limitation as a skew
 		quadrupole.
 		"""
-		P = float(self.focal_power())
+		P = float(self.focal_power)
 		coeffs = self.aberration_coefficients()
 		residual = {}
 		P_x = P_y = P
@@ -2707,7 +2711,7 @@ class Lens(Element):
 		the 0.51 that :math:`\int\cos^3` alone would suggest.
 		"""
 		Cs = getattr(self, "Cs", 0.0) or 0.0
-		P = self.focal_power()
+		P = self.focal_power
 		if Cs == 0 or P == 0:
 			return None
 		x = r0[:, columnByName("x")]
