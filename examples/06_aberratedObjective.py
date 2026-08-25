@@ -19,7 +19,6 @@ import matplotlib.pyplot as plt
 import pySEA.rayTEM
 from pySEA.rayTEM import Source, Drift, Lens, MicroscopeSection, Microscope
 from pySEA.rayTEM.assemblies import load_microscope
-from pySEA.rayTEM.elements import Lens as _L
 from pySEA.rayTEM.aberrations import Aberrations
 
 P = os.path.join(os.path.dirname(pySEA.rayTEM.__file__), "microscopes", "basic_column.sea")
@@ -30,9 +29,7 @@ def column(Cs):
     # a per-aberration attribute: spherical is C30, and the same object would
     # carry astigmatism or coma with no change to anything downstream.
     m = load_microscope(P)
-    for z, L, e in m._element_spans():
-        if isinstance(e, _L) and e.name == "OL1":
-            e.aberrations = Aberrations({'C30': Cs}) if Cs else None
+    m["OL1"].aberrations = Aberrations({'C30': Cs}) if Cs else None
     return m
 
 def fan(m, n=15, h=H_MAX):
