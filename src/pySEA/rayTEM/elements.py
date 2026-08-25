@@ -580,11 +580,10 @@ class Element(SEASerializable):
 		"""
 		from .seashells import grid_of
 		ny, nx, dy, dx = grid_of(dimensions)
-		chi = self._combine_screen(None, (ny, nx), dx, dy)	# None unless one was supplied
 		if scaled:
-			return 0.0, (None if chi is None else _screen_item(chi, dx, dy,
-															   self.name or type(self).__name__))
-		return self._phase_program(dimensions, wavelength, chi,
+			return 0.0, self._scaled_screen(None, (ny, nx), dx, dy, s,
+											self.name or type(self).__name__)
+		return self._phase_program(dimensions, wavelength, None,
 								   self.name or type(self).__name__)
 
 	def transfer_block(self, dz:float=None, axis:Literal['x','y']='x') -> xp.ndarray:
@@ -795,17 +794,23 @@ class Element(SEASerializable):
 		result real — worth doing, because a real screen is half the memory and
 		is the only form the sampling guard can check.
 
-		A supplied screen on a different grid is **resampled** when it carries
-		its own calibration (i.e. it was supplied as a Signal), and refused
-		when it does not, because there is then nothing to resample *from*.
+		A supplied screen on a different transverse grid is **resampled** when
+		it carries its own calibration (i.e. it was supplied as a Signal), and
+		refused when it does not, because there is then nothing to resample
+		*from*.
+
+		A supplied **volume** screen ``(n, ny, nx)`` keeps its slices, and the
+		generated phase is folded into the slice nearest the element's centre —
+		which is exactly where the thin approximation already puts it, so
+		``n = 1`` reproduces the plane case term for term.
 
 		Parameters
 		----------
 		chi : xp.ndarray or None
 			Generated phase (radians), or ``None`` when the element generates
-			none.
+			none. Always transverse (2D).
 		shape : tuple of int
-			Shape of the grid being propagated on.
+			Transverse shape ``(ny, nx)`` of the grid being propagated on.
 		dx, dy : float, optional
 			Sample spacings of that grid (metres), by default ``None``. Needed
 			only to resample a supplied screen; without them a shape match is
@@ -814,47 +819,147 @@ class Element(SEASerializable):
 		Returns
 		-------
 		xp.ndarray or None
-			The combined screen, or ``None`` when there is nothing to apply.
+			The combined screen — 2D for a plane, 3D for a volume — or ``None``
+			when there is nothing to apply.
 
 		Raises
 		------
 		ValueError
-			If a supplied screen's shape differs from the propagation grid and
-			it cannot be resampled — either it carries no calibration, or the
-			propagation grid's spacings were not passed in.
+			If a supplied screen's transverse shape differs from the
+			propagation grid and it cannot be resampled — either it carries no
+			calibration, or the propagation grid's spacings were not passed in.
 
 		Related
 		-------
 		screen : Where the supplied half comes from.
+		_phase_program : Turns a volume result into a multislice program.
 		waveoptics.resample_screen : The bilinear resampling, and why bilinear.
 		waveoptics.apply_phase : Applies the result.
 		"""
 		supplied, sdx, sdy = self._screen_data()
 		if supplied is None:
 			return chi
-		if tuple(supplied.shape) != tuple(shape):
+		volume = xp.ndim(supplied) == 3
+		transverse = tuple(supplied.shape[-2:])
+		regrid = tuple(shape) != transverse
+		if not regrid and sdx is not None and dx is not None:
+			regrid = not (xp.isclose(sdx, dx) and xp.isclose(sdy, dy))
+		if regrid:
 			if sdx is None or dx is None:
 				raise ValueError(
-					f"screen on {self.name or type(self).__name__!r} is {tuple(supplied.shape)} "
+					f"screen on {self.name or type(self).__name__!r} is {transverse} "
 					f"but the wave grid is {tuple(shape)}, and it cannot be resampled: "
 					+ ("it carries no sample calibration (supply it as a Signal, not a bare "
 					   "array)." if sdx is None else
 					   "the propagation grid's spacings were not supplied."))
 			from .waveoptics import resample_screen
-			supplied = resample_screen(supplied, sdx, sdy, tuple(shape), dx, dy)
-		elif sdx is not None and dx is not None and not (
-				xp.isclose(sdx, dx) and xp.isclose(sdy, dy)):
-			# same shape, different pitch: still a different grid
-			from .waveoptics import resample_screen
-			supplied = resample_screen(supplied, sdx, sdy, tuple(shape), dx, dy)
+			if volume:
+				supplied = xp.asarray([resample_screen(sl, sdx, sdy, tuple(shape), dx, dy)
+									   for sl in supplied])
+			else:
+				supplied = resample_screen(supplied, sdx, sdy, tuple(shape), dx, dy)
 		if chi is None:
 			return supplied
-		if xp.iscomplexobj(supplied) or xp.iscomplexobj(chi):
-			# transmissions multiply; a real phase becomes exp(i*chi) first
-			T_s = supplied if xp.iscomplexobj(supplied) else xp.exp(1j * supplied)
-			T_c = chi if xp.iscomplexobj(chi) else xp.exp(1j * chi)
-			return T_s * T_c
-		return supplied + chi				# both real: phases add, stays real
+		if volume:
+			# the generated phase acts at one plane: the element's centre, which
+			# is where the thin approximation already puts it
+			mid = supplied.shape[0] // 2
+			merged = self._merge_screens(supplied[mid], chi)
+			if xp.iscomplexobj(merged) and not xp.iscomplexobj(supplied):
+				# The whole volume has to change MEANING, not just dtype: as a
+				# real array its slices are phases, where 0 is transparent; as a
+				# complex one they are transmissions, where 0 is opaque. Casting
+				# would black out every slice the merge did not touch.
+				supplied = xp.exp(1j * supplied)
+			else:
+				supplied = supplied.copy()
+			supplied[mid] = merged
+			return supplied
+		return self._merge_screens(supplied, chi)
+
+	def _scaled_screen(self, chi, shape:tuple, dx:float, dy:float, s, name:str):
+		"""Wrap a scaled-path screen, folding in any supplied one.
+
+		The scaled counterpart of what :meth:`_phase_program` does for the
+		fixed path, and it exists for the same reason: every element's
+		``scaled=True`` branch goes through here, so a supplied screen cannot
+		be dropped by an override that forgot about it.
+
+		Parameters
+		----------
+		chi : xp.ndarray or None
+			Generated phase (radians) at physical coordinates, or ``None``.
+		shape : tuple of int
+			Transverse shape ``(ny, nx)``.
+		dx, dy : float
+			Sample spacings of the *scaled* grid (metres); the supplied screen
+			is matched against the physical spacings ``s·Δξ``.
+		s : float or Sequence[float]
+			Current transverse scale factor, scalar or ``(s_x, s_y)``.
+		name : str
+			Screen item name.
+
+		Returns
+		-------
+		Signal, seashells._Phase, or None
+			The screen to apply to U, or ``None`` when there is none.
+
+		Raises
+		------
+		ValueError
+			If the combined screen is a volume, which a scaled frame cannot
+			carry: ``(s, R)`` evolves through the body, so each slice would
+			need its own frame state.
+
+		Related
+		-------
+		_phase_program : The fixed-path counterpart.
+		_combine_screen : Does the merging and any resampling.
+		"""
+		from .waveoptics import axis_components
+		s_x, s_y = axis_components(s)
+		chi = self._combine_screen(chi, tuple(shape), s_x * dx, s_y * dy)
+		if chi is None:
+			return None
+		if xp.ndim(chi) == 3:
+			raise ValueError(
+				f"volume screen on {name!r} is not supported on the scaled path: the frame "
+				"(s, R) evolves through the body, so the slices would each need their own "
+				"frame state. Propagate with mode='fixed', or supply a single 2D screen.")
+		return _screen_item(chi, dx, dy, name)
+
+	@staticmethod
+	def _merge_screens(a, b):
+		r"""Combine two co-located screens into one.
+
+		Real screens are phases and add; anything complex is a transmission and
+		multiplies. Kept separate from :meth:`_combine_screen` so the plane and
+		volume paths cannot drift apart in how they merge.
+
+		Parameters
+		----------
+		a, b : xp.ndarray
+			Screens on the same grid: real phase (radians) or complex
+			transmission.
+
+		Returns
+		-------
+		xp.ndarray
+			The combined screen — real when both inputs are, else complex.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		waveoptics.apply_phase : The real/complex convention this follows.
+		"""
+		if xp.iscomplexobj(a) or xp.iscomplexobj(b):
+			T_a = a if xp.iscomplexobj(a) else xp.exp(1j * a)
+			T_b = b if xp.iscomplexobj(b) else xp.exp(1j * b)
+			return T_a * T_b
+		return a + b						# both real: phases add, stays real
 
 	def aberration_kick(self, r0:xp.ndarray):
 		r"""This element's **non-linear** angular kick, from its aberrations.
@@ -1019,11 +1124,28 @@ class Element(SEASerializable):
 		return None
 
 	def _phase_program(self, dimensions, wavelength:float, chi, name:str):
-		"""Assemble the fixed-grid phase program ``[kernel(L/2), screen, kernel(L/2)]``.
+		r"""Assemble the fixed-grid phase program for this element.
 
 		Shared by the concrete ``phase_shift`` implementations: wraps the
-		element's real-space phase χ (if any) between two half-length free
-		segments; a screen-less element yields a single full-length segment.
+		element's real-space screen (if any) between free segments totalling
+		the element's length. A screen-less element yields a single full-length
+		segment.
+
+		A **2D** screen is the thin approximation, ``[kernel(L/2), screen,
+		kernel(L/2)]``: the whole phase acts at the element's mid-plane.
+
+		A **3D** screen ``(n, ny, nx)`` is a *volume* — a medium the caller has
+		described slice by slice, such as the material inside a fabricated
+		plate — and becomes a symmetric **multislice**:
+
+		.. math::
+
+			\big[\,k(\tfrac{L}{2n}),\ S_0,\ k(\tfrac{L}{n}),\ S_1,\ \dots,\
+			S_{n-1},\ k(\tfrac{L}{2n})\,\big]
+
+		with the slices evenly spaced through the body and free propagation
+		between them. At ``n = 1`` this *is* the thin program, term for term,
+		which is why one rule covers both.
 
 		Parameters
 		----------
@@ -1032,23 +1154,59 @@ class Element(SEASerializable):
 		wavelength : float
 			Wavelength (metres).
 		chi : xp.ndarray or None
-			Real-space phase screen, or ``None`` for a pure free segment.
+			Real-space screen — 2D for a plane, 3D for a volume — or ``None``
+			for a pure free segment.
 		name : str
-			Screen item name.
+			Screen item name; volume slices are suffixed with their index.
 
 		Returns
 		-------
 		list
 			Phase Signals in application order (possibly empty for a
 			zero-length, screen-less element).
+
+		Raises
+		------
+		ValueError
+			If a 3D screen is given for a zero-length element, which has no
+			volume for the slices to occupy.
+
+		Related
+		-------
+		phase_shift : The callers.
+		waveoptics.apply_phase : Applies each item in turn.
+
+		Notes
+		-----
+		Free propagation between slices is the standard multislice assumption:
+		each slice is thin enough that the field does not diffract measurably
+		while crossing it. Nothing here enforces that — the caller chose the
+		slicing.
 		"""
 		from .seashells import grid_of
 		ny, nx, dy, dx = grid_of(dimensions)
+		# Combined HERE rather than in each phase_shift, so every element picks
+		# up a supplied screen for free and no future override can forget to.
+		chi = self._combine_screen(chi, (ny, nx), dx, dy)
 		L = self.length
 		items = []
 		if chi is None:
 			if L != 0:
 				items.append(_kernel_item(ny, nx, dy, dx, wavelength, L))
+			return items
+		if xp.ndim(chi) == 3:
+			n = chi.shape[0]
+			if L == 0:
+				raise ValueError(
+					f"{name!r} has a volume screen of {n} slices but zero length; a volume "
+					"needs somewhere to sit. Give the element a length, or supply a single "
+					"2D screen for a plane.")
+			items.append(_kernel_item(ny, nx, dy, dx, wavelength, L / (2 * n)))
+			for i in range(n):
+				items.append(_screen_item(chi[i], dx, dy, f"{name} slice {i}"))
+				if i < n - 1:
+					items.append(_kernel_item(ny, nx, dy, dx, wavelength, L / n))
+			items.append(_kernel_item(ny, nx, dy, dx, wavelength, L / (2 * n)))
 			return items
 		if L != 0:
 			items.append(_kernel_item(ny, nx, dy, dx, wavelength, L / 2))
@@ -1962,9 +2120,9 @@ class Aperture(Element):
 			s_x, s_y = axis_components(s)
 			px, py = s_x * dx, s_y * dy
 		T = aperture_transmission((ny, nx), px, py, self.radius).astype(complex)
-		T = self._combine_screen(T, (ny, nx), px, py)
 		if scaled:
-			return 0.0, _screen_item(T, dx, dy, self.name or "aperture")
+			return 0.0, self._scaled_screen(T, (ny, nx), dx, dy, s,
+											self.name or "aperture")
 		return self._phase_program(dimensions, wavelength, T,
 								   self.name or "aperture")
 
@@ -2039,7 +2197,9 @@ class Drift(Element):
 			by the scaled driver from ``self.length``.
 		"""
 		if scaled:
-			return 0.0, None
+			from .seashells import grid_of
+			ny, nx, dy, dx = grid_of(dimensions)
+			return 0.0, self._scaled_screen(None, (ny, nx), dx, dy, s, self.name or "drift")
 		return self._phase_program(dimensions, wavelength, None, "drift")
 
 class Quadrapole(Element):
@@ -2418,11 +2578,13 @@ class Quadrapole(Element):
 		from .waveoptics import quadratic_phase
 		from .seashells import grid_of
 		P_x, P_y = self.focal_powers
-		if scaled:
-			if P_x == 0 and P_y == 0:
-				return 0.0, None
-			return (float(P_x), float(P_y)), None
 		ny, nx, dy, dx = grid_of(dimensions)
+		if scaled:
+			screen = self._scaled_screen(None, (ny, nx), dx, dy, s,
+										 self.name or "quadrupole")
+			if P_x == 0 and P_y == 0:
+				return 0.0, screen
+			return (float(P_x), float(P_y)), screen
 		chi = quadratic_phase((ny, nx), dx, dy, wavelength, P_x, P_y) if (P_x or P_y) else None
 		return self._phase_program(dimensions, wavelength, chi, self.name or "quadrupole")
 
@@ -2585,11 +2747,11 @@ class Dipole(Element):
 		tilt_x, tilt_y = self.effective_tilts()
 		ny, nx, dy, dx = grid_of(dimensions)
 		if scaled:
-			if tilt_x == 0 and tilt_y == 0:
-				return 0.0, None
-			s_x, s_y = axis_components(s)		# per-axis physical pitch on anisotropic frames
-			chi = linear_phase((ny, nx), s_x * dx, s_y * dy, wavelength, tilt_x, tilt_y)
-			return 0.0, _screen_item(chi, dx, dy, self.name or "dipole")
+			chi = None
+			if tilt_x or tilt_y:
+				s_x, s_y = axis_components(s)	# per-axis physical pitch on anisotropic frames
+				chi = linear_phase((ny, nx), s_x * dx, s_y * dy, wavelength, tilt_x, tilt_y)
+			return 0.0, self._scaled_screen(chi, (ny, nx), dx, dy, s, self.name or "dipole")
 		chi = linear_phase((ny, nx), dx, dy, wavelength, tilt_x, tilt_y) if (tilt_x or tilt_y) else None
 		return self._phase_program(dimensions, wavelength, chi, self.name or "dipole")
 
@@ -2962,16 +3124,15 @@ class Lens(Element):
 		ny, nx, dy, dx = grid_of(dimensions)
 		if scaled:
 			if not ab or P == 0:
-				s_x, s_y = axis_components(s)
-				bare = self._combine_screen(None, (ny, nx), s_x * dx, s_y * dy)
-				return float(P), (None if bare is None else
-								  _screen_item(bare, dx, dy, self.name or "lens"))
+				return float(P), self._scaled_screen(None, (ny, nx), dx, dy, s,
+													 self.name or "lens")
 			# first-order terms are QUADRATIC, so they belong in the frame's
 			# curvature, not in a screen the frame exists to avoid
 			P_x, P_y, residual = self.aberration_powers()
 			powers = float(P_x) if P_x == P_y else (float(P_x), float(P_y))
 			if not residual:
-				return powers, None
+				return powers, self._scaled_screen(None, (ny, nx), dx, dy, s,
+												   self.name or "lens")
 			# the parabola is absorbed into the curvature exactly as before; the
 			# rest of the aberration function CANNOT be -- the frame is
 			# quadratic by construction, and every remaining term is of higher
@@ -2980,13 +3141,12 @@ class Lens(Element):
 			# the place it belongs.
 			s_x, s_y = axis_components(s)
 			chi = residual.phase((ny, nx), s_x * dx, s_y * dy, wavelength, P)
-			chi = self._combine_screen(chi, (ny, nx), s_x * dx, s_y * dy)
-			return powers, _screen_item(chi, dx, dy, self.name or "lens")
+			return powers, self._scaled_screen(chi, (ny, nx), dx, dy, s,
+											   self.name or "lens")
 		chi = quadratic_phase((ny, nx), dx, dy, wavelength, P, P) if P != 0 else None
 		if ab and P != 0:
 			extra = ab.phase((ny, nx), dx, dy, wavelength, P)
 			chi = extra if chi is None else chi + extra
-		chi = self._combine_screen(chi, (ny, nx), dx, dy)
 		return self._phase_program(dimensions, wavelength, chi, self.name or "lens")
 
 	def aberration_powers(self) -> tuple:

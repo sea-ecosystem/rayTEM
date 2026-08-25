@@ -275,8 +275,10 @@ def make_screen_phase_signal(data, dx, dy, name="phase screen"):
 	Parameters
 	----------
 	data : numpy.ndarray
-		Real phase χ (radians) or complex transmission ``T``, shape
-		``(ny, nx)``.
+		Real phase χ (radians) or complex transmission ``T``. ``(ny, nx)`` for
+		a screen at one plane, or ``(n, ny, nx)`` for a **volume** — a medium
+		described slice by slice, which the propagator turns into a multislice
+		through the element's body.
 	dx, dy : float
 		Sample spacings of the grid the phase was built on (metres).
 	name : str, optional
@@ -296,10 +298,17 @@ def make_screen_phase_signal(data, dx, dy, name="phase screen"):
 	data = _np.asarray(data)
 	if not sea_available:
 		return _Phase(data, "position", name)
-	ny, nx = data.shape
+	ny, nx = data.shape[-2:]
 	xdim = _Dimension(name="x", space="position", scale=dx, offset=-(nx // 2) * dx, size=nx, units="m")
 	ydim = _Dimension(name="y", space="position", scale=dy, offset=-(ny // 2) * dy, size=ny, units="m")
-	return _Signal(data=data, name=name, dimensions=[ydim, xdim], signal_type="Image")
+	dims = [ydim, xdim]
+	if data.ndim == 3:
+		# a VOLUME screen: slices through the element's body, evenly spaced by
+		# construction (the propagator divides the length by their count), so
+		# the leading axis is an index rather than a calibrated z
+		dims = [_Dimension(name="slice", scale=1, offset=0, size=data.shape[0],
+						   units="", unstructured=True)] + dims
+	return _Signal(data=data, name=name, dimensions=dims, signal_type="Image")
 
 
 def make_kernel_phase_signal(data, fx, fy, name="propagator phase"):

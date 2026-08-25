@@ -30,7 +30,10 @@ the reader extends to fifth order.
       screen carries no calibration to resample from
 - [x] folded `Aperture`'s WAVE behaviour into the screen mechanism; its
       `propagate_wave` override is gone, `apply_intensity` untouched
-- [ ] supplied screen through a VOLUME, not just one plane (3D signal)
+- [x] supplied screen through a VOLUME, not just one plane: a 3D signal
+      becomes a symmetric multislice through the body; n = 1 reproduces the
+      thin program term for term. Refused on the scaled path (the frame
+      evolves through the body).
 - [ ] dot-access properties for the well-known Signals, following
       [PLAN_2026-08-25_derived-signal-properties.md](PLAN_2026-08-25_derived-signal-properties.md):
       supplied -> stored; derivable -> recomputed, not stored; neither ->

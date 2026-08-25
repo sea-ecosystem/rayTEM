@@ -2519,3 +2519,84 @@ def test_a_calibrated_screen_is_resampled_onto_the_propagation_grid():
 	lens.screen = np.zeros((8, 8))
 	with pytest.raises(ValueError, match="no sample calibration"):
 		lens.phase_shift(grid, LAM)
+
+
+def test_a_volume_screen_becomes_a_multislice_through_the_body():
+	# A 3D supplied screen is a medium described slice by slice -- the material
+	# inside a fabricated plate. It becomes a symmetric multislice through the
+	# body, and at n = 1 that IS the thin program, term for term.
+	from pySEA.rayTEM.seashells import make_screen_phase_signal, phase_space_of
+	L, grid = 0.02, ((32, 32), 2e-6, 2e-6)
+	def program(screen):
+		d = Drift(length=L)
+		if screen is not None:
+			d.screen = screen
+		return d.phase_shift(grid, LAM)
+
+	# n = 1 reduces exactly to [kernel(L/2), screen, kernel(L/2)]
+	plane = np.full((32, 32), 0.3)
+	flat = program(make_screen_phase_signal(plane, 2e-6, 2e-6))
+	vol1 = program(make_screen_phase_signal(plane[None, :, :], 2e-6, 2e-6))
+	assert len(flat) == len(vol1) == 3
+	for a, b in zip(flat, vol1):
+		assert phase_space_of(a) == phase_space_of(b)
+		assert np.allclose(np.asarray(a.data), np.asarray(b.data))
+
+	# n slices: kernel(L/2n), S0, kernel(L/n), S1, ..., S(n-1), kernel(L/2n)
+	n = 4
+	slices = np.stack([np.full((32, 32), 0.1 * (i + 1)) for i in range(n)])
+	prog = program(make_screen_phase_signal(slices, 2e-6, 2e-6))
+	spaces = [phase_space_of(p) for p in prog]
+	assert spaces == ['scattering'] + ['position', 'scattering'] * (n - 1) + \
+					 ['position', 'scattering']
+	screens = [np.asarray(p.data) for p, sp in zip(prog, spaces) if sp == 'position']
+	assert len(screens) == n
+	for i, sc in enumerate(screens):
+		assert np.allclose(sc, 0.1 * (i + 1))
+	# the free segments carry L/2n at the ends and L/n between -- so they sum to L
+	kernels = [np.asarray(p.data) for p, sp in zip(prog, spaces) if sp == 'scattering']
+	unit = np.asarray(Drift(length=L / n).phase_shift(grid, LAM)[0].data)
+	assert np.allclose(kernels[0] * 2, unit) and np.allclose(kernels[-1] * 2, unit)
+	assert all(np.allclose(k, unit) for k in kernels[1:-1])
+
+	# a generated phase folds into the CENTRE slice, where the thin
+	# approximation already puts it
+	lens = Lens(strength=6.0, length=L)
+	generated = np.asarray(Lens(strength=6.0, length=L).phase_shift(grid, LAM)[1].data)
+	lens.screen = make_screen_phase_signal(np.zeros((3, 32, 32)), 2e-6, 2e-6)
+	got = [np.asarray(p.data) for p in lens.phase_shift(grid, LAM)
+		   if phase_space_of(p) == 'position']
+	assert np.allclose(got[1], generated)				# centre slice carries it
+	assert np.allclose(got[0], 0.0) and np.allclose(got[2], 0.0)
+
+	# a volume needs somewhere to sit, and the scaled frame cannot hold one
+	thin = Aperture(radius=1e-5)
+	thin.screen = make_screen_phase_signal(np.zeros((2, 32, 32)), 2e-6, 2e-6)
+	with pytest.raises(ValueError, match="zero length"):
+		thin.phase_shift(grid, LAM)
+	d = Drift(length=L)
+	d.screen = make_screen_phase_signal(np.zeros((2, 32, 32)), 2e-6, 2e-6)
+	with pytest.raises(ValueError, match="not supported on the scaled path"):
+		d.phase_shift(grid, LAM, scaled=True)
+
+
+def test_merging_a_complex_screen_into_a_real_volume_converts_it_meaningfully():
+	# A real volume's slices are PHASES, where 0 means transparent. A complex
+	# volume's slices are TRANSMISSIONS, where 0 means opaque. So merging a
+	# complex screen into a real volume cannot just cast the dtype -- that
+	# would black out every slice the merge did not touch. The untouched
+	# slices must become exp(i*chi), which for chi = 0 is 1.
+	from pySEA.rayTEM.seashells import make_screen_phase_signal
+	L = 0.02
+	d = Drift(length=L)
+	chis = np.stack([np.zeros((16, 16)), np.zeros((16, 16)), np.full((16, 16), 0.4)])
+	d.screen = make_screen_phase_signal(chis, 2e-6, 2e-6)
+	plate = np.full((16, 16), 0.25 + 0.5j)		# a complex generated screen
+	out = d._combine_screen(plate, (16, 16), 2e-6, 2e-6)
+	assert np.iscomplexobj(out)
+	assert np.allclose(out[1], plate * np.exp(1j * 0.0))	# centre carries the merge
+	assert np.allclose(out[0], 1.0)						# chi = 0 -> TRANSPARENT, not 0
+	assert np.allclose(out[2], np.exp(1j * 0.4))		# and a real phase converts
+	# a real merge leaves the volume real, so nothing is paid for the common case
+	out = d._combine_screen(np.full((16, 16), 0.1), (16, 16), 2e-6, 2e-6)
+	assert not np.iscomplexobj(out) and np.allclose(out[1], 0.1)
