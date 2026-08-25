@@ -7,11 +7,13 @@ Eric's correction: aberrations belong in a class in **Krivanek `C_{n,m}`**
 notation, the phase screen belongs in the dataset as a Signal, and propagation
 must apply whatever function is attached rather than knowing about spherical.
 
-**Blocked on plan §6 Q1/Q2** — a class cannot be attached to an element today
-(nested SEASerializable breaks `.sea`), and where the class lives depends on
-whether Metadata carries it.
+**Unblocked.** My "nested SEASerializable breaks .sea" finding was a broken
+probe (wrong `super().__init__` signature); nesting works, so the class attaches
+directly and lives in rayTEM. Eric confirmed C10 folds into `focal_power()` and
+the reader extends to fifth order.
 
-- [ ] decide §6 Q1 (storage) and Q2 (which package)
+- [x] cause of the serialization failure found: my probe, not the machinery
+- [ ] JSON `save()` needs a `to_dict` hook (Thomas's function — flag it)
 - [ ] `Aberrations` class: Krivanek `C_{n,m}` complex storage, `convention` attr
 - [ ] `from_metadata`, including the reader's outstanding a/b -> complex step
 - [ ] convention conversions (letters now; Seidel/Zernike later)

@@ -89,49 +89,51 @@ the medium, validated against the perturbed ray ODE) is independent of *which*
 term is being distributed, so it survives §3 unchanged — it just takes the
 gradient of the general function instead of a hard-coded cubic.
 
-## 5. The one obstacle: attaching a class to a serializable element
+## 5. Serialization — resolved, and my earlier claim was wrong
 
-`Aberrations` is a container, and containers are exactly what `.sea` does not
-take. Measured on the real serialization tests:
+I reported that a nested `SEASerializable` breaks `.sea`, 12/13 tests failing,
+and called it a "direct tension" with attaching a class to a lens. **That was
+my probe, not the machinery.** The probe called
+`super().__init__(name=..., kind=...)`, which is `Element`'s constructor
+convention; `SEASerializable.__init__` is `(self, *args, **kwargs)` and passes
+through to `object.__init__`, so it raised
+`TypeError: object.__init__() takes exactly one argument`. Every downstream
+failure was that.
 
-| stored on a `Lens` | `.sea` round trip |
-|---|---|
-| float / int / bool / str / list / tuple | works |
-| dict | fails |
-| numpy array | fails |
-| **nested `SEASerializable`** | **fails** (12/13 tests) |
+With a correct probe, **`.sea` nests exactly as designed**: a nested object
+attached to a `Lens` round-tripped with its data intact (`names: ['C30']`,
+`values: [0.001]`). `SEASerializable` does its job. So an `Aberrations` class
+can simply subclass `seashells.SEASerializable` — which *is* sea_eco's when
+sea_eco is present — and be attached to a `Lens`, a section, or a microscope
+with no serialization work at all. It can live in **rayTEM** without importing
+sea_eco directly, because seashells already mirrors it. Plan §6 Q2 answered.
 
-So `lens.aberrations = Aberrations(...)` cannot work today. Three ways out,
-and this needs a decision before anything is written:
-
-1. **Teach `seashells` to serialize nested objects.** `safeReinstantiate` maps
-   `kind` strings to classes and filters to constructor parameters; an
-   `Aberrations` would need registering there and a nested write/read path.
-   Most correct, touches the sea_eco seam.
-2. **Store as lists, expose as a class.** Keep `names`/`values` lists on the
-   element (both serialize) and make `aberrations` a **property** returning an
-   `Aberrations` view. Serialization-safe today, and dot access still works;
-   the object is rebuilt rather than stored.
-3. **Put the coefficients in `Metadata`**, which is where Eric notes dict-like
-   instrument information belongs, and have the element hold only a reference.
-   Closest to how sea-eco already carries this from real files.
-
-**Recommendation: 3, falling back to 2.** Metadata is where the swift reader
-already puts these, so a rayTEM lens and a sea-eco dataset would then speak the
-same structure, and `from_metadata` stops being a conversion and becomes the
-normal path.
+**The one real limitation is elsewhere and is narrow.** `Microscope.save()`
+(the JSON path, tpchuckles') does `json.dump(e.__dict__)`, so any non-primitive
+attribute raises `TypeError: not JSON serializable`. It already carries an
+explicit exclusion list — `rays`, `I`, `R`, `mu`, `covariance_matrix`, `wave` —
+for exactly this reason. Aberration coefficients are small numbers that
+*should* appear in a human-readable save, so the fix is to give `Aberrations` a
+`to_dict()`/`from_dict()` and let the JSON writer use it, either directly or via
+a `default=` hook on `json.dump`. That touches Thomas's function, so it is worth
+flagging to him rather than doing silently.
 
 ## 6. Open questions
 
-1. §5 — which of the three, and if (1), is changing `seashells`/sea_eco in
-   scope?
-2. Should the class live in **rayTEM** (it is attached to elements) or in
-   **sea-eco** (it is read from Metadata, and sea-eco owns Metadata)? rayTEM
-   must not import sea_eco except through `seashells`.
-3. `C10` is defocus, which is a *paraxial* quantity: should it fold into
-   `focal_power()` so the ray matrix sees it too, or stay a pure wave term?
-   Currently measured to move the wave focus to `1/(P + C10 P^2)` while the ray
-   matrix does not move at all.
-4. Fifth order: sea-eco's reader stops at order 4 (`C45`). Do we extend the
-   reader's list to `C50/C52/C54/C56`, or does rayTEM support terms the reader
-   cannot yet supply?
+**Answered by Eric, 2026-08-23:**
+
+1. ~~Storage~~ — resolved in §5: nesting works, the class attaches directly.
+   Only the JSON writer needs a `to_dict` hook.
+2. ~~Which package~~ — **rayTEM**, subclassing `seashells.SEASerializable`.
+   Works either way because seashells mirrors sea_eco's architecture.
+3. `C10` **folds into `focal_power()`**, so the ray matrix sees defocus too.
+   Checked the provenance first: `focal_power` is mine (it arrived with the
+   per-element `phase_shift` contract), not Thomas's, so changing it steps on
+   nobody.
+4. **Extend the reader to fifth order** — add `C50`, `C52.a/b`, `C54.a/b`,
+   `C56.a/b` to `abb_C` in sea-eco's `io.py`.
+
+Still open:
+
+5. The JSON `to_dict` hook touches `Microscope.save()`, which is Thomas's.
+   Add the hook there, or keep aberrations out of the JSON save?
