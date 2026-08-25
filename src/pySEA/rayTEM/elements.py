@@ -360,8 +360,15 @@ def _as_aberrations(value) -> Aberrations:
 
 
 class Element(SEASerializable):
+	#: Stored attributes that are not constructor parameters, so
+	#: :func:`seashells.safeReinstantiate` restores them explicitly on reload.
+	#: ``aberrations`` is a kwarg on ``Element`` and ``Lens`` but not on every
+	#: subclass; ``_screen``'s kwarg is spelled ``screen``. Both would be
+	#: silently dropped otherwise -- and a supplied screen has no other copy.
+	_restore_attrs = ("aberrations", "_screen")
+
 	def __init__(self, name:str='', kind:str=None,
-				 aberrations=None ) -> SEASerializable:
+				 aberrations=None, screen=None ) -> SEASerializable:
 		"""General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional attributed can be defined at the inheriting class level. e.g. a Lens has a "strength", but a Drift section does not.
 		The base class carries a working transparent default for every propagation kind (identity transfer_matrix, phase shift of nothing), so inheriting classes only override what their physics requires: transfer_matrix and/or phase_shift, and *may* define a custom propagate_ray function if the standard "[ x₂ xθ₂ y₂ yθ₂ ....] = [6x6] @ [ x₁ xθ₁ y₁ yθ₁....]" is not applicable
 
@@ -377,12 +384,21 @@ class Element(SEASerializable):
 			bare ``{name: value}`` mapping. Applied generically by
 			:meth:`aberration_kick` on the ray path and :meth:`phase_shift` on
 			the wave path, so no element needs per-aberration code.
+		screen : Signal or numpy.ndarray, optional
+			A screen supplied by the caller rather than generated, by default
+			``None``. Real means a phase χ in radians; complex means a
+			transmission ``T`` carrying amplitude *and* phase, which is what a
+			fabricated plate has. See :attr:`screen`.
 		"""
 		self.name = name
 		self.kind = kind
 		# Every element may carry aberrations; None means "I am exactly my
 		# matrix", so ideal columns stay bit-for-bit unchanged.
 		self.aberrations = _as_aberrations(aberrations)
+		# A SUPPLIED screen is stored because nothing can recompute it. A screen
+		# derivable from `aberrations` is not stored -- the coefficients are the
+		# storage, and they are smaller than the grid they generate.
+		self._screen = screen
 		self.length = 0		# transparent default: zero physical extent (subclasses overwrite)
 
 	#####################################
@@ -562,9 +578,13 @@ class Element(SEASerializable):
 		non-phase elements (``Source``, ``Aperture``, ``Prism``) override it to
 		fail loudly because their wave action lives elsewhere.
 		"""
+		from .seashells import grid_of
+		ny, nx, dy, dx = grid_of(dimensions)
+		chi = self._combine_screen(None, (ny, nx))		# None unless one was supplied
 		if scaled:
-			return 0.0, None
-		return self._phase_program(dimensions, wavelength, None,
+			return 0.0, (None if chi is None else _screen_item(chi, dx, dy,
+															   self.name or type(self).__name__))
+		return self._phase_program(dimensions, wavelength, chi,
 								   self.name or type(self).__name__)
 
 	def transfer_block(self, dz:float=None, axis:Literal['x','y']='x') -> xp.ndarray:
@@ -634,6 +654,176 @@ class Element(SEASerializable):
 			"a transfer_block override carrying its body's own law (see "
 			"Lens.transfer_block / Quadrapole.transfer_block), or model the "
 			"element as thin (length = 0).")
+
+	@property
+	def screen(self):
+		"""The screen this element imprints, or ``1`` when it imprints none.
+
+		A **screen** is what the field is multiplied by at this element's plane:
+		real data means a phase χ in radians (applied as ``exp(iχ)``), complex
+		data means a transmission ``T`` applied directly, carrying amplitude and
+		phase together the way a fabricated plate does.
+
+		Only a **supplied** screen lives here. A screen derivable from
+		:attr:`aberrations` is deliberately absent: the coefficients are its
+		storage, and they are far smaller than the grid they generate, so
+		:meth:`phase_shift` recomputes it on the grid actually in use rather
+		than pinning an array to one sampling.
+
+		When nothing is supplied this returns the scalar ``1`` — the identity
+		for the operation a screen takes part in, so ``field * element.screen``
+		is a genuine no-op with nothing allocated.
+
+		Returns
+		-------
+		Signal, numpy.ndarray, or int
+			The supplied screen, or ``1``.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		_has_screen : Ask whether one is present without type-testing this.
+		phase_shift : Where a supplied screen is combined with a generated one.
+		waveoptics.apply_phase : The real/complex convention.
+
+		Notes
+		-----
+		The return type is deliberately polymorphic, so code that needs to
+		*branch* rather than multiply should ask :meth:`_has_screen` instead of
+		testing what came back.
+
+		Examples
+		--------
+		>>> Element().screen
+		1
+		"""
+		return 1 if self._screen is None else self._screen
+
+	@screen.setter
+	def screen(self, value) -> None:
+		"""Supply, replace, or clear this element's screen.
+
+		Parameters
+		----------
+		value : Signal, numpy.ndarray, or None
+			The screen to store. ``None`` clears it, restoring the ``1``
+			identity. ``1`` is accepted and treated as ``None``, so a value
+			round-tripped through the getter clears rather than storing a
+			meaningless scalar.
+
+		Returns
+		-------
+		None
+
+		Raises
+		------
+		None
+		"""
+		self._screen = None if (value is None or (xp.ndim(value) == 0 and value == 1)) else value
+
+	def _has_screen(self) -> bool:
+		"""Whether a screen was supplied to this element.
+
+		The predicate that lets callers branch without type-testing what
+		:attr:`screen` returned — the getter is polymorphic by design, and
+		``isinstance`` checks scattered through the propagators would be the
+		cost of that.
+
+		Returns
+		-------
+		bool
+			True when a screen is stored.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		screen : The value this reports on.
+		"""
+		return self._screen is not None
+
+	def _screen_data(self):
+		"""The supplied screen's raw array, unwrapped from a Signal if need be.
+
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		numpy.ndarray or None
+			The array, or ``None`` when no screen is supplied.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		_combine_screen : The consumer.
+		"""
+		if self._screen is None:
+			return None
+		return xp.asarray(getattr(self._screen, "data", self._screen))
+
+	def _combine_screen(self, chi, shape:tuple):
+		r"""Merge a generated phase with this element's supplied screen.
+
+		Both are screens, so they compose by multiplying transmissions. Two
+		real phases are added instead, which is the same thing
+		(:math:`e^{i\chi_1}e^{i\chi_2} = e^{i(\chi_1+\chi_2)}`) but keeps the
+		result real — worth doing, because a real screen is half the memory and
+		is the only form the sampling guard can check.
+
+		Parameters
+		----------
+		chi : xp.ndarray or None
+			Generated phase (radians), or ``None`` when the element generates
+			none.
+		shape : tuple of int
+			Shape of the grid being propagated on, used to reject a supplied
+			screen that does not match it.
+
+		Returns
+		-------
+		xp.ndarray or None
+			The combined screen, or ``None`` when there is nothing to apply.
+
+		Raises
+		------
+		ValueError
+			If a supplied screen's shape differs from the propagation grid.
+			Resampling a supplied screen onto another grid is a separate
+			question — a hard-edged plate must not be band-limited into ringing
+			— so this refuses rather than guessing.
+
+		Related
+		-------
+		screen : Where the supplied half comes from.
+		waveoptics.apply_phase : Applies the result.
+		"""
+		supplied = self._screen_data()
+		if supplied is None:
+			return chi
+		if tuple(supplied.shape) != tuple(shape):
+			raise ValueError(
+				f"screen on {self.name or type(self).__name__!r} is {tuple(supplied.shape)} "
+				f"but the wave grid is {tuple(shape)}; supply it on the propagation grid "
+				"(resampling a supplied screen is not done automatically -- a hard-edged "
+				"plate must not be band-limited into ringing).")
+		if chi is None:
+			return supplied
+		if xp.iscomplexobj(supplied) or xp.iscomplexobj(chi):
+			# transmissions multiply; a real phase becomes exp(i*chi) first
+			T_s = supplied if xp.iscomplexobj(supplied) else xp.exp(1j * supplied)
+			T_c = chi if xp.iscomplexobj(chi) else xp.exp(1j * chi)
+			return T_s * T_c
+		return supplied + chi				# both real: phases add, stays real
 
 	def aberration_kick(self, r0:xp.ndarray):
 		r"""This element's **non-linear** angular kick, from its aberrations.
@@ -1673,100 +1863,79 @@ class Aperture(Element):
 		"""
 		return mu, Sigma
 
-	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
-					   s_min:float=1e-3, log:list=None, absorb:float=0.1,
-				   crossover:Literal['flat','jump']='flat', rotate:bool=False):
-		r"""Apply the hard circular aperture to the wavefield in any wave mode.
-
-		Overrides :meth:`Element.propagate_wave` (an aperture is an amplitude
-		mask, not a phase — no real ``χ`` makes ``|exp(iχ)|`` anything but 1, so
-		an aperture cannot be declared through :meth:`phase_shift`). On the
-		fixed grid the field is zeroed outside ``radius``; on the scaled/hybrid
-		paths U is masked at *physical* coordinates ``(s_x·ξ, s_y·η)``, which is
-		``ξ ≤ radius/|s|`` on an isotropic frame and correctly an **ellipse** in
-		scaled coordinates on an anisotropic one (``s_x ≠ s_y``, i.e. any
-		quadrupole upstream). The plane position and (scaled) frame state are
-		unchanged (zero length).
-
-		Parameters
-		----------
-		signal : Signal or seashells._Wavefield or seashells._ScaledWavefield
-			Incoming wavefield in the representation matching ``mode``.
-		mode : {'fixed', 'scaled', 'hybrid'}, optional
-			Wave representation, by default ``'fixed'``.
-		s_min : float, optional
-			Unused (accepted for driver-signature uniformity).
-		log : list, optional
-			Unused (a zero-length element has no free segments).
-
-		Returns
-		-------
-		Signal or seashells._Wavefield or seashells._ScaledWavefield
-			Masked wavefield on the same grid.
-
-		Raises
-		------
-		ValueError
-			Unknown ``mode``.
-
-		Related
-		-------
-		waveoptics.aperture_mask : The masking operator applied here.
-		"""
-		from .waveoptics import aperture_mask, axis_components
-		if mode == 'fixed':
-			from .seashells import make_wavefield_signal, read_wavefield
-			data, dx, dy, wavelength, z = read_wavefield(signal)
-			data = aperture_mask(data, dx, dy, self.radius)
-			return make_wavefield_signal(data, dx, dy, wavelength, z=(z if z is not None else 0.0),
-										 name=getattr(signal, "name", "wavefield"))
-		if mode in ('scaled', 'hybrid'):
-			from .seashells import (make_scaled_wavefield_signal, read_scaled_wavefield,
-									scaled_frame_crossover)
-			U, dxi, deta, wavelength, s, R, tau, z = read_scaled_wavefield(signal)
-			# Mask at *physical* coordinates x = s_x*xi, y = s_y*eta: the aperture
-			# is a circle in the physical plane, which is an ellipse in scaled
-			# coordinates whenever the frame is anisotropic (s_x != s_y, i.e. any
-			# quadrupole upstream). Identical to masking at radius/|s| when the
-			# axes agree, and sign-safe past a crossover (the pitches are squared).
-			s_x, s_y = axis_components(s)
-			U = aperture_mask(U, s_x * dxi, s_y * deta, self.radius)
-			return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
-												z=(z if z is not None else 0.0),
-												z_cross=scaled_frame_crossover(signal),
-												name=getattr(signal, "name", "scaled wavefield"))
-		raise ValueError(f"Unknown wave mode {mode!r}; expected 'fixed', 'scaled', or 'hybrid'.")
-
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
-		"""An aperture is an amplitude mask, not a phase (not part of this contract).
+		r"""The aperture's screen: a real transmission carried as a complex one.
 
-		Overrides :meth:`Element.phase_shift` to fail loudly: the aperture's wave
-		action is the multiplicative mask in :meth:`propagate_wave` (and, on the
-		scaled path, the mask at scaled radius ``radius/|s|``), not a phase screen.
+		Overrides :meth:`Element.phase_shift`. An aperture used to apply itself
+		through its own :meth:`propagate_wave` override, because a screen was
+		unit-modulus by construction and no real ``χ`` makes ``|exp(iχ)|``
+		anything but 1. A screen may now be **complex**, so an aperture is
+		simply a screen whose modulus is its transmission and whose phase is
+		zero — the same mechanism a phase plate uses, differing only in whether
+		``arg(T)`` is nonzero.
+
+		On the scaled path the transmission is built at **physical**
+		coordinates ``(s_x·ξ, s_y·η)``, so a circular aperture is correctly an
+		**ellipse** in scaled coordinates whenever the frame is anisotropic
+		(``s_x ≠ s_y``, i.e. any quadrupole upstream), and identical to masking
+		at ``radius/|s|`` when the axes agree. Sign-safe past a crossover, since
+		the pitches are squared.
 
 		Parameters
 		----------
 		dimensions : Dimensions or tuple
-			Unused.
+			Transverse grid (see :meth:`Element.phase_shift`).
 		wavelength : float
-			Unused.
+			Wavelength (metres).
 		scaled : bool, optional
-			Unused.
-		s : float, optional
-			Unused.
+			Select the representation, by default False.
+		s : float or Sequence[float], optional
+			Current transverse scale factor, used only when ``scaled=True``,
+			by default 1.
 
 		Returns
 		-------
-		None
-			Never returns.
+		list or tuple
+			``scaled=False``: the phase program, a single complex screen (an
+			aperture has zero length, so there are no free segments).
+			``scaled=True``: ``(0.0, screen)`` — an aperture absorbs no
+			curvature.
 
 		Raises
 		------
-		NotImplementedError
-			Always.
+		ValueError
+			If a screen supplied via :attr:`screen` does not match the grid.
+
+		Related
+		-------
+		waveoptics.aperture_transmission : Builds the transmission.
+		waveoptics.apply_phase : The real/complex screen convention.
+		apply_intensity : The **ray**-path counterpart, deliberately separate.
+
+		Notes
+		-----
+		The ray path is untouched by this: per-ray attenuation stays in
+		:meth:`apply_intensity`, which is a different quantity computed from
+		demagnification factors rather than from a grid. Only the wave
+		behaviour moved.
+
+		Examples
+		--------
+		>>> Aperture(radius=2e-5).phase_shift(((64, 64), 1e-6, 1e-6), 2.5e-12)  # doctest: +SKIP
 		"""
-		raise NotImplementedError("Aperture is an amplitude mask, not a phase; its wave action "
-								  "is applied by its propagate_wave override (all modes).")
+		from .waveoptics import aperture_transmission, axis_components
+		from .seashells import grid_of
+		ny, nx, dy, dx = grid_of(dimensions)
+		px, py = (dx, dy)
+		if scaled:
+			s_x, s_y = axis_components(s)
+			px, py = s_x * dx, s_y * dy
+		T = aperture_transmission((ny, nx), px, py, self.radius).astype(complex)
+		T = self._combine_screen(T, (ny, nx))
+		if scaled:
+			return 0.0, _screen_item(T, dx, dy, self.name or "aperture")
+		return self._phase_program(dimensions, wavelength, T,
+								   self.name or "aperture")
 
 class Drift(Element):
 	"""Drift element class for free-space propagation.
@@ -2762,7 +2931,9 @@ class Lens(Element):
 		ny, nx, dy, dx = grid_of(dimensions)
 		if scaled:
 			if not ab or P == 0:
-				return float(P), None
+				bare = self._combine_screen(None, (ny, nx))
+				return float(P), (None if bare is None else
+								  _screen_item(bare, dx, dy, self.name or "lens"))
 			# first-order terms are QUADRATIC, so they belong in the frame's
 			# curvature, not in a screen the frame exists to avoid
 			P_x, P_y, residual = self.aberration_powers()
@@ -2777,11 +2948,13 @@ class Lens(Element):
 			# the place it belongs.
 			s_x, s_y = axis_components(s)
 			chi = residual.phase((ny, nx), s_x * dx, s_y * dy, wavelength, P)
+			chi = self._combine_screen(chi, (ny, nx))
 			return powers, _screen_item(chi, dx, dy, self.name or "lens")
 		chi = quadratic_phase((ny, nx), dx, dy, wavelength, P, P) if P != 0 else None
 		if ab and P != 0:
 			extra = ab.phase((ny, nx), dx, dy, wavelength, P)
 			chi = extra if chi is None else chi + extra
+		chi = self._combine_screen(chi, (ny, nx))
 		return self._phase_program(dimensions, wavelength, chi, self.name or "lens")
 
 	def aberration_powers(self) -> tuple:

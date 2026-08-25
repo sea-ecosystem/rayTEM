@@ -88,11 +88,18 @@ def test_phase_shift_scaled_split():
 	assert Dipole(strength=0.0).phase_shift(GRID, LAM, scaled=True) == (0.0, None)
 
 def test_phase_shift_not_a_phase_elements():
+	# a Source originates the wave rather than modifying one, so it genuinely
+	# has no screen. An Aperture DOES: now that a screen may be complex, its
+	# transmission is one, and it no longer needs its own propagate_wave.
 	spec = GRID
 	with pytest.raises(NotImplementedError):
-		Aperture(radius=1e-6).phase_shift(spec, LAM)
-	with pytest.raises(NotImplementedError):
 		Source(voltage=200).phase_shift(spec, LAM)
+	program = Aperture(radius=1e-6).phase_shift(spec, LAM)
+	assert len(program) == 1							# zero length: no free segments
+	T = np.asarray(program[0].data)
+	assert np.iscomplexobj(T)							# amplitude lives in the modulus
+	assert np.allclose(np.angle(T), 0.0)				# and it imparts no phase
+	assert 0.0 <= np.abs(T).min() and np.abs(T).max() <= 1.0
 
 def test_fixed_path_refactor_regression():
 	# the refactored propagate_wave (phase-program consumer) must reproduce the
@@ -2370,3 +2377,104 @@ def test_a_screen_may_be_complex_carrying_amplitude_and_phase_together():
 	assert np.abs(np.diff(np.angle(aliased), axis=1)).max() > np.pi	# truly aliased
 	assert np.abs(np.diff(aliased, axis=1)).max() < np.pi			# yet |dT| says fine
 	_check_screen_sampling(aliased, "plate")						# so: skipped, not judged
+
+
+def test_aperture_wave_behaviour_survives_the_move_to_a_screen():
+	# The aperture's wave action moved out of its own propagate_wave override
+	# and into a complex screen. It must be the SAME masking, including the
+	# anisotropic case, where a circular aperture is an ellipse in scaled
+	# coordinates -- that was the subtle part of the old override.
+	n, dx, a = 64, 2e-6, 4e-5
+	ap = Aperture(radius=a)
+
+	# fixed grid: the screen is exactly the transmission the mask applied
+	program = ap.phase_shift(((n, n), dx, dx), LAM)
+	T = np.asarray(program[0].data)
+	field = np.ones((n, n), complex)
+	assert np.allclose(field * T, wo.aperture_mask(field, dx, dx, a))
+
+	# scaled, ISOTROPIC: masking at physical coords == masking at radius/|s|
+	s = 0.4
+	_, screen = ap.phase_shift(((n, n), dx, dx), LAM, scaled=True, s=s)
+	assert np.allclose(field * np.asarray(screen.data),
+					   wo.aperture_mask(field, s * dx, s * dx, a))
+
+	# scaled, ANISOTROPIC: an ellipse in scaled coords, not a circle
+	sx, sy = 0.4, 1.7
+	_, screen = ap.phase_shift(((n, n), dx, dx), LAM, scaled=True, s=(sx, sy))
+	T = np.asarray(screen.data)
+	assert np.allclose(field * T, wo.aperture_mask(field, sx * dx, sy * dx, a))
+	# and it really is anisotropic: the pass band is wider along the tighter s
+	open_x = int((np.abs(T[n // 2, :]) > 0.5).sum())
+	open_y = int((np.abs(T[:, n // 2]) > 0.5).sum())
+	assert open_x > open_y, (open_x, open_y)
+
+	# the ray path is untouched -- attenuation is still its own quantity
+	r0 = np.zeros((3, 6)) ; r0[:, 0] = [0.0, a / 2, 2 * a]
+	assert ap.apply_intensity(np.ones(3), r0).shape == (3,)
+
+
+def test_a_supplied_screen_is_stored_and_a_derivable_one_is_not():
+	# Eric's storage rule: supplied -> stored, derivable -> recomputed,
+	# neither -> identity 1.
+	f = 0.045
+	lens = Lens(strength=np.sqrt(1 / f), aberrations={'C30': 1e-3})
+	assert lens.screen == 1 and not lens._has_screen()		# chi is derivable: not stored
+	assert '_screen' not in [n for n in vars(lens) if vars(lens)[n] is not None]
+
+	# supplied real screen: stored, and ADDS to the generated phase
+	extra = np.full((32, 32), 0.25)
+	grid = ((32, 32), 2e-6, 2e-6)
+	generated = np.asarray(lens.phase_shift(grid, LAM)[0].data)
+	lens.screen = extra
+	assert lens._has_screen() and np.allclose(lens.screen, extra)
+	combined = np.asarray(lens.phase_shift(grid, LAM)[0].data)
+	assert np.allclose(combined, generated + extra)			# real + real stays real
+	assert not np.iscomplexobj(combined)
+
+	# supplied COMPLEX screen: transmissions multiply, result goes complex
+	plate = np.zeros((32, 32), complex) ; plate[8:24, 8:24] = np.exp(1j * 0.25)
+	lens.screen = plate
+	combined = np.asarray(lens.phase_shift(grid, LAM)[0].data)
+	assert np.iscomplexobj(combined)
+	assert np.allclose(combined, plate * np.exp(1j * generated))
+
+	# clearing restores the identity
+	lens.screen = None
+	assert lens.screen == 1 and not lens._has_screen()
+
+	# a mismatched grid is refused rather than silently resampled
+	lens.screen = np.zeros((8, 8))
+	with pytest.raises(ValueError, match="wave grid"):
+		lens.phase_shift(grid, LAM)
+
+
+def test_supplied_screen_and_aberrations_survive_reload_on_any_element():
+	# A supplied screen has no other copy -- losing it on reload loses the data.
+	# It is not a constructor parameter (the kwarg is `screen`, the slot is
+	# `_screen`), and `aberrations` is a kwarg on Element and Lens but not on
+	# every subclass, so both need naming for the reinstantiation filter.
+	import os, tempfile
+	from pySEA.rayTEM.assemblies import load_microscope
+	from pySEA.rayTEM.seashells import make_screen_phase_signal
+	from pySEA.rayTEM.aberrations import Aberrations
+	cwd = os.getcwd()
+	try:
+		os.chdir(tempfile.mkdtemp())
+		lens = Lens(strength=3, length=.1)
+		lens.screen = make_screen_phase_signal(np.full((8, 8), 0.3), 1e-6, 1e-6)
+		quad = Quadrapole(strength=1.0)
+		quad.aberrations = Aberrations({'C30': 2e-3})		# not a Quadrapole kwarg
+		mic = Microscope(sections=[MicroscopeSection(elements=[
+			Source(size=(1, 1), np_xy=(3, 3), angle=(1, 1), na_xy=(3, 3)),
+			Drift(length=1), lens, quad, Drift(length=1)])])
+		mic.propagate_ray()
+		mic.to_sea("t.sea")
+		els = [e for s in load_microscope("t.sea").sections for e in s.elements]
+		L = [e for e in els if isinstance(e, Lens)][0]
+		Q = [e for e in els if isinstance(e, Quadrapole)][0]
+		assert L._has_screen()
+		assert np.allclose(np.asarray(L.screen.data), 0.3)
+		assert Q.aberrations['C30'] == 2e-3
+	finally:
+		os.chdir(cwd)

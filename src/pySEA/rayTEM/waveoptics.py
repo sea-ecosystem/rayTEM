@@ -2195,12 +2195,64 @@ def aperture_mask(field: np.ndarray, dx: float, dy: float, radius: float,
 	-------
 	bandlimited_disk : The exactly alias-free initial disk (Source path).
 	"""
-	X, Y = transverse_coordinates(field.shape, dx, dy)
+	return field * aperture_transmission(field.shape, dx, dy, radius, antialias=antialias)
+
+
+def aperture_transmission(shape: tuple, dx: float, dy: float, radius: float,
+						  antialias: bool = True) -> np.ndarray:
+	r"""The aperture's transmission :math:`|T| \in [0, 1]`, without applying it.
+
+	Split out from :func:`aperture_mask` so an aperture can be declared as a
+	**screen** — the thing the field is multiplied by — rather than applied by
+	its own propagation override. That makes an aperture and a phase plate the
+	same kind of object: one is a real transmission, the other a complex one,
+	and both go through :func:`apply_phase`.
+
+	Parameters
+	----------
+	shape : tuple of int
+		Field shape ``(ny, nx)``.
+	dx, dy : float
+		Sample spacings (metres). On the scaled path these are the *physical*
+		spacings ``s·Δξ``, which is what makes a circular aperture correctly an
+		ellipse in scaled coordinates on an anisotropic frame.
+	radius : float
+		Aperture radius (metres).
+	antialias : bool, optional
+		Return the edge-coverage (alias-suppressed) transmission, by default
+		True. ``False`` gives the point-sampled binary disc.
+
+	Returns
+	-------
+	np.ndarray
+		Real transmission in ``[0, 1]``, shape ``shape``.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	aperture_mask : Applies this to a field.
+	bandlimited_disk : The exactly alias-free initial disc (Source path).
+	apply_phase : Consumes it once wrapped as a complex screen.
+
+	Notes
+	-----
+	The antialiased edge is a linear ramp one pixel wide, which is why the
+	result is real-valued but not binary. A point-sampled binary disc carries
+	the edge's above-Nyquist content folded onto wrong low frequencies.
+
+	Examples
+	--------
+	>>> aperture_transmission((64, 64), 1e-6, 1e-6, 2e-5)  # doctest: +SKIP
+	"""
+	X, Y = transverse_coordinates(shape, dx, dy)
 	r = np.sqrt(X**2 + Y**2)
 	if not antialias:
-		return field * (r <= radius)
+		return (r <= radius).astype(float)
 	px = max(abs(dx), abs(dy))
-	return field * np.clip(0.5 + (radius - r) / px, 0.0, 1.0)
+	return np.clip(0.5 + (radius - r) / px, 0.0, 1.0)
 
 
 def bandlimited_disk(shape: tuple, dx: float, dy: float, radius: float) -> np.ndarray:

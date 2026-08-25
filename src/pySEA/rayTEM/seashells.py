@@ -824,9 +824,11 @@ def safeReinstantiate(source,cls):
 	kwargs = { k:v for k,v in dic.items() if k in allowed_kwargs }	# and filter kwargs to those accepted
 	obj = cls(**kwargs)
 	# Attributes that are stored but are NOT constructor parameters would be
-	# silently dropped by the filter above, so a class may name them. Lens uses
-	# this for its Krivanek coefficients, which are set through one `aberrations`
-	# kwarg but stored as one scalar each (the .sea writer takes scalars only).
+	# silently dropped by the filter above, so a class may name them. Element
+	# uses this for `aberrations` (a constructor kwarg on Element and Lens, but
+	# not on every subclass) and for `_screen`, whose kwarg is spelled `screen`
+	# -- a supplied screen cannot be recomputed, so losing it on reload would
+	# lose the only copy.
 	for name in getattr(cls, "_restore_attrs", ()):
 		if name in dic:
 			setattr(obj, name, dic[name])

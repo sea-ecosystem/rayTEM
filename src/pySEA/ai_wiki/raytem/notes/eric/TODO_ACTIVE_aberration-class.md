@@ -22,11 +22,13 @@ the reader extends to fifth order.
       so it must NOT also fold into `focal_power`, which would double-count
 - [x] screens may be COMPLEX: real = phase chi (exp(i chi)), complex =
       transmission T applied directly, so amplitude and phase are one object
-- [ ] `Element.screen`: a SUPPLIED screen Signal, stored because it cannot be
-      recomputed. Generated chi stays recomputed -- coefficients are the
-      storage. (fixed path first; scaled path needs resampling from x to xi)
-- [ ] fold `Aperture`'s WAVE behaviour into the screen mechanism (Eric: keep
-      `apply_intensity` on the ray path separate -- move the wave side only)
+- [x] `Element.screen`: a SUPPLIED screen, stored because it cannot be
+      recomputed; `1` when absent; `_has_screen()` to branch without
+      type-testing. Generated chi stays recomputed.
+- [ ] resample a supplied screen onto the propagation grid (currently refused
+      with an actionable error; a hard-edged plate must not be band-limited)
+- [x] folded `Aperture`'s WAVE behaviour into the screen mechanism; its
+      `propagate_wave` override is gone, `apply_intensity` untouched
 - [ ] supplied screen through a VOLUME, not just one plane (3D signal)
 - [ ] dot-access properties for the well-known Signals, following
       [PLAN_2026-08-25_derived-signal-properties.md](PLAN_2026-08-25_derived-signal-properties.md):
