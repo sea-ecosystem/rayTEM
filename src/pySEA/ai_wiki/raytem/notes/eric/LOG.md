@@ -2,6 +2,56 @@
 
 Newest entries at top.
 
+## 2026-08-26 — [Done] Objective section, six-panel example, three wave-path bugs
+**Goal:** show spherical aberration in rays AND in the wave, on the real OL1.
+**Why:** Eric asked for a wave propagation with and without C30; the full column
+is the wrong instrument for it (an aberration is ~1e-4 of the beam width over a
+metre) and the request surfaced three bugs on the way.
+- [x] `microscopes/objective_section.py` + `.sea`: basic_column's O section
+      behind a source, lifted from `build_basic_column()` so OL1/OL2 cannot drift
+- [x] example 06 rebuilt as six panels: A/B rays, C/D wave |psi(x,z)|, E/F
+      focal surface + Strehl
+- [x] three bugs found and fixed, each with a regression test
+
+**Outcome:** 115 -> 125 tests. The figure now shows the same caustic in two
+independent representations.
+
+**Configuration, and why:** 30 mrad as asked, but **C30 = 0.1 mm, not 1 mm**.
+The quartic phase goes as alpha^4, and 1 mm at 30 mrad needs ~8192 samples
+before the screen stops aliasing. 0.1 mm is 50.7 rad of peak phase — plenty.
+Note the screen is sampled over the WHOLE grid, not just inside the aperture,
+and its gradient goes as r^3, so a *wider* grid makes sampling harder, not
+easier: `wave_oversample` is deliberately 1.25.
+
+**The three bugs, all silent:**
+
+1. **A thick medium dropped its screen entirely.** A thick lens reports a
+   `_scaled_segment`, so the scaled path carries it as a quadratic-index medium
+   and never calls `phase_shift` — discarding its aberrations and any supplied
+   screen. Ideal and aberrated runs came back bit-for-bit identical.
+2. **Then it over-applied it.** The first fix put the whole screen at the body
+   centre. An aberration is a property of the medium: the ray side integrates
+   it along the body and gets **0.122x** the thin-lens value for OL1, so a
+   mid-body screen had the wave seeing ~8x more than the rays. Now distributed
+   over `MEDIUM_SLICES`; the local ray height comes free because the screen is
+   evaluated at `s*dxi` and s shrinks as the body focuses. Wave best focus
+   -15 nm vs the ray's -11 nm c20 — same sign and order, and not expected to
+   match exactly (brightest plane vs paraxial fit, 5 nm plane spacing).
+3. **Sub-nanometre drifts did not propagate at all.** Both scaled engines used
+   `tol = 1e-9 * (abs(dz) + abs(z) + 1.0)`, whose `+ 1.0` makes an absolute
+   ~1 nm floor. `while remaining > tol` was false on the first pass, so the
+   field was returned untouched and z never advanced — no error. 80 sub-nm
+   planes all reported the same z, which showed up as a blank band in the
+   figure. Tolerance is now relative with no floor.
+
+**Also for Ondrej — two API sharp edges that cost me time:**
+- `m["G"]` resolves to the **section** named G, not the source also named G.
+  Use `m["G"]["G"]` or `m[0, 0]`. Elements and sections share a namespace.
+- Assigning an unknown attribute to an Element or MicroscopeSection silently
+  succeeds and does nothing (`e.Cs = ...`, `section.np_xy = ...`). Three
+  separate silent no-ops in this session traced back to it. A `__setattr__`
+  guard would turn them into immediate errors; not done, flagged.
+
 ## 2026-08-25 — [Done] Aberrations class, generic application, and screens
 **Goal:** aberrations in one class applied generically, and a screen that can
 carry amplitude as well as phase.

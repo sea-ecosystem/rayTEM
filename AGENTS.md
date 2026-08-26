@@ -221,6 +221,7 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 - `src/pySEA/rayTEM/assemblies.py`
 - `src/pySEA/rayTEM/elements.py`
 - `src/pySEA/rayTEM/microscopes/basic_column.py` — Builder for the default generic TEM column (``basic_column.sea``).
+- `src/pySEA/rayTEM/microscopes/objective_section.py` — Builder for the standalone objective section (``objective_section.sea``).
 - `src/pySEA/rayTEM/postprocessing.py`
 - `src/pySEA/rayTEM/references/andys_functions.py`
 - `src/pySEA/rayTEM/seashells.py` — seashells serves as a wrapper around the sea_eco SEASerializable object, enabling easy integration with sea_eco.

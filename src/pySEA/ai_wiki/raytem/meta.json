@@ -3,8 +3,8 @@
   "namespace": "pySEA",
   "version": "0.0.1beta",
   "wiki_schema_version": "1.0",
-  "last_updated": "2026-08-25",
-  "source_commit": "1ec8a1c",
+  "last_updated": "2026-08-26",
+  "source_commit": "f9ede69",
   "entry_point": "index.md",
   "depends_on": []
 }

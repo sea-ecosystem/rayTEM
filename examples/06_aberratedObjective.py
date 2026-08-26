@@ -219,9 +219,12 @@ axE.plot(h_f[oc] * 1e3, (sc["z"][oc] - sc["z_paraxial"]) * 1e9, "s", ms=6,
 axE.set_xlabel(r"$h/f$ at OL1 (mrad) — what enters the kick")
 axE.set_ylabel(r"$z-z_{\rm paraxial}$ (nm)")
 axE.set_title("E   the plane becomes a surface")
-axE.legend(fontsize=8, loc="upper right")
+# both go in the empty lower-left triangle: the squares run along the top and
+# the closed form sweeps the diagonal
+axE.legend(fontsize=8, loc="lower left", bbox_to_anchor=(0.02, 0.20),
+		   framealpha=0.92)
 axE.grid(alpha=0.3)
-axE.text(0.03, 0.06,
+axE.text(0.03, 0.04,
 	"the red curve is NOT expected to follow the closed form:\n"
 	"OL1 is 10 mm THICK, so its aberration is distributed\n"
 	"along the body, not applied at one plane",
