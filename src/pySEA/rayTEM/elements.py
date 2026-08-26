@@ -316,6 +316,13 @@ class suspended_aberrations:
 		return False
 
 
+#: Slices a thick medium is split into when it carries a screen. An aberration
+#: acts along the body, not at one plane, so the wave path integrates it the way
+#: :meth:`Element.aberration_kick` does on the ray side. 16 matches the ray
+#: integral to ~1% on basic_column's OL1 and costs 16 extra half-segments.
+MEDIUM_SLICES = 16
+
+
 def _as_aberrations(value) -> Aberrations:
 	"""Coerce a user-supplied aberration specification to an :class:`Aberrations`.
 
@@ -929,7 +936,7 @@ class Element(SEASerializable):
 		return _screen_item(chi, dx, dy, name)
 
 	def _medium_screen(self, shape:tuple, dxi:float, deta:float, wavelength:float,
-					   s, name:str):
+					   s, name:str, fraction:float=1.0, supplied:bool=True):
 		"""The screen a *medium* still has to apply, beyond its own curvature.
 
 		A thick element that reports a :meth:`_scaled_segment` is carried on the
@@ -956,12 +963,21 @@ class Element(SEASerializable):
 			Current transverse scale factor, scalar or ``(s_x, s_y)``.
 		name : str
 			Screen item name.
+		fraction : float, optional
+			Share of the *distributed* physics this slice carries, by default
+			1.0 (the whole body). The driver passes ``1/MEDIUM_SLICES``.
+		supplied : bool, optional
+			Whether to include the element's supplied screen, by default True.
+			A supplied screen is a **plate at a plane**, not a property of the
+			medium, so the driver includes it in one slice only — dividing it
+			between slices would be wrong for a transmission and meaningless for
+			a hard edge.
 
 		Returns
 		-------
 		Signal, seashells._Phase, or None
-			The screen to apply mid-body, or ``None`` when the medium is
-			complete on its own.
+			The screen to apply at this slice, or ``None`` when there is
+			nothing to apply.
 
 		Raises
 		------
@@ -971,8 +987,10 @@ class Element(SEASerializable):
 		Related
 		-------
 		_scaled_segment : Declares the element a medium in the first place.
-		_propagate_wave_scaled : Splits the body in half around the result.
+		_propagate_wave_scaled : Distributes the result along the body.
 		"""
+		if not supplied:
+			return None
 		return self._scaled_screen(None, shape, dxi, deta, s, name)
 
 	@staticmethod
@@ -1576,33 +1594,53 @@ class Element(SEASerializable):
 			spin = larmor if rotate else 0.0
 			# A medium whose physics is NOT all in its curvature -- a thick lens
 			# with aberrations, or any element carrying a supplied screen -- has
-			# to apply the remainder somewhere. Split the body and put it at the
-			# centre, the same thin-approximation compromise the fixed path
-			# makes with [kernel(L/2), screen, kernel(L/2)]. Without this the
-			# screen is silently dropped, because phase_shift is never reached.
-			mid_screen = self._medium_screen(U.shape, dxi, deta, wavelength, s,
-											 self.name or type(self).__name__)
-			if mid_screen is not None:
-				half = type(self).__new__(type(self))
-				half.__dict__.update(self.__dict__)
-				half.length = L / 2
-				half._screen = None					# applied here, not twice
-				half.aberrations = None
-				first = half._propagate_wave_scaled(
-					make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
-												 z=z, z_cross=z_cross, name=name),
-					hybrid=hybrid, rotate=rotate, s_min=s_min, log=log,
-					absorb=absorb, crossover=crossover)
-				U, dxi, deta, wavelength, s, R, tau, z = read_scaled_wavefield(first)
-				z_cross = scaled_frame_crossover(first)
-				_check_screen_sampling(mid_screen.data, self.name or type(self).__name__)
-				U = apply_phase(U, mid_screen.data, phase_space_of(mid_screen))
-				second = half._propagate_wave_scaled(
-					make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
-												 z=z, z_cross=z_cross, name=name),
-					hybrid=hybrid, rotate=rotate, s_min=s_min, log=log,
-					absorb=absorb, crossover=crossover)
-				return second
+			# to apply the remainder somewhere, or it is silently dropped:
+			# phase_shift is never reached on this path.
+			#
+			# It is DISTRIBUTED, not put at one plane. An aberration is a
+			# property of the medium, so each slice acts on the local ray
+			# height, and the rest of the body then focuses that kick -- which
+			# is exactly what the ray side integrates in aberration_kick. Doing
+			# it at the centre instead over-states the aberration badly: for
+			# basic_column's 10 mm OL1 the ray integral comes out at 0.12x the
+			# thin-lens value, so a single mid-body screen would have the wave
+			# seeing ~8x more aberration than the rays.
+			#
+			# The local ray height comes for free: the screen is evaluated at
+			# physical coordinates s*dxi, and s shrinks as the body focuses.
+			if self._medium_screen(U.shape, dxi, deta, wavelength, s,
+								   self.name or type(self).__name__) is not None:
+				n_sl = MEDIUM_SLICES
+				slab = type(self).__new__(type(self))
+				slab.__dict__.update(self.__dict__)
+				slab.length = L / (2 * n_sl)
+				slab._screen = None					# applied here, not twice
+				slab.aberrations = None
+				def _step(U, dxi, deta, s, R, tau, z, z_cross):
+					"""Advance half a slice through the bare medium."""
+					out = slab._propagate_wave_scaled(
+						make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R,
+													 tau, z=z, z_cross=z_cross,
+													 name=name),
+						hybrid=hybrid, rotate=rotate, s_min=s_min, log=log,
+						absorb=absorb, crossover=crossover)
+					return read_scaled_wavefield(out) + (scaled_frame_crossover(out),)
+				for i in range(n_sl):
+					(U, dxi, deta, wavelength, s, R, tau, z, z_cross) = _step(
+						U, dxi, deta, s, R, tau, z, z_cross)
+					screen = self._medium_screen(U.shape, dxi, deta, wavelength, s,
+												 self.name or type(self).__name__,
+												 fraction=1.0 / n_sl,
+												 supplied=(i == n_sl // 2))
+					if screen is not None:
+						_check_screen_sampling(screen.data,
+											   self.name or type(self).__name__)
+						U = apply_phase(U, screen.data, phase_space_of(screen))
+					(U, dxi, deta, wavelength, s, R, tau, z, z_cross) = _step(
+						U, dxi, deta, s, R, tau, z, z_cross)
+				return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R,
+													tau, z=z, z_cross=z_cross,
+													name=name)
 			if hybrid:
 				# a crossover can fall INSIDE the body; the hybrid traversal
 				# switches frames there rather than leaving the free engine to
@@ -3218,8 +3256,8 @@ class Lens(Element):
 		return self._phase_program(dimensions, wavelength, chi, self.name or "lens")
 
 	def _medium_screen(self, shape:tuple, dxi:float, deta:float, wavelength:float,
-					   s, name:str):
-		r"""The aberration a thick lens applies mid-body, plus any supplied screen.
+					   s, name:str, fraction:float=1.0, supplied:bool=True):
+		r"""The aberration a thick lens applies in one slice, plus any supplied screen.
 
 		Overrides :meth:`Element._medium_screen`. A thick round lens is carried
 		on the scaled path as a quadratic-index medium, whose curvature comes
@@ -3274,8 +3312,10 @@ class Lens(Element):
 		chi = None
 		if self.aberrations and P != 0:
 			s_x, s_y = axis_components(s)
-			chi = self.aberrations.phase(tuple(shape), s_x * dxi, s_y * deta,
-										 wavelength, P)
+			chi = fraction * self.aberrations.phase(tuple(shape), s_x * dxi,
+													s_y * deta, wavelength, P)
+		if not supplied:
+			return None if chi is None else _screen_item(chi, dxi, deta, name)
 		return self._scaled_screen(chi, tuple(shape), dxi, deta, s, name)
 
 	def aberration_powers(self) -> tuple:
