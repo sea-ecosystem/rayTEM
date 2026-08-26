@@ -44,24 +44,30 @@ ENTRANCE_DRIFT = 0.05
 
 
 def build_objective_section(alpha: float = 30e-3, voltage: float = 200,
-							n_rays: int = 15, wave_shape: tuple = (2048, 2048),
+							n_rays: int = 15, wave_shape: tuple = (256, 256),
 							wave_oversample: float = 1.25) -> Microscope:
 	"""Assemble the objective section behind a source.
 
 	Parameters
 	----------
 	alpha : float, optional
-		Half-angle of the pencil arriving at OL1 (radians), by default 0.03.
-		The source emits a collimated fan of height ``alpha·f_OL1``, so this is
-		the convergence angle the objective works at — the quantity every axial
-		aberration is measured against.
+		**Convergence semi-angle at the sample** (radians), by default 0.03 —
+		the quantity every axial aberration is measured against. The source
+		emits a collimated fan of height ``alpha·f_OL1``, which OL1 turns into
+		exactly that convergence.
+
+		Note the angle is the ray's **total** deflection, not its x component:
+		OL1 is thick, so it also rotates the ray by its Larmor angle
+		(``KL = 1.30`` rad here). A collimated ray at 240 µm leaves the body at
+		30.000 mrad total, of which only 8.08 mrad is in x — the rest has been
+		rotated into y. Reading ``xt`` alone under-reports the convergence by
+		``cos(KL)``.
 	voltage : float, optional
 		Accelerating voltage in kilovolts, by default 200.
 	n_rays : int, optional
 		Number of rays across the fan, by default 15.
 	wave_shape : tuple, optional
-		Wave-optics grid ``(ny, nx)``, by default ``(2048, 2048)``. Large
-		because an aberration screen's phase gradient goes as ``r³``; see Notes.
+		Wave-optics grid ``(ny, nx)``, by default ``(256, 256)``.
 	wave_oversample : float, optional
 		Grid half-extent as a multiple of the aperture radius, by default 1.25.
 		Deliberately tight: the aberration screen is evaluated over the whole
@@ -84,12 +90,17 @@ def build_objective_section(alpha: float = 30e-3, voltage: float = 200,
 
 	Notes
 	-----
-	The grid defaults are set by the **aberration**, not by the beam. A screen
-	``χ = -k C₃₀ r⁴/4f⁴`` has gradient ``k C₃₀ r³/f⁴``, which at 30 mrad and
-	``C₃₀ = 1 mm`` reaches 8.5e6 rad/m at the aperture edge — so the pixel must
-	stay under ``π/8.5e6`` ≈ 370 nm or the screen aliases. 2048 samples across
-	2.5 aperture radii gives 293 nm and clears it; a wider grid at the same
-	count does not.
+	The grid is sized by the **aberration**, not by the beam. A screen
+	``χ = -k C₃₀ r⁴/4f⁴`` has gradient ``k C₃₀ r³/f⁴``, so the samples needed
+	go as ``C₃₀ α⁴`` — and it is the grid **corner** that binds, at ``√2``
+	times the half-extent, i.e. 4× the requirement of the edge. That is also
+	why ``wave_oversample`` is tight: empty grid beyond the aperture costs
+	sampling rather than buying safety.
+
+	256 is ample here because a thick lens now distributes its screen over
+	``elements.MEDIUM_SLICES`` slices, so each applies ``1/16`` of the phase.
+	At 30 mrad it carries ``C₃₀`` up to ~0.5 mm; 1 mm still aliases, and
+	``_check_screen_sampling`` says so rather than quietly returning nonsense.
 
 	Examples
 	--------

@@ -18,11 +18,15 @@ E     the focal surface: the ISOLATED thin lens follows the closed form
       along the body rather than applied at one plane.
 F     the focus itself, as a Strehl loss.
 
-Why C30 = 0.1 mm and not 1 mm: at 30 mrad the quartic phase goes as alpha^4,
-and 1 mm would need ~8192 samples across the grid before the screen stops
-aliasing (the guard in _check_screen_sampling says so rather than quietly
-producing nonsense). 0.1 mm at 30 mrad is 50.7 rad of peak phase — a strong
-aberration the grid can actually carry.
+ALPHA is the convergence semi-angle AT THE SAMPLE, and it is the ray's total
+deflection: OL1 is thick, so it rotates the ray by its Larmor angle too, and
+only 8.08 of the 30 mrad is in x.
+
+Why C30 = 0.1 mm and not 1 mm: the samples an aberration screen needs go as
+C30*alpha^4, and at 30 mrad 1 mm still aliases even after the thick lens
+distributes its screen over MEDIUM_SLICES (_check_screen_sampling says so
+rather than quietly producing nonsense). 0.5 mm is the ceiling here; 0.1 mm is
+50.7 rad of peak phase, which already destroys the focus.
 
 Run: python examples/06_aberratedObjective.py   (writes figures/)
 """
@@ -37,7 +41,7 @@ from pySEA.rayTEM.seashells import read_scaled_wavefield
 from pySEA.rayTEM import waveoptics as wo
 
 ALPHA, C30, F_OL = 30e-3, 1e-4, 8e-3
-N_WAVE, N_PLANES = 1024, 80
+N_WAVE, N_PLANES = 256, 80
 LAM = 2.5078e-12
 
 

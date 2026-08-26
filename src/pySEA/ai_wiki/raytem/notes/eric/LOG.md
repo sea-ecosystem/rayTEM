@@ -16,12 +16,28 @@ metre) and the request surfaced three bugs on the way.
 **Outcome:** 115 -> 125 tests. The figure now shows the same caustic in two
 independent representations.
 
-**Configuration, and why:** 30 mrad as asked, but **C30 = 0.1 mm, not 1 mm**.
-The quartic phase goes as alpha^4, and 1 mm at 30 mrad needs ~8192 samples
-before the screen stops aliasing. 0.1 mm is 50.7 rad of peak phase — plenty.
-Note the screen is sampled over the WHOLE grid, not just inside the aperture,
-and its gradient goes as r^3, so a *wider* grid makes sampling harder, not
-easier: `wave_oversample` is deliberately 1.25.
+**Configuration, and why:** 30 mrad as asked, C30 = 0.1 mm, grid **256²**.
+
+I first sized the grid at 2048² and told Eric 1 mm would need ~8192. That was
+measured **before** the screen was distributed over `MEDIUM_SLICES`, and I did
+not re-measure after. Each slice applies 1/16 of the phase, so the sampling
+requirement fell 16x: 256² now carries C30 up to ~0.5 mm at 30 mrad, and the
+whole example runs in 5.6 s instead of minutes, with identical numbers
+(Strehl 0.033 either way). Re-measure after a change that alters the quantity
+being measured.
+
+Still true and worth keeping: the samples needed go as `C30 * alpha^4`; the
+screen is evaluated over the WHOLE grid, not just inside the aperture; and it
+is the grid **corner** that binds, at sqrt(2) times the half-extent, i.e. 4x
+the edge requirement. So empty grid beyond the aperture costs sampling rather
+than buying safety — `wave_oversample` is deliberately tight.
+
+**ALPHA means the convergence semi-angle at the sample, and it is the ray's
+TOTAL deflection.** I briefly mis-read it as 8 mrad by looking at `xt` alone:
+OL1 is thick, so it also rotates the ray by its Larmor angle (KL = 1.30 rad),
+leaving only `cos(KL)` of the 30.000 mrad in x and the rest in y. `focal_power`
+(125, f = 8 mm) and the ray matrix's `-C` (33.68) differ by exactly that
+`cos(KL)` — not a bug, but a trap for anyone reading one axis.
 
 **The three bugs, all silent:**
 
