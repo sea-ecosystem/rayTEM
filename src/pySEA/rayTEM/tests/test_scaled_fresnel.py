@@ -2600,3 +2600,60 @@ def test_merging_a_complex_screen_into_a_real_volume_converts_it_meaningfully():
 	# a real merge leaves the volume real, so nothing is paid for the common case
 	out = d._combine_screen(np.full((16, 16), 0.1), (16, 16), 2e-6, 2e-6)
 	assert not np.iscomplexobj(out) and np.allclose(out[1], 0.1)
+
+
+def _thick_strength(f: float, L: float) -> float:
+	"""Strength K solving the thick-lens relation ``1/f = K sin(K L)``.
+
+	The tests build thick lenses by focal length, and `Lens.focal_power` uses
+	that relation, so inverting it here keeps a test lens's f meaning what it
+	says rather than being whatever `sqrt(1/f)` happens to give for a body.
+	"""
+	from scipy.optimize import brentq
+	return float(brentq(lambda K: K * np.sin(K * L) - 1.0 / f, 1e-6, np.pi / (2 * L)))
+
+
+def test_a_thick_medium_still_applies_its_screen():
+	# A thick lens is carried on the scaled path as a quadratic-index MEDIUM,
+	# so phase_shift is never called for it. Anything the medium's curvature
+	# cannot represent -- its aberrations, or a supplied screen -- was therefore
+	# dropped in silence, while the ray path applied it. The body is now split
+	# around that screen.
+	from pySEA.rayTEM.seashells import make_screen_phase_signal, read_scaled_wavefield
+	# a short-focus objective at 7.5 mrad, where C30 = 1 mm is ~2 rad of quartic
+	# phase: big enough to see, small enough for the grid to sample
+	f, L, n, EXT, A = 0.008, 0.01, 128, 1.5e-4, 6e-5
+	K = _thick_strength(f, L)
+	def run(**kw):
+		lens = Lens(strength=K, length=L, **kw)
+		mic = Microscope(sections=[MicroscopeSection(elements=[
+			Source(voltage=200, wave_shape=(n, n), wave_extent=EXT,
+				   wave_kind="aperture", aperture_radius=A),
+			lens, Drift(length=0.02)])])
+		mic.propagate_wave(mode="hybrid", absorb=0.0)
+		return np.asarray(read_scaled_wavefield(mic._wave_scaled_planes[-1])[0])
+
+	ideal = run()
+	# an aberrated thick lens must differ from an ideal one on the WAVE path
+	aberrated = run(aberrations={'C30': 1e-3})
+	assert not np.allclose(ideal, aberrated), "thick-lens aberration reached the wave"
+	# a lens whose thickness is zero takes the ordinary thin route; the two
+	# should agree on which direction the aberration pushes, not be unrelated
+	assert np.abs(aberrated - ideal).max() > 1e-3 * np.abs(ideal).max()
+
+	# the same must hold for a SUPPLIED screen on a thick lens
+	lens = Lens(strength=K, length=L)
+	lens.screen = make_screen_phase_signal(np.full((n, n), 0.7), EXT / n, EXT / n)
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200, wave_shape=(n, n), wave_extent=EXT,
+			   wave_kind="aperture", aperture_radius=A),
+		lens, Drift(length=0.02)])])
+	mic.propagate_wave(mode="hybrid", absorb=0.0)
+	screened = np.asarray(read_scaled_wavefield(mic._wave_scaled_planes[-1])[0])
+	# a uniform phase is a global factor: same modulus, shifted phase
+	assert np.allclose(np.abs(screened), np.abs(ideal), rtol=1e-9)
+	assert not np.allclose(screened, ideal)
+
+	# an ideal thick lens with nothing attached must be BIT-FOR-BIT unchanged --
+	# the split must not perturb the common case
+	assert np.array_equal(run(), ideal)

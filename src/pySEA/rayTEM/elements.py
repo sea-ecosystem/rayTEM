@@ -928,6 +928,53 @@ class Element(SEASerializable):
 				"frame state. Propagate with mode='fixed', or supply a single 2D screen.")
 		return _screen_item(chi, dx, dy, name)
 
+	def _medium_screen(self, shape:tuple, dxi:float, deta:float, wavelength:float,
+					   s, name:str):
+		"""The screen a *medium* still has to apply, beyond its own curvature.
+
+		A thick element that reports a :meth:`_scaled_segment` is carried on the
+		scaled path as a quadratic-index medium, so :meth:`phase_shift` is never
+		called for it. Anything the medium's curvature cannot represent would
+		then be silently dropped — which is exactly what happened to a thick
+		lens's aberrations and to any supplied screen. This is the medium's
+		counterpart of ``phase_shift``: it returns only what the curvature does
+		*not* already carry.
+
+		The base implementation returns the supplied screen, if any. A medium
+		with its own non-quadratic physics (see :meth:`Lens._medium_screen`)
+		adds it.
+
+		Parameters
+		----------
+		shape : tuple of int
+			Transverse shape ``(ny, nx)`` of the scaled field U.
+		dxi, deta : float
+			Scaled-grid sample spacings.
+		wavelength : float
+			Wavelength (metres).
+		s : float or Sequence[float]
+			Current transverse scale factor, scalar or ``(s_x, s_y)``.
+		name : str
+			Screen item name.
+
+		Returns
+		-------
+		Signal, seashells._Phase, or None
+			The screen to apply mid-body, or ``None`` when the medium is
+			complete on its own.
+
+		Raises
+		------
+		ValueError
+			From :meth:`_scaled_screen`, if the screen is a volume.
+
+		Related
+		-------
+		_scaled_segment : Declares the element a medium in the first place.
+		_propagate_wave_scaled : Splits the body in half around the result.
+		"""
+		return self._scaled_screen(None, shape, dxi, deta, s, name)
+
 	@staticmethod
 	def _merge_screens(a, b):
 		r"""Combine two co-located screens into one.
@@ -1527,6 +1574,35 @@ class Element(SEASerializable):
 									 propagate_quadratic_segment_hybrid)
 			_kind, kappa, larmor = segment
 			spin = larmor if rotate else 0.0
+			# A medium whose physics is NOT all in its curvature -- a thick lens
+			# with aberrations, or any element carrying a supplied screen -- has
+			# to apply the remainder somewhere. Split the body and put it at the
+			# centre, the same thin-approximation compromise the fixed path
+			# makes with [kernel(L/2), screen, kernel(L/2)]. Without this the
+			# screen is silently dropped, because phase_shift is never reached.
+			mid_screen = self._medium_screen(U.shape, dxi, deta, wavelength, s,
+											 self.name or type(self).__name__)
+			if mid_screen is not None:
+				half = type(self).__new__(type(self))
+				half.__dict__.update(self.__dict__)
+				half.length = L / 2
+				half._screen = None					# applied here, not twice
+				half.aberrations = None
+				first = half._propagate_wave_scaled(
+					make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
+												 z=z, z_cross=z_cross, name=name),
+					hybrid=hybrid, rotate=rotate, s_min=s_min, log=log,
+					absorb=absorb, crossover=crossover)
+				U, dxi, deta, wavelength, s, R, tau, z = read_scaled_wavefield(first)
+				z_cross = scaled_frame_crossover(first)
+				_check_screen_sampling(mid_screen.data, self.name or type(self).__name__)
+				U = apply_phase(U, mid_screen.data, phase_space_of(mid_screen))
+				second = half._propagate_wave_scaled(
+					make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau,
+												 z=z, z_cross=z_cross, name=name),
+					hybrid=hybrid, rotate=rotate, s_min=s_min, log=log,
+					absorb=absorb, crossover=crossover)
+				return second
 			if hybrid:
 				# a crossover can fall INSIDE the body; the hybrid traversal
 				# switches frames there rather than leaving the free engine to
@@ -3140,6 +3216,67 @@ class Lens(Element):
 			extra = ab.phase((ny, nx), dx, dy, wavelength, P)
 			chi = extra if chi is None else chi + extra
 		return self._phase_program(dimensions, wavelength, chi, self.name or "lens")
+
+	def _medium_screen(self, shape:tuple, dxi:float, deta:float, wavelength:float,
+					   s, name:str):
+		r"""The aberration a thick lens applies mid-body, plus any supplied screen.
+
+		Overrides :meth:`Element._medium_screen`. A thick round lens is carried
+		on the scaled path as a quadratic-index medium, whose curvature comes
+		from ``strength`` alone — an *ideal* lens. Every aberration is by
+		definition the departure from that, so the whole aberration function is
+		still to be applied, and this is what supplies it.
+
+		Note this uses the **full** set, including the quadratic ``C10``/``C12``
+		terms that :meth:`aberration_powers` would otherwise absorb into the
+		frame. That is deliberate and matches the ray path: the medium's
+		curvature is built from ``strength``, which knows nothing about
+		aberrations, so absorbing them into the frame here would apply them
+		twice at the thin-lens sites and not at all here.
+
+		Parameters
+		----------
+		shape : tuple of int
+			Transverse shape ``(ny, nx)`` of the scaled field U.
+		dxi, deta : float
+			Scaled-grid sample spacings.
+		wavelength : float
+			Wavelength (metres).
+		s : float or Sequence[float]
+			Current transverse scale factor, scalar or ``(s_x, s_y)``.
+		name : str
+			Screen item name.
+
+		Returns
+		-------
+		Signal, seashells._Phase, or None
+			The screen, or ``None`` for an ideal lens with nothing supplied.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		aberration_kick : The ray path's distributed counterpart.
+		phase_shift : The thin-element route, which this replaces for a medium.
+
+		Notes
+		-----
+		The screen acts at the body's **centre**, where
+		:meth:`_propagate_wave_scaled` splits the medium. The ray path instead
+		integrates the perturbation along the body, so the two agree only to
+		the extent that a mid-body kick approximates that integral — the same
+		compromise the fixed path already makes.
+		"""
+		from .waveoptics import axis_components
+		P = self.focal_power
+		chi = None
+		if self.aberrations and P != 0:
+			s_x, s_y = axis_components(s)
+			chi = self.aberrations.phase(tuple(shape), s_x * dxi, s_y * deta,
+										 wavelength, P)
+		return self._scaled_screen(chi, tuple(shape), dxi, deta, s, name)
 
 	def aberration_powers(self) -> tuple:
 		r"""Split the aberration function into frame powers and a residual.
