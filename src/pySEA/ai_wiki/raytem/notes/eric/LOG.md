@@ -2,6 +2,42 @@
 
 Newest entries at top.
 
+## 2026-08-26 — [Done] focus_error was dead code
+**Goal:** fix the long-queued `focus_error` bug.
+**Why:** it raised on any column, so it had not run in a long time.
+- [x] stale `findPlanes` call
+- [x] hard-coded instrument name
+- [x] two unhelpful failure modes
+
+**Outcome:** 130 -> 131 tests. `focus_error()` on basic_column now returns
+0.50249 m, the first diffraction plane past C3 (there is one at 0.3052 before
+it, so "first after" and "nearest" genuinely differ here).
+
+**Three faults, one method:**
+1. `findPlanes(self.rays, "x")` — the second parameter is the **rotation
+   array**; the axis goes third. The string was handed to
+   `convert_to_rotating_reference_frame`, which indexed it as an array:
+   `TypeError: string indices must be integers`. Exactly the staleness
+   CLAUDE.md warns about for the `R`/`I` split; this caller was never updated.
+2. It looked up `"CL3"`, which no generic column has — basic_column's last
+   condenser is `C3`. Now a parameter, `after="C3"`, because the element that
+   means "after the condenser" is instrument-specific.
+3. `get_element_position` unpacked `index()`'s `None` on a miss, so a wrong
+   name surfaced as `TypeError: cannot unpack non-iterable NoneType`. It now
+   raises `KeyError` listing the known names.
+
+**Mentioned, not fixed** (surgical scope):
+- `Microscope.index` still *prints* `ERROR: name ... not found` and returns
+  `None`. With `get_element_position` now raising, that print is pure noise on
+  the way to a real exception; other callers may rely on the `None`, so I left
+  it.
+- `convergence_angle` hard-codes `"OL1"` the same way `focus_error` hard-coded
+  `"CL3"`. It works on basic_column so nothing is broken today, but it carries
+  the same instrument assumption and should take an `after=`-style parameter.
+- `beam_current`/`convergence_angle`/`focus_error` are all commented
+  `#@property` — someone meant them to be properties. `focus_error` now takes
+  parameters, so it should stay a method.
+
 ## 2026-08-26 — [Done] Astigmatism/coma coverage, and an attribute guard
 **Goal:** prove the aberration generality on the terms people actually tune,
 and stop the silent-attribute failure mode.

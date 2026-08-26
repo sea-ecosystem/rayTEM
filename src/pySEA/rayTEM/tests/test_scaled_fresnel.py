@@ -2841,3 +2841,34 @@ def test_sections_and_microscopes_refuse_unknown_attributes_too():
 	sec.elements = list(sec.elements)
 	mic.sections = list(mic.sections)
 	sec.name = "renamed"
+
+
+def test_focus_error_finds_the_first_crossover_after_the_condenser():
+	# focus_error called findPlanes(rays, "x"), but findPlanes' second parameter
+	# is the ROTATION array -- the axis goes third. The axis string was handed
+	# to the rotating-frame conversion, which indexed it as an array, so the
+	# method raised TypeError on any column and had clearly never run since
+	# findPlanes gained that argument. It also looked up "CL3", an element no
+	# generic column has.
+	import os, pySEA.rayTEM
+	from pySEA.rayTEM.assemblies import load_microscope
+	P = os.path.join(os.path.dirname(pySEA.rayTEM.__file__), "microscopes",
+					 "basic_column.sea")
+	mic = load_microscope(P)
+	mic.propagate_ray()
+	z_c3 = mic.get_element_position("C3")
+	diff = sorted(float(z) for z in mic.conjugate_planes(axis="x")["diff"])
+	first_after = min(z for z in diff if z > z_c3)
+
+	assert np.isclose(mic.focus_error(), first_after, rtol=1e-9)
+	# it is the FIRST past C3, not the nearest -- there is a plane before it
+	assert any(z < z_c3 for z in diff), "test needs a plane upstream to be meaningful"
+	# and the expected position is subtracted
+	assert np.isclose(mic.focus_error(expected_crossover=0.4), first_after - 0.4,
+					  rtol=1e-9)
+
+	# both failure modes say what is wrong instead of raising from deep inside
+	with pytest.raises(KeyError, match="no element named 'CL3'"):
+		mic.focus_error(after="CL3")
+	with pytest.raises(ValueError, match="no crossover found downstream"):
+		mic.focus_error(after="detector")

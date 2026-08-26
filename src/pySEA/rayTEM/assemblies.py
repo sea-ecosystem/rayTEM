@@ -1020,16 +1020,74 @@ class Microscope(SealedAttributes, SEASerializable):
 		z = self.get_element_position("O1")+self["O1"].length+.001
 		x,y,xt,yt,R,I = measureAtZ(z,section=self)
 		return xt
-	#@property
-	def focus_error(self,expected_C3_crossover=0,regenerate=False):
-		if regenerate:
+	def focus_error(self, expected_crossover:float=0.0, after:str="C3",
+					regenerate:bool=False) -> float:
+		"""How far the first crossover after a lens sits from where it should.
+
+		The condenser's job is to put a crossover at a known plane; this
+		measures the miss. It finds the first **diffraction** plane downstream
+		of ``after`` and subtracts the expected position, so zero means the
+		condenser is focused where it was meant to be.
+
+		Parameters
+		----------
+		expected_crossover : float, optional
+			Where the crossover is supposed to be (metres, absolute z), by
+			default 0.0 — which makes the return value simply the crossover's
+			position.
+		after : str, optional
+			Name of the element to look downstream of, by default ``"C3"`` (the
+			last condenser lens in :mod:`microscopes.basic_column`). Named
+			rather than hard-coded because the element that defines "after the
+			condenser" is instrument-specific.
+		regenerate : bool, optional
+			Re-run :meth:`propagate_ray` first, by default False.
+
+		Returns
+		-------
+		float
+			``z_crossover - expected_crossover`` (metres).
+
+		Raises
+		------
+		KeyError
+			If ``after`` names no element in this microscope.
+		ValueError
+			If no crossover is found downstream of it — a column with no
+			condenser crossover has no focus error to report, and returning a
+			number anyway would invent one.
+
+		Related
+		-------
+		conjugate_planes : All the conjugate planes, not just this one.
+		postprocessing.findPlanes : Locates them.
+
+		Notes
+		-----
+		The **first** plane past ``after`` is taken, not the nearest: nearest
+		would happily pick one *upstream* when the condenser is badly off, which
+		is exactly when this measurement matters.
+
+		Examples
+		--------
+		>>> scope.focus_error(expected_crossover=0.44)      # doctest: +SKIP
+		"""
+		if regenerate or self.rays is None:
 			self.propagate_ray()
-		planes = findPlanes(self.rays,"x") #['x']['diff' or 'image']['z' or 'M' or 'R' or 'p']
-		zp = planes['x']['diff']['z']	# findPlanes returns fractional coordinated. 1.4 is 40% of the way through element 1
-		zp = [ zFromFractional(self.rays[:,0,columnByName('z')],z) for z in zp ]
-		zp=xp.asarray(zp)
-		i = xp.where(zp > self.get_element_position("C3"))[0][0] # first plane after CL3 (not closest, as we did for mag/rot w/r/t CCD)
-		return zp[i]-expected_C3_crossover
+		z_after = self.get_element_position(after)
+		# findPlanes takes the rotation array explicitly; passing the axis in
+		# its place silently handed a string to the frame conversion
+		planes = findPlanes(self.rays, self.R, "x")	# [axis]['diff'|'image']['z'|'M'|'R'|'p']
+		zp = planes['x']['diff']['z']	# fractional coordinates: 1.4 is 40% through element 1
+		zp = xp.asarray([zFromFractional(self.rays[:, 0, columnByName('z')], z)
+						 for z in zp])
+		downstream = xp.where(zp > z_after)[0]
+		if len(downstream) == 0:
+			raise ValueError(
+				f"no crossover found downstream of {after!r} (at z = {z_after} m); "
+				f"the diffraction planes are at {list(zp)} m. Check the illumination "
+				"reaches a focus, or name a different element with `after=`.")
+		return float(zp[downstream[0]] - expected_crossover)
 
 	#####################################
     # region: SEASerializable integration
@@ -1109,8 +1167,36 @@ class Microscope(SealedAttributes, SEASerializable):
 		else:
 			print("ADJUST ELEMENT LENGTH NOT YET IMPLEMENTED FOR LAST ELEMENT IN SECTION")
 
-	def get_element_position(self,e):
-		i,j = self.index(e)
+	def get_element_position(self, e:str) -> float:
+		"""Absolute z of a named element.
+
+		Parameters
+		----------
+		e : str
+			Element name.
+
+		Returns
+		-------
+		float
+			Position along the column (metres).
+
+		Raises
+		------
+		KeyError
+			If no element of that name exists. :meth:`index` reports a miss by
+			printing and returning ``None``, which used to surface here as
+			``TypeError: cannot unpack non-iterable NoneType`` — true, but no
+			help in finding the wrong name.
+
+		Related
+		-------
+		named_positions : Every named element and where it sits.
+		"""
+		found = self.index(e)
+		if found is None or not isinstance(found, tuple):
+			raise KeyError(f"no element named {e!r} in this microscope; "
+						   f"known names are {sorted(self.named_positions)}.")
+		i, j = found
 		return self.sections[i].position+self.sections[i][j].position
 
 	def move_element(self,element,z=None,dz=None,allow_unsafe=False):

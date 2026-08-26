@@ -472,7 +472,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2669,
+    "source_lineno": 2755,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -481,7 +481,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2597,
+    "source_lineno": 2683,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -1545,6 +1545,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 2022,
     "signature": "test_focal_surface_single_radius_cannot_separate_r_terms()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_focus_error_finds_the_first_crossover_after_the_condenser",
+    "qualname": "test_focus_error_finds_the_first_crossover_after_the_condenser",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 2846,
+    "signature": "test_focus_error_finds_the_first_crossover_after_the_condenser()",
     "doc": ""
   },
   {
