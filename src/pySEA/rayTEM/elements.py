@@ -12,6 +12,9 @@ from .seashells import SEASerializable
 from .aberrations import Aberrations
 
 from copy import deepcopy
+from functools import wraps
+from difflib import get_close_matches
+from weakref import WeakSet
 
 # CONVENTION: a ray is a purely *geometric* state vector: lateral positions (x,y),
 # angles (xt,yt, "t" for theta θ or tilt), position down the column (z), and energy (E).
@@ -316,6 +319,14 @@ class suspended_aberrations:
 		return False
 
 
+#: Elements whose ``__init__`` has finished, and which therefore refuse unknown
+#: attribute names (see :meth:`Element.__setattr__`). Held OFF the instance, in
+#: a weak set, because anything in an element's ``__dict__`` is serialized: a
+#: flag stored there would be written into every ``.sea`` file and then handed
+#: back to ``setattr`` on load, under a name the guard itself would refuse.
+_SEALED = WeakSet()
+
+
 #: Slices a thick medium is split into when it carries a screen. An aberration
 #: acts along the body, not at one plane, so the wave path integrates it the way
 #: :meth:`Element.aberration_kick` does on the ray side.
@@ -377,6 +388,19 @@ def _as_aberrations(value) -> Aberrations:
 
 
 class Element(SEASerializable):
+	#: Optional affine offsets an element may carry, read by :meth:`propagate_ray`
+	#: as ``getattr(self, ..., 0)``. Declared here rather than left implicit
+	#: because they are part of the ray contract — every element may be shifted
+	#: or tilted — and because a name no class declares is now refused by
+	#: :meth:`__setattr__`.
+	shift_x = 0.0
+	shift_y = 0.0
+	tilt_x = 0.0
+	tilt_y = 0.0
+	#: Larmor rotation accumulated through this element (radians). Set by the
+	#: elements that have an axial field; 0 for everything else.
+	rotation = 0.0
+
 	#: Stored attributes that are not constructor parameters, so
 	#: :func:`seashells.safeReinstantiate` restores them explicitly on reload.
 	#: ``aberrations`` is a kwarg on ``Element`` and ``Lens`` but not on every
@@ -418,6 +442,149 @@ class Element(SEASerializable):
 		self._screen = screen
 		self.length = 0		# transparent default: zero physical extent (subclasses overwrite)
 
+	def __init_subclass__(cls, **kwargs):
+		"""Seal each concrete subclass once its own ``__init__`` has finished.
+
+		Wrapping here rather than asking every subclass to call a ``_seal()``
+		of its own means a new element type is protected the day it is written,
+		with nothing to remember. The wrapper fires only when ``type(self)`` is
+		the class being defined, so a subclass that calls ``super().__init__()``
+		is still free to set its own attributes afterwards.
+
+		Parameters
+		----------
+		**kwargs
+			Passed through to :meth:`object.__init_subclass__`.
+
+		Returns
+		-------
+		None
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		__setattr__ : What sealing enables.
+		"""
+		super().__init_subclass__(**kwargs)
+		own_init = cls.__dict__.get("__init__")
+		if own_init is None:
+			return
+		@wraps(own_init)
+		def sealing_init(self, *args, **kw):
+			own_init(self, *args, **kw)
+			if type(self) is cls:
+				_SEALED.add(self)
+		cls.__init__ = sealing_init
+
+	def from_hdf5_group(self, group):
+		"""Read this element from an HDF5 group, with the attribute guard lifted.
+
+		Extends :meth:`seashells.SEASerializable.from_hdf5_group` only to
+		suspend :meth:`__setattr__`'s check while the loader writes. A stored
+		file may carry names the class no longer declares — and the writer
+		stores a private ``_x`` under the public key ``x``, so even a private
+		comes back public — and refusing those would make an older file
+		unopenable. The guard exists to catch a person mistyping an attribute,
+		not to validate a file.
+
+		Parameters
+		----------
+		group : h5py.Group
+			The group to read.
+
+		Returns
+		-------
+		object
+			Whatever the base implementation returns.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		__setattr__ : The check suspended here.
+		"""
+		was_sealed = self in _SEALED
+		_SEALED.discard(self)
+		try:
+			return super().from_hdf5_group(group)
+		finally:
+			if was_sealed:
+				_SEALED.add(self)
+
+	def __setattr__(self, name:str, value) -> None:
+		"""Set an attribute, refusing names this element does not have.
+
+		Assigning an unknown attribute used to succeed and do nothing useful —
+		the value landed on the instance and nothing ever read it. That is a
+		silent failure mode this package produced repeatedly: ``lens.Cs = 1e-3``
+		after ``Cs`` stopped being an attribute, ``section.np_xy = ...`` on a
+		section that never had one. Each looked like it worked and changed
+		nothing.
+
+		Known names are those the element already has, anything the class
+		defines (methods, properties), and any name starting with ``_``, which
+		is left open for serialization machinery to write through.
+
+		Deserialization is exempt: :meth:`from_hdf5_group` lifts the seal for its
+		own duration. A ``.sea`` file may legitimately carry names the class no
+		longer declares — including public ones, since the writer stores a
+		private ``_x`` under the key ``x`` — and refusing them would turn an old
+		file into an unopenable one. The guard is there to catch a person
+		mistyping an attribute, not to police what a file contains.
+
+		A deep copy is **not** sealed — ``__init__`` never runs for one — so
+		:meth:`copy` re-seals explicitly. That is the only place it needs to.
+
+		Parameters
+		----------
+		name : str
+			Attribute name.
+		value : object
+			Value to set.
+
+		Returns
+		-------
+		None
+
+		Raises
+		------
+		AttributeError
+			If the element is sealed and ``name`` is not a known attribute. The
+			message names the closest known attribute when there is one, since
+			the usual cause is a typo or a renamed parameter.
+
+		Related
+		-------
+		__init_subclass__ : Installs the seal.
+
+		Notes
+		-----
+		Only *new* names are refused. Every existing attribute stays writable,
+		so this changes nothing for code that was already correct.
+
+		Examples
+		--------
+		>>> Lens(strength=1.0).nonexistent = 3      # doctest: +SKIP
+		AttributeError: 'Lens' has no attribute 'nonexistent' ...
+		"""
+		if (name.startswith("_") or name in self.__dict__
+				or hasattr(type(self), name) or self not in _SEALED):
+			object.__setattr__(self, name, value)
+			return
+		known = sorted(set(self.__dict__) | set(dir(type(self))))
+		near = get_close_matches(name, [k for k in known if not k.startswith("_")], 1)
+		hint = f" Did you mean {near[0]!r}?" if near else ""
+		raise AttributeError(
+			f"{type(self).__name__!r} has no attribute {name!r}, and setting one here "
+			f"would do nothing: no propagation path reads it.{hint} Aberrations belong "
+			"on .aberrations and a supplied phase or transmission on .screen; anything "
+			"else needs a subclass that declares it.")
+
 	#####################################
     # region: Dunders
 
@@ -449,7 +616,30 @@ class Element(SEASerializable):
 		return f'{name} ({kind} Element)'
 
 	def copy(self):
-		return deepcopy(self)
+		"""A deep copy of this element, sealed like the original.
+
+		Returns
+		-------
+		Element
+			An independent copy.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		__setattr__ : Why the copy has to be re-sealed.
+
+		Notes
+		-----
+		``deepcopy`` restores ``__dict__`` directly without running
+		``__init__``, so a copy would otherwise accept unknown attribute names
+		that the original refuses.
+		"""
+		clone = deepcopy(self)
+		_SEALED.add(clone)
+		return clone
 		dic = self.__dict__
 		allowed_kwargs = inspect.signature(type(self)).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.
 		dic = { k:v for k,v in dic.items() if k in allowed_kwargs } # e.g., Source doesn't accept "length" even though it

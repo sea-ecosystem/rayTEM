@@ -2771,3 +2771,56 @@ def test_coma_is_even_order_and_spherical_is_odd():
 	assert np.isclose(sph_x[0], -sph_x[1], rtol=1e-12)
 	# an aligned C21 has no y component on the x axis -- the tail lies along x
 	assert np.abs(coma_y).max() < 1e-12 * np.abs(coma_x).max()
+
+
+def test_setting_an_unknown_attribute_is_refused():
+	# Assigning a name an element does not have used to succeed and do nothing:
+	# the value landed on the instance and no propagation path ever read it.
+	# That failure mode bit this package repeatedly -- `lens.Cs = ...` after Cs
+	# stopped being an attribute, `section.np_xy = ...` on a section that never
+	# had one -- and each time it looked like it had worked.
+	import os, tempfile
+	from pySEA.rayTEM.assemblies import load_microscope
+	from pySEA.rayTEM.aberrations import Aberrations
+	lens = Lens(strength=3.0, length=0.01)
+	for bad in ("Cs", "nonexistent", "strenght"):
+		with pytest.raises(AttributeError, match="has no attribute"):
+			setattr(lens, bad, 1.0)
+	# a near miss says what was probably meant
+	with pytest.raises(AttributeError, match="Did you mean 'strength'"):
+		lens.strenght = 1.0
+
+	# everything an element really has stays writable, including the optional
+	# affine offsets and the properties
+	lens.strength = 4.0
+	lens.tilt_x = 1e-6						# declared on Element, read by propagate_ray
+	lens.aberrations = Aberrations({'C30': 1e-3})
+	lens.screen = None						# a property
+	lens._private = 1						# underscore names are left open
+
+	# a deepcopy never runs __init__, so copy() has to re-seal it explicitly
+	with pytest.raises(AttributeError, match="has no attribute"):
+		lens.copy().Cs = 1.0
+
+	# the LOADER is exempt: a stored file may carry names the class no longer
+	# declares, and the writer stores a private `_x` under the public key `x`,
+	# so refusing those would make an old file unopenable
+	cwd = os.getcwd()
+	try:
+		os.chdir(tempfile.mkdtemp())
+		mic = Microscope(sections=[MicroscopeSection(elements=[
+			Source(size=(1, 1), np_xy=(3, 3), angle=(1, 1), na_xy=(3, 3)),
+			Drift(length=1), lens, Drift(length=1)])])
+		mic.propagate_ray()
+		mic.to_sea("t.sea")
+		back = [e for s in load_microscope("t.sea").sections
+				for e in s.elements if isinstance(e, Lens)][0]
+		assert back.strength == 4.0 and back.aberrations['C30'] == 1e-3
+		# ...and what comes back is sealed again
+		with pytest.raises(AttributeError, match="has no attribute"):
+			back.Cs = 1.0
+		# the seal itself must never be stored: it lives in a weak set, not in
+		# __dict__, or it would be written into every file
+		assert "_sealed" not in vars(back) and "sealed" not in vars(back)
+	finally:
+		os.chdir(cwd)
