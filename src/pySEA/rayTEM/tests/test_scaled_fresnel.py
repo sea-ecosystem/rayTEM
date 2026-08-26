@@ -2911,21 +2911,87 @@ def test_convergence_angle_is_a_semi_angle_and_a_total_deflection():
 					  rtol=1e-9)
 
 
-def test_beam_current_is_the_fraction_apertures_let_through():
+def test_beam_current_is_in_amps_and_apertures_take_it_away():
+	# The Source is the only place a current is STATED; everywhere downstream it
+	# is derived. propagate_ray shares the source's amps over the rays, so I
+	# carries amps per ray and an aperture reduces the total just by scaling.
+	src = Source(size=(1e-4, 1e-4), np_xy=(5, 5), angle=(1e-3, 1e-3), na_xy=(3, 3),
+				 beam_current=2e-9)
 	mic = Microscope(sections=[MicroscopeSection(elements=[
-		Source(size=(1e-4, 1e-4), np_xy=(5, 5), angle=(1e-3, 1e-3), na_xy=(3, 3)),
-		Drift(length=0.1), Aperture(radius=3e-5), Drift(length=0.1)])])
+		src, Drift(length=0.1), Aperture(radius=3e-5), Drift(length=0.1)])])
 	mic.propagate_ray()
-	I = np.asarray(mic.I)
-	assert np.isclose(mic.beam_current, I[-1].sum() / I[0].sum(), rtol=1e-12)
-	assert 0.0 < mic.beam_current < 1.0				# the aperture cut something
 
-	# with nothing to cut it, everything gets through
+	assert np.isclose(mic.current_at(0), src.beam_current, rtol=1e-12)
+	assert np.isclose(mic.beam_current, np.asarray(mic.I)[-1].sum(), rtol=1e-12)
+	assert mic.beam_current < src.beam_current			# the aperture cut some
+	# and it is lost AT the aperture, not gradually
+	assert np.isclose(mic.current_at(1), src.beam_current, rtol=1e-12)
+	assert mic.current_at(2) < src.beam_current
+
+	# it scales with the stated current, because it IS that current attenuated
+	src2 = Source(size=(1e-4, 1e-4), np_xy=(5, 5), angle=(1e-3, 1e-3), na_xy=(3, 3),
+				  beam_current=4e-9)
+	twice = Microscope(sections=[MicroscopeSection(elements=[
+		src2, Drift(length=0.1), Aperture(radius=3e-5), Drift(length=0.1)])])
+	twice.propagate_ray()
+	assert np.isclose(twice.beam_current, 2 * mic.beam_current, rtol=1e-12)
+
+	# with nothing to cut it, all of it arrives
 	clear = Microscope(sections=[MicroscopeSection(elements=[
-		Source(size=(1e-4, 1e-4), np_xy=(3, 3), angle=(1e-3, 1e-3), na_xy=(3, 3)),
-		Drift(length=0.1)])])
+		Source(size=(1e-4, 1e-4), np_xy=(3, 3), angle=(1e-3, 1e-3), na_xy=(3, 3),
+			   beam_current=7e-10), Drift(length=0.1)])])
 	clear.propagate_ray()
-	assert np.isclose(clear.beam_current, 1.0, rtol=1e-12)
+	assert np.isclose(clear.beam_current, 7e-10, rtol=1e-12)
 
-	# both are properties now, not methods
+	# a property, not a method
 	assert not callable(mic.beam_current) and not callable(mic.convergence_angle_at(0.1))
+
+	# and the stated current survives a .sea round trip
+	import os, tempfile
+	from pySEA.rayTEM.assemblies import load_microscope
+	cwd = os.getcwd()
+	try:
+		os.chdir(tempfile.mkdtemp())
+		mic.to_sea("t.sea")
+		back = load_microscope("t.sea")
+		assert np.isclose(back["G"]["G"].beam_current if False else
+						  [e for s in back.sections for e in s.elements
+						   if isinstance(e, Source)][0].beam_current, 2e-9, rtol=1e-12)
+		back.propagate_ray()
+		assert np.isclose(back.beam_current, mic.beam_current, rtol=1e-12)
+	finally:
+		os.chdir(cwd)
+
+
+def test_every_element_kind_can_be_reloaded():
+	# safeReinstantiate maps a stored `kind` back to its class, and a kind that
+	# is missing raises KeyError on load -- the object saves fine and then
+	# cannot be opened. Aperture and Prism were both missing, so no saved column
+	# containing an aperture had ever round-tripped, which matters because
+	# apertures are what set the beam current.
+	import os, tempfile
+	from pySEA.rayTEM.elements import Prism
+	from pySEA.rayTEM.assemblies import load_microscope
+	built = [Source(size=(1e-4, 1e-4), np_xy=(3, 3), angle=(1e-3, 1e-3), na_xy=(3, 3)),
+			 Drift(length=0.1), Lens(strength=3.0), Lens(strength=3.0, length=0.01),
+			 Dipole(strength=0.0), Quadrapole(strength=0.0),
+			 Quadrapole(strength=0.0, length=0.01), Aperture(radius=3e-5),
+			 Drift(length=0.1)]
+	kinds = {e.kind for e in built}
+	mic = Microscope(sections=[MicroscopeSection(elements=built)])
+	mic.propagate_ray()
+	cwd = os.getcwd()
+	try:
+		os.chdir(tempfile.mkdtemp())
+		mic.to_sea("t.sea")
+		back = load_microscope("t.sea")
+		got = {e.kind for s in back.sections for e in s.elements}
+		assert kinds <= got, f"kinds lost on reload: {kinds - got}"
+		assert any(isinstance(e, Aperture) for s in back.sections for e in s.elements)
+	finally:
+		os.chdir(cwd)
+	# a kind nothing knows says so, instead of raising a bare KeyError from a
+	# dict lookup buried in the loader
+	from pySEA.rayTEM.seashells import safeReinstantiate
+	with pytest.raises(KeyError, match="not in safeReinstantiate's table"):
+		safeReinstantiate(None, "Octupole")

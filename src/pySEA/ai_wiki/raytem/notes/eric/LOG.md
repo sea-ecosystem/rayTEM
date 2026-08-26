@@ -2,6 +2,38 @@
 
 Newest entries at top.
 
+## 2026-08-26 — [Done] Beam current in amps, and a reload table that lost two elements
+**Goal:** Eric's C1 — the Source states a current in amps; everything
+downstream derives it.
+**Why:** `beam_current` reported a dimensionless fraction because nothing in
+the column carried amps.
+- [x] `Source.beam_current` (float, amps, default 1 nA)
+- [x] `I` seeded in amps so `I.sum()` is the current at every plane
+- [x] `Microscope.beam_current` / `current_at(plane)` report amps
+- [x] fixed `safeReinstantiate`, which could not reload an Aperture or a Prism
+
+**Outcome:** 133 -> 134 tests. A 2 nA source behind a 30 µm aperture now reads
+45 pA at the exit, and `current_at` shows the loss happening AT the aperture.
+
+**Design:** the Source is the only place a current is *stated*. `propagate_ray`
+shares it over the rays, so `I` is amps-per-ray rather than a relative weight,
+and every attenuating element reduces the total just by scaling — no separate
+bookkeeping. Sections with no Source of their own inherit `I0` from the
+previous section, so chaining is unchanged.
+
+**Found on the way — a genuine bug, not mine.** `safeReinstantiate`'s kind→class
+table had no entry for `Aperture` or `Prism`, so any saved column containing one
+raised `KeyError` on load. **No column with an aperture had ever round-tripped**,
+which matters precisely because apertures are what set the beam current. Both
+added, and an unknown kind now says what is missing instead of raising a bare
+`KeyError` from a dict lookup inside the loader. A new element class that
+forgets this table will save fine and never load, so the message names it.
+
+**Not done, flagged:** the wave path does not carry current. A mask that changes
+`|psi|` changes it the same way, and the natural definition there is the
+integral of `|psi|^2` scaled to the source's current — nothing computes it
+today. There is also no `Gun` class yet; `Source` carries the attribute.
+
 ## 2026-08-26 — [Done] focus_error was dead code
 **Goal:** fix the long-queued `focus_error` bug.
 **Why:** it raised on any column, so it had not run in a long time.

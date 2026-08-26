@@ -557,7 +557,12 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 				raise UserWarning("First element is not a Source, and no r0 provided to propagate_ray. Please provide initial rays or ensure first element is a Source.")
 		n_rays = len(r0)
 		if I0 is None:
-			I0 = xp.ones(n_rays)
+			# Seed in AMPS, shared over the rays, so I.sum() is the current at
+			# every plane and an aperture reduces it just by scaling. Sections
+			# with no Source of their own inherit I0 from the previous section.
+			current = getattr(self.elements[0], "beam_current", None)
+			I0 = (xp.full(n_rays, float(current) / n_rays) if current is not None
+				  else xp.ones(n_rays))
 		if R0 is None:
 			R0 = xp.zeros(n_rays)
 		ri=[r0] ; Ii=[I0] ; Ri=[R0]
@@ -1009,18 +1014,20 @@ class Microscope(SealedAttributes, SEASerializable):
 
 	@property
 	def beam_current(self) -> float:
-		"""Beam intensity leaving the column, as a fraction of the source's.
+		"""Current leaving the column, in **amps**.
 
-		Apertures are what change it: :meth:`elements.Aperture.apply_intensity`
-		scales every ray by the fraction of the beam the bore admits, so this
-		is the product of those factors down the column. 1.0 means nothing was
-		cut.
+		Derived, not stated: :attr:`elements.Source.beam_current` is the only
+		place a current is declared, and :meth:`propagate_ray` shares it over
+		the rays so that ``I`` carries amps per ray. Every element that
+		attenuates — an :class:`elements.Aperture` cropping the beam — scales
+		those values through
+		:meth:`elements.Element.apply_intensity`, so this is what survives to
+		the exit.
 
 		Returns
 		-------
 		float
-			Surviving fraction, in ``[0, 1]``. Propagates first if the rays
-			have not been traced.
+			Current in amps. Propagates first if the rays have not been traced.
 
 		Raises
 		------
@@ -1028,26 +1035,61 @@ class Microscope(SealedAttributes, SEASerializable):
 
 		Related
 		-------
-		elements.Aperture.apply_intensity : Where the attenuation happens.
+		elements.Source.beam_current : Where the amps come from.
+		elements.Aperture.apply_intensity : What takes them away.
+		current_at : The same quantity part-way down the column.
 
 		Notes
 		-----
-		A **fraction**, not an absolute current: nothing in the column carries
-		amps. ``Source`` has no ``beam_current`` attribute yet, and until it
-		does there is nothing to scale this by.
-
-		The aperture model attenuates every ray by the same area factor rather
-		than truncating individual rays, so all rays share one value and the
-		mean is exact rather than representative.
+		The wave path does not carry this yet. A mask that changes ``|psi|``
+		changes the current in exactly the same way, and the natural definition
+		there is the integral of ``|psi|^2`` over the plane, scaled to the
+		source's current — but nothing computes it today.
 
 		Examples
 		--------
 		>>> scope.beam_current                          # doctest: +SKIP
-		0.0225
+		2.25e-11
 		"""
 		if self.rays is None:
 			self.propagate_ray()
-		return float(xp.mean(self.I[-1]))
+		return float(xp.sum(self.I[-1]))
+
+	def current_at(self, plane:int=-1) -> float:
+		"""Current at one logged plane, in amps.
+
+		Parameters
+		----------
+		plane : int, optional
+			Index into the logged planes, by default -1 (the exit).
+
+		Returns
+		-------
+		float
+			Current in amps.
+
+		Raises
+		------
+		IndexError
+			If ``plane`` is out of range.
+
+		Related
+		-------
+		beam_current : The exit value.
+
+		Notes
+		-----
+		Planes are logged per element, so this indexes the column's elements
+		rather than an arbitrary z. Use it to see *where* an aperture took the
+		current away.
+
+		Examples
+		--------
+		>>> [scope.current_at(i) for i in range(4)]     # doctest: +SKIP
+		"""
+		if self.rays is None:
+			self.propagate_ray()
+		return float(xp.sum(self.I[plane]))
 
 	def convergence_angle_at(self, z:float) -> float:
 		"""Convergence **semi**-angle of the outermost ray at a plane.

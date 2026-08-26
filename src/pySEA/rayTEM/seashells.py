@@ -825,9 +825,23 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None
 
 #SEASerializable.from_sea will create a purely-SEASerializable object. rayTEM objects (Element, MicroscopeSection, Microscope, etc) will have inherited from SEASerializable, so we may need to reinstantiate rayTEM objects to ensure they have the rayTEM-specific functionality (e.g. "scope=Microscope(); scope.from_sea" will find scope.sections is a list of purely-SEASerializable objects without functions like "propagate_ray").
 def safeReinstantiate(source,cls):
-	from .elements import Drift,Lens,Source,Dipole,Quadrapole
+	from .elements import Drift,Lens,Source,Dipole,Quadrapole,Aperture,Prism
 	from .assemblies import Microscope,MicroscopeSection
-	cls = {"Drift":Drift, "QLens":Lens, "Thin lens":Lens, "Source":Source, "Microscope":Microscope, "Section":MicroscopeSection, "Dipole":Dipole, "Thin dipole":Dipole, "Quad":Quadrapole, "Thin quad":Quadrapole }[cls]
+	# Every `kind` an element can report has to appear here or the object cannot
+	# be reloaded at all. Aperture and Prism were missing, so any saved column
+	# containing one raised KeyError on load -- which meant no column with an
+	# aperture had ever round-tripped.
+	known = {"Drift":Drift, "QLens":Lens, "Thin lens":Lens, "Source":Source,
+			 "Microscope":Microscope, "Section":MicroscopeSection,
+			 "Dipole":Dipole, "Thin dipole":Dipole,
+			 "Quad":Quadrapole, "Thin quad":Quadrapole,
+			 "Aperture":Aperture, "Prism":Prism}
+	if cls not in known:
+		raise KeyError(
+			f"cannot reinstantiate a stored object of kind {cls!r}: it is not in "
+			f"safeReinstantiate's table, which knows {sorted(known)}. A new element "
+			"class needs its `kind` added there, or it will save but never load.")
+	cls = known[cls]
 	dic = source.__dict__
 	allowed_kwargs = inspect.signature(cls).parameters.keys()	# infer allowed kwargs from the class itself
 	kwargs = { k:v for k,v in dic.items() if k in allowed_kwargs }	# and filter kwargs to those accepted

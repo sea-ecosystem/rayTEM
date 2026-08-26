@@ -2002,11 +2002,13 @@ class Source(Element):
 			na_xy:tuple=(3,3),		# number of angles. (0,0) --> parallel rays. (1,1) --> ray at xt,yt=angle only
 			position:float=None,
 			voltage:float=None,
+			beam_current:float=1e-9,	# amps emitted into the traced rays
 			wave_shape:tuple=(128,128),	# wave-optics grid (ny, nx)
 			wave_extent:float=None,		# wave-optics grid physical size (m); None -> derived from size
 			wave_kind:Literal['plane','gaussian','point','aperture']='gaussian',
 			aperture_radius:float=None) -> SEASerializable:	# radius (m) for wave_kind='aperture'
 		super().__init__(name=name, kind='Source')
+		self.beam_current = beam_current
 
 		self.size = size
 		self.np_xy = np_xy

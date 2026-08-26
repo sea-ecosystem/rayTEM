@@ -22,7 +22,7 @@
     "name": "Aperture",
     "qualname": "Aperture",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2290,
+    "source_lineno": 2292,
     "signature": "class Aperture",
     "doc": "Aperture element class. An aperture serves to crop the beam, and the total beam intensity is reduced dependent on the area of the beam and the area of aperture."
   },
@@ -193,7 +193,7 @@
     "name": "Dipole",
     "qualname": "Dipole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2947,
+    "source_lineno": 2949,
     "signature": "class Dipole",
     "doc": ""
   },
@@ -211,7 +211,7 @@
     "name": "Drift",
     "qualname": "Drift",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2484,
+    "source_lineno": 2486,
     "signature": "class Drift",
     "doc": "Drift element class for free-space propagation."
   },
@@ -445,7 +445,7 @@
     "name": "Lens",
     "qualname": "Lens",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3168,
+    "source_lineno": 3170,
     "signature": "class Lens",
     "doc": "Lens element class for round lenses / symmetric focusing. https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example or Brown1983 page 105"
   },
@@ -472,7 +472,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2909,
+    "source_lineno": 2951,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -481,7 +481,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2837,
+    "source_lineno": 2879,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -589,7 +589,7 @@
     "name": "Microscope",
     "qualname": "Microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 775,
+    "source_lineno": 780,
     "signature": "class Microscope",
     "doc": "Microscope class represents a whole microscope, and is comprised of multiple MicroscopeSections. propagation through a Microscope results in propagation through individual MicroscopeSections"
   },
@@ -715,7 +715,7 @@
     "name": "Prism",
     "qualname": "Prism",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3642,
+    "source_lineno": 3644,
     "signature": "class Prism",
     "doc": ""
   },
@@ -787,7 +787,7 @@
     "name": "Quadrapole",
     "qualname": "Quadrapole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2560,
+    "source_lineno": 2562,
     "signature": "class Quadrapole",
     "doc": ""
   },
@@ -1270,11 +1270,11 @@
   },
   {
     "kind": "function",
-    "name": "test_beam_current_is_the_fraction_apertures_let_through",
-    "qualname": "test_beam_current_is_the_fraction_apertures_let_through",
+    "name": "test_beam_current_is_in_amps_and_apertures_take_it_away",
+    "qualname": "test_beam_current_is_in_amps_and_apertures_take_it_away",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 2914,
-    "signature": "test_beam_current_is_the_fraction_apertures_let_through()",
+    "signature": "test_beam_current_is_in_amps_and_apertures_take_it_away()",
     "doc": ""
   },
   {
@@ -1509,6 +1509,15 @@
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
     "source_lineno": 63,
     "signature": "test_every_element()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_every_element_kind_can_be_reloaded",
+    "qualname": "test_every_element_kind_can_be_reloaded",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 2966,
+    "signature": "test_every_element_kind_can_be_reloaded()",
     "doc": ""
   },
   {
