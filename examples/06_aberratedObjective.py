@@ -150,10 +150,13 @@ ideal, aberrated = scope(0.0), scope(C30)
 for m in (ideal, aberrated):
 	m.propagate_ray()
 Z_PAR = float(ideal.conjugate_planes(axis="x")["diff"][0])
-# the caustic's own scales, with only a little margin: longitudinal spherical
-# aberration C30*alpha^2 in z, transverse C30*alpha^3 in x
-DZ = 1.6 * C30 * ALPHA ** 2
-X_HALF = 2.2 * C30 * ALPHA ** 3
+# The caustic's own scales, but for what OL1 ACTUALLY delivers: it is 10 mm
+# thick, so its aberration is distributed along the body and comes out at
+# ~0.12x the thin-lens closed form (panel E measures this). Framing on the
+# closed form would leave the caustic in the middle few pixels.
+THICK = 0.122
+DZ = 2.0 * THICK * C30 * ALPHA ** 2			# longitudinal, C30*alpha^2
+X_HALF = 3.0 * THICK * C30 * ALPHA ** 3		# transverse, C30*alpha^3
 Z_LO, Z_HI = Z_PAR - DZ, Z_PAR + 0.3 * DZ
 
 fig = plt.figure(figsize=(13.5, 14))

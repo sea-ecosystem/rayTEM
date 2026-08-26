@@ -2657,3 +2657,30 @@ def test_a_thick_medium_still_applies_its_screen():
 	# an ideal thick lens with nothing attached must be BIT-FOR-BIT unchanged --
 	# the split must not perturb the common case
 	assert np.array_equal(run(), ideal)
+
+
+def test_a_sub_nanometre_drift_actually_propagates():
+	# The hybrid/scaled engines compared step sizes against a tolerance carrying
+	# a `+ 1.0` term, which made it an ABSOLUTE ~1 nm floor no matter how short
+	# the segment was. Any drift under a nanometre was skipped in silence and z
+	# never advanced -- exactly the step size wanted when resolving a focus,
+	# where a caustic is tens of nanometres long.
+	from pySEA.rayTEM.seashells import read_scaled_wavefield
+	src = Source(voltage=200, wave_shape=(64, 64), wave_extent=1e-5,
+				 wave_kind="aperture", aperture_radius=2e-6)
+	step = 3.57e-10
+	for mode in ("scaled", "hybrid"):
+		w = src.wave(mode="scaled")
+		assert read_scaled_wavefield(w)[7] == 0.0
+		for i in range(3):
+			w = Drift(length=step).propagate_wave(w, mode=mode, absorb=0.0)
+			z = read_scaled_wavefield(w)[7]
+			assert np.isclose(z, (i + 1) * step, rtol=1e-9), (mode, i, z)
+	# and the field is genuinely transported, not merely relabelled: over a
+	# distance this short a converging beam still changes measurably
+	far = Drift(length=1e-3).propagate_wave(src.wave(mode="scaled"), mode="hybrid",
+											absorb=0.0)
+	near = Drift(length=step).propagate_wave(src.wave(mode="scaled"), mode="hybrid",
+											 absorb=0.0)
+	assert not np.allclose(np.asarray(read_scaled_wavefield(far)[0]),
+						   np.asarray(read_scaled_wavefield(near)[0]))

@@ -1087,7 +1087,13 @@ def propagate_quadratic_segment_hybrid(U: np.ndarray, dxi: float, deta: float,
 			f"an isotropic segment and frame (got kappa = {kappa}, s = {s}, R = {R}).")
 
 	k = 2 * np.pi / wavelength
-	tol = 1e-9 * (abs(dz) + abs(z) + 1.0)
+	# Relative to the magnitudes actually being compared. The old form carried
+	# a `+ 1.0` term, which made this an ABSOLUTE ~1 nm floor however short the
+	# segment was -- so any drift under a nanometre fell below it and was
+	# skipped in silence, leaving z unadvanced. That is precisely the step size
+	# wanted when resolving a focus. float64 carries ~1e-16 relative, so 1e-12
+	# is still orders of margin for a float comparison on split positions.
+	tol = 1e-12 * (abs(dz) + abs(z) + abs(dxi) + abs(deta))
 	names, pitches = ("x", "y"), (abs(dxi), abs(deta))
 	if z_cross is None:
 		zc = [None, None]
@@ -1940,7 +1946,9 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 	remaining = float(dz)
 	logged = []
 	U = U.astype(complex, copy=True)
-	tol = 1e-9 * (abs(dz) + abs(z) + 1.0)		# float tolerance on split positions
+	# relative, not absolute: a `+ 1.0` term here silently skipped any segment
+	# shorter than ~1 nm, leaving z unadvanced (see propagate_quadratic_segment_scaled)
+	tol = 1e-12 * (abs(dz) + abs(z) + abs(dxi) + abs(deta))
 	isotropic = (np.ndim(s) == 0 and np.ndim(R) == 0
 				 and (z_cross is None or np.ndim(z_cross) == 0))
 	if not isotropic:
