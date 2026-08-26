@@ -1,4 +1,4 @@
-from .elements import columnByName,fix_mat_dims
+from .elements import columnByName,fix_mat_dims,Drift,Source
 import numpy as np
 from scipy.optimize import minimize,brute
 import matplotlib.pyplot as plt
@@ -756,6 +756,65 @@ def zFromFractional(zs,z): # e.g. 1.2 is 20% of the distance through element ind
 	z0=zs[i] ; z1=zs[i+1]
 	return z0+(z1-z0)*di
 
+### FITTING FUNCTIONS:
+# dz_* are deviation functions which you can pass to a minimizer (e.g. scipy.optimize.minimize). each dz function accepts a "vals" variable which is a list of values the minimizer is supplying, and will likely also accept additional arguments used to map the values in "vals" to settable values (e.g. given 4 values, these might map to PL 1-4 calibration values)
+# helper_* are helper functions, used by dz_*
+
+# scipy.optimize.minimize will pass a list of values, but update_with_settings takes a nested dict: {"P4":{"strength":0.451,"calibration":1.05},"P3":{"strength":0.69}}
+def setkeys_to_settables_dict(vals,setKeys):
+	settings = { k:{} for k in setKeys.keys() }	# empty dict for each key (don't do a dict comprehension for vals or you'll overwrite)
+	for (k,kk),v in zip(setKeys.items(),vals):
+		settings[k][kk] = v		# "PL1":"strength", and "0.451" --> {"PL1":{"strength"}}
+	return settings
+
+# given a Microscope Object, initialize rays at one element ("initializeAt"), measure beam diameter at another ("focusTo"). this is used to construct an error function to fit lens parameters. check out /media/qwe/Data/Various Code/rayTEM/refreshing20260804/TWP20260724/src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py
+def helper_focus_to(microscope,initializeAt,focusTo,plotting=False):
+	scope = microscope[initializeAt:] # all elements after/including first element
+	# scope[0][0] = Drift(length=microscope[initializeAt].length,position=microscope[initializeAt].position)# REPLACE L WITH DRIFT
+	if isinstance(initializeAt,str) and scope[initializeAt].kind not in [ "Drift", "Source" ]:
+		L = getattr(scope[initializeAt],"length",0)
+		if L > 0:
+			p = scope[0].elements[0].position ; name = scope[0].elements[0].name
+			scope[0].elements[0] = Drift(length=L,position=p,name=name) # OVERWRITE THICK LENS WITH SAME-THICKNESS DRIFT
+			scope = scope[L/2:] # IF INITIALIZING A RAY AT A THICK LENS, EG FOR BACK-FOCUS CONDITION, USE MIDPLANE OF LENS
+		#scope[0].elements.insert(0,Drift(length=0.01,position=scope[initializeAt].position)) # OR, KEEP THE LENS?
+		#scope[0][1]._position+=.01
+		#if hasattr(scope[0][1],"length"):
+		#	scope[0][1].length-=.01
+	if scope[0][0].kind != "Source":
+		scope.insert(0,Source(np_xy=(0,0))) # num_points=0 --> point-source rays
+	if plotting:
+		print(initializeAt,focusTo)
+		print(repr(scope))
+		scope.show(title=str(initializeAt)+" focuses to "+str(focusTo))
+	scope.propagate_ray()
+	z = scope.get_element_position(focusTo)
+	if scope[focusTo].kind != "Drift":
+		z += scope[focusTo].length/2
+	x,y,xt,yt,R,I = measureAtZ(z,rays=scope.rays)
+	return np.sqrt( x**2+y**2 )**2
+
+# scipy minimize will update element:attribute (setKeys) based on (vals), and for a list of cases (see below), initiate rays at z1 and check focus at z2. z1,z2 can be floats or element names.
+# "cases" is a list of nested dicts, each dict describes the focusing condition:
+# [ { "from":107.5, "to":"P3", "settables": {"P1": {"strength": 0.300}, "P2": {"strength": 0.451} } } ]
+# describes focusing a beam originating from z0 into P3, where P1 and P2 strengths are set accordingly
+def dz_focus_to(vals,setKeys,cases,microscope,plotting=False):
+	# update microscope
+	settings = setkeys_to_settables_dict(vals,setKeys)
+	microscope.update_with_settings(settings)
+	# run through z1,z2 pairs
+	deltas = []
+	for scenario in cases:
+		initializeAt = scenario["from"]
+		focusTo = scenario["to"]
+		settings = scenario["settables"]
+		microscope.update_with_settings(settings)
+		if plotting and "name" in scenario.keys():
+			print(scenario["name"])
+		deltas.append( helper_focus_to(microscope,initializeAt,focusTo,plotting) )
+	return np.sum(deltas)
+
+
 # TODO what's the "right" way to chain together a whole bunch of different criteria? sometimes i want to fit "multiple settings" (PL1=a1,PL2=b1,PL3=c1,PL4=d1, with a diffraction plane here, and a magnification of M1, and PL1=a2,PL2=b2,PL3=c2,PL4=d2 and magnification of M2, and so on, what are the calibrations for PL1 PL2 PL3 PL4?). sometimes i want to fit "multiple planes" (what values of PL1 and PL2 give me a diffraction plane here and an image plane there?) or "multiple criteria for a single plane" (what values of PL1 and PL2 give me a diffraction plane here with this magnification?).
 # I Think the answer is: a bunch of sub-functions for each criteria, then custom error functions for the chaining.
 # EXAMPLE 1: consider the case where I want "a crossover at the PL2 plane when PL1 is v2, a crossover at the PL3 plane when PL1 is v3, and a crossover at the PL4 plane when PL1 is v4, what is the calibration for PL1?", this can be done as follows, given the input dict PL1vals={"PL2":v2,"PL3":v3,"PL4":v4}
@@ -771,17 +830,11 @@ def zFromFractional(zs,z): # e.g. 1.2 is 20% of the distance through element ind
 # then i simply call minimize(dz,guesses) etc
 # EXAMPLE 2: TODO
 
-def update_microscope_with_settings(microscope,settings):
-	for element in settings.keys():
-		for attribute,value in settings[element].items():
-			if not hasattr(microscope[element],attribute):
-				raise AttributeError("Attribute \""+attribute+"\" not found on "+str(type(microscope[element]))+" Element")
-			setattr(microscope[element],attribute,value)
 
 # given a Microscope object, a dict of lens parameters, and a dict of planes, detects nearest plane of the correct type, and return the delta in positions.
 def error_dz(microscope,settings,targets): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":5,"image":7}
 	# UPDATE ALL ELEMENTS SPECIFIED
-	update_microscope_with_settings(microscope,settings)
+	microscope.update_with_settings(settings)
 	#print("error_dz: settings",settings,"targets",targets)
 	#microscope.show()
 	# PROPAGATE, DETECT PLANES
@@ -823,7 +876,7 @@ def closest_plane(microscope,z_target,plane_type,regenerate=True):
 def error_at_plane(microscope,settings,targets,absolute=True,include_z=True): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of things to check {"diff":{"z":5,"M":10}}
 	#print("error_at_plane: settings",settings,"targets",targets)
 	# UPDATE ALL ELEMENTS SPECIFIED
-	update_microscope_with_settings(microscope,settings)
+	microscope.update_with_settings(settings)
 	microscope.propagate_ray()
 	#microscope.show()
 	# FOR EACH TARGET PLANE, FIND CLOSEST OF SAME TYPE, ERROR IS DELTA IN POSITION
@@ -855,7 +908,7 @@ def error_at_plane(microscope,settings,targets,absolute=True,include_z=True): # 
 # given a Microscope object, a dict of lens parameters, and a dict of positions (not planes!), return the delta in position, angle, intensity, etc
 def error_at_position(microscope,settings,targets,absolute=True): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of positions and things to check: {5:{"xt":1e-3},7:{"I":.6}}
 	# UPDATE ALL ELEMENTS SPECIFIED
-	update_microscope_with_settings(microscope,settings)
+	microscope.update_with_settings(settings)
 	# PROPAGATE, MEASURE BEAM
 	r1=microscope.propagate_ray()
 	deltas = []
@@ -877,7 +930,7 @@ def error_at_position(microscope,settings,targets,absolute=True): # settings is 
 # given a Microscope object, a dict of lens parameters, and a list of positions, simply returns the beam diameter at each position
 def error_diameter(microscope,settings,targets,absolute=True): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a list of positions [5,7]
 	# UPDATE ALL ELEMENTS SPECIFIED
-	update_microscope_with_settings(microscope,settings)
+	microscope.update_with_settings(settings)
 	# PROPAGATE, MEASURE BEAM
 	r1=microscope.propagate_ray()
 	diameters = []
@@ -891,7 +944,7 @@ def error_diameter(microscope,settings,targets,absolute=True): # settings is a d
 # given a Microscope object, a dict of lens parameters, and a list of positions, simply returns the outermost ray's angles at each position???
 def error_angles(microscope,settings,targets,absolute=True): # settings is a dict of parameters to set {"PL1":{"strength":.475}}, targets is a dict of positions and angles: {5:1e-3,7:4e-2}
 	# UPDATE ALL ELEMENTS SPECIFIED
-	update_microscope_with_settings(microscope,settings)
+	microscope.update_with_settings(settings)
 	# PROPAGATE, MEASURE BEAM
 	r1=microscope.propagate_ray()
 	angles = []
@@ -901,6 +954,7 @@ def error_angles(microscope,settings,targets,absolute=True): # settings is a dic
 			xt=np.absolute(xt) ; t=abs(t)
 		angles.append(xt-t)
 	return angles
+
 
 # Given the ability to 1) generate a section 2) propagate rays and 3) measure attributes of the propagated rays (e.g. location of planes and magnifications), we should be able to fit for variables (like lens strength) to achieve a desired result
 # Desired result may be: position of an image/diffraction plane, magnification at that plane, angles coming in, or unbounded desirables like "maximize the magnitude" or "minimize the lens currents"
@@ -1115,3 +1169,12 @@ def measureAtZ(z,rays=None,section=None):
 	I = Is[selected]
 	return x,y,xt,yt,R,I # TODO this is getting out of hand. maybe measureAtZ should be passed a list of keys to return??
 
+def load_guesses(guess_file):
+	lines = open(guess_file,'r').readlines()
+	guesses = {}
+	for l in lines:
+		k,kk,v = l.split()
+		if k not in guesses.keys():
+			guesses[k]={}
+		guesses[k][kk]=float(v)
+	return guesses

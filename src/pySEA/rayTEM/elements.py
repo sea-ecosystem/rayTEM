@@ -160,9 +160,9 @@ class Source(Element):
 
 	def __init__(self, name:str=None,
 			size:tuple=(2e-3,2e-3), # size in x and y (square grid)
-			np_xy:tuple=(3,3),		# number of grid points in x and y
+			np_xy:tuple=(3,3),		# number of grid points in x and y. (0,0) --> point-source. (1,1) --> single ray at x,y=size
 			angle:tuple=(1,1),		# angles in x,y (ranges of xt yt)
-			na_xy:tuple=(3,3),
+			na_xy:tuple=(3,3),		# number of angles. (0,0) --> parallel rays. (1,1) --> ray at xt,yt=angle only
 			position:float=None) -> SEASerializable:
 		super().__init__(name=name, kind='Source')
 
@@ -178,9 +178,12 @@ class Source(Element):
 	# Source term, initialize rays at sweep of angles and positions
 	def rays(self):
 		#print("SOURCE GENERATING RAYS",self.np_xy,self.size,self.na_xy,self.angle)
-		xs=xp.linspace(-self.size[0],self.size[0],self.np_xy[0])
-		ys=xp.linspace(-self.size[1],self.size[1],self.np_xy[1])
-		xts=xp.zeros(1) ; yts=xp.zeros(1)
+		xs=xp.zeros(1) ; ys=xp.zeros(1) # central ray only by default if np_xy is zero
+		if self.np_xy[0]:
+			xs=xp.linspace(-self.size[0],self.size[0],self.np_xy[0])
+		if self.np_xy[1]:
+			ys=xp.linspace(-self.size[1],self.size[1],self.np_xy[1])
+		xts=xp.zeros(1) ; yts=xp.zeros(1) # zero-angle ray only by default if na_xy is zero
 		if abs(self.angle[0])>0 and self.na_xy[0]:
 			xts=xp.linspace(-self.angle[0],self.angle[0],self.na_xy[0])
 		if abs(self.angle[1])>0 and self.na_xy[1]:
@@ -641,6 +644,31 @@ class Lens(Element):
 		self.rotation = -kL
 		M = fix_mat_dims(XY,["x","xt","y","yt"])
 		return M
+
+	# unlike below(?), here we'll *measure* focal length at the current K=I*C and L, then adjust C and L to preserve focal length and set beam rotation (K*L) to match R in radians at this current I.
+	def get_C_L_from_rotation_at_I(self,I,R):
+		from scipy.optimize import minimize
+		print(self.name,I,R)
+		def FR(C,L):
+			new = Lens(strength = I, calibration = C, length = L)
+			columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
+			M = new.transfer_matrix()[columns,:][:,columns]
+			r0 = [1,0,1,0] # parallel starting ray
+			r1 = xp.matmul(M,r0)
+			x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
+			f = x/xt # f = x/theta
+			rot = new.rotation
+			return f,rot
+		f0,_ = FR(self.calibration,self.length)	# initial focal length
+		print("currently focuses to",f0)
+		def dz(vals):
+			f,rot = FR(*vals)
+			return ((f-f0)/f0)**2 + ((R-rot)/R)**2
+		res = minimize(dz,x0=(self.calibration,self.length))
+		print(res)
+		f,rot = FR(*res['x'])
+		print( "fitted focuses to",f,"and with rotation of",rot )
+		return res['x']
 
 	def calibration_from_f_and_I(self,f,I,rotationPerAmp=None):
 		print("for lens",self.name,"seeking a calibration factor C, which focuses strength",I,"to focal length",f,"and rotationPerAmp",rotationPerAmp)

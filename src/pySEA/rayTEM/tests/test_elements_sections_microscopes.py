@@ -7,7 +7,7 @@
 import sys,os,pytest
 sys.path.insert(1,"../../../")
 from pySEA.rayTEM import Source,Lens,Drift,Aperture,Dipole,Quadrapole
-from pySEA.rayTEM import MicroscopeSection,Microscope
+from pySEA.rayTEM import MicroscopeSection,Microscope,check_lengths
 from pySEA.rayTEM import fix_ray_dims,plot2D,findPlanes,columnByName,load_microscope,load_section,convert_to_rotating_reference_frame
 import numpy as np
 
@@ -360,35 +360,45 @@ def test_cropping_microscope():
 #test_cropping_microscope()
 
 def test_element_move():
-	elements = [ Source() , Drift(length=1), Lens(name="L1",strength=3,length=.1), Drift(length=1.4), Lens(name="L2",strength=5,length=.1), Drift(length=2.4) , Lens(name="L3",strength=1,length=.1) ]
-	section = MicroscopeSection(elements=elements)
+	def fresh_section():
+		elements = [ Source(name="S") , Drift(length=1), Lens(name="L1",strength=3,length=.1), Drift(length=1.4), Lens(name="L2",strength=5,length=.1), Drift(length=2.4) , Lens(name="L3",strength=1,length=.1) ]
+		return MicroscopeSection(elements=elements)
+
+	section = fresh_section()
 	# user should *not* be allowed to update the position of element, since it requires updating surrounding elements!
 	with pytest.raises(AttributeError):
 		section["L2"].position += 1
 
-	# sanity check: nextposition-thisposition should equal thislength. we'll use this function to verify a successful move
-	def check_lengths(section):
-		zs = np.asarray( [ e.position for e in section.elements ] )
-		ls = np.asarray( [ e.length for e in section.elements ] )
-		dz = zs[1:]-zs[:-1] ; print(zs,ls)
-		assert np.sum( np.absolute( dz-ls[:-1] ) ) < .00001
 	check_lengths(section)
 	#section.show(title="original, L1,L2,L3 @ 1,2.5,5")
 
+	print("ORIGINAL\n",repr(section))
 	# user should *instead* use the move function to move an element (move function likely needs to be on the Section, not the Element, since the Element doesn't know it's parents??)
-	section.move("L2",dz=1)
+	section.move_element("L2",dz=1)
 	check_lengths(section)
 	#section.show(title="L2 dz +1, L1,L2,L3 @ 1,3.5,5")
 
-	section.move("L1",dz=-.5)
+	section.move_element("L1",dz=-.5)
 	check_lengths(section)
 	#section.show(title="L1 dz -0.5, L1,L2,L3 @ 0.5,3.5,5")
 
-	# make sure move works for last element in section?
-	section.move("L3",dz=-.5)
+	# make sure -z move works for last element in section (pads with Drift)
+	section.move_element("L3",dz=-.5)
 	print(repr(section))
 	check_lengths(section)
 	#section.show(title="L3 dz -0.5, L1,L2,L3 @ 0.5,3.5,4.5")
+
+	# make sure +z move works for first element in section (pads with Drift)
+	section.move_element("S",dz=.25)
+	print("L2+1,L1-.5,L3-.5\n",repr(section))
+	check_lengths(section)
+
+	section = fresh_section()
+	# make sure +z move works for last element in section (conditionally! this changes the sections length!)
+	section.move_element("L3",dz=+.5,allow_unsafe=True)
+	print("L3+.5\n",repr(section))
+	check_lengths(section)
+	assert section.length == sum([e.length for e in section.elements])
 
 
 #test_element_move()

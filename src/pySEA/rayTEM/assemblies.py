@@ -4,7 +4,7 @@ from typing import List
 
 flag_gpu = False
 import pickle
-import sys,inspect
+import sys,inspect,os,datetime,shutil
 
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
 from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture
@@ -51,23 +51,37 @@ class MicroscopeSection(SEASerializable):
 			if ele.position is None:						# e.g. pass Lens(l1),Drift(l2),Lens(l3) --> Drift.position=l1, Drift.position=l1+l2
 				#print("(no position, add to end)")
 				ele._position = self.length
-			# SANITY CHECK: if there's a "gap" between this element's position and end of previous, then add a drift
-			if self.length < ele.position:
-				#print("(gap before this element)")
-				dz = ele.position - self.length #; print("dz",dz,"position",ele.position-dz)
-				if dz>1e-10:
-					#print("add drift",n,ele.position,self.length,dz)
-					new.append( Drift(length=dz,position=ele.position-dz) )
-				self.length += dz
+			# COMMENTING OUT GAP/OVERLAP HANDLING HERE, AND SWITCHING TO USING "repair" FUNCTION AT THE END
+			# SANITY CHECK: gaps or overlaps: between this element's position and end of previous
+			#dz = ele.position - self.length
+			#tol = 1e-7 # Why a relatively loose 1e-7? float imprecision isn't this bad, but json reload is rounded
+			# GAP, WITHIN TOLERANCE, LENGTHEN PREVIOUS ELEMENT
+			#if 0 < dz < tol:
+			#	new[-1].length += dz
+			# GAP, OUT OF TOLERANCE, ADD DRIFT
+			#if dz > tol:
+			#	new.append( Drift(length=dz,position=ele.position-dz) )
+			#	self.length += dz
+			# OVERLAP, WITHIN TOLERANCE, SHORTEN PREVIOUS ELEMENT
+			#if 0 > dz > -tol:
+			#	new[-1].length += dz
+			# OVERLAP, OUT OF TOLERANCE, RAISE A WARNING
+			#if dz < -tol:
+			#	print('WARNING: previous Element ('+str(elements[n-1])+') overlaps with specified Element position '+str(ele))
 			new.append(ele)
-			if self.length > ele.position:
-				print('WARNING: previous Element ('+str(elements[n-1])+') overlaps with specified Element position '+str(ele))
+			# SANITY CHECK: if there is an "overlap" between end of previous element and this element
+			#if self.length > ele.position:
+			#	dz = ele.position - self.length
+			#if self.length-ele.position > 1e-7: # if length > position, but allows for float imprecision.
+			#	print('WARNING: previous Element ('+str(elements[n-1])+') overlaps with specified Element position '+str(ele))
 			if ignoreLensThickness and ele.kind in ['Thin lens','QLens','Thin quad','Quad']:
 				continue
 			#print("increment length by",getattr(ele,"length",0))
 			self.length += getattr(ele,"length",0)
 			#print("new length = ",self.length)
 		self.elements = new
+
+		repair(self)
 
 	#####################################
     # region: Dunders
@@ -236,10 +250,12 @@ class MicroscopeSection(SEASerializable):
 			self.elements.insert(index,element)
 		else:									# coordinate-based insertion: section.insert(25.0,newlens) places newlens in drift that spans 25.0
 			for i,ele in enumerate(self.elements): # "looking for element spanning 25.0: 5th element is a Drift which goes from 21.0 to 30.0"
-				if ele.position<=index and ele.position+getattr(ele,"length",0)>index and ele.kind=="Drift":
+				# inserted Source is ALWAYS first (idk where else you'd put one).
+				# other inserted elements may only go inside a Drift (e.pos < z & e.pos+D.len > z & e.kind==Drift),
+				if element.kind=="Source" or (ele.position<=index and ele.position+getattr(ele,"length",0)>index and ele.kind=="Drift"):
 					#print("INSERTING ELEMENT",element.name,"AT",index,"(",ele,ele.position,ele.length,")","AT POSITION",i)
 					elementlength=0 if self.ignoreLensThickness else getattr(element,"length",0)
-					l1=index-ele.position ; l2=ele.length-elementlength-l1 # "this drift needs to be length 4.0, and we'll need another drift after the insertion"
+					l1=index-ele.position ; l2=getattr(ele,"length",0)-elementlength-l1 # "this drift needs to be length 4.0, and we'll need another drift after the insertion"
 					#print("PRE DRIFT",l1,"+ ELEMENT",element.length,"+ POST DRIFT",l2,"=",ele.length)
 					self.elements[i].length=l1			# "shorten" initial drift
 					element._position = index			# update new element's position
@@ -255,10 +271,16 @@ class MicroscopeSection(SEASerializable):
 	def append(self,element):
 		self.insert(len(self.elements),element)
 
-	def move(self,elementName,z=None,dz=None): # TODO massive assumption here is that we're adjusting non-first non-last element positions!
+	def move_element(self,elementName,z=None,dz=None,allow_unsafe=False): # TODO are we still making the massive assumption that we're adjusting non-first non-last element positions?? are all edge cases handled?
 		i=self.index(elementName)
+		# always move by "dz". for a MicroscopeSection object, assume z is relative to beginning of the sectio
 		if z is not None:
 			dz = z-self.elements[i].position
+		if i==0 and dz>0:	# 0th element, add preceeding drift, increment i to keep track. subsequent code will inflate Drift by dz
+			self.elements.insert(0,Drift(position=0,length=0))
+			i+=1
+		elif i==0:
+			raise NotImplementedError("MicroscopeSection.move_element does not yet support backwards movement of the 0th element")
 		self.elements[i]._position+=dz			# element position is updated
 		self.elements[i-1].length+=dz			# previous element is lengthened
 		if self.elements[i-1].length < 0 and i>2 and self.elements[i-2].kind == "Drift": # edge case: if two drifts in a row, and one is shortened to below zero length, simply combine them
@@ -267,12 +289,26 @@ class MicroscopeSection(SEASerializable):
 		if i+1<len(self.elements):
 			self.elements[i+1]._position+=dz	# subsequent element is also moved
 			self.elements[i+1].length-=dz		# subsequent element is shortened
+			if self.elements[i+1].length<0:		# another edge case: what if we push L1 past L2? intermediate drift is now negative
+				if allow_unsafe:				# for now (TODO) simply scoot all subsequent elements out, and lengthen the section
+					self.elements[i+1].length+=dz
+					for ii,e in enumerate(self.elements):
+						if ii<=i+1:
+							continue
+						e._position += dz
+					self.length += dz
+				else:
+					print("ATTEMPTING TO MOVE",elementName,"by",dz)
+					print(repr(self))
+					raise NotImplementedError("MicroscopeSection.move_element far enough to create negative length Drift is currently poorly handled. try allow_unsafe=True to bypass this error IFOF you know what you're doing (this will scoot all elements out)")
 		else: # IF THIS IS THE LAST ELEMENT:
 			if dz<0: # append Drift element if elementName is moved forwards...
 				self.elements.append(Drift(length=-dz,position=self.elements[i]._position+self.elements[i].length))
 			else:	# or lengthen section (dangerous!) if elementName is moved backwards...
+				if not allow_unsafe:
+					raise NotImplementedError("MicroscopeSection.move_element in +z is unsafe for last element, as it lengthens the MicroscopeSection. No good solution to this is implemented. try allow_unsafe=True to bypass this error IFOF you know what you're doing (this will lengthen the section)")
 				self.length += dz
-		print(repr(self))
+		#print(repr(self))
 
 	def wobble(self,r0,elementIndex,func,kwargName,valRange,numSteps):
 		vals=xp.linspace(valRange[0],valRange[1],numSteps)
@@ -285,7 +321,14 @@ class MicroscopeSection(SEASerializable):
 
 	@property
 	def named_positions(self):
-		return { e.name:e.position for e in self.elements if e.name is not None }
+		positions = {}
+		for e in self.elements:
+			if e.name is None:
+				continue
+			p = e.position
+			l = 0 if e.kind=="Drift" else getattr(e,"length",0)
+			positions[e.name] = p+l/2 # mark the *center* of each element, since that's the optical center of a lens?
+		return positions
 
 	# returns nthElement,nthRay,xythetaetc
 	def propagate_ray(self, r0:xp.ndarray=None,
@@ -331,9 +374,9 @@ class MicroscopeSection(SEASerializable):
 			r1 = self.propagate_ray()
 		plot2D(self.rays,zpts = self.named_positions, filename=filename ,title=title, ylims=ylims,xlims=zlims)
 
-	def save(self,filename):
-		with open(filename+".pkl",'wb') as f:
-			pickle.dump(self,f)
+	#def save(self,filename):
+	#	with open(filename+".pkl",'wb') as f:
+	#		pickle.dump(self,f)
 
 	def copy(self):
 		return deepcopy(self)
@@ -365,7 +408,11 @@ class Microscope(SEASerializable):
 		self.rays = None ; self._planes = None
 		if self.sections is not None and len(self.sections)>1: # check if consecutive sections are correct length. if not, insert drift at tail of first one
 			for s,s2 in zip(self.sections[:-1],self.sections[1:]):
-				if s.position+s.length<s2.position:
+				dz = s2.position-(s.position+s.length)
+				#if 0 < dz < 1e-7:
+				#	print("FLOAT INTOLERANT GAP IGNORED")
+				if dz > 1e-7: # Why a relatively loose 1e-7? float imprecision isn't this bad, but json reload is rounded
+					#print("ADDING DRIFT OF LENGTH",dz,"BETWEEN",s,"AND",s2)
 					dz = s2.position-(s.position+s.length)
 					s.insert( len(s.elements) , Drift(position = s.length, length = dz ) )
 				if s2.position==0:
@@ -445,6 +492,13 @@ class Microscope(SEASerializable):
 				ret[-1].length = ret[-1][-1].position + ret[-1][-1].length # update last section's length
 
 			return Microscope(name=self.name,sections=ret)
+
+	# indexable names (via getitem below) consists of: section names, or element names within any section
+	def keys(self):
+		kys = [ s.name for s in self.sections ] +\
+			sum([ [ e.name for e in s.elements ] for s in self.sections ] , [] )
+		kys = [ k for k in kys if k is not None and len(k)>0 ]
+		return kys
 
 	def __getitem__(self, item):
 		# RETURN A REFERENCE TO A SINGLE ITEM (SECTION OR ELEMENT), BY NAME OR INDEX
@@ -531,7 +585,7 @@ class Microscope(SEASerializable):
 	def convergence_angle(self,regenerate=False):
 		if regenerate:
 			self.propagate_ray()
-		z = self.get_element_position("OL1")+self["OL1"].length+.001
+		z = self.get_element_position("O1")+self["O1"].length+.001
 		x,y,xt,yt,R,I = measureAtZ(z,section=self)
 		return xt
 	#@property
@@ -542,7 +596,7 @@ class Microscope(SEASerializable):
 		zp = planes['x']['diff']['z']	# findPlanes returns fractional coordinated. 1.4 is 40% of the way through element 1
 		zp = [ zFromFractional(self.rays[:,0,columnByName('z')],z) for z in zp ]
 		zp=xp.asarray(zp)
-		i = xp.where(zp > self.get_element_position("CL3"))[0][0] # first plane after CL3 (not closest, as we did for mag/rot w/r/t CCD)
+		i = xp.where(zp > self.get_element_position("C3"))[0][0] # first plane after CL3 (not closest, as we did for mag/rot w/r/t CCD)
 		return zp[i]-expected_C3_crossover
 
 	#####################################
@@ -610,20 +664,83 @@ class Microscope(SEASerializable):
 			elementOrSection.position = index-s.position
 			s.insert( len(s.elements), elementOrSection )
 
-	def adjust_element_length(self,element,newlength):
+	def adjust_element_length(self,element,newlength): #,centering=True):
 		i,j = self.index(element)							# whichSection,whichElementInSection
-		l1 = self.sections[i].elements[j].length			# current length
-		dl = newlength-l1									# change in length
+		L1 = self.sections[i].elements[j].length			# current length
+		dL = newlength-L1									# change in length
+		#if centering:
+		#	self.move_element(element,dz=-dL/2)
 		self.sections[i].elements[j].length = newlength		# update the element
 		if len(self.sections[i])>j+1:						# if this element isn't the last in its section
-			self.sections[i].elements[j+1]._position+=dl		# update subsequent element position...
-			self.sections[i].elements[j+1].length-=dl			# ...and length
+			self.sections[i].elements[j+1]._position+=dL	# update subsequent element position...
+			self.sections[i].elements[j+1].length-=dL		# ...and length
 		else:
 			print("ADJUST ELEMENT LENGTH NOT YET IMPLEMENTED FOR LAST ELEMENT IN SECTION")
 
 	def get_element_position(self,e):
 		i,j = self.index(e)
 		return self.sections[i].position+self.sections[i][j].position
+
+	def move_element(self,element,z=None,dz=None,allow_unsafe=False):
+		# always move by "dz". for a Microscope object, assume z is relative to the Microscope, not the Section.
+		if z is not None:
+			dz = z-self.get_element_position(element)
+		# find what MicroscopeSection contains the element
+		i,j = self.index(element)
+		L0 = self.sections[i].length
+		# simply call into section's move_element code
+		self.sections[i].move_element(element,dz=dz,allow_unsafe=allow_unsafe)
+		# look out! MicroscopeSection.move_element with allow_unsafe=True allows for lengthening! scoot all subsequent sections out
+		if self.sections[i].length > L0:
+			dL = self.sections[i].length-L0
+			for ii,s in enumerate(self.sections[i:]):
+				if ii==0:
+					continue
+				s.position+=dL
+
+	# generalized "setter" function: pass a dict of any {element:{attribute:value}} and we'll set them all. useful for the various fitting and error functions: a minimizer can supply "P1":{"calibration":trialvalue} and so on to fit for calibrations, or "P1":{"strength":trialvalue} to find the strength which yields a crossover at a given point, etc
+	def update_with_settings(self,settings):
+		for element in settings.keys():
+			for attribute,value in settings[element].items():
+				if not hasattr(self[element],attribute):
+					raise AttributeError("Attribute \""+attribute+"\" not found on "+str(type(self[element]))+" Element")
+				if attribute == "length":
+					L = self[element].length
+					self.adjust_element_length(element,value)
+					self.move_element(element,dz=-value/2+L/2)
+				elif attribute == "position":
+					z = self[element].position
+					self.move_element(element,dz=value-z)
+				else:
+					setattr(self[element],attribute,value)
+
+	# commenting out. too many edge cases
+	#def move_element(self,element,newposition,preserve_others=True):
+	#	current = self.get_element_position(element)
+	#	i,j = self.index(element)
+	#	dz = newposition - current
+	#	if dz>0: # increase z position: adjust subsequent drift, OR, increase length of section
+	#		if len(self.sections[i].elements) == j+1: # LAST ELEMENT IN ITS SECTION
+	#			self.sections[i][j].kind == "Drift":
+	#				if dz > self.sections[i][j].length:
+	#
+	#			if preserve_others:
+	#				raise NotImplementedError("Microscope.move_element does not support pushing elements into subsequent sections with preserve_others = True")
+	#			self.sections[i].length+=dz
+	#			for ii,s in enumerate(self.sections[i]):
+	#				if ii==0:
+	#					continue
+	#				s.position+=dz
+	#		else:									# NON-LAST
+	#			if self.sections[i][j+1].kind != "Drift" and self.sections[i][j].kind == "Drift":
+
+	#				if preserve_others:
+	#					raise NotImplementedError("Microscope.move_element does not support pushing elements into subsequent sections with preserve_others = True")
+
+	# nuclear option. destructive raw position setting, then cleanup (delete all unnamed drifts, then fill in the gaps)
+	#def set_positions(self,element_position_pairs):
+	#def move_element(self,element,z=None,dz=None,fail_hard_or_warn="fail"):
+
 
 	@property
 	def named_positions(self):
@@ -695,6 +812,7 @@ class Microscope(SEASerializable):
 			jdict["Sections"].append(s_attrs)
 		import json
 		#print(jdict)
+		jdict = roundjson(jdict)
 		with open(filename+'.json', 'w') as f:
 			json.dump(jdict, f,indent=4)
 
@@ -707,6 +825,72 @@ class Microscope(SEASerializable):
 		#print("creating new Microscope with dic",dic)
 		print("section0 ids",id(sections[0]),id(self.sections[0]))
 		return Microscope(**dic)
+
+	# json file containing selected lens strengths. currently not limited to where they are in the column, so be careful of mixed condenser/projector settings
+	def save_as_setting(self,setting_name,keys):
+		self.save_subset(setting_name,keys,kind="setting")
+
+	# json file containing selected lens calibrations, but also conceivably things like element positions and lengths.
+	def save_as_calibration(self,calibration_name,keys):
+		self.save_subset(calibration_name,keys,kind="calibration")
+
+	# save a subset of element attributes, pass a dicts of: { elementName:[attribute1,attribute2] or elementName:attribute }
+	def save_subset(self,name,keys,kind):
+		import json
+		# always record kind ("setting" or "calibration"), name, version, timestamp
+		jdict = {"kind":kind, "name":name, "version":0.001,
+					"timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") }
+		# loop through elements, save off each attribute
+		for lens,k in keys.items():
+			jdict[lens]={}
+			if isinstance(k,str):
+				k=[k]
+			for kk in k:
+				jdict[lens][kk] = getattr(self[lens],kk,None)
+		# get ready to save off. if the file already exists, copy off old file and increment version number
+		fout = kind+"s/"+name+'.json'
+		if os.path.exists(fout):
+			j_previous = json.loads("".join(open(fout).readlines()))
+			move_to = fout.replace(".json","-v"+str(j_previous["version"]))+".json" # versioned filename
+			move_to = move_to.replace(kind+"s/",kind+"s/old/")		# version-named files go "old" subfolder
+			os.makedirs(kind+"s/old",exist_ok=True)
+			shutil.move(fout,move_to)
+			jdict["version"] = j_previous["version"]+0.001
+		# save it off
+		jdict = roundjson(jdict)
+		os.makedirs(kind+"s",exist_ok=True)
+		with open(fout, 'w') as f:
+			json.dump(jdict, f,indent=4)
+
+	def load_setting(self,setting_name):
+		self.load_subset(setting_name,kind="setting")
+
+	def load_calibration(self,calibration_name):
+		self.load_subset(calibration_name,kind="calibration")
+
+	def load_subset(self,name,kind):
+		import json
+		jdict = json.loads("".join(open(kind+"s/"+name+".json").readlines()))
+		settings = { k:d for k,d in jdict.items() if k not in ["name","kind","version","timestamp"] }
+		self.update_with_settings(settings)
+
+def roundjson(jdict): # given a nested series of dicts/lists containing strings/floats/ints, iterate through all iterables, find floats, and round them
+	if isinstance(jdict,dict):
+		for k,v in jdict.items(): # kinda dumb for a position of 0.1 to be floated to 0.09999999999999964
+			#print("checking",k,v)
+			if isinstance(v,float):
+				#print("rounding")
+				jdict[k] = xp.round(v,8)
+			elif isinstance(v,(dict,list)):
+				#print("recursing")
+				jdict[k] = roundjson(v)
+		#else:
+		#	#print("ignore")
+	elif isinstance(jdict,list):
+		jdict = [ roundjson(v) for v in jdict ]
+	else:
+		return jdict
+	return jdict
 
 def load_section(filename):
 	if ".sea" in filename:
@@ -774,4 +958,58 @@ def load_microscope(filename):
 	allowed_kwargs = inspect.signature(Microscope).parameters.keys()
 	jdict = { k:v for k,v in jdict.items() if k in allowed_kwargs }
 	return Microscope(sections = sections, **jdict)
+
+# sanity check: nextposition-thisposition should equal thislength. this function is used by tests and full builder to verify successful moves
+def check_lengths(section):
+	if isinstance(section,MicroscopeSection):
+		zs = xp.asarray( [ e.position for e in section.elements ] )
+		ls = xp.asarray( [ getattr(e,"length",0) for e in section.elements ] )
+	else:
+		for s in section.sections:
+			check_lengths(s)
+		zs = xp.asarray( [ e.position for e in section.sections ] )
+		ls = xp.asarray( [ e.length for e in section.sections ] )
+	#print("check_lengths",section)
+	dz = zs[1:]-zs[:-1] ; print(zs,ls)
+	assert xp.sum( xp.absolute( dz-ls[:-1] ) ) < .00001
+
+# look for gaps and overlaps, adjust positions and lengths of Drifts only, and combine unnamed Drifts. (we're using this instead of fixing gaps/overlaps while building inside of MicroscopeSection > __init__)
+def repair(section):
+	# check all elements and their preceeding neighbor
+	for i,e in enumerate(section.elements):
+		if i==0:
+			continue
+		em = section.elements[i-1] # element_minus. previous element
+		dz = e.position - ( em.position + getattr(em,"length",0) )
+		# GAPS, positive dz
+		if 0 < dz and e.kind == "Drift" and e.name == "": # SLIDE AND LENGTHEN THIS UNNAMED DRIFT
+			e._position -= dz ; e.length += dz
+		elif 0 < dz and em.kind == "Drift": # NAMED DRIFT, OR OTHER ELEMENT TYPE. EXPAND PRECEEDING DRIFT
+			em.length += dz
+		elif 1e-7 < dz: # THIS AND PREVIOUS ARE BOTH IMMOVABLE/UNLENGTHENABLE, AND OUT OF TOLERANCE.
+			section.elements.insert(i, Drift(length=dz,position=em.position+getattr(em,"length",0)) )
+		# OVERLAPS, negative dz
+		if dz < 0 and e.kind == "Drift" and e.name == "": # SLIDE AND SHORTEN THIS UNNAMED DRIFT
+			e._position -= dz ; e.length += dz
+		elif dz < 0 and em.kind == "Drift": # NAMED DRIFT, OR OTHER ELEMENT TYPE. SHORTEN PRECEEDING DRIFT
+			em.length += dz
+		elif dz < -1e-7: # THIS AND PREVIOUS ARE BOTH IMMOVABLE/UNLENGTHENABLE, AND OUT OF TOLERANCE. NO SOLUTION, RAISE ERROR
+			print("WARNING",section,"HAS ELEMENTS",em,"AND",e,"WHICH OVERLAP AT INDEX",i)
+		#: # GAP, BUT NAMED DRIFT OR OTHER ELEMENT TYPE. INSERT DRIFT
+	# special case: section.length vs last Drift's position and length:
+	el = section.elements[-1]
+	dz = section.length - ( el.position + getattr(el,"length",0) )
+	# GAP, LAST SECTION IS DRIFT, LENGTHEN
+	if 0 < dz and el.kind == "Drift":
+		el.length += dz
+	# OVERLAP: LENGTHEN SECTION
+	if dz < 0:
+		section.length -= dz
+	# crawl the list backwards, look for pairs of Drifts (second one must be unnamed)
+	for i in range(len(section.elements)-1,0,-1):
+		e = section.elements[i]
+		em = section.elements[i-1] # element_minus. previous element
+		if em.kind == "Drift" and e.kind == "Drift" and e.name == "":
+			em.length = getattr(em,"length",0) + getattr(e,"length",0)		# combine lengths into first Drift
+			del section.elements[i]											# and delete the second
 
