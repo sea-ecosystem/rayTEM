@@ -319,128 +319,48 @@ class suspended_aberrations:
 		return False
 
 
-#: Elements whose ``__init__`` has finished, and which therefore refuse unknown
-#: attribute names (see :meth:`Element.__setattr__`). Held OFF the instance, in
-#: a weak set, because anything in an element's ``__dict__`` is serialized: a
-#: flag stored there would be written into every ``.sea`` file and then handed
-#: back to ``setattr`` on load, under a name the guard itself would refuse.
-_SEALED = WeakSet()
 
+class SealedAttributes:
+	"""Refuses attribute names the class does not have, once built.
 
-#: Slices a thick medium is split into when it carries a screen. An aberration
-#: acts along the body, not at one plane, so the wave path integrates it the way
-#: :meth:`Element.aberration_kick` does on the ray side.
-#:
-#: Measured on basic_column's OL1 at 30 mrad, the wave's best-focus shift is
-#: converged from 2-4 slices onward (1 slice differs by 0.23 nm, everything from
-#: 2 up agrees to the 0.23 nm resolution of that measurement). 16 is comfortably
-#: inside that, at the cost of 16 extra half-segments.
-#:
-#: It does NOT make the wave and ray numbers equal, and is not meant to: on that
-#: lens the wave best focus lands at -2.1 nm and the ray c20 fit at -1.1 nm.
-#: Those measure different things -- the brightest plane, near the disc of least
-#: confusion, versus a paraxial fit coefficient -- so a factor of about two
-#: between them is expected, not a residual to be tuned away.
-MEDIUM_SLICES = 16
+	Mixed into :class:`Element` and into the assemblies, because the silent
+	failure it catches happened on both: an element (``lens.Cs = 1e-3`` after
+	``Cs`` stopped existing) and a section (``section.np_xy = ...``, which a
+	section never had). In each case the assignment succeeded, nothing read
+	the value, and the code looked like it worked.
 
-
-def _as_aberrations(value) -> Aberrations:
-	"""Coerce a user-supplied aberration specification to an :class:`Aberrations`.
-
-	Element constructors accept either the object or a bare ``{name: value}``
-	mapping, so a quick script does not have to import the class. ``None``
-	stays ``None``, which is what "ideal, and cost nothing" looks like on the
-	propagation paths.
-
-	Parameters
+	Attributes
 	----------
-	value : Aberrations, Mapping, or None
-		The specification given to an element.
+	None
 
-	Returns
+	Methods
 	-------
-	Aberrations or None
-		The object to store. A supplied :class:`Aberrations` is returned
-		unchanged (not copied), so a set shared between elements stays shared.
+	__setattr__(name, value)
+		The check itself.
+	__init_subclass__()
+		Installs the seal on each concrete subclass.
+	from_hdf5_group(group)
+		Lifts the seal while a stored file is read back.
 
 	Raises
 	------
-	TypeError
-		If the value is neither a mapping, an :class:`Aberrations`, nor
-		``None``.
+	AttributeError
+		From :meth:`__setattr__`, on an unknown name.
 
 	Related
 	-------
-	Element.aberration_kick : Consumes the result on the ray path.
-	aberrations.Aberrations : The storage class.
+	_SEALED : Where the sealed state is kept, and why not on the instance.
+
+	Notes
+	-----
+	Only *new* public names are refused; everything already present stays
+	writable, so correct code is unaffected.
 
 	Examples
 	--------
-	>>> _as_aberrations({'C30': 1e-3})
-	Aberrations(C30=0.001+0j, convention='krivanek')
+	>>> Lens(strength=1.0).strenght = 2      # doctest: +SKIP
+	AttributeError: ... Did you mean 'strength'?
 	"""
-	if value is None or isinstance(value, Aberrations):
-		return value
-	if hasattr(value, "items"):
-		return Aberrations(dict(value.items()))
-	raise TypeError("aberrations must be an Aberrations object, a {name: value} "
-					f"mapping, or None; got {type(value).__name__}.")
-
-
-class Element(SEASerializable):
-	#: Optional affine offsets an element may carry, read by :meth:`propagate_ray`
-	#: as ``getattr(self, ..., 0)``. Declared here rather than left implicit
-	#: because they are part of the ray contract — every element may be shifted
-	#: or tilted — and because a name no class declares is now refused by
-	#: :meth:`__setattr__`.
-	shift_x = 0.0
-	shift_y = 0.0
-	tilt_x = 0.0
-	tilt_y = 0.0
-	#: Larmor rotation accumulated through this element (radians). Set by the
-	#: elements that have an axial field; 0 for everything else.
-	rotation = 0.0
-
-	#: Stored attributes that are not constructor parameters, so
-	#: :func:`seashells.safeReinstantiate` restores them explicitly on reload.
-	#: ``aberrations`` is a kwarg on ``Element`` and ``Lens`` but not on every
-	#: subclass; ``_screen``'s kwarg is spelled ``screen``. Both would be
-	#: silently dropped otherwise -- and a supplied screen has no other copy.
-	_restore_attrs = ("aberrations", "_screen")
-
-	def __init__(self, name:str='', kind:str=None,
-				 aberrations=None, screen=None ) -> SEASerializable:
-		"""General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional attributed can be defined at the inheriting class level. e.g. a Lens has a "strength", but a Drift section does not.
-		The base class carries a working transparent default for every propagation kind (identity transfer_matrix, phase shift of nothing), so inheriting classes only override what their physics requires: transfer_matrix and/or phase_shift, and *may* define a custom propagate_ray function if the standard "[ x₂ xθ₂ y₂ yθ₂ ....] = [6x6] @ [ x₁ xθ₁ y₁ yθ₁....]" is not applicable
-
-		Parameters
-		----------
-		name : str, optional
-			Name given to the lens, by default ''
-		kind : str, optional
-			Type of element, by default None
-		aberrations : Aberrations or dict, optional
-			Axial wave aberrations in Krivanek ``C_{n,m}`` notation, by default
-			``None`` (ideal). Accepts an :class:`aberrations.Aberrations` or a
-			bare ``{name: value}`` mapping. Applied generically by
-			:meth:`aberration_kick` on the ray path and :meth:`phase_shift` on
-			the wave path, so no element needs per-aberration code.
-		screen : Signal or numpy.ndarray, optional
-			A screen supplied by the caller rather than generated, by default
-			``None``. Real means a phase χ in radians; complex means a
-			transmission ``T`` carrying amplitude *and* phase, which is what a
-			fabricated plate has. See :attr:`screen`.
-		"""
-		self.name = name
-		self.kind = kind
-		# Every element may carry aberrations; None means "I am exactly my
-		# matrix", so ideal columns stay bit-for-bit unchanged.
-		self.aberrations = _as_aberrations(aberrations)
-		# A SUPPLIED screen is stored because nothing can recompute it. A screen
-		# derivable from `aberrations` is not stored -- the coefficients are the
-		# storage, and they are smaller than the grid they generate.
-		self._screen = screen
-		self.length = 0		# transparent default: zero physical extent (subclasses overwrite)
 
 	def __init_subclass__(cls, **kwargs):
 		"""Seal each concrete subclass once its own ``__init__`` has finished.
@@ -584,6 +504,130 @@ class Element(SEASerializable):
 			f"would do nothing: no propagation path reads it.{hint} Aberrations belong "
 			"on .aberrations and a supplied phase or transmission on .screen; anything "
 			"else needs a subclass that declares it.")
+
+
+#: Elements whose ``__init__`` has finished, and which therefore refuse unknown
+#: attribute names (see :meth:`Element.__setattr__`). Held OFF the instance, in
+#: a weak set, because anything in an element's ``__dict__`` is serialized: a
+#: flag stored there would be written into every ``.sea`` file and then handed
+#: back to ``setattr`` on load, under a name the guard itself would refuse.
+_SEALED = WeakSet()
+
+
+#: Slices a thick medium is split into when it carries a screen. An aberration
+#: acts along the body, not at one plane, so the wave path integrates it the way
+#: :meth:`Element.aberration_kick` does on the ray side.
+#:
+#: Measured on basic_column's OL1 at 30 mrad, the wave's best-focus shift is
+#: converged from 2-4 slices onward (1 slice differs by 0.23 nm, everything from
+#: 2 up agrees to the 0.23 nm resolution of that measurement). 16 is comfortably
+#: inside that, at the cost of 16 extra half-segments.
+#:
+#: It does NOT make the wave and ray numbers equal, and is not meant to: on that
+#: lens the wave best focus lands at -2.1 nm and the ray c20 fit at -1.1 nm.
+#: Those measure different things -- the brightest plane, near the disc of least
+#: confusion, versus a paraxial fit coefficient -- so a factor of about two
+#: between them is expected, not a residual to be tuned away.
+MEDIUM_SLICES = 16
+
+
+def _as_aberrations(value) -> Aberrations:
+	"""Coerce a user-supplied aberration specification to an :class:`Aberrations`.
+
+	Element constructors accept either the object or a bare ``{name: value}``
+	mapping, so a quick script does not have to import the class. ``None``
+	stays ``None``, which is what "ideal, and cost nothing" looks like on the
+	propagation paths.
+
+	Parameters
+	----------
+	value : Aberrations, Mapping, or None
+		The specification given to an element.
+
+	Returns
+	-------
+	Aberrations or None
+		The object to store. A supplied :class:`Aberrations` is returned
+		unchanged (not copied), so a set shared between elements stays shared.
+
+	Raises
+	------
+	TypeError
+		If the value is neither a mapping, an :class:`Aberrations`, nor
+		``None``.
+
+	Related
+	-------
+	Element.aberration_kick : Consumes the result on the ray path.
+	aberrations.Aberrations : The storage class.
+
+	Examples
+	--------
+	>>> _as_aberrations({'C30': 1e-3})
+	Aberrations(C30=0.001+0j, convention='krivanek')
+	"""
+	if value is None or isinstance(value, Aberrations):
+		return value
+	if hasattr(value, "items"):
+		return Aberrations(dict(value.items()))
+	raise TypeError("aberrations must be an Aberrations object, a {name: value} "
+					f"mapping, or None; got {type(value).__name__}.")
+
+
+class Element(SealedAttributes, SEASerializable):
+	#: Optional affine offsets an element may carry, read by :meth:`propagate_ray`
+	#: as ``getattr(self, ..., 0)``. Declared here rather than left implicit
+	#: because they are part of the ray contract — every element may be shifted
+	#: or tilted — and because a name no class declares is now refused by
+	#: :meth:`__setattr__`.
+	shift_x = 0.0
+	shift_y = 0.0
+	tilt_x = 0.0
+	tilt_y = 0.0
+	#: Larmor rotation accumulated through this element (radians). Set by the
+	#: elements that have an axial field; 0 for everything else.
+	rotation = 0.0
+
+	#: Stored attributes that are not constructor parameters, so
+	#: :func:`seashells.safeReinstantiate` restores them explicitly on reload.
+	#: ``aberrations`` is a kwarg on ``Element`` and ``Lens`` but not on every
+	#: subclass; ``_screen``'s kwarg is spelled ``screen``. Both would be
+	#: silently dropped otherwise -- and a supplied screen has no other copy.
+	_restore_attrs = ("aberrations", "_screen")
+
+	def __init__(self, name:str='', kind:str=None,
+				 aberrations=None, screen=None ) -> SEASerializable:
+		"""General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional attributed can be defined at the inheriting class level. e.g. a Lens has a "strength", but a Drift section does not.
+		The base class carries a working transparent default for every propagation kind (identity transfer_matrix, phase shift of nothing), so inheriting classes only override what their physics requires: transfer_matrix and/or phase_shift, and *may* define a custom propagate_ray function if the standard "[ x₂ xθ₂ y₂ yθ₂ ....] = [6x6] @ [ x₁ xθ₁ y₁ yθ₁....]" is not applicable
+
+		Parameters
+		----------
+		name : str, optional
+			Name given to the lens, by default ''
+		kind : str, optional
+			Type of element, by default None
+		aberrations : Aberrations or dict, optional
+			Axial wave aberrations in Krivanek ``C_{n,m}`` notation, by default
+			``None`` (ideal). Accepts an :class:`aberrations.Aberrations` or a
+			bare ``{name: value}`` mapping. Applied generically by
+			:meth:`aberration_kick` on the ray path and :meth:`phase_shift` on
+			the wave path, so no element needs per-aberration code.
+		screen : Signal or numpy.ndarray, optional
+			A screen supplied by the caller rather than generated, by default
+			``None``. Real means a phase χ in radians; complex means a
+			transmission ``T`` carrying amplitude *and* phase, which is what a
+			fabricated plate has. See :attr:`screen`.
+		"""
+		self.name = name
+		self.kind = kind
+		# Every element may carry aberrations; None means "I am exactly my
+		# matrix", so ideal columns stay bit-for-bit unchanged.
+		self.aberrations = _as_aberrations(aberrations)
+		# A SUPPLIED screen is stored because nothing can recompute it. A screen
+		# derivable from `aberrations` is not stored -- the coefficients are the
+		# storage, and they are smaller than the grid they generate.
+		self._screen = screen
+		self.length = 0		# transparent default: zero physical extent (subclasses overwrite)
 
 	#####################################
     # region: Dunders

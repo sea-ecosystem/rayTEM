@@ -2824,3 +2824,20 @@ def test_setting_an_unknown_attribute_is_refused():
 		assert "_sealed" not in vars(back) and "sealed" not in vars(back)
 	finally:
 		os.chdir(cwd)
+
+
+def test_sections_and_microscopes_refuse_unknown_attributes_too():
+	# The trap that cost the most time was on a SECTION, not an element: the
+	# source and its section are both named "G" in basic_column, a bare m["G"]
+	# resolves to the section, and setting the source's np_xy on it silently did
+	# nothing -- the column then propagated its own default rays.
+	sec = MicroscopeSection(name="S", elements=[Drift(length=1)])
+	with pytest.raises(AttributeError, match="has no attribute 'np_xy'"):
+		sec.np_xy = (15, 1)
+	mic = Microscope(sections=[sec])
+	with pytest.raises(AttributeError, match="Did you mean 'sections'"):
+		mic.sektions = []
+	# and everything they really carry stays writable
+	sec.elements = list(sec.elements)
+	mic.sections = list(mic.sections)
+	sec.name = "renamed"

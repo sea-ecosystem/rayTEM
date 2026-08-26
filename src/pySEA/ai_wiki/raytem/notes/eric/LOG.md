@@ -2,6 +2,56 @@
 
 Newest entries at top.
 
+## 2026-08-26 — [Done] Astigmatism/coma coverage, and an attribute guard
+**Goal:** prove the aberration generality on the terms people actually tune,
+and stop the silent-attribute failure mode.
+**Why:** only C30 had ever run end-to-end, and three separate bugs this session
+traced to assigning an attribute that silently did nothing.
+- [x] C12 aligned/skew and C21 coma exercised end-to-end, rays and wave
+- [x] `SealedAttributes` on Element, MicroscopeSection and Microscope
+- [x] corrected an unverified claim about `MEDIUM_SLICES`
+
+**Outcome:** 125 -> 130 tests.
+
+**Aberration coverage.** Each new test pins a property a magnitude-only check
+would miss:
+- aligned `C12` is quadratic, so it is a per-axis POWER change: two crossovers
+  at `1/(P ± C12·P²)`, each a *true* point focus (zero spread across the fan),
+  both exact to 1e-12. The wave agrees at the same z and gives a line focus,
+  8x longer in y than x against 1.00 for an ideal lens.
+- skew `C12` leaves the axes at the ideal focus and splits the DIAGONALS by the
+  same amounts — the same aberration turned by π/2m.
+- `C21` vs `C30` pins PARITY, the easiest thing to get silently wrong: the ray
+  aberration goes as θⁿ, so coma (n=2) deflects opposite pupil edges the SAME
+  way — that is what makes a comet tail — while spherical (n=3) deflects them
+  oppositely and stays centred.
+
+**The attribute guard needed three carve-outs, all real:**
+1. underscore names and anything the class declares pass, so correct code is
+   untouched;
+2. **deserialization is exempt** — a file may carry names the class no longer
+   declares, and the writer stores a private `_x` under the public key `x`, so
+   refusing them would make an old file unopenable;
+3. `copy()` re-seals, because `deepcopy` restores `__dict__` without running
+   `__init__`.
+
+The seal lives in a module-level `WeakSet`, **not** on the instance: everything
+in `__dict__` is serialized, so a flag there would be written into every `.sea`
+file and then handed back to `setattr` on load, under a name the guard itself
+would refuse. That one cost a debugging round.
+
+Also declared `shift_x`/`shift_y`/`tilt_x`/`tilt_y`/`rotation` as class
+attributes. They were always part of the ray contract (`propagate_ray` reads
+them via `getattr(self, ..., 0)`) but no class declared them, so they existed
+only once someone assigned one — which the guard then refused.
+
+**Correction to my own note above:** I had written that 16 `MEDIUM_SLICES`
+"matches the ray integral to ~1%". I never measured it and it is wrong twice
+over — the measurement cannot resolve 1%, and the two numbers are not meant to
+be equal. Measured: converged from 2-4 slices on. The wave best focus (-2.1 nm)
+and the ray c20 fit (-1.1 nm) differ by ~2x because one is the brightest plane
+and the other a paraxial fit coefficient. Do not tune MEDIUM_SLICES to close it.
+
 ## 2026-08-26 — [Done] Objective section, six-panel example, three wave-path bugs
 **Goal:** show spherical aberration in rays AND in the wave, on the real OL1.
 **Why:** Eric asked for a wave propagation with and without C30; the full column

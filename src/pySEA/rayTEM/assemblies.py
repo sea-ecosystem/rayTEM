@@ -7,7 +7,7 @@ import pickle
 import sys,inspect,os,datetime,shutil
 
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
-from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations
+from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes
 from typing import Literal
 from .seashells import SEASerializable
 
@@ -178,7 +178,7 @@ def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None
 		ax.set_title(title)
 
 
-class MicroscopeSection(SEASerializable):
+class MicroscopeSection(SealedAttributes, SEASerializable):
 	"""MicroscopeSection class represents a portion of a microscope, and contains multiple Elements. propagation through a Section results in propagation through individual Elements.
 
 		Parameters
@@ -815,7 +815,7 @@ class MicroscopeSection(SEASerializable):
 		return MicroscopeSection(**dic)
 
 
-class Microscope(SEASerializable):
+class Microscope(SealedAttributes, SEASerializable):
 	"""Microscope class represents a whole microscope, and is comprised of multiple MicroscopeSections. propagation through a Microscope results in propagation through individual MicroscopeSections
 
 		Parameters
