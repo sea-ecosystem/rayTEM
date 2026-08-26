@@ -26,6 +26,28 @@ it, so "first after" and "nearest" genuinely differ here).
    name surfaced as `TypeError: cannot unpack non-iterable NoneType`. It now
    raises `KeyError` listing the known names.
 
+**Follow-up (same day):** `beam_current` and `convergence_angle` are now
+properties, and `convergence_angle_at(z)` covers arbitrary planes. Both
+docstrings state **semi**-angle explicitly. Two things that were wrong:
+- `convergence_angle` read `xt` alone, which under-reports by `cos(KL)` on a
+  thick objective — a factor of 3.7 on OL1. It reports `hypot(xt, yt)` now.
+- it measured at the sample's entrance FACE, and `measureAtZ` returns the state
+  *entering* a plane. That worked only because `0.05 + 0.01` lands an epsilon
+  past `0.06` (`0.060000000000000005`); on a column landing short it would have
+  silently returned the unconverged beam. It measures at the element's midpoint
+  now. Round-trips against `build_objective_section(alpha=...)` exactly.
+
+**What focus_error actually measures** (Eric asked whether it is just C10): it
+is a traced crossover position, so every aberration the ray path applies is in
+it — but at a condenser's pupil angle only the quadratic terms move one. On
+basic_column the rays reach 9.6 µm at C3, a 0.1 mrad pupil angle, so C10's kick
+is 1.2e-6 rad against C30's 1.3e-14. Measured: C10 = 1 mm shifts it 0.22 µm,
+aligned C12 shifts it the other way by the same, C30 does not move it at all —
+not even at 0.1 m. So it is a defocus measurement in practice, but it is not
+`C10`: that is one lens's property, this is where the column puts a crossover.
+And with spherical present there is no single crossover — `findPlanes` reports
+where its chosen ray pair crosses, which is height-dependent.
+
 **Mentioned, not fixed** (surgical scope):
 - `Microscope.index` still *prints* `ERROR: name ... not found` and returns
   `None`. With `get_element_position` now raising, that print is pure noise on

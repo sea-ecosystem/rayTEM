@@ -1007,19 +1007,146 @@ class Microscope(SealedAttributes, SEASerializable):
 	# endregion
     ################
 
-	# TODO rather silly to need to infer planes in every script and measure. we should have a property for each to standardize it
-	#@property
-	def beam_current(self,regenerate=False):
-		if regenerate:
+	@property
+	def beam_current(self) -> float:
+		"""Beam intensity leaving the column, as a fraction of the source's.
+
+		Apertures are what change it: :meth:`elements.Aperture.apply_intensity`
+		scales every ray by the fraction of the beam the bore admits, so this
+		is the product of those factors down the column. 1.0 means nothing was
+		cut.
+
+		Returns
+		-------
+		float
+			Surviving fraction, in ``[0, 1]``. Propagates first if the rays
+			have not been traced.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		elements.Aperture.apply_intensity : Where the attenuation happens.
+
+		Notes
+		-----
+		A **fraction**, not an absolute current: nothing in the column carries
+		amps. ``Source`` has no ``beam_current`` attribute yet, and until it
+		does there is nothing to scale this by.
+
+		The aperture model attenuates every ray by the same area factor rather
+		than truncating individual rays, so all rays share one value and the
+		mean is exact rather than representative.
+
+		Examples
+		--------
+		>>> scope.beam_current                          # doctest: +SKIP
+		0.0225
+		"""
+		if self.rays is None:
 			self.propagate_ray()
-		return self.I[-1,0]
-	#@property
-	def convergence_angle(self,regenerate=False):
-		if regenerate:
+		return float(xp.mean(self.I[-1]))
+
+	def convergence_angle_at(self, z:float) -> float:
+		"""Convergence **semi**-angle of the outermost ray at a plane.
+
+		Semi-angle: the half-angle of the cone, measured from the optic axis —
+		not the full opening angle. This is the alpha every axial aberration is
+		measured against, so a factor of two here propagates as
+		:math:`2^4 = 16` in a ``C30`` phase.
+
+		Parameters
+		----------
+		z : float
+			Plane to measure at (metres, absolute).
+
+		Returns
+		-------
+		float
+			Semi-angle in radians, always positive.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		convergence_angle : The same thing at the specimen.
+		postprocessing.measureAtZ : Does the interpolation.
+
+		Notes
+		-----
+		The ray's **total** deflection, ``hypot(xt, yt)``, not its x component.
+		A thick lens rotates the ray by its Larmor angle as it focuses it, so
+		reading ``xt`` alone under-reports the convergence by ``cos(KL)`` — for
+		basic_column's OL1 that is a factor of 3.7.
+
+		Examples
+		--------
+		>>> scope.convergence_angle_at(0.0622)          # doctest: +SKIP
+		0.03
+		"""
+		if self.rays is None:
 			self.propagate_ray()
-		z = self.get_element_position("O1")+self["O1"].length+.001
-		x,y,xt,yt,R,I = measureAtZ(z,section=self)
-		return xt
+		x, y, xt, yt, R, I = measureAtZ(float(z), section=self)
+		return float(xp.hypot(xt, yt))
+
+	@property
+	def convergence_angle(self) -> float:
+		"""Convergence **semi**-angle at the specimen, in radians.
+
+		Measured at the **middle** of the element named ``sample``, because that
+		is where the quantity means something: it changes down the column as
+		apertures cut the beam and lenses change its trajectory, so "the"
+		convergence angle is only defined once a plane is named.
+
+		The midpoint rather than the face: :func:`postprocessing.measureAtZ`
+		reports the state *entering* a plane, so asking at an element's exit
+		face returns the state before that element acted. Measuring at
+		``position`` alone worked here only because ``0.05 + 0.01`` lands a
+		floating-point epsilon past ``0.06``; on a column where it landed short
+		it would have silently returned the unconverged beam.
+
+		Returns
+		-------
+		float
+			Semi-angle in radians — the half-angle of the cone, not the full
+			opening angle.
+
+		Raises
+		------
+		KeyError
+			If the column has no element named ``sample``. Use
+			:meth:`convergence_angle_at` with an explicit plane instead, rather
+			than this guessing one.
+
+		Notes
+		-----
+		A zero-length ``sample`` marker sits exactly on a plane boundary, where
+		the value is the state *entering* it — the beam as it arrives, which is
+		what is wanted at a specimen.
+
+		Related
+		-------
+		convergence_angle_at : At any plane.
+		beam_current : The other thing apertures change.
+
+		Notes
+		-----
+		Reports the ray's total deflection, so a thick objective's Larmor
+		rotation does not hide part of it — see
+		:meth:`convergence_angle_at`.
+
+		Examples
+		--------
+		>>> scope.convergence_angle                     # doctest: +SKIP
+		0.03
+		"""
+		z0 = self.get_element_position("sample")
+		length = getattr(self["sample"], "length", 0.0) or 0.0
+		return self.convergence_angle_at(z0 + length / 2)
 	def focus_error(self, expected_crossover:float=0.0, after:str="C3",
 					regenerate:bool=False) -> float:
 		"""How far the first crossover after a lens sits from where it should.
@@ -1067,6 +1194,33 @@ class Microscope(SealedAttributes, SEASerializable):
 		The **first** plane past ``after`` is taken, not the nearest: nearest
 		would happily pick one *upstream* when the condenser is badly off, which
 		is exactly when this measurement matters.
+
+		**Which aberrations move this.** It is a traced measurement, so every
+		aberration the ray path applies is in it — but it reports where a
+		crossover *sits*, and at a condenser's pupil angle only the quadratic
+		terms shift one measurably. On ``basic_column`` the rays reach ~9.6 µm
+		at C3, which at ``f = 90 mm`` is a pupil angle of 0.1 mrad, so the terms
+		scale as:
+
+		=====  ==============  ===================================
+		term   goes as         kick at that height (coefficient 1 mm)
+		=====  ==============  ===================================
+		C10    :math:`\theta`   1.2e-6 rad
+		C21    :math:`\theta^2` 1.3e-10 rad
+		C30    :math:`\theta^3` 1.3e-14 rad
+		=====  ==============  ===================================
+
+		Measured: ``C10 = 1 mm`` moves it 0.22 µm and an aligned ``C12`` moves
+		it the other way by the same amount, while ``C30`` does not move it at
+		all — not even at an absurd 0.1 m. So in practice this is a defocus
+		measurement, with astigmatism entering on the measured axis.
+
+		It is **not** ``C10``, though. ``C10`` is a property of one lens; this
+		is where the column actually puts a crossover, which is what a
+		condenser is aligned against. And with spherical aberration present
+		there is no single crossover at all — the plane becomes a caustic, and
+		:func:`postprocessing.findPlanes` reports where its chosen ray pair
+		crosses, which depends on their height.
 
 		Examples
 		--------

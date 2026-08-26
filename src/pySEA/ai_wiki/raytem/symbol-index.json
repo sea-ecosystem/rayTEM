@@ -472,7 +472,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2755,
+    "source_lineno": 2909,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -481,7 +481,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2683,
+    "source_lineno": 2837,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -1270,6 +1270,15 @@
   },
   {
     "kind": "function",
+    "name": "test_beam_current_is_the_fraction_apertures_let_through",
+    "qualname": "test_beam_current_is_the_fraction_apertures_let_through",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 2914,
+    "signature": "test_beam_current_is_the_fraction_apertures_let_through()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_beam_support_extent_and_guard",
     "qualname": "test_beam_support_extent_and_guard",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -1383,6 +1392,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 1464,
     "signature": "test_conjugate_planes_reference_plane()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_convergence_angle_is_a_semi_angle_and_a_total_deflection",
+    "qualname": "test_convergence_angle_is_a_semi_angle_and_a_total_deflection",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 2877,
+    "signature": "test_convergence_angle_is_a_semi_angle_and_a_total_deflection()",
     "doc": ""
   },
   {

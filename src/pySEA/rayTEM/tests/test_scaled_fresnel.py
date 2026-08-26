@@ -2872,3 +2872,60 @@ def test_focus_error_finds_the_first_crossover_after_the_condenser():
 		mic.focus_error(after="CL3")
 	with pytest.raises(ValueError, match="no crossover found downstream"):
 		mic.focus_error(after="detector")
+
+
+def test_convergence_angle_is_a_semi_angle_and_a_total_deflection():
+	# objective_section is BUILT for a stated convergence semi-angle, so the
+	# measurement round-trips against the builder rather than against itself.
+	import os, pySEA.rayTEM
+	from pySEA.rayTEM.microscopes.objective_section import build_objective_section
+	from pySEA.rayTEM.elements import columnByName
+	for alpha in (15e-3, 30e-3):
+		mic = build_objective_section(alpha=alpha, wave_shape=(32, 32))
+		mic.propagate_ray()
+		assert np.isclose(mic.convergence_angle, alpha, rtol=1e-9), alpha
+
+	mic = build_objective_section(alpha=30e-3, wave_shape=(32, 32))
+	mic.propagate_ray()
+	r = np.asarray(mic.rays)
+	zs = r[:, 0, columnByName('z')]
+	i = int(np.argmin(np.abs(zs - 0.062)))			# inside the sample gap
+	ang = np.hypot(r[i, :, 1], r[i, :, 3])
+
+	# SEMI-angle: the half-cone. The rays span +-alpha, so the full opening is 2x
+	assert np.isclose(ang.max(), 30e-3, rtol=1e-9)
+	assert np.isclose(mic.convergence_angle, ang.max(), rtol=1e-9)
+
+	# TOTAL deflection, not the x component: OL1 is thick, so it rotates the ray
+	# by its Larmor angle while focusing it, and xt alone under-reports by
+	# cos(KL) -- a factor of ~3.7 here
+	xt_only = np.abs(r[i, :, 1]).max()
+	assert xt_only < 0.4 * mic.convergence_angle
+	assert mic.convergence_angle / xt_only > 3.0
+
+	# and it must not depend on landing a floating-point epsilon past the
+	# sample's entrance face, which is where measureAtZ flips between the state
+	# entering an element and the state leaving it
+	z0 = mic.get_element_position("sample")
+	assert np.isclose(mic.convergence_angle_at(z0 + 1e-6), mic.convergence_angle,
+					  rtol=1e-9)
+
+
+def test_beam_current_is_the_fraction_apertures_let_through():
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		Source(size=(1e-4, 1e-4), np_xy=(5, 5), angle=(1e-3, 1e-3), na_xy=(3, 3)),
+		Drift(length=0.1), Aperture(radius=3e-5), Drift(length=0.1)])])
+	mic.propagate_ray()
+	I = np.asarray(mic.I)
+	assert np.isclose(mic.beam_current, I[-1].sum() / I[0].sum(), rtol=1e-12)
+	assert 0.0 < mic.beam_current < 1.0				# the aperture cut something
+
+	# with nothing to cut it, everything gets through
+	clear = Microscope(sections=[MicroscopeSection(elements=[
+		Source(size=(1e-4, 1e-4), np_xy=(3, 3), angle=(1e-3, 1e-3), na_xy=(3, 3)),
+		Drift(length=0.1)])])
+	clear.propagate_ray()
+	assert np.isclose(clear.beam_current, 1.0, rtol=1e-12)
+
+	# both are properties now, not methods
+	assert not callable(mic.beam_current) and not callable(mic.convergence_angle_at(0.1))
