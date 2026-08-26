@@ -22,17 +22,24 @@ ALPHA is the convergence semi-angle AT THE SAMPLE, and it is the ray's total
 deflection: OL1 is thick, so it rotates the ray by its Larmor angle too, and
 only 8.08 of the 30 mrad is in x.
 
-Why C30 = 0.1 mm and not 1 mm: the samples an aberration screen needs go as
-C30*alpha^4, and at 30 mrad 1 mm still aliases even after the thick lens
-distributes its screen over MEDIUM_SLICES (_check_screen_sampling says so
-rather than quietly producing nonsense). 0.5 mm is the ceiling here; 0.1 mm is
-50.7 rad of peak phase, which already destroys the focus.
+Why C30 = 10 um. Everything scales as C30*alpha^4, so at 30 mrad the choice is
+narrow. A corrected instrument (C30 < 300 nm) is 0.15 rad of peak phase --
+diffraction-limited, which is the POINT of correction and shows nothing. At the
+other end, 100 um is 50.7 rad and simply destroys the focus, which shows
+nothing either. 10 um lands at Strehl 0.62: a focus that is visibly degraded
+and still recognisable, which is the regime where the number means something.
+
+Note the aberration OL1 DELIVERS is ~0.12x the nominal C30, because it is 10 mm
+thick and its aberration is distributed along the body. The Rayleigh quarter-
+wave limit at 30 mrad therefore lands at C30 ~ 25 um for this lens, not the
+3.1 um a thin one would need.
 
 Run: python examples/06_aberratedObjective.py   (writes figures/)
 """
 import os, numpy as np, matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.colors import PowerNorm
 from pySEA.rayTEM import Source, Drift, Lens, MicroscopeSection, Microscope
 from pySEA.rayTEM.elements import Drift as _Drift
 from pySEA.rayTEM.aberrations import Aberrations
@@ -40,7 +47,7 @@ from pySEA.rayTEM.microscopes.objective_section import build_objective_section
 from pySEA.rayTEM.seashells import read_scaled_wavefield
 from pySEA.rayTEM import waveoptics as wo
 
-ALPHA, C30, F_OL = 30e-3, 1e-4, 8e-3
+ALPHA, C30, F_OL = 30e-3, 1e-5, 8e-3
 N_WAVE, N_PLANES = 256, 80
 LAM = 2.5078e-12
 
@@ -154,21 +161,29 @@ ideal, aberrated = scope(0.0), scope(C30)
 for m in (ideal, aberrated):
 	m.propagate_ray()
 Z_PAR = float(ideal.conjugate_planes(axis="x")["diff"][0])
-# The caustic's own scales, but for what OL1 ACTUALLY delivers: it is 10 mm
-# thick, so its aberration is distributed along the body and comes out at
-# ~0.12x the thin-lens closed form (panel E measures this). Framing on the
-# closed form would leave the caustic in the middle few pixels.
+# Near a focus the meaningful scales are DIFFRACTION ones, not the aberration's:
+# the depth of focus lambda/alpha^2 and the Airy radius 0.61*lambda/alpha. Framing
+# on the aberration instead gives a window one depth of focus wide, in which the
+# wave is a featureless blob. Sized this way the aberration is seen in
+# proportion -- which is the honest picture at Strehl 0.6: a fraction of the
+# depth of focus, not a catastrophe.
+#
+# For reference, what OL1 actually delivers is ~0.12x the thin-lens closed form,
+# because it is 10 mm thick and its aberration is distributed along the body
+# (panel E measures this).
 THICK = 0.122
-DZ = 2.0 * THICK * C30 * ALPHA ** 2			# longitudinal, C30*alpha^2
-X_HALF = 3.0 * THICK * C30 * ALPHA ** 3		# transverse, C30*alpha^3
-Z_LO, Z_HI = Z_PAR - DZ, Z_PAR + 0.3 * DZ
+DOF = LAM / ALPHA ** 2						# depth of focus
+AIRY = 0.61 * LAM / ALPHA					# Airy radius
+DZ = 2.5 * DOF
+X_HALF = 2.5 * AIRY
+Z_LO, Z_HI = Z_PAR - DZ, Z_PAR + DZ
 
 fig = plt.figure(figsize=(13.5, 14))
 gs = fig.add_gridspec(3, 2, hspace=0.38, wspace=0.26)
 
 # ---- A, B: the ray caustic ----------------------------------------------
 for k, (m, lbl) in enumerate(((ideal, "A   rays, ideal objective"),
-							  (aberrated, f"B   rays, C30 = {C30*1e3:.1f} mm"))):
+							  (aberrated, f"B   rays, C30 = {C30*1e6:g} " + r"$\mu$m"))):
 	ax = fig.add_subplot(gs[0, k])
 	m.show(kind="ray", plt_ax=ax, regenerate=False, conjugates=False, title=lbl)
 	for t in ax.texts:
@@ -177,27 +192,29 @@ for k, (m, lbl) in enumerate(((ideal, "A   rays, ideal objective"),
 	ax.set_ylim(-X_HALF, X_HALF)
 	ax.axvline(Z_PAR, color="0.3", lw=1.0, ls=":")
 	ax.set_xlabel(f"z  —  {(Z_HI-Z_LO)*1e9:.0f} nm across the panel")
-	ax.set_ylabel(f"x  —  {2*X_HALF*1e9:.0f} nm across the panel")
+	ax.set_ylabel(f"x  —  {2*X_HALF*1e12:.0f} pm across the panel")
 
 # ---- C, D: the same window, in the wave ---------------------------------
 panels = []
 for c30 in (0.0, C30):
 	panels.append(wave_cross_section(c30, Z_LO, Z_HI, X_HALF, Z_PAR))
 for k, ((zs, xs, I, _nat), lbl) in enumerate(zip(panels,
-		("C   wave, ideal objective", f"D   wave, C30 = {C30*1e3:.1f} mm"))):
+		("C   wave, ideal objective", f"D   wave, C30 = {C30*1e6:g} " + r"$\mu$m"))):
 	ax = fig.add_subplot(gs[1, k])
 	z_edges = np.concatenate([[zs[0]], (zs[:-1] + zs[1:]) / 2, [zs[-1]]])
 	x_edges = np.linspace(xs[0], xs[-1], xs.size + 1)
 	# each plane to its own peak: the focus is orders of magnitude brighter than
 	# the converging beam, so a shared scale would show a dot and nothing else
 	norm = I / I.max(axis=1, keepdims=True)
-	ax.pcolormesh(z_edges, x_edges * 1e9, norm.T, cmap="magma", shading="flat",
-				  vmin=0, vmax=1)
+	# a power stretch, not linear: the focus is orders of magnitude brighter
+	# than the converging beam, and the structure worth seeing is in the wings
+	ax.pcolormesh(z_edges, x_edges * 1e12, norm.T, cmap="magma", shading="flat",
+				  norm=PowerNorm(0.5, vmin=0, vmax=1))
 	ax.axvline(Z_PAR, color="w", lw=1.0, ls=":", alpha=0.7)
 	ax.set_xlim(Z_LO, Z_HI)
 	ax.set_title(lbl)
 	ax.set_xlabel(f"z  —  {(Z_HI-Z_LO)*1e9:.0f} nm across the panel")
-	ax.set_ylabel("x (nm)")
+	ax.set_ylabel("x (pm)")
 
 # ---- E: the focal surface -----------------------------------------------
 axE = fig.add_subplot(gs[2, 0])
@@ -242,12 +259,12 @@ for (_zs, _xs, _I, (xn, In, zn)), c30, c in zip(panels, (0.0, C30),
 	if ref is None:
 		ref = In.max()							# normalise BOTH to the ideal peak,
 	line = In / ref								# or the Strehl loss is hidden
-	axF.plot(xn * 1e9, line, "-", color=c, lw=1.6,
-			 label=f"C30 = {c30*1e3:.1f} mm   (peak {line.max():.3f})")
+	axF.plot(xn * 1e12, line, "-", color=c, lw=1.6,
+			 label=f"C30 = {c30*1e6:g} um   (peak {line.max():.3f})")
 	if c30:
 		strehl = line.max()
-axF.set_xlim(-X_HALF * 1e9, X_HALF * 1e9)
-axF.set_xlabel("x at the paraxial focus (nm)")
+axF.set_xlim(-X_HALF * 1e12, X_HALF * 1e12)
+axF.set_xlabel("x at the paraxial focus (pm)")
 axF.set_ylabel(r"$|\psi|^2$, both scaled to the IDEAL peak")
 axF.set_title(f"F   the focus, {ALPHA*1e3:.0f} mrad")
 axF.legend(fontsize=8)
@@ -255,13 +272,17 @@ axF.grid(alpha=0.3)
 axF.text(0.03, 0.62,
 	f"Strehl = {strehl:.3f}\n"
 	r"peak quartic phase $kC_{30}\alpha^4/4$ = "
-	f"{2*np.pi/LAM*C30*ALPHA**4/4:.1f} rad",
+	f"{2*np.pi/LAM*C30*ALPHA**4/4:.2f} rad nominal\n"
+	f"{2*np.pi/LAM*THICK*C30*ALPHA**4/4:.2f} rad delivered "
+	f"(x{THICK:.3f}, OL1 is thick)\n"
+	r"Rayleigh $\pi/2$ limit at this $\alpha$: "
+	f"{1.5708*4*LAM/(2*np.pi*ALPHA**4)/THICK*1e6:.0f} " + r"$\mu$m",
 	transform=axF.transAxes, fontsize=7.6)
 
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures",
 				   "OL1_spherical_aberration.png")
 fig.suptitle(f"Spherical aberration on objective_section's OL1   "
-			 f"(C30 = {C30*1e3:.1f} mm, {ALPHA*1e3:.0f} mrad)", fontsize=14, y=0.995)
+			 f"(C30 = {C30*1e6:g} " + r"$\mu$m" + f", {ALPHA*1e3:.0f} mrad)", fontsize=14, y=0.995)
 fig.savefig(out, dpi=130, bbox_inches="tight")
 print("wrote", out)
 print(f"paraxial focus z = {Z_PAR*1e3:.6f} mm")
