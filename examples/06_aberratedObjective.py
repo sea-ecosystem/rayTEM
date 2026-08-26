@@ -24,26 +24,32 @@ from pySEA.rayTEM.aberrations import Aberrations
 P = os.path.join(os.path.dirname(pySEA.rayTEM.__file__), "microscopes", "basic_column.sea")
 CS, H_MAX, F_OL = 1e-3, 1.04e-4, 8e-3
 
-def column(Cs):
-    # Aberrations are attached as a set of Krivanek C_{n,m} coefficients, not as
-    # a per-aberration attribute: spherical is C30, and the same object would
-    # carry astigmatism or coma with no change to anything downstream.
-    m = load_microscope(P)
-    m["OL1"].aberrations = Aberrations({'C30': Cs}) if Cs else None
-    return m
+# Two scopes, not one built twice: the ideal column and the aberrated one differ
+# by exactly one attribute, and saying so once is clearer than a factory.
+# Aberrations attach as a set of Krivanek C_{n,m} coefficients rather than a
+# per-aberration attribute -- spherical is C30, and the same object would carry
+# astigmatism or coma with no change to anything downstream.
+ideal, aberrated = load_microscope(P), load_microscope(P)
+aberrated["OL1"].aberrations = Aberrations({'C30': CS})
 
-def fan(m, n=15, h=H_MAX):
-    r0 = np.zeros((n, 6)); r0[:, 0] = np.linspace(-h, h, n)
-    m.propagate_ray(r0.copy()); return m
+# The illumination is the SOURCE's job, so set it there rather than handing a
+# ray array to propagate_ray: a parallel fan of 15 rays spanning +-H_MAX in x,
+# one angle (zero), nothing in y.
+# NB: the source and its section are BOTH named "G", and a bare m["G"] resolves
+# to the section -- hence m["G"]["G"] (equivalently m[0, 0]) for the source.
+for m in (ideal, aberrated):
+    src = m["G"]["G"]
+    src.size, src.np_xy, src.angle, src.na_xy = (H_MAX, 0), (15, 1), (0, 0), (1, 1)
+    m.propagate_ray()
 
 fig = plt.figure(figsize=(14, 12.5))
 gs = fig.add_gridspec(3, 2, hspace=0.42, wspace=0.25, height_ratios=[1.15, 1, 1])
-z_par = float([z for z in column(0.0).conjugate_planes(axis="x")["diff"] if z > 0.5][0])
+z_par = float([z for z in ideal.conjugate_planes(axis="x")["diff"] if z > 0.5][0])
 
 # ---- A: context, full width ----------------------------------------------
 axA = fig.add_subplot(gs[0, :])
-fan(column(0.0)).show(kind="ray", plt_ax=axA, regenerate=False, conjugates=False,
-                      title="A   basic_column, 10 mrad illumination — OL1 is the lens being aberrated")
+ideal.show(kind="ray", plt_ax=axA, regenerate=False, conjugates=False,
+           title="A   basic_column, 10 mrad illumination — OL1 is the lens being aberrated")
 for t in axA.texts:                                   # the element labels crowd at this scale
     t.set_visible(False)
 axA.axvline(0.490, color="crimson", lw=1.6)
@@ -55,11 +61,11 @@ axA.text(z_par, axA.get_ylim()[0]*0.80, "  plane examined: 502.4876 mm",
 axA.set_xlabel("z (m)"); axA.set_ylabel("x (m)")
 
 # ---- B, C: the focus, ideal vs aberrated, identical axes -----------------
-for k, (Cs, lbl) in enumerate(((0.0, "B   OL1 ideal  (C30 = 0):  one crossing"),
-                               (CS, f"C   OL1 aberrated  (C30 = {CS*1e3:.0f} mm):  a caustic"))):
+for k, (m, lbl) in enumerate(((ideal, "B   OL1 ideal  (C30 = 0):  one crossing"),
+                              (aberrated,
+                               f"C   OL1 aberrated  (C30 = {CS*1e3:.0f} mm):  a caustic"))):
     ax = fig.add_subplot(gs[1, k])
-    fan(column(Cs)).show(kind="ray", plt_ax=ax, regenerate=False,
-                         conjugates=False, title=lbl)
+    m.show(kind="ray", plt_ax=ax, regenerate=False, conjugates=False, title=lbl)
     for t in ax.texts:
         t.set_visible(False)
     ax.set_xlim(z_par - 90e-9, z_par + 30e-9)
@@ -80,10 +86,12 @@ axD.plot(ai[oi]*1e3, (si["z"][oi]-si["z_paraxial"])*1e9, "o", ms=6, color="tab:b
          label="isolated thin lens, traced")
 aa = np.linspace(0, 10e-3, 100)
 axD.plot(aa*1e3, -CS*aa**2*1e9, "-", lw=1.6, color="k", label=r"closed form $-C_{30}\alpha^2$")
-m = column(CS)
-sc = m.focal_surface(family="diff", aperture=H_MAX, radii=12, azimuths=4, near=z_par)
+# this re-traces `aberrated` with the surface's own ray heights, which replaces
+# the fan above -- fine here because panels A-C are already drawn
+sc = aberrated.focal_surface(family="diff", aperture=H_MAX, radii=12, azimuths=4,
+                             near=z_par)
 r0 = np.zeros((sc["radius"].size, 6)); r0[:, 0] = sc["radius"]
-rr = np.asarray(m.propagate_ray(r0.copy()))
+rr = np.asarray(aberrated.propagate_ray(r0.copy()))
 iz = int(np.argmin(np.abs(rr[:, 0, 4] - 0.490)))
 h_f = np.abs(rr[iz, :, 0]) / F_OL ; oc = np.argsort(h_f)
 axD.plot(h_f[oc]*1e3, (sc["z"][oc]-sc["z_paraxial"])*1e9, "s", ms=6, color="tab:red",
