@@ -2,6 +2,43 @@
 
 Newest entries at top.
 
+## 2026-08-26 — [Done] The wave path carries current too
+**Goal:** close the gap the beam-current work left open.
+**Why:** Eric's model is that anything masking the beam changes the current —
+"apertures that mask rays **or alter a wave's amplitude (like a mask)**". The
+ray path did that; the wave path did not.
+- [x] `Microscope.wave_current` / `wave_current_at(plane)`
+- [x] tests for conservation, an amplitude mask, a phase screen, an aperture
+
+**Outcome:** 133 -> 135 tests.
+
+No new bookkeeping was needed, which is the nice part: the wave already carries
+the information in its own amplitude. Anything multiplying psi by a modulus
+below 1 reduces the integral of |psi|^2 by exactly that much.
+
+The quantity is `sum |U|^2 dxi deta` on the scaled path. The factorization
+`psi = U(x/s)/s` makes that equal `integral |psi|^2 dA`, so no reconstruction is
+needed and it is conserved by free propagation whatever the frame does —
+measured at 1.0000 through a two-drift column.
+
+Measured, source 2 nA:
+- clear column: 2000.000 pA (exactly conserved)
+- 50% **amplitude** mask: 500.000 pA — |T|^2, not |T|
+- pure phase screen: unchanged, since |exp(i chi)| = 1
+- 20 um aperture on a 40 um beam: 490.8 pA, just under the (20/40)^2 = 25%
+  a ray model gives, because the wave is genuinely masked and diffracts
+
+Deliberately a **ratio** against the source plane rather than a renormalized
+wavefunction: normalizing psi to carry amps would change every amplitude the
+existing wave tests compare, for no gain. The two paths are not required to
+agree exactly — an Aperture scales rays by a ratio of extents while the wave is
+masked and diffracts — and the docstring says so rather than implying a
+correspondence that does not hold.
+
+**Process note for myself:** I proposed doing the amps work Eric had already
+asked for and I had already done, four hours earlier in this same session
+(`b328ed6`). Check `git log` before offering to build something.
+
 ## 2026-08-26 — [Done] Beam current in amps, and a reload table that lost two elements
 **Goal:** Eric's C1 — the Source states a current in amps; everything
 downstream derives it.

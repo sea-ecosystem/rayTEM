@@ -1091,6 +1091,133 @@ class Microscope(SealedAttributes, SEASerializable):
 			self.propagate_ray()
 		return float(xp.sum(self.I[plane]))
 
+	def _wave_flux(self, plane:int) -> float:
+		r"""Integrated :math:`|\psi|^2` at one logged wave plane.
+
+		The quantity a current is proportional to. On the scaled path the
+		factorization :math:`\psi = s^{-1}U(x/s)` makes
+		:math:`\int|\psi|^2\,dA = \int|U|^2\,d\xi\,d\eta`, so summing over the
+		scaled grid is already the physical flux — no reconstruction needed,
+		and it is conserved by free propagation whatever the frame does.
+
+		Parameters
+		----------
+		plane : int
+			Index into the logged wave planes.
+
+		Returns
+		-------
+		float
+			The integral, in arbitrary units — only ratios of it are used.
+
+		Raises
+		------
+		IndexError
+			If ``plane`` is out of range.
+
+		Related
+		-------
+		wave_current_at : Turns a ratio of these into amps.
+		"""
+		from .seashells import read_scaled_wavefield, read_wavefield
+		if getattr(self, "_wave_scaled_planes", None):
+			U, dxi, deta, lam, s, R, tau, z = read_scaled_wavefield(
+				self._wave_scaled_planes[plane])
+			return float(xp.sum(xp.abs(xp.asarray(U))**2) * abs(dxi) * abs(deta))
+		data, dx, dy, wavelength, z = read_wavefield(self.wave[plane])
+		return float(xp.sum(xp.abs(xp.asarray(data))**2) * abs(dx) * abs(dy))
+
+	def wave_current_at(self, plane:int=-1) -> float:
+		"""Current carried by the propagated **wave** at one plane, in amps.
+
+		The wave counterpart of :meth:`current_at`. Where the ray path tracks
+		amps in ``I`` and lets apertures scale them, the wave already carries
+		the information in its own amplitude: anything that multiplies
+		:math:`\\psi` by a modulus below 1 — an aperture, or a supplied
+		absorbing screen — reduces :math:`\\int|\\psi|^2` by exactly that much.
+		So this is a ratio against the source plane, scaled by the one place a
+		current is stated.
+
+		Parameters
+		----------
+		plane : int, optional
+			Index into the logged wave planes, by default -1 (the exit).
+
+		Returns
+		-------
+		float
+			Current in amps.
+
+		Raises
+		------
+		RuntimeError
+			If no wave has been propagated, or the column has no ``Source`` to
+			take a current from.
+		IndexError
+			If ``plane`` is out of range.
+
+		Related
+		-------
+		current_at : The ray-path counterpart.
+		elements.Source.beam_current : The only place a current is stated.
+
+		Notes
+		-----
+		A **ratio**, deliberately: the source's wavefunction is not normalized
+		to carry amps, and renormalizing it would change every amplitude the
+		wave tests compare. Taking the ratio leaves the wave untouched and is
+		exact, because free propagation conserves the integral — verified to
+		1.0000 through a two-drift column.
+
+		Examples
+		--------
+		>>> scope.wave_current_at()                     # doctest: +SKIP
+		2.45e-10
+		"""
+		if not getattr(self, "_wave_scaled_planes", None) and self.wave is None:
+			raise RuntimeError("no wave has been propagated; call propagate_wave() first.")
+		source = next((e for sec in (self.sections or ())
+					   for e in (sec.elements or ()) if isinstance(e, Source)), None)
+		if source is None:
+			raise RuntimeError("this column has no Source, so no current is stated; "
+							   "wave_current_at has nothing to scale by.")
+		start = self._wave_flux(0)
+		if start == 0:
+			raise RuntimeError("the source plane carries no intensity, so the wave "
+							   "current is undefined.")
+		return float(source.beam_current * self._wave_flux(plane) / start)
+
+	@property
+	def wave_current(self) -> float:
+		"""Current the **wave** carries out of the column, in amps.
+
+		Returns
+		-------
+		float
+			Current in amps at the last logged wave plane.
+
+		Raises
+		------
+		RuntimeError
+			If no wave has been propagated, or there is no ``Source``.
+
+		Related
+		-------
+		beam_current : The ray-path answer, which should agree.
+		wave_current_at : At any logged plane.
+
+		Notes
+		-----
+		The two paths attenuate by different models and need not agree exactly:
+		an :class:`elements.Aperture` scales the rays by a ratio of extents,
+		while the wave is genuinely masked and diffracts at the edge.
+
+		Examples
+		--------
+		>>> scope.wave_current                          # doctest: +SKIP
+		"""
+		return self.wave_current_at(-1)
+
 	def convergence_angle_at(self, z:float) -> float:
 		"""Convergence **semi**-angle of the outermost ray at a plane.
 

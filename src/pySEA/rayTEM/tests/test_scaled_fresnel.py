@@ -2995,3 +2995,54 @@ def test_every_element_kind_can_be_reloaded():
 	from pySEA.rayTEM.seashells import safeReinstantiate
 	with pytest.raises(KeyError, match="not in safeReinstantiate's table"):
 		safeReinstantiate(None, "Octupole")
+
+
+def test_the_wave_carries_current_too():
+	# The ray path tracks amps in I and lets apertures scale them. The wave
+	# already carries the same information in its own amplitude: anything that
+	# multiplies psi by a modulus below 1 -- an aperture, or a supplied
+	# absorbing screen -- reduces the integral of |psi|^2 by exactly that much.
+	from pySEA.rayTEM.seashells import make_screen_phase_signal
+	n, EXT, CUR = 128, 2e-4, 2e-9
+	def build(aperture=None, screen=None, current=CUR):
+		els = [Source(voltage=200, beam_current=current, wave_shape=(n, n),
+					  wave_extent=EXT, wave_kind="aperture", aperture_radius=4e-5),
+			   Drift(length=0.02)]
+		if aperture:
+			els.append(Aperture(radius=aperture))
+		tail = Drift(length=0.02)
+		if screen is not None:
+			tail.screen = screen
+		els.append(tail)
+		mic = Microscope(sections=[MicroscopeSection(elements=els)])
+		mic.propagate_wave(mode="hybrid", absorb=0.0)
+		return mic
+
+	# free propagation conserves it: the scaled factorization makes
+	# integral |psi|^2 dA equal integral |U|^2 dxi deta, whatever the frame does
+	assert np.isclose(build().wave_current, CUR, rtol=1e-9)
+
+	# a 50% AMPLITUDE mask passes 25% of the current -- |T|^2, not |T|
+	half = np.full((n, n), 0.5 + 0j)
+	masked = build(screen=make_screen_phase_signal(half, EXT / n, EXT / n))
+	assert np.isclose(masked.wave_current, 0.25 * CUR, rtol=1e-9)
+
+	# a pure PHASE screen changes nothing: |exp(i chi)| = 1
+	phase = build(screen=make_screen_phase_signal(np.full((n, n), 0.7),
+												  EXT / n, EXT / n))
+	assert np.isclose(phase.wave_current, CUR, rtol=1e-9)
+
+	# an aperture cuts it, and lands near the ray path's answer without being
+	# required to match: the ray model scales by a ratio of extents while the
+	# wave is genuinely masked and diffracts at the edge
+	cut = build(aperture=2e-5)
+	assert 0.2 * CUR < cut.wave_current < 0.3 * CUR		# ~(20/40)^2
+	# and it is linear in the source, like the ray path
+	assert np.isclose(build(aperture=2e-5, current=2 * CUR).wave_current,
+					  2 * cut.wave_current, rtol=1e-9)
+
+	# errors say what is missing rather than raising from inside the maths
+	nowave = Microscope(sections=[MicroscopeSection(elements=[
+		Source(voltage=200), Drift(length=0.01)])])
+	with pytest.raises(RuntimeError, match="no wave has been propagated"):
+		nowave.wave_current

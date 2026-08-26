@@ -472,7 +472,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2951,
+    "source_lineno": 3078,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -481,7 +481,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2879,
+    "source_lineno": 3006,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -2058,6 +2058,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 2452,
     "signature": "test_supplied_screen_and_aberrations_survive_reload_on_any_element()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_the_wave_carries_current_too",
+    "qualname": "test_the_wave_carries_current_too",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
+    "source_lineno": 3000,
+    "signature": "test_the_wave_carries_current_too()",
     "doc": ""
   },
   {
