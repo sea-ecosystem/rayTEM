@@ -318,8 +318,18 @@ class suspended_aberrations:
 
 #: Slices a thick medium is split into when it carries a screen. An aberration
 #: acts along the body, not at one plane, so the wave path integrates it the way
-#: :meth:`Element.aberration_kick` does on the ray side. 16 matches the ray
-#: integral to ~1% on basic_column's OL1 and costs 16 extra half-segments.
+#: :meth:`Element.aberration_kick` does on the ray side.
+#:
+#: Measured on basic_column's OL1 at 30 mrad, the wave's best-focus shift is
+#: converged from 2-4 slices onward (1 slice differs by 0.23 nm, everything from
+#: 2 up agrees to the 0.23 nm resolution of that measurement). 16 is comfortably
+#: inside that, at the cost of 16 extra half-segments.
+#:
+#: It does NOT make the wave and ray numbers equal, and is not meant to: on that
+#: lens the wave best focus lands at -2.1 nm and the ray c20 fit at -1.1 nm.
+#: Those measure different things -- the brightest plane, near the disc of least
+#: confusion, versus a paraxial fit coefficient -- so a factor of about two
+#: between them is expected, not a residual to be tuned away.
 MEDIUM_SLICES = 16
 
 
