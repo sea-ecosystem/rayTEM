@@ -2684,3 +2684,90 @@ def test_a_sub_nanometre_drift_actually_propagates():
 											 absorb=0.0)
 	assert not np.allclose(np.asarray(read_scaled_wavefield(far)[0]),
 						   np.asarray(read_scaled_wavefield(near)[0]))
+
+
+def _thin(**ab):
+	"""A thin 45 mm lens carrying the given aberrations."""
+	return Lens(strength=np.sqrt(1 / 0.045), aberrations=(ab or None))
+
+
+def _radial_crossover(lens, azimuth, n=7):
+	"""Where a collimated fan along one azimuth crosses the axis.
+
+	Returns the per-ray crossover z, so a caller can check both the position
+	and whether the rays agree (a quadratic aberration gives a true point
+	focus; a higher order does not).
+	"""
+	h = np.linspace(1e-6, 1e-4, n)
+	r0 = np.zeros((n, 6))
+	r0[:, 0], r0[:, 2] = h * np.cos(azimuth), h * np.sin(azimuth)
+	rf = lens.propagate_ray(r0)
+	rad = rf[:, 0] * np.cos(azimuth) + rf[:, 2] * np.sin(azimuth)
+	ang = rf[:, 1] * np.cos(azimuth) + rf[:, 3] * np.sin(azimuth)
+	return -rad / ang
+
+
+def test_aligned_C12_makes_two_line_foci():
+	# Twofold astigmatism is quadratic, so it is a per-axis POWER change:
+	# +C12*P^2 on one axis and -C12*P^2 on the other. The rays must therefore
+	# cross at two distinct planes, each a true point focus along its own axis,
+	# and the wave must show a LINE focus at each.
+	P, C12 = 1 / 0.045, 5e-4
+	lens = _thin(C12=C12)
+	zx, zy = _radial_crossover(lens, 0.0), _radial_crossover(lens, np.pi / 2)
+	assert np.allclose(zx, 1 / (P + C12 * P**2), rtol=1e-12)
+	assert np.allclose(zy, 1 / (P - C12 * P**2), rtol=1e-12)
+	# quadratic: a true point focus, every ray at the same z (to float precision)
+	assert np.ptp(zx) / zx.mean() < 1e-14 and np.ptp(zy) / zy.mean() < 1e-14
+	assert zy.mean() - zx.mean() > 0.9e-3			# ~1 mm apart at this strength
+
+	# the wave agrees, and the focus is a line rather than a disc
+	n = 256
+	def fwhm_ratio(ab, z):
+		mic = Microscope(sections=[MicroscopeSection(elements=[
+			Source(voltage=200, wave_shape=(n, n), wave_extent=3e-4,
+				   wave_kind="aperture", aperture_radius=6e-5),
+			Lens(strength=np.sqrt(P), aberrations=ab), Drift(length=0.06)])])
+		mic.propagate_wave(mode="hybrid", absorb=0.0)
+		I = np.abs(np.asarray(mic.wavefield_at(z).data))**2
+		cx, cy = I[I.shape[0] // 2, :], I[:, I.shape[1] // 2]
+		return (cy > 0.5 * cy.max()).sum() / (cx > 0.5 * cx.max()).sum()
+	assert np.isclose(fwhm_ratio(None, 1 / P), 1.0, atol=0.1)		# ideal: round
+	assert fwhm_ratio({'C12': C12}, 1 / (P + C12 * P**2)) > 8		# aberrated: a line
+
+
+def test_skew_C12_rotates_the_line_foci_by_45_degrees():
+	# The imaginary component is the same aberration turned by pi/2m -- for
+	# m = 2, by 45 degrees. So a purely skew C12 leaves the x and y axes at the
+	# ideal focus and splits the diagonals instead, by the same amounts.
+	P, b = 1 / 0.045, 5e-4
+	lens = _thin(C12=(0.0, b))
+	for deg in (0, 90):
+		assert np.allclose(_radial_crossover(lens, np.radians(deg)), 1 / P, rtol=1e-12)
+	assert np.allclose(_radial_crossover(lens, np.radians(45)),
+					   1 / (P + b * P**2), rtol=1e-12)
+	assert np.allclose(_radial_crossover(lens, np.radians(135)),
+					   1 / (P - b * P**2), rtol=1e-12)
+	# and it is NOT absorbable into a per-axis (R_x, R_y) frame, unlike aligned
+	P_x, P_y, residual = lens.aberration_powers()
+	assert np.isclose(P_x, P, rtol=1e-14) and np.isclose(P_y, P, rtol=1e-14)
+	assert residual.names == ['C12']
+
+
+def test_coma_is_even_order_and_spherical_is_odd():
+	# The order n fixes the parity of the ray aberration, which goes as theta^n.
+	# C21 (coma, n = 2) is EVEN: opposite edges of the pupil deflect the SAME
+	# way, which is what makes a comet tail rather than a symmetric blur.
+	# C30 (spherical, n = 3) is ODD: opposite edges deflect oppositely, so the
+	# blur stays centred. Getting this parity wrong is a whole-sign error that
+	# a magnitude-only check would not catch.
+	r0 = np.zeros((2, 6))
+	r0[:, 0] = [1e-4, -1e-4]						# opposite edges, on the x axis
+	_, _, coma_x, coma_y = _thin(C21=1e-5).aberration_kick(r0)
+	_, _, sph_x, _ = _thin(C30=1e-3).aberration_kick(r0)
+	assert coma_x[0] * coma_x[1] > 0, "coma is even: both edges deflect together"
+	assert np.isclose(coma_x[0], coma_x[1], rtol=1e-12)
+	assert sph_x[0] * sph_x[1] < 0, "spherical is odd: edges deflect oppositely"
+	assert np.isclose(sph_x[0], -sph_x[1], rtol=1e-12)
+	# an aligned C21 has no y component on the x axis -- the tail lies along x
+	assert np.abs(coma_y).max() < 1e-12 * np.abs(coma_x).max()
