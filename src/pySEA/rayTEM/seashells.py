@@ -846,13 +846,17 @@ def safeReinstantiate(source,cls):
 	allowed_kwargs = inspect.signature(cls).parameters.keys()	# infer allowed kwargs from the class itself
 	kwargs = { k:v for k,v in dic.items() if k in allowed_kwargs }	# and filter kwargs to those accepted
 	obj = cls(**kwargs)
-	# Attributes that are stored but are NOT constructor parameters would be
-	# silently dropped by the filter above, so a class may name them. Element
-	# uses this for `aberrations` (a constructor kwarg on Element and Lens, but
-	# not on every subclass) and for `_screen`, whose kwarg is spelled `screen`
-	# -- a supplied screen cannot be recomputed, so losing it on reload would
-	# lose the only copy.
-	for name in getattr(cls, "_restore_attrs", ()):
-		if name in dic:
-			setattr(obj, name, dic[name])
+	# The constructor's only job here is to produce an object of the right
+	# class (methods, defaults, validation); the RECORDED state then wins,
+	# verbatim. The kwarg filter above cannot be trusted to carry everything:
+	# any attribute whose __dict__ spelling differs from its constructor kwarg
+	# (a property storing `_x` for kwarg `x`), or that is not a constructor
+	# parameter at all, would be silently dropped -- Source.beam_current
+	# reverted to its default on every reload this way. Writing the stored
+	# __dict__ back restores exactly what was saved, including names the class
+	# no longer declares (same leniency as Element.from_hdf5_group: an old
+	# file must stay openable). Nested objects are safe because the from_sea
+	# rebuild reinstantiates children before their parent, so `dic` already
+	# holds real rayTEM objects.
+	obj.__dict__.update(dic)
 	return obj

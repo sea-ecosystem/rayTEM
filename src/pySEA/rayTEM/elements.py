@@ -590,13 +590,6 @@ class Element(SealedAttributes, SEASerializable):
 	#: elements that have an axial field; 0 for everything else.
 	rotation = 0.0
 
-	#: Stored attributes that are not constructor parameters, so
-	#: :func:`seashells.safeReinstantiate` restores them explicitly on reload.
-	#: ``aberrations`` is a kwarg on ``Element`` and ``Lens`` but not on every
-	#: subclass; ``_screen``'s kwarg is spelled ``screen``. Both would be
-	#: silently dropped otherwise -- and a supplied screen has no other copy.
-	_restore_attrs = ("aberrations", "_screen", "_arriving_current")
-
 	def __init__(self, name:str='', kind:str=None,
 				 aberrations=None, screen=None ) -> SEASerializable:
 		"""General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional attributed can be defined at the inheriting class level. e.g. a Lens has a "strength", but a Drift section does not.
@@ -2050,12 +2043,6 @@ class Source(Element):
 		wavelength : float or None
 			Relativistic electron wavelength in metres, or ``None`` if ``voltage`` is unset.
 		"""
-
-	#: The stated current is spelled ``_beam_current`` in __dict__ but
-	#: ``beam_current`` in the constructor, so safeReinstantiate's
-	#: kwarg filter drops it and a reloaded Source silently reverts to the
-	#: default. Naming it here restores it, the same way ``_screen`` is.
-	_restore_attrs = Element._restore_attrs + ("_beam_current",)
 
 	def __init__(self, name:str=None,
 			size:tuple=(2e-3,2e-3), # size in x and y (square grid)
