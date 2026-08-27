@@ -2,6 +2,48 @@
 
 Newest entries at top.
 
+## 2026-08-27 — [Done] Audit the merge, land Element.beam_current
+**Goal:** verify our work survived the merge into
+`Signal_and_propagation_additions_new`, then continue on that branch.
+**Why:** the branch was merged in an unusual way and Thomas resolved conflicts
+by hand — silent losses were plausible.
+- [x] audit every commit, marker and file against what we wrote
+- [x] isolate and fix the one regression the merge introduced
+- [x] `Element.beam_current` as a derived property
+
+**Outcome:** 135 pass, 1 pre-existing failure.
+
+**Audit.** Everything landed. The branch is `main` (including Thomas's PR #4)
+with our commits rebased on top; all of them are present by message, all
+markers and files are there, and the 6-column `convention` was correctly kept
+(the merge point still carries the old 8-column form).
+
+**The one regression.** `repair()` merges adjacent unnamed Drifts. That made
+`Microscope.subdivided` a no-op — it cuts elements into slices and `repair()`
+glues them back — and flattened the 60-slice envelope test. Fixed with a
+`combine_drifts` flag: default `True`, so Thomas's tidying stays the default
+for everyone else, and `subdivided` plus the envelope test opt out.
+**Open question for Ondrej/Thomas:** should the default be `False` instead, i.e.
+keep the element list exactly as a caller wrote it? Merging is convenient but
+it silently discards z sampling.
+
+**Pre-existing failure.** `test_section_insertion_microscope` fails on our
+branch, at Thomas's merge point, and at the commit *before* it — so it predates
+all of this. Worth knowing: `origin/main` is now at PR #6 and 11 of the 14
+tests in that file fail there, versus 1 on our branch.
+
+**`Element.beam_current`.** The Source states amps; everything else derives.
+Each element reports the current *arriving* at it, so an aperture reads the
+beam it receives and the next element reads what was passed. Measured on a
+two-aperture column from 2 nA: 2000.0 / 2000.0 / 2000.0 / 45.0 / 45.0 / 8.889 pA.
+
+Held in a module-level `WeakKeyDictionary`, not on the instance — everything in
+`__dict__` is serialized, and a per-run result does not belong in a `.sea`
+file. My first attempt put it in `__dict__` and cost 12 failures: it was stored
+as `beam_current` and restored with `setattr` onto a getter-only property. A
+*raising* property broke a second set of things, so elements outside a
+propagated column return `None`, matching the `rays = None` convention.
+
 ## 2026-08-26 — [Done] The wave path carries current too
 **Goal:** close the gap the beam-current work left open.
 **Why:** Eric's model is that anything masking the beam changes the current —
