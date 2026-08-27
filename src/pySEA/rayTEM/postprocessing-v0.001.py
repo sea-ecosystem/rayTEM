@@ -13,8 +13,7 @@ from matplotlib.cm import plasma as cmap
 # TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
 # For now, plot2D assumes it is given unrotated-reference-frame rays, and should likely call convert_to_rotating_reference_frame.
 def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,title=None,plt_ax=None):
-	planes = findPlanes(r1,axis=axis)
-	R = r1.R
+	R = [ r.R for r in r1 ]
 	r1 = convert_to_rotating_reference_frame(r1,R)
 	if plt_ax is None:
 		fig,ax = plt.subplots()
@@ -29,7 +28,7 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 		ax.plot(xs,ys,linestyle="-",color=c,marker='',linewidth=1)
 
 	# add all image/diffraction planes
-	ct=0 ; zs=r1[:,0,j]
+	planes=findPlanes(r1,R,axis=axis) ; ct=0 ; zs=r1[:,0,j]
 	#print(planes)
 	nplanes=len(planes[axis]["diff"]["z"])+len(planes[axis]["image"]["z"])+len(zpts)
 	if ylims is None:
@@ -392,15 +391,17 @@ warned = []
 # TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
 # For now, findPlanes assumes it is given unrotated-reference-frame rays, must call convert_to_rotating_reference_frame.
 def findPlanes(rays,axis="xy"):
-	if axis=="xy" or axis=="yx":
-		return findPlanes(rays,axis='x') | findPlanes(rays,axis='y')
-	R = rays.R
+	R = [ r.R for r in rays ]
 	rays = convert_to_rotating_reference_frame(rays,R)
 	global warned
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
 	diffRays=[] ; imageRays=[]
 	x=columnByName("x") ; y=columnByName("y")
 	xt=columnByName("xt") ; yt=columnByName("yt")
+
+	# if user requests both axes, then recurse
+	if axis=="xy" or axis=="yx":
+		return findPlanes(rays,R,axis='x') | findPlanes(rays,R,axis='y')
 
 	# looking for y axis? simply swap the indices, so we can operate on 'x' and 'xt' consistently
 	if axis=="y":
@@ -864,7 +865,7 @@ def error_dz(microscope,settings,targets): # settings is a dict of parameters to
 	#microscope.show()
 	# PROPAGATE, DETECT PLANES
 	r1=microscope.propagate_ray()
-	planes = findPlanes(r1,"x")
+	planes = findPlanes(r1,microscope.R,"x")
 	# FOR EACH TARGET PLANE, FIND CLOSEST OF SAME TYPE, ERROR IS DELTA IN POSITION
 	deltas = []
 	for plane_type,z in targets.items():
@@ -938,7 +939,7 @@ def error_at_position(microscope,settings,targets,absolute=True): # settings is 
 	r1=microscope.propagate_ray()
 	deltas = []
 	for z,kv in targets.items():
-		x,y,xt,yt,R,I = measureAtZ(z,rays=r1)
+		x,y,xt,yt,R,I = measureAtZ(z,rays=r1,I=microscope.I,R=microscope.R)
 		dic = {"x":x,"y":y,"xt":xt,"yt":yt,"R":R,"I":I}
 		for k,v in kv.items():
 			if absolute:
@@ -960,7 +961,7 @@ def error_diameter(microscope,settings,targets,absolute=True): # settings is a d
 	r1=microscope.propagate_ray()
 	diameters = []
 	for z in targets:
-		x,y,xt,yt,R,I = measureAtZ(z,rays=r1)
+		x,y,xt,yt,R,I = measureAtZ(z,rays=r1,I=microscope.I,R=microscope.R)
 		if absolute:
 			x=np.absolute(x)
 		diameters.append(x)
@@ -974,7 +975,7 @@ def error_angles(microscope,settings,targets,absolute=True): # settings is a dic
 	r1=microscope.propagate_ray()
 	angles = []
 	for z,t in targets.items():
-		x,y,xt,yt,R,I = measureAtZ(z,rays=r1)
+		x,y,xt,yt,R,I = measureAtZ(z,rays=r1,I=microscope.I,R=microscope.R)
 		if absolute:
 			xt=np.absolute(xt) ; t=abs(t)
 		angles.append(xt-t)
@@ -1021,7 +1022,7 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 		#plot2D( r1 , filename = "tmp/"+str(ct_propagateAndCheck[0])+".png")
 
 		# inspect the output: find all image and diffraction planes
-		planes = findPlanes(r1,axis=axis)
+		planes = findPlanes(r1,section.R,axis=axis)
 		zs=r1[:,0,columnByName("z")] # all positions of 0th ray
 
 		# our "error" defined by each metric in each target (e.g. checking if position z is off, or magnification is off)
@@ -1211,9 +1212,6 @@ def measureAtZ(z,rays=None,I=None,R=None,section=None,live_only=False):
 		if section.rays is None:
 			section.propagate_ray()
 		rays = section.rays
-	if hasattr(rays,"I"):
-		I = rays.I if I is None else I
-		R = rays.R if R is None else R
 	if section is not None:
 		if I is None:
 			I = section.I

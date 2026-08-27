@@ -7,7 +7,7 @@ import pickle
 import sys,inspect,os,datetime,shutil
 
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
-from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,Rays,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes
+from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes
 from typing import Literal
 from .seashells import SEASerializable
 
@@ -562,10 +562,6 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 				r0 = self.elements[0].rays()
 			else:
 				raise UserWarning("First element is not a Source, and no r0 provided to propagate_ray. Please provide initial rays or ensure first element is a Source.")
-		if isinstance(r0,Rays):
-			I0 = r0.I if I0 is None else I0
-			R0 = r0.R if R0 is None else R0
-			r0 = xp.asarray(r0)
 		n_rays = len(r0)
 		if I0 is None:
 			# Seed in AMPS, shared over the rays, so I.sum() is the current at
@@ -595,9 +591,9 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 				ri.append(ele_ri[:,:]) ; Ii.append(ele_I) ; Ri.append(ele_R)
 			else:
 				ri[-1]=ele_ri[:,:] ; Ii[-1]=ele_I ; Ri[-1]=ele_R
-		self.rays = Rays(xp.asarray(ri),R=xp.asarray(Ri),I=xp.asarray(Ii))
-		self.I = self.rays.I
-		self.R = self.rays.R
+		self.rays = xp.asarray(ri) # xp.swapaxes(xp.asarray(ri),0,1)
+		self.I = xp.asarray(Ii)
+		self.R = xp.asarray(Ri)
 		return self.rays
 
 	def propagate_moments(self, mu0:xp.ndarray=None, Sigma0:xp.ndarray=None,
@@ -1416,7 +1412,9 @@ class Microscope(SealedAttributes, SEASerializable):
 		if regenerate or self.rays is None:
 			self.propagate_ray()
 		z_after = self.get_element_position(after)
-		planes = findPlanes(self.rays,"x")	# [axis]['diff'|'image']['z'|'M'|'R'|'p']
+		# findPlanes takes the rotation array explicitly; passing the axis in
+		# its place silently handed a string to the frame conversion
+		planes = findPlanes(self.rays, self.R, "x")	# [axis]['diff'|'image']['z'|'M'|'R'|'p']
 		zp = planes['x']['diff']['z']	# fractional coordinates: 1.4 is 40% through element 1
 		zp = xp.asarray([zFromFractional(self.rays[:, 0, columnByName('z')], z)
 						 for z in zp])
@@ -1997,7 +1995,7 @@ class Microscope(SealedAttributes, SEASerializable):
 			r0[2, ti] = theta0 ; r0[3, ti] = -theta0	# image pair: on-axis point
 			scope.propagate_ray(r0=r0)
 			zs = scope.rays[:, 0, columnByName('z')]
-			found = findPlanes(scope.rays,axis=axis)[axis]
+			found = findPlanes(scope.rays, scope.R, axis=axis)[axis]
 			out = {}
 			for family in ('diff', 'image'):
 				idx = [min(float(f), len(zs) - 1 - 1e-9) for f in found[family]['z']]
@@ -2455,12 +2453,12 @@ class Microscope(SealedAttributes, SEASerializable):
 			#print(r1.shape)
 			for k in range(len(r1)):
 				#r[:,columnByName('z')]#+=s.position
-				rs.append(xp.asarray(r1[k])) ; Is.append(r1.I[k]) ; Rs.append(r1.R[k])
+				rs.append(r1[k]) ; Is.append(s.I[k]) ; Rs.append(s.R[k])
 			#print(r1[-1,0,:])
-			r=xp.asarray(r1[-1]) ; I=r1.I[-1] ; R=r1.R[-1] # rays/intensity/rotation fed into subsequent section are those exiting this section
-		self.rays = Rays(xp.asarray(rs),R=xp.asarray(Rs),I=xp.asarray(Is))
-		self.I = self.rays.I
-		self.R = self.rays.R
+			r=r1[-1,:,:] ; I=s.I[-1] ; R=s.R[-1] # rays/intensity/rotation fed into subsequent section are those exiting this section
+		self.rays = xp.asarray(rs) # if you want the non-flattened nthSection,nthElement,nthRay,xyzthetaetc, you should access microscope.section.rays which contain the individual nthElement,nthRay,xyzthetaetc
+		self.I = xp.asarray(Is)
+		self.R = xp.asarray(Rs)
 		#print(self.rays.shape)
 		self._planes = None
 		return self.rays
@@ -2906,7 +2904,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		if self._planes is None:
 			if self.rays is None:
 				self.propagate_ray()
-			self._planes = findPlanes(self.rays,"x")
+			self._planes = findPlanes(self.rays,self.R,"x")
 		return self._planes
 
 	# TODO self.rays should be a property, self._rays should hold the previously-calculated rays. self.rays should do a hash on the microscope (use repr?) to check if the microscope has changed. if so, re-call propagate_ray, else, return self._rays.

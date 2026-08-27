@@ -237,7 +237,7 @@ def update_rotation(event,use_brute=False):
 	z = zp[i] ; R,M = [ planes['x'][PLANE][k][i] for k in ["R","M"] ] # WHERE IS THE CURRENT (1) POSITION (2) ROTATION (3) MAG ?
 	#plane_targets = { PLANE:{"z":z,"M":M,"R":R+degrees*np.pi/180 } } # actually, i don't want mag of the plane, i want "mag" at CCD
 	#x,y,xt,yt,R,I = measureAtZ(z_CCD,rays=r1)	# actually, i don't want outermost ray, i want central ray of diffracted bundle?
-	x,R = r1[-1,3,columnByName("x")],r1.R[-1,3] # we hard-coded 9x rays (3 positions, 3 angles), so 4th ray is center of diffracted bundle
+	x,R = [ r1[-1,3,columnByName(xR)] for xR in ["x","R"] ] # we hard-coded 9x rays (3 positions, 3 angles), so 4th ray is center of diffracted bundle
 	ccd_targets = { z_CCD:{ "x":x, "R":R+degrees*np.pi/180 } }
 	# ERROR FUNCTION FOR MINIMIZE, USE PRE-BUILT: checks for R,M at plane closest to z, and checks distance from plane to desired z
 	def dz(vals):
@@ -245,7 +245,7 @@ def update_rotation(event,use_brute=False):
 		deltas = error_dz(scope,settings,{PLANE:zp[i]})
 		#deltas += error_at_plane(scope,settings,plane_targets)
 		#deltas += error_at_position(scope,settings,ccd_targets)
-		x,R = scope.rays[-1,3,columnByName("x")],scope.rays.R[-1,3]
+		x,R = [ scope.rays[-1,3,columnByName(xR)] for xR in ["x","R"] ]
 		x_target,R_target = [ ccd_targets[z_CCD][xR] for xR in ["x","R"] ] ; print("x,x_target",x,x_target)
 		deltas += [ (abs(x)-abs(x_target))/x_target*100 , (R-R_target)/R_target*100 ]
 		if not lock_associated_params.get(): # optionally ignore dM (may be higher rotation available if we allow changing mag)
@@ -689,6 +689,7 @@ window.columnconfigure(0,weight=1,uniform=str(window))
 
 window.protocol("WM_DELETE_WINDOW", quit_me)
 window.mainloop()
+
 
 
 

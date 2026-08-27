@@ -13,7 +13,7 @@ import sys,os,pytest
 sys.path.insert(1,"../../../")
 from pySEA.rayTEM import Source,Lens,Drift,Aperture,Dipole,Quadrapole
 from pySEA.rayTEM import MicroscopeSection,Microscope,check_lengths
-from pySEA.rayTEM import fix_ray_dims,plot2D,findPlanes,columnByName,load_microscope,load_section,convert_to_rotating_reference_frame
+from pySEA.rayTEM import fix_ray_dims,plot2D,plot3D,findPlanes,columnByName,load_microscope,load_section,convert_to_rotating_reference_frame
 import numpy as np
 
 # basic Drift/Lens/Drift/Lens/Drift configuration. Manually-defined input rays (one pair of axial and one pair of field rays)
@@ -32,7 +32,7 @@ def test_basic_section_r0():
 		np.save(filename,rr)
 	rr_old = np.load(filename)
 	assert np.sqrt(np.sum((rr-rr_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
-	ret = findPlanes(r1,section.R,axis="x")
+	ret = findPlanes(r1,axis="x")
 	Zd=ret['x']['diff']['z'][0] ; Md=ret['x']['diff']['M'][0]
 	Zi=ret['x']['image']['z'][0] ; Mi=ret['x']['image']['M'][0]
 	planes = np.asarray([Zd,Md,Zi,Mi]) ; print(planes)
@@ -65,6 +65,7 @@ def test_every_element():
 	section = MicroscopeSection(elements=elements)
 	section.show(filename="elements_sections_microscopes_every_element.png")
 	r1 = section.propagate_ray()
+	plot3D(r1)
 	filename = "elements_sections_microscopes_every_element.npy"
 	if not os.path.exists(filename):
 		np.save(filename,r1)
@@ -103,7 +104,7 @@ def test_basic_microscope_defined_by_lengths():
 		np.save(filename,rr)
 	rr_old = np.load(filename)
 	assert np.sqrt(np.sum((rr-rr_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
-	ret = findPlanes(r1,microscope.R,axis="x")
+	ret = findPlanes(r1,axis="x")
 	Zd=ret['x']['diff']['z'] ; Md=ret['x']['diff']['M']
 	Zi=ret['x']['image']['z'] ; Mi=ret['x']['image']['M']
 	#print(Zd,Md,Zi,Mi)

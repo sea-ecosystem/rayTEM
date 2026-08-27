@@ -48,32 +48,17 @@ def fix_ray_dims(rays,columnNames):
 # Rays object contains an array with element,ray,xyxtytetc indices, and tracks current and rotation parameters. if we did matrix operations on rays (as arrays) previously, we should still be able to do that
 class Rays():
 	def __init__(self, rays:xp.ndarray, R:float, I:float):
-		self.rays = xp.asarray(rays)
-		shape = self.rays.shape[:-1]
-		self.R = xp.broadcast_to(xp.asarray(R),shape).copy()
-		self.I = xp.broadcast_to(xp.asarray(I),shape).copy()
-	def __array__(self, dtype=None):
-		return xp.asarray(self.rays, dtype=dtype)
-	def __getattr__(self, key):
-		return getattr(self.rays, key)
-	def copy(self):
-		return Rays(self.rays.copy(),self.R.copy(),self.I.copy())
+		self.rays = rays
+		self.R = R
+		self.I = I
+	def __array_function__(self,func,types,args,kwargs):
+		new = func(*args,**kwargs)
+		self.rays.append( new )
+		return self
 	def __len__(self):
 		return len(self.rays)
 	def __getitem__(self, key):
-		out = self.rays[key]
-		if not isinstance(out,xp.ndarray) or self.rays.ndim < 2:
-			return out
-		keys = list(key) if isinstance(key,tuple) else [key]
-		if Ellipsis in keys:
-			i = keys.index(Ellipsis)
-			keys[i:i+1] = [slice(None)] * (self.rays.ndim-len(keys)+1)
-		keys += [slice(None)] * (self.rays.ndim-len(keys))
-		coord = keys[-1]
-		if not isinstance(coord,slice) or any(v is not None for v in (coord.start,coord.stop,coord.step)):
-			return out
-		meta = tuple(keys[:-1])
-		return Rays(out,self.R[meta],self.I[meta])
+		return self.rays[key]
 	def __setitem__(self, key, value):
 		self.rays[key]=value
 
@@ -1625,10 +1610,8 @@ class Element(SealedAttributes, SEASerializable):
 		xp.ndarray
 			List of propagated rays with initial condition (x, θx, y, θy, z, E)
 		"""
-		paired = isinstance(r0,Rays)
-		rays = xp.asarray(r0)
 		m = self.transfer_matrix()
-		rf = xp.einsum('mn,in->im', m, rays) # matrix multiplication for a "list of vectors"
+		rf = xp.einsum('mn,in->im', m, r0) # matrix multiplication for a "list of vectors"
 		# additive terms: z_new = z_old+length (rotation is handled separately, see apply_rotation)
 		rf[:,columnByName("z")] += self.length
 		rf[:,columnByName("x")] += getattr(self,"shift_x",0)
@@ -1637,7 +1620,7 @@ class Element(SealedAttributes, SEASerializable):
 		rf[:,columnByName("yt")] += getattr(self,"tilt_y",0)
 		# aberration: the part of the element's optics that is NOT a matrix.
 		# Declared by the element, applied here, exactly as transfer_matrix is.
-		kick = self.aberration_kick(rays)
+		kick = self.aberration_kick(r0)
 		if kick is not None:
 			dx, dy, dxt, dyt = kick
 			rf[:,columnByName("x")] += dx
@@ -1645,8 +1628,6 @@ class Element(SealedAttributes, SEASerializable):
 			rf[:,columnByName("xt")] += dxt
 			rf[:,columnByName("yt")] += dyt
 
-		if paired:
-			return Rays(rf,self.apply_rotation(r0.R),self.apply_intensity(r0.I,rays))
 		return rf
 
 	def apply_intensity(self, I:xp.ndarray, r0:xp.ndarray) -> xp.ndarray:
@@ -2197,7 +2178,7 @@ class Source(Element):
 		array=fix_ray_dims(array,["x","y","xt","yt"])
 		if self.voltage is not None:					# beam energy (keV) rides in the E column when defined
 			array[:,columnByName("E")] = self.voltage
-		return Rays(array,R=xp.zeros(len(array)),I=xp.full(len(array),self.beam_current/len(array)))
+		return Rays(array,R=0,I=self.beam_current)
 
 	# dummy propagation in case someone tries to propagate through since this is technically an element
 	def propagate_ray(self, r0:xp.ndarray | Rays, **kwargs) -> xp.ndarray:
@@ -2502,19 +2483,15 @@ class Aperture(Element):
 		scale_y = 1 if ymax<self.radius else self.radius/ymax
 		return scale_x, scale_y
 
-	def propagate_ray(self, r0:xp.ndarray | Rays,
+	def propagate_ray(self, r0:xp.ndarray,
 					  z:float=None, z0:float=0) -> xp.ndarray:
-		paired = isinstance(r0,Rays)
-		rays = xp.asarray(r0)
-		scale_x, scale_y = self._aperture_scales(rays)
+		scale_x, scale_y = self._aperture_scales(r0)
 		#print("Aperture",self.name,"radius",self.radius,"scale x,y",scale_x,scale_y)
-		rf=xp.zeros(rays.shape)+rays
+		rf=xp.zeros(r0.shape)+r0
 		rf[:,columnByName("x")]*=scale_x
 		rf[:,columnByName("xt")]*=scale_x
 		rf[:,columnByName("y")]*=scale_y
 		rf[:,columnByName("yt")]*=scale_y
-		if paired:
-			return Rays(rf,r0.R,self.apply_intensity(r0.I,rays))
 		return rf
 
 	def apply_intensity(self, I:xp.ndarray, r0:xp.ndarray) -> xp.ndarray:
