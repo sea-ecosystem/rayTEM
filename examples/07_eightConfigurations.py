@@ -9,8 +9,10 @@ an operator chains crossovers, never hand-tuned:
 1. **current** — C1 either images the gun crossover onto CA (``'high'``: the
    focused spot passes the hole whole) or is run weak (``'low'``: a broad
    beam hits CA and most of the current is cut).
-2. **probe** — C2/C3/OL1 form either a **convergent** probe at the sample
-   (target 30 mrad semi-angle, via a solved chain of intermediate crossovers)
+2. **probe** — C2/C3 alone (the objective lenses are **never retuned**)
+   form either a **convergent** probe at the sample (target 30 mrad
+   semi-angle; the frozen objective caps what the condensers can deliver,
+   and the script reports the reachable angle when the target is beyond it)
    or a **nearly parallel** patch of illumination (``D = 0``: every ray from
    a single source point arrives parallel).
 3. **detector** — PL1/PL2 (PL3/PL4 kept at their stored strengths) put either
@@ -78,8 +80,10 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 BASE_SEA = os.path.join(_HERE, "..", "src", "pySEA", "rayTEM", "microscopes",
 						"basic_column.sea")
 
-#: The lenses a state may retune. PL3/PL4 stay at their stored strengths.
-SOLVED_LENSES = ("C1", "C2", "C3", "OL1", "PL1", "PL2")
+#: The lenses a state may retune. The objective pair NEVER changes -- probe
+#: focusing is entirely the condensers' job and projection entirely the
+#: projectors' (PL3/PL4 also stay at their stored strengths).
+SOLVED_LENSES = ("C1", "C2", "C3", "PL1", "PL2")
 ALPHA_TARGET = 30e-3		# convergent-probe semi-angle at the sample (rad)
 KC1_LOW = 8.0				# the deliberately weak C1 of the low-current state
 
@@ -318,11 +322,13 @@ def solve_column(current: str, probe: str, detector: str) -> dict:
 
 	- **C1**: ``B(source→CA) = 0`` for ``'high'``; fixed weak
 	  (:data:`KC1_LOW`) for ``'low'``.
-	- **convergent**: C2 images the source to a crossover z2, C3 images z2 to
-	  z3, OL1 images z3 onto the sample; (z2, z3) are then swept so the
-	  *predicted per-ray* semi-angle hits 30 mrad — pulling z3 toward C3
-	  raises the angle. When no (z2, z3) reaches the target, the
-	  angle-maximizing pair is used and ``alpha_limited`` is set.
+	- **convergent**: for each C2, C3 is solved so the **total**
+	  ``B(source→sample) = 0`` through the frozen objective (a direct
+	  condition — no intermediate crossover is prescribed, so virtual
+	  objects are allowed); C2 is then swept so the *predicted per-ray*
+	  semi-angle hits 30 mrad. When no C2 reaches the target — the frozen
+	  objective caps what the condensers can deliver — the angle-maximizing
+	  setting is used and ``alpha_limited`` is set.
 	- **parallel**: C2 images the source to z2 = 0.28 m, C3 zeroes
 	  ``D(source→sample)`` with OL1 left as stored.
 	- **image**: PL1 images the sample to an intermediate plane, PL2 images
@@ -335,7 +341,7 @@ def solve_column(current: str, probe: str, detector: str) -> dict:
 	current : {'high', 'low'}
 		C1 state: gun crossover imaged onto CA, or a broad beam cut by it.
 	probe : {'convergent', 'parallel'}
-		What the condensers and OL1 deliver at the sample.
+		What the condensers deliver at the sample (the objective is frozen).
 	detector : {'image', 'diffraction'}
 		What PL1/PL2 deliver at the detector.
 
@@ -393,43 +399,39 @@ def solve_column(current: str, probe: str, detector: str) -> dict:
 		solved["C1"] = KC1_LOW
 	sset()
 
-	# --- the probe
+	# --- the probe (condensers ONLY: the objective pair is never retuned)
 	alpha_limited = False
 	if probe == "convergent":
-		def best_at(z2, z3):
+		def best_at(kc2):
+			# for this C2, every C3 that lands the crossover on the sample --
+			# B(source->sample) = 0 THROUGH the frozen objective, so no
+			# intermediate crossover is prescribed and virtual objects count
 			best = None
-			for kc2 in solve1("C2", 0.0, z2):
-				sset(C2=kc2)
-				for kc3 in solve1("C3", z2, z3):
-					sset(C2=kc2, C3=kc3)
-					for kol in solve1("OL1", z3, z_samp):
-						sset(C2=kc2, C3=kc3, OL1=kol)
-						p = predict_probe(scope)
-						if best is None or p["alpha"] > best[0]["alpha"]:
-							best = (p, kc2, kc3, kol)
-					sset(C2=kc2, C3=kc3)
-				sset(C2=kc2)
+			sset(C2=kc2)
+			for kc3 in solve1("C3", 0.0, z_samp):
+				sset(C2=kc2, C3=kc3)
+				p = predict_probe(scope)
+				if best is None or p["alpha"] > best[0]["alpha"]:
+					best = (p, kc2, kc3)
 			sset()
 			return best
-		# z3 toward C3 raises the reachable angle; z2 fine-tunes onto target
-		z2s = np.linspace(0.235, 0.30, 9)
-		hit = None
-		for z3 in (0.36, 0.385, 0.41, 0.44):
-			g = lambda z2: ((best_at(z2, z3) or ({"alpha": np.nan},))[0]["alpha"]) - ALPHA_TARGET
-			br = _brackets(g, z2s)
-			if br:
-				z2 = brentq(g, *br[0], xtol=1e-7)
-				hit = best_at(z2, z3)
-				break
-		if hit is None:						# CA has cut the phase space: take the max
-			cands = [(z2, z3, best_at(z2, z3)) for z3 in (0.36, 0.41) for z2 in z2s[::2]]
-			cands = [c for c in cands if c[2]]
+		kc2s = np.linspace(1.0, kmax["C2"], 25)
+		g = lambda kc2: ((best_at(kc2) or ({"alpha": np.nan},))[0]["alpha"]) - ALPHA_TARGET
+		br = _brackets(g, kc2s)
+		if br:
+			kc2 = brentq(g, *br[0], xtol=1e-7)
+			hit = best_at(kc2)
+		else:	# the frozen objective caps the condensers' reach: take the max
+			cands = [best_at(k) for k in kc2s]
+			cands = [c for c in cands if c]
 			if not cands:
-				raise ValueError("no convergent-probe chain solves at all -- the "
+				raise ValueError("no convergent-probe solution at all: C3 cannot "
+								 "zero B(source->sample) for any C2 -- the "
 								 "condenser/objective geometry changed.")
-			z2, z3, hit = max(cands, key=lambda c: c[2][0]["alpha"])
+			hit = max(cands, key=lambda c: c[0]["alpha"])
 			alpha_limited = True
-		p, solved["C2"], solved["C3"], solved["OL1"] = hit
+		p, kc2, kc3 = hit
+		solved["C2"], solved["C3"] = float(kc2), float(kc3)
 	else:								# parallel: D(source->sample) = 0 via C3
 		z2 = 0.28
 		best = None
@@ -726,7 +728,7 @@ def run_configuration(current: str, probe: str, detector: str,
 		  f"{scope.beam_current*1e9:.3f} nA at the detector "
 		  f"({sol['predicted']['current_fraction']*100:.0f}% of the current passes CA)")
 	alpha_meas = scope.convergence_angle
-	note = "  [aperture-limited: CA cut the phase space this angle needed]" \
+	note = "  [limited: with the objective frozen, this is the most the condensers can deliver]" \
 		if sol["alpha_limited"] else ""
 	print(f"  probe:   predicted alpha {sol['predicted']['alpha']*1e3:.3f} mrad, "
 		  f"measured {alpha_meas*1e3:.3f} mrad, size {sol['predicted']['size']*1e9:.0f} nm{note}")
