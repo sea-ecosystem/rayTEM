@@ -2,6 +2,45 @@
 
 Newest entries at top.
 
+## 2026-08-27 — [Done] 30 mrad for real: OL1 becomes a probe-forming objective
+**Goal:** Eric: "Shorten OL1's focal length so we can actually reach 30 mrad"
+— with the objective still frozen and the condensers doing the focusing.
+- [x] OL1: f = 2 mm, 2 mm bore, **sample at its back focal plane**
+- [x] geometry compensated (sample z = 0.5, detector 1.264 m unchanged)
+- [x] solver: coarse-curve bracketing + small-probe branch preference
+- [x] objective_section / example 06 / four tests follow the new lens
+- [x] all six examples + ex07 full run green
+
+**Outcome:** 147 tests (146 pass + pre-existing insertion failure). On the
+standard column, objective untouched: **30.000 mrad at a 21 nm probe** (high
+current) and a 5 nm probe (low, 0.2 nA); reach is smooth up to ~56 mrad.
+
+**Shortening f alone was NOT enough** — with the sample ~2 mm from OL1's
+center, any reachable f left it inside the focal length, and the condensers
+capped at ~10 mrad however strong. The fix is the placement a real STEM
+uses: the sample sits at OL1's back focal plane, so the condensers deliver a
+wide nearly-parallel beam and OL1 alone converts radius into angle
+(alpha = r/f) while demagnifying hard. The working distance is computed in
+the builder from the lens's own thick block (wd = -A/C of the body), so it
+tracks f/bore changes.
+
+**Trap worth remembering:** `repair()`'s drift merging absorbed the unnamed
+4 mm gap into the zero-length "sample" marker on build, silently moving the
+measured sample plane 2 mm off the focal plane (predictions and traces then
+disagreed hard). The gap is now the NAMED drift `sample_gap`, which the
+merge leaves alone.
+
+**Solver traps fixed:** B(source→sample)=0 is also satisfied by MAGNIFYING
+branches (a 40–120 µm "probe" converging steeply — not a probe); branch
+selection now prefers small size. And the 30 mrad crossing can sit far down
+the slope from the alpha peak, so the target search brackets on the coarse
+curve, not beside the maximum.
+
+Fallout tracked: objective_section.py (f_ol1) and example 06 (F_OL)
+followed; four tests updated (BFP-driven s contraction, Larmor factor now
+computed from the lens, a plane that used to sit inside the old fat bore now
+in free space, hardcoded sample z).
+
 ## 2026-08-27 — [Done] The objective is never retuned
 **Goal:** enforce Eric's division of labor: probe focusing is entirely the
 condensers'; projection entirely the projectors'; objective currents fixed.
