@@ -10,7 +10,7 @@ from pySEA.rayTEM import Source, Lens, Drift, Aperture, Dipole, Quadrapole, Micr
 from pySEA.rayTEM import waveoptics as wo
 from pySEA.rayTEM.aberrations import Aberrations, KRIVANEK_TERMS
 from pySEA.rayTEM.seashells import phase_space_of, read_wavefield
-from pySEA.rayTEM.utilities import relativistic_wavelength
+from pySEA.rayTEM.utilities import relativistic_wavelength, trapezoid
 
 LAM = relativistic_wavelength(200)
 K200 = 2 * np.pi / LAM
@@ -152,7 +152,7 @@ def test_eq29_delta_tau_vs_numerical_integral():
 		# keep the segment on one side of the crossover (1 + dz/R0 > 0)
 		dz = RNG.uniform(0.0, 0.9 * abs(R0)) if R0 < 0 else RNG.uniform(0.0, 5.0)
 		zg = np.linspace(0.0, dz, 200001)
-		numeric = np.trapz(1.0 / (s0 * (1 + zg / R0))**2, zg)
+		numeric = trapezoid(1.0 / (s0 * (1 + zg / R0))**2, zg)
 		assert np.isclose(wo.scaled_delta_tau(dz, s0, R0), numeric, rtol=1e-6)
 	# flat chart (Eq 31)
 	assert wo.scaled_delta_tau(0.7, 2.0, np.inf) == 0.7 / 4.0
@@ -1188,7 +1188,7 @@ def test_segment_delta_tau_closed_form_all_regimes():
 				kappa = k**2
 			if np.abs(sg).min() < 1e-6:
 				continue
-			numeric = np.trapz(1.0 / sg**2, zg)
+			numeric = trapezoid(1.0 / sg**2, zg)
 			assert np.isclose(wo.scaled_delta_tau_quadratic(dz, s0, R0, kappa),
 							  numeric, rtol=1e-6), (kappa, s0, R0, dz)
 			checked += 1
