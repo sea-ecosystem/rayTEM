@@ -396,6 +396,8 @@ def test_element_move():
 	check_lengths(section)
 	assert section.length == sum([e.length for e in section.elements])
 
+def test_old_json_compatibility():
+	load_microscope("backwards_compatibility_sanity_check")
 
 #test_element_move()
 #test_element_insertion_microscope()
