@@ -2,6 +2,50 @@
 
 Newest entries at top.
 
+## 2026-08-27 — [Done] Verbatim reload, examples green, the eight configurations
+**Goal:** answer Eric's three challenges: reload without per-class helpers, all
+examples running, and the eight-configuration demonstration wired into the
+test suite.
+- [x] `safeReinstantiate` restores the recorded `__dict__` verbatim; `_restore_attrs` deleted
+- [x] all six examples run headless (01 needed `figs/`; 05 still called `_effective_strength()`/`focal_powers()` as methods)
+- [x] `measureAtZ(live_only=)` — a beam measured after an aperture used to look uncut
+- [x] `examples/07_eightConfigurations.py` + `test_eight_configurations.py`
+
+**Outcome:** 145 tests (144 pass + the pre-existing insertion failure).
+
+**Reload.** Eric was right that `_restore_attrs` should never have existed:
+the plain SEASerializable round trip restores everything; the loss was
+rayTEM's own `safeReinstantiate`, whose constructor-kwarg filter dropped any
+`__dict__` name spelled differently from its kwarg. Now the constructor only
+supplies the right class and validation; `obj.__dict__.update(dic)` makes the
+recorded state win verbatim. (On storing the derived per-element current at
+all: that call was Eric's — "if we round trip or if a user looks at the file,
+that information should exist" — but moving it into serialized state deserved
+an explicit prompt, noted.)
+
+**Eight configurations** (`examples/07_eightConfigurations.py`): one column;
+C1 focused onto CA or weak (high/low current), C2/C3 solved for a 30 mrad
+probe or a parallel patch at the sample, PL1/PL2 solved for image or
+diffraction at the detector. Every strength is a bracketed 1D root on a
+transfer-block entry (B=0 imaging, D=0 collimation, A=0 diffraction), chained
+crossover-by-crossover the way an operator drives a column. Verified: rays vs
+matrix conjugate planes to 1e-15; wave crossovers on the diffraction family to
+1e-14; covariance waists beside each image plane by the emittance focal shift
+(7 mm at the 63x detector image — physics, in the table's footnote). In the
+low state the 30 mrad probe is unreachable (CA removes phase space, not just
+electrons); the solve reports the aperture-limited 1.24 mrad instead of
+pretending. Figures: rays drawn over |psi(x,z)| for all 8 states.
+
+**MACSTEM (open, important).** `src/pySEA/rayTEM/microscopes/MACSTEM/` is on
+the PUBLIC repo's main — re-uploaded there by Thomas (tpchuckles) on 08-21/26,
+commit messages say "for historical purposes". After the earlier
+REMOVED_PRIVATE_INSTRUMENT_TREE scrub this needs an explicit decision between
+Eric/Ondrej/Thomas; removing it from a branch fixes nothing while main and
+history carry it. **The wiki refresh is deliberately NOT committed** — it
+generates MACSTEM stubs and indexes its symbols, which would spread the
+content further into the repo. Re-run `pysea-refresh-wiki` once the decision
+is made.
+
 ## 2026-08-27 — [Done] Beam current is recorded state
 **Goal:** make both the stated and the derived beam current survive a `.sea`
 round trip.
