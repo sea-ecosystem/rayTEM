@@ -1,8 +1,8 @@
 {
     "kind": "setting",
     "name": "basic_column - low-parallel-image",
-    "version": 0.001,
-    "timestamp": "2026-08-27 14:43:51",
+    "version": 0.003,
+    "timestamp": "2026-08-27 22:12:42",
     "C1": {
         "strength": 8.0
     },

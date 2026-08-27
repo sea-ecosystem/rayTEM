@@ -97,26 +97,42 @@ def test_low_state_is_cut_by_the_aperture(solved_high, solved_low):
 					  solved_low["predicted"]["current_fraction"] * 1e-9, rtol=1e-6)
 
 
-def test_convergent_probe_hits_thirty_mrad(solved_high):
-	# the solve's own prediction and the traced measurement both land on target
-	assert not solved_high["alpha_limited"]
-	assert np.isclose(solved_high["predicted"]["alpha"], ex.ALPHA_TARGET, rtol=1e-6)
+def test_convergent_probe(solved_high):
+	# a probe means a crossover ON the sample plane, formed by the condensers
+	# alone; and the block prediction matches the traced measurement
 	scope = _configured(solved_high)
 	scope.propagate_ray()
-	assert np.isclose(scope.convergence_angle, ex.ALPHA_TARGET, rtol=1e-6)
-	# and it is a probe: a crossover ON the sample plane
+	B = ex.block_between(scope, 0.0, ex.sample_plane(scope))[0, 1]
+	assert abs(B) < 1e-12
+	assert np.isclose(scope.convergence_angle, solved_high["predicted"]["alpha"],
+					  rtol=1e-6)
+	# the 30 mrad target is honest: hit exactly, or flagged as out of reach
+	# (with THIS column's frozen objective the condensers cap out below it)
+	if solved_high["alpha_limited"]:
+		assert solved_high["predicted"]["alpha"] < ex.ALPHA_TARGET
+	else:
+		assert np.isclose(solved_high["predicted"]["alpha"], ex.ALPHA_TARGET,
+						  rtol=1e-6)
+
+
+def test_low_state_probe(solved_low):
+	# still a probe: crossover on the sample, condensers only
+	scope = _configured(solved_low)
 	B = ex.block_between(scope, 0.0, ex.sample_plane(scope))[0, 1]
 	assert abs(B) < 1e-12
 
 
-def test_low_state_probe(solved_low):
-	# under the rescale aperture the condensers can pump the angle back up,
-	# so the low state also reaches the target unless the solve says otherwise
-	if not solved_low["alpha_limited"]:
-		assert np.isclose(solved_low["predicted"]["alpha"], ex.ALPHA_TARGET, rtol=1e-6)
-	scope = _configured(solved_low)
-	B = ex.block_between(scope, 0.0, ex.sample_plane(scope))[0, 1]
-	assert abs(B) < 1e-12							# still a probe either way
+def test_objective_is_never_retuned(solved_high, solved_low):
+	# probe focusing belongs to the condensers and projection to the
+	# projectors: no solved state may carry an objective (or PL3/PL4) strength
+	base = ex.load_base()
+	frozen = {n: base[n].strength for n in ("OL1", "OL2", "PL3", "PL4")}
+	for sol in (solved_high, solved_low,
+				ex.solve_column("high", "parallel", "diffraction")):
+		assert not set(sol["strengths"]) & set(frozen)
+		scope = _configured(sol)
+		for n, k in frozen.items():
+			assert scope[n].strength == k
 
 
 def test_parallel_probe_is_nearly_parallel():
