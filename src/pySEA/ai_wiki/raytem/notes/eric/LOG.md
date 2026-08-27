@@ -2,6 +2,44 @@
 
 Newest entries at top.
 
+## 2026-08-27 — [Done] Eight states on the standard column
+**Goal:** point example 07 at `basic_column.sea` per Eric: add CA, 1 nA gun,
+solve C+OL1 -> sample and sample -> detector, save states, fix the ray/wave
+overlay.
+- [x] basic_column: CA (10 µm) after C1, `beam_current=1e-9`, 1 cm detector tail
+- [x] solver rebuilt on the standard column (OL1 joins the probe chain)
+- [x] states saved via Thomas's `save_as_setting` -> `settings/basic_column - <state>.json`
+- [x] wave-matched ray overlay
+- [x] tests updated (146 total; 145 pass + the pre-existing insertion failure)
+
+**Outcome:** all 8 states solve on the stock column: 30.000 mrad probe
+(25 nm) in the high state, image (6.5x, B=0) or diffraction (13.8 mm camera,
+A=0) at the detector, 1 nA -> 1 nA high / 0.2 nA low.
+
+**The ray/wave mismatch Eric saw, root-caused twice over.** (1) The overlay
+had drawn the source's full incoherent fan, which is real but far wider than
+the single coherent mode the wave carries. It now draws the rays the wave
+actually follows — the flat-phase family (zero-angle rays at fractions of the
+wave envelope; the scaled frame IS that family's reference ray) plus the pair
+grazing the CA edge. Rays now ride the |psi| envelope through every lens and
+cross exactly at its crossovers. (2) My `predict_probe` had modeled CA as a
+per-ray mask — that is the WAVE path's model. The ray path's `Aperture` is a
+beam **rescale**: `propagate_ray` shrinks every ray by `radius/xmax` and
+`apply_intensity` attenuates uniformly by the area ratio. Prediction now
+models exactly that and matches the trace; a consequence worth knowing is
+that the low-current state still reaches 30 mrad, because the condensers can
+pump the rescaled angle back up (the earlier "CA removes the phase space the
+target needed" claim was an artifact of the wrong aperture model).
+
+**No `Gun` class exists** — the emitter everywhere is `Source` (the standard
+column's is named "G"). Flagging rather than adding one; a `Gun(Source)`
+subclass is trivial if wanted.
+
+**basic_column changes are shared-template changes** (CA, stated current,
+detector tail; optics untouched, total length now 1.274 m with the detector
+still at 1.264). Ondrej/Thomas: two hybrid tests had the column end
+hardcoded and were updated.
+
 ## 2026-08-27 — [Done] Verbatim reload, examples green, the eight configurations
 **Goal:** answer Eric's three challenges: reload without per-class helpers, all
 examples running, and the eight-configuration demonstration wired into the
