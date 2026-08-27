@@ -1018,7 +1018,7 @@ def compareLacyRotations():
 		for s in [0]+list(xs[n-1]):
 			microscope["PL"+str(n)].strength = s/1000 # mA to A
 			r1 = microscope.propagate_ray()
-			R = -r1[-1,-1,columnByName('R')]
+			R = -r1.R[-1,-1]
 			if r1[-1,-1,columnByName('x')]<0:
 				R+=np.pi
 			xs[-1].append(s) ; ys[-1].append(R)

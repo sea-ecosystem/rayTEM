@@ -1,0 +1,24 @@
+{
+    "kind": "setting",
+    "name": "basic_column - low-convergent-image",
+    "version": 0.001,
+    "timestamp": "2026-08-27 14:43:31",
+    "C1": {
+        "strength": 8.0
+    },
+    "C2": {
+        "strength": 49.79817137
+    },
+    "C3": {
+        "strength": 51.37930586
+    },
+    "OL1": {
+        "strength": 136.14028827
+    },
+    "PL1": {
+        "strength": 46.78522294
+    },
+    "PL2": {
+        "strength": 61.45961585
+    }
+}

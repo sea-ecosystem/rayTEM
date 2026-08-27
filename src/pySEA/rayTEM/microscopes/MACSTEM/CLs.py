@@ -292,7 +292,7 @@ def visualize_fitted():
 	for c1 in C1s_2:
 		microscope["CL1"].strength = c1
 		r1 = microscope.propagate_ray()
-		modelcurrent.append( r1[-1,-1,columnByName('I')] )
+		modelcurrent.append( r1.I[-1,-1] )
 	plot([C1s*1000,C1s_2*1000],[beamcurrent,modelcurrent],xlabel="C1 current (mA)",ylabel="beam current (a.u.)",labels=["measured","modeled"],title="",filename="CL_VOA.svg",ylim=[0,None],xlim=[0,600])
 
 # analytical_crossover_fitting did individual fitting: CL1 first, then CL2, then CL3. HERE, we do simultaneous?
@@ -443,7 +443,7 @@ def analytical_crossover_fitting2():
 		for c1 in C1s:
 			new["CL1"].strength = c1
 			r1 = new.propagate_ray()
-			modelcurrent.append( r1[-1,-1,columnByName('I')] )
+			modelcurrent.append( r1.I[-1,-1] )
 		modelcurrent = np.asarray(modelcurrent)
 		return modelcurrent/scaling #np.amax(modelcurrent[C1s<.34567])
 	guesses = (abs(x)*.5, .76543, .23456)

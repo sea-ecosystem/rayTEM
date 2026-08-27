@@ -1,0 +1,48 @@
+# TODO — Aberrations class + generic application
+
+**Branch/worktree:** `Signal_and_propagation_additions` (rayTEM)
+**Plan:** [PLAN_2026-08-23_aberration-class-and-generic-application.md](PLAN_2026-08-23_aberration-class-and-generic-application.md)
+
+Eric's correction: aberrations belong in a class in **Krivanek `C_{n,m}`**
+notation, the phase screen belongs in the dataset as a Signal, and propagation
+must apply whatever function is attached rather than knowing about spherical.
+
+**Unblocked.** My "nested SEASerializable breaks .sea" finding was a broken
+probe (wrong `super().__init__` signature); nesting works, so the class attaches
+directly and lives in rayTEM. Eric confirmed C10 folds into `focal_power()` and
+the reader extends to fifth order.
+
+- [x] cause of the serialization failure found: my probe, not the machinery
+- [x] JSON `save()` now goes through `SEASerializable.to_json` (two sea-eco bugs fixed)
+- [x] `Aberrations` class: Krivanek `C_{n,m}` complex storage, `convention` attr
+- [x] `from_metadata`, including the reader's outstanding a/b -> complex step
+- [x] convention conversions (letters now; Seidel/Zernike later)
+- [x] generic `phase_at()`/`deflection_at()` (+ grid wrappers `phase`/`gradient`)
+- [x] C10 reaches the rays (generic kick), matching the wave frame exactly --
+      so it must NOT also fold into `focal_power`, which would double-count
+- [x] screens may be COMPLEX: real = phase chi (exp(i chi)), complex =
+      transmission T applied directly, so amplitude and phase are one object
+- [x] `Element.screen`: a SUPPLIED screen, stored because it cannot be
+      recomputed; `1` when absent; `_has_screen()` to branch without
+      type-testing. Generated chi stays recomputed.
+- [x] resample a supplied screen onto the propagation grid -- bilinear, not
+      band-limited, so a hard-edged plate does not ring; refused only when the
+      screen carries no calibration to resample from
+- [x] folded `Aperture`'s WAVE behaviour into the screen mechanism; its
+      `propagate_wave` override is gone, `apply_intensity` untouched
+- [x] supplied screen through a VOLUME, not just one plane: a 3D signal
+      becomes a symmetric multislice through the body; n = 1 reproduces the
+      thin program term for term. Refused on the scaled path (the frame
+      evolves through the body).
+- [x] `rays_signalset` is a property; the identity half of the rule does not
+      apply to RESULTS (wave/rays/mu/covariance) -- they are computed or None.
+      Original item, for reference, following
+      [PLAN_2026-08-25_derived-signal-properties.md](PLAN_2026-08-25_derived-signal-properties.md):
+      supplied -> stored; derivable -> recomputed, not stored; neither ->
+      identity (`1` for a screen)
+- [x] `apply_aberrations=True` flag on every propagation method
+- [x] ray kick from `(1/k) grad chi` generically, all orders, on `Element`
+- [x] flat `C1/A1/...` attributes retired; `Lens.Cs` removed entirely (it had
+      become a silent no-op as an attribute -- see LOG)
+- [x] retired `waveoptics.spherical_phase`/`aberration_phase`/`KRIVANEK_TERMS`
+- [x] re-point `examples/06` at the new API

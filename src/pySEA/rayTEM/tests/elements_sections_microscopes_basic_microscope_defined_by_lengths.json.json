@@ -7,9 +7,9 @@
             "length": 2.6,
             "Elements": [
                 {
-                    "Element name": null,
                     "kind": "Source",
                     "position": 0,
+                    "length": 0,
                     "size": [
                         1,
                         1
@@ -26,48 +26,45 @@
                         3,
                         3
                     ],
-                    "length": 0,
                     "strength": 0,
-                    "calibration": null
+                    "wave_shape": [
+                        128,
+                        128
+                    ],
+                    "wave_kind": "gaussian",
+                    "beam_current": 1e-09
                 },
                 {
                     "Element name": "",
                     "kind": "Drift",
                     "position": 0,
-                    "length": 1,
-                    "calibration": null
+                    "length": 1
                 },
                 {
                     "Element name": "",
                     "kind": "QLens",
                     "position": 1,
                     "length": 0.1,
-                    "strength": 3,
-                    "calibration": null,
-                    "allow_diverging": false
+                    "strength": 3
                 },
                 {
                     "Element name": "",
                     "kind": "Drift",
                     "position": 1.1,
-                    "length": 0.4,
-                    "calibration": null
+                    "length": 0.4
                 },
                 {
                     "Element name": "",
                     "kind": "QLens",
                     "position": 1.5,
                     "length": 0.1,
-                    "strength": 4.5,
-                    "calibration": null,
-                    "allow_diverging": false
+                    "strength": 4.5
                 },
                 {
                     "Element name": "",
                     "kind": "Drift",
                     "position": 1.6,
-                    "length": 1,
-                    "calibration": null
+                    "length": 1
                 }
             ],
             "ignoreLensThickness": false
@@ -82,21 +79,17 @@
                     "kind": "QLens",
                     "position": 0,
                     "length": 0.1,
-                    "strength": 5,
-                    "calibration": null,
-                    "allow_diverging": false
+                    "strength": 5
                 },
                 {
                     "Element name": "",
                     "kind": "Drift",
                     "position": 0.1,
-                    "length": 2,
-                    "calibration": null
+                    "length": 2
                 }
             ],
             "ignoreLensThickness": false
         }
     ],
-    "name": "",
-    "_planes": null
+    "name": ""
 }

@@ -216,65 +216,38 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 ## Repo map
 
 - `src/pySEA/rayTEM/__init__.py`
+- `src/pySEA/rayTEM/aberrations.py` — Axial wave aberrations in Krivanek notation, and how to apply them.
 - `src/pySEA/rayTEM/AS2.py`
 - `src/pySEA/rayTEM/assemblies.py`
 - `src/pySEA/rayTEM/elements.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/01_basicRays.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/02_basicFitting.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/03_lensRotation.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/04_PRIVATE_INSTRUMENT.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/PLs.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/20260429/ellipsefitting.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/20260429/processsweeplog.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/builder.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/CLs.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/old/PLs_2Dsweep.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/old/PLs_linearsweeps.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/old/PLs_upstream.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/old/PLs_v0.01.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/PLs.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/PLs_upstream.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/viewAndCalculate.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/shiftvstilt.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/calibrate.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/private_instrument_uncalibrated.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/20260424/ellipsefitting.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/20260424/processsweeplog.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/builder.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/old/Icrit_from_2D.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/old/minima_from_linear.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/old/PLs_2Dsweeps.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/old/PLs_analytical.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/old/PLs_linearsweeps.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/PLs.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/AS2 XML Parsing/parseXMLstrengths.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/AS2 XML Parsing/TWP-settingsAnalyzer.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/AS2 XML Parsing/xmlutils.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/course_PLs.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/demo.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/fine_PLs/ellipseFitting.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/fine_PLs/findDataFilesWithCaptions.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/liveAS2-v0.01.py`
-- `REMOVED_PRIVATE_INSTRUMENT_TREE/PRIVATE_INSTRUMENT/liveAS2.py`
+- `src/pySEA/rayTEM/microscopes/basic_column.py` — Builder for the default generic TEM column (``basic_column.sea``).
+- `src/pySEA/rayTEM/microscopes/objective_section.py` — Builder for the standalone objective section (``objective_section.sea``).
 - `src/pySEA/rayTEM/postprocessing.py`
 - `src/pySEA/rayTEM/references/andys_functions.py`
 - `src/pySEA/rayTEM/seashells.py` — seashells serves as a wrapper around the sea_eco SEASerializable object, enabling easy integration with sea_eco.
 - `src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py`
+- `src/pySEA/rayTEM/tests/test_scaled_fresnel.py`
+- `src/pySEA/rayTEM/tests/test_wave_and_envelope.py`
 - `src/pySEA/rayTEM/utilities.py`
+- `src/pySEA/rayTEM/waveoptics.py` — Paraxial scalar wave-optics primitives for rayTEM.
 - `src/pySEA/rayTEM/xmlNion.py`
 
 <!-- REPO-MAP-END -->
 ## Core invariants
 
-- **Ray columns are fixed**: [x, xθ, y, yθ, z, I, E, R] — index 0–7 as returned by `columnByName()`. R is cumulative Larmor rotation accumulated by thick lenses. Do not reorder without updating every Element and all `columnByName` callers.
-- **Transfer matrices are 8×8**: Produced by `fix_mat_dims()`. Never pass a raw 2×2 matrix directly to `propagate_ray`.
+- **Ray columns are geometric**: `convention = ["x","xt","y","yt","z","E"]` — index 0–5 as returned by `columnByName()`. The ray vector is *purely geometric*; do not reorder without updating every Element and all `columnByName` callers.
+- **Intensity (I) and rotation (R) are NOT ray columns**: they travel as separate parallel arrays on `MicroscopeSection`/`Microscope` (`.I` and `.R`, shape `(n_planes, n_rays)`). Elements update them via `apply_intensity`/`apply_rotation` (R is cumulative Larmor rotation accumulated by thick lenses). Postprocessing helpers that need them (`convert_to_rotating_reference_frame`, `findPlanes`, `measureAtZ`, `plot2D`) take `R`/`I` explicitly. Any code reading `columnByName("I")`/`("R")` is stale (some `microscopes/` instrument scripts still do — update them to `.I`/`.R`).
+- **Transfer matrices are 6×6**: Produced by `fix_mat_dims()` (sized off `len(convention)`). Never pass a raw 2×2 matrix directly to `propagate_ray`.
+- **Four propagation modes, one geometry**: `propagate_ray` (geometric rays), `propagate_moments` (beam-envelope covariance, `Σ'=MΣMᵀ`, stored on `.mu`/`.covariance_matrix`), `propagate_wave` (paraxial 2D complex wavefield on a fixed grid, stored on `.wave` as a calibrated sea_eco `Signal`), and `propagate_wave_scaled` (scaled-Fresnel wave, `ψ=(1/s)·U·e^{ikr²/2R}`, stored on `.wave_scaled` as a `SignalSet` of U + s/R/τ companions; reconstruct physical planes via `Microscope.wavefield_at`). Ray/moments share the transfer matrices; both wave paths share the per-element `phase_shift` contract. All run through the same bottom-up hierarchy (dispatcher `propagate(kind=...)`).
 - **Element → MicroscopeSection → Microscope hierarchy**: Rays propagate strictly bottom-up. Microscope never reaches inside an Element; MicroscopeSection never reaches inside a Microscope.
-- **seashells is the sea_eco seam**: All serialization goes through `seashells.SEASerializable`, which gracefully degrades if sea_eco is absent. Do not import from sea_eco directly in framework code.
+- **seashells is the sea_eco seam**: All serialization *and* wavefield-Signal construction (`make_wavefield_signal`/`read_wavefield`) go through `seashells`, which gracefully degrades if sea_eco is absent. Do not import from sea_eco directly in framework code.
+- **Wavelength**: `Source(voltage=<kV>)` sets `Source.wavelength` (via `utilities.relativistic_wavelength`) and fills the per-ray `E` column. Default `voltage=None` keeps `E=0` and no wavelength, so ray-only behavior is unchanged.
 
 ## High-risk areas
 
 - `elements.py` — `columnByName()` and `fix_mat_dims()` are referenced everywhere; changes break all Elements
-- `seashells.py` — conditional import logic; changing import path or attribute names breaks sea_eco round-trips
+- `seashells.py` — conditional import logic; changing import path or attribute names breaks sea_eco round-trips and wavefield-Signal construction
+- `waveoptics.py` — paraxial FFT math; grid centering (`transverse_coordinates`) and the angular-spectrum transfer function must stay consistent or focus/aperture positions drift
 - `AS2.py` — talks to a live instrument; errors here can send bad values to real hardware
 
 ## AI workflow

@@ -2,11 +2,19 @@
 
 ## What this package does
 
-rayTEM simulates ray propagation through a transmission electron microscope using
-transfer matrix formalism. A simulated instrument is built as a hierarchy of
-`Microscope → MicroscopeSection → Element` objects. Rays are propagated through
-each element's 8×8 transfer matrix. Lens strengths can be fitted to achieve a
-target image-plane position or magnification.
+rayTEM simulates propagation through a transmission electron microscope using
+transfer-matrix formalism. A simulated instrument is built as a hierarchy of
+`Microscope → MicroscopeSection → Element` objects, and there are **three
+interchangeable propagation modes**, all driven by the same 6×6 transfer matrices:
+
+- `propagate_ray` — geometric ray tracing (the original mode).
+- `propagate_moments` — analytic beam-envelope: propagates the ensemble mean and
+  covariance via `Σ' = M Σ Mᵀ` (results on `.mu` / `.covariance_matrix`).
+- `propagate_wave` — paraxial 2D complex scalar wave optics, stored as a
+  calibrated sea_eco `Signal` on `.wave`.
+
+Lens strengths can be fitted to achieve a target image-plane position or
+magnification.
 
 The package also contains instrument-specific calibration work under `microscopes/`
 (PRIVATE_INSTRUMENT, PRIVATE_INSTRUMENT, PRIVATE_INSTRUMENT, PRIVATE_INSTRUMENT, PRIVATE_INSTRUMENT) and a live-control interface via `AS2.py`.
@@ -17,18 +25,27 @@ The package also contains instrument-specific calibration work under `microscope
 Microscope
   └─ MicroscopeSection (e.g. "illumination", "objective", "projector")
        └─ Element (Source | Drift | Lens | Dipole | Quadrupole | Aperture | ...)
-            └─ transfer_matrix (8×8 numpy array)
+            └─ transfer_matrix (6×6 numpy array)
 ```
 
-Rays are represented as `(N, 8)` arrays where columns are ordered:
+Rays are represented as `(N, 6)` **purely geometric** arrays where columns are ordered:
 
 ```
-[x,  xθ,  y,  yθ,  z,  I,  E,  R]
- 0    1    2    3   4   5   6   7
+[x,  xθ,  y,  yθ,  z,  E]
+ 0    1    2    3   4   5
 ```
 
 Column indices are looked up by name via `columnByName(name)`. This indirection
 means columns can be added without touching every Element.
+
+**Intensity (`I`) and cumulative Larmor rotation (`R`) are not ray columns.** They
+travel as separate parallel arrays on `MicroscopeSection`/`Microscope` — `.I` and
+`.R`, each shape `(n_planes, n_rays)` — because they do not participate in the
+ray-transfer matrix. Elements update them through `apply_intensity` / `apply_rotation`,
+and postprocessing helpers (`convert_to_rotating_reference_frame`, `findPlanes`,
+`measureAtZ`, `plot2D`) take `R`/`I` explicitly. (Historically `I`/`E`/`R` were ray
+columns; that reorder is complete — code still reading `columnByName("I")`/`("R")`
+is stale.)
 
 ## Read order for a new contributor
 

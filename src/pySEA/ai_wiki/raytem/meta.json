@@ -1,0 +1,10 @@
+{
+  "package": "raytem",
+  "namespace": "pySEA",
+  "version": "0.0.1beta",
+  "wiki_schema_version": "1.0",
+  "last_updated": "2026-08-26",
+  "source_commit": "b328ed6",
+  "entry_point": "index.md",
+  "depends_on": []
+}
