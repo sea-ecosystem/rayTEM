@@ -29,10 +29,11 @@ made to answer for each other:
 - **rays** are drawn *on top of* the scaled-wave ``|psi(x, z)|``
   cross-section (one figure per state, in ``figs/``). The overlay traces the
   rays the *wave* cares about — the flat-phase family the scaled frame itself
-  follows (zero-angle rays at fractions of the wave envelope), plus the rays
-  that graze the CA edge — rather than the source's full incoherent fan,
-  which is real but wider than the single coherent mode the wave carries and
-  used to make the two look mismatched.
+  follows (zero-angle rays at fractions of the wave envelope, plus the
+  CA-grazing pair where it falls inside that envelope) — rather than the
+  source's full incoherent fan, which is real but wider than the single
+  coherent mode the wave carries and used to make the two look mismatched.
+  Every drawn ray stays within the wave pattern.
 - **moments** print the transverse covariance at the gun exit, CA, sample,
   and detector;
 - the conjugate planes (image and back-focal family of every lens) are
@@ -597,10 +598,12 @@ def wave_matched_rays(scope: Microscope) -> np.ndarray:
 	the trajectories it follows are the flat-phase family: zero-angle rays
 	whose height sets everything downstream. This bundle is that family —
 	rays at fractions of the wave envelope's half-width (2 sigma of the seed
-	gaussian), plus the pair that exactly grazes the CA edge and one pair just
-	inside it, so the aperture region reads clearly. The source's full
-	incoherent fan is wider than the coherent mode and drawing it over the
-	wave made the two look mismatched.
+	gaussian), plus the pair that grazes the CA edge **when that pair lies
+	inside the envelope**. A grazing pair taller than the envelope belongs to
+	beam the wave does not carry — drawing it put rays outside the |psi|
+	pattern for no gain — and when the aperture is that much wider than the
+	coherent mode it does not shape the wave anyway, so the pair is simply
+	omitted. Every ray drawn stays within the wave.
 
 	Parameters
 	----------
@@ -623,7 +626,8 @@ def wave_matched_rays(scope: Microscope) -> np.ndarray:
 	A_ca = block_between(scope, 0.0, scope.named_positions["CA"])[0, 0]
 	if abs(A_ca) > 1e-12:
 		h_edge = scope["CA"].radius / abs(A_ca)
-		heights += [h_edge, -h_edge, 0.85 * h_edge, -0.85 * h_edge]
+		if h_edge < w_env:					# only where the aperture bites the wave
+			heights += [h_edge, -h_edge]
 	r0 = np.zeros((len(heights), len(convention)))
 	r0[:, columnByName('x')] = heights			# flat family: zero angle
 	return r0
@@ -636,8 +640,7 @@ def ray_over_wave_figure(scope: Microscope, title: str, filename: str) -> list:
 	planes, one picture. The column is subdivided for smooth z sampling; the
 	rays are the flat-phase family from :func:`wave_matched_rays`, converted
 	to the rotating frame the wave propagates in, so they ride the wave
-	envelope through every lens and cross exactly at its crossovers. The
-	CA-grazing pair is drawn brighter.
+	envelope through every lens and cross exactly at its crossovers.
 
 	Parameters
 	----------
@@ -670,14 +673,8 @@ def ray_over_wave_figure(scope: Microscope, title: str, filename: str) -> list:
 	zs = rays[:, 0, columnByName('z')] * 1e3
 	ylim = ax.get_ylim()
 	xcol = rot[:, :, columnByName('x')] * 1e6
-	live = dense.I[-1] > 0						# rays the aperture let through
-	n_env = 7									# the envelope fan; the rest graze CA
 	for j in range(xcol.shape[1]):
-		grazing = j >= n_env
-		ax.plot(zs, xcol[:, j],
-				lw=0.9 if grazing else 0.5,
-				alpha=(0.9 if live[j] else 0.35) if grazing else 0.6,
-				color=("cyan" if live[j] else "tomato") if grazing else "deepskyblue")
+		ax.plot(zs, xcol[:, j], lw=0.5, alpha=0.6, color="deepskyblue")
 	ax.set_ylim(ylim)
 	fig.tight_layout()
 	fig.savefig(filename, dpi=140)
