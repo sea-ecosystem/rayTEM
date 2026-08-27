@@ -187,11 +187,15 @@ class MicroscopeSection(SEASerializable):
 			item = names.index(item)
 		self.elements[item] = value
 
-	def __repr__(self) -> str:
+	def __repr__(self):
+		return self.tabulate()
+
+	def tabulate(self,columns=None) -> str:
+		if columns is None:
+			columns = ['name', 'kind', 'position', 'length', 'strength', 'calibration']
 		if self.elements is None:
 			return ''
 		else:
-			columns=['name', 'kind', 'position', 'length', 'strength', 'calibration']
 			reps = []
 			for e in self.elements:
 				reps.append([])
@@ -554,15 +558,17 @@ class Microscope(SEASerializable):
 		new.length = new.sections[-1].position+new.sections[-1].length
 		return new
 
-	def __repr__(self) -> str:
+	def __repr__(self):
+		return self.tabulate()
 
+	def tabulate(self,columns=None) -> str:
 		strings = []
 		for s in self.sections:
 			header = "Section: "+s.name+" @ "+str(s.position)+" , length="+str(s.length)
 			#if self.print_fancy:
 			#	print(header)
 			strings.append( header )
-			strings.append( s.__repr__() )
+			strings.append( s.tabulate(columns=columns) )
 		#if self.print_fancy:
 		#	return ''
 		return "\n".join(strings)

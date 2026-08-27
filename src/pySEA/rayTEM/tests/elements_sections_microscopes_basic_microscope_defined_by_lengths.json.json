@@ -43,7 +43,8 @@
                     "position": 1,
                     "length": 0.1,
                     "strength": 3,
-                    "calibration": null
+                    "calibration": null,
+                    "allow_diverging": false
                 },
                 {
                     "Element name": "",
@@ -58,7 +59,8 @@
                     "position": 1.5,
                     "length": 0.1,
                     "strength": 4.5,
-                    "calibration": null
+                    "calibration": null,
+                    "allow_diverging": false
                 },
                 {
                     "Element name": "",
@@ -81,7 +83,8 @@
                     "position": 0,
                     "length": 0.1,
                     "strength": 5,
-                    "calibration": null
+                    "calibration": null,
+                    "allow_diverging": false
                 },
                 {
                     "Element name": "",
