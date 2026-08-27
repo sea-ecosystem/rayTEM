@@ -685,7 +685,9 @@ def test_full_column_hybrid_source_to_detector():
 	tags = [scaled_frame_tag(p) for p in planes]
 	assert tags.count("flatten") == tags.count("crossover") == tags.count("rediverge")
 	ss = [read_scaled_wavefield(p)[4] for p in planes]
-	assert min(np.abs(ss)) > 1e-3 and max(np.abs(ss)) > 1		# contracts and re-expands
+	# contracts and re-expands; the bound tracks the tightest focus the column
+	# makes (the f = 2 mm objective contracts s below the old 1e-3)
+	assert min(np.abs(ss)) > 1e-5 and max(np.abs(ss)) > 1
 
 	# energy conserved at every logged plane (all frames, all switches)
 	E = [(np.abs(read_scaled_wavefield(p)[0])**2).sum() for p in planes]
@@ -1458,11 +1460,13 @@ def test_conjugate_planes_frame_ray_and_wave_agree():
 	# the image family exists for the wave too, and differs from the diffraction one
 	assert len(frame["image"]) == len(frame["diff"])
 	assert min(abs(frame["image"][:, None] - frame["diff"][None, :]).min(axis=1)) > 1e-6
-	# one image plane sits inside OL1's body: there the ray method interpolates
-	# across the wrong functional form, the frame walk solves it exactly
+	# with the short f = 2 mm OL1 every conjugate plane falls in free space,
+	# so the ray method's straight-line interpolation is exact here too (the
+	# old fat objective used to put one plane inside its body, where the two
+	# methods legitimately differed by ~188 um)
 	inside = [z for z in frame["image"] if 0.490 < z < 0.500]
 	assert len(inside) == 1
-	assert 1e-5 < min(abs(ray["image"] - inside[0])) < 1e-3		# ~188 um apart
+	assert min(abs(ray["image"] - inside[0])) < 1e-3
 
 
 def test_conjugate_planes_reference_plane():
@@ -2893,7 +2897,7 @@ def test_convergence_angle_is_a_semi_angle_and_a_total_deflection():
 	mic.propagate_ray()
 	r = np.asarray(mic.rays)
 	zs = r[:, 0, columnByName('z')]
-	i = int(np.argmin(np.abs(zs - 0.062)))			# inside the sample gap
+	i = int(np.argmin(np.abs(zs - mic.named_positions["sample"])))	# the sample plane
 	ang = np.hypot(r[i, :, 1], r[i, :, 3])
 
 	# SEMI-angle: the half-cone. The rays span +-alpha, so the full opening is 2x
@@ -2902,10 +2906,13 @@ def test_convergence_angle_is_a_semi_angle_and_a_total_deflection():
 
 	# TOTAL deflection, not the x component: OL1 is thick, so it rotates the ray
 	# by its Larmor angle while focusing it, and xt alone under-reports by
-	# cos(KL) -- a factor of ~3.7 here
+	# exactly cos(K L) -- computed from the lens itself so the bound follows
+	# any change to OL1's strength or bore
+	ol1 = mic["OL1"]
+	larmor = np.cos(ol1.strength * ol1.length)
 	xt_only = np.abs(r[i, :, 1]).max()
-	assert xt_only < 0.4 * mic.convergence_angle
-	assert mic.convergence_angle / xt_only > 3.0
+	assert np.isclose(xt_only, larmor * mic.convergence_angle, rtol=1e-6)
+	assert xt_only < 0.5 * mic.convergence_angle	# i.e. the rotation is substantial
 
 	# and it must not depend on landing a floating-point epsilon past the
 	# sample's entrance face, which is where measureAtZ flips between the state
