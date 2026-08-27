@@ -2,4 +2,4 @@
 
 **Issue:** new json format should match old json format
 **TODO:** json I/O just needs some tweaks
-**Status:** proposal
+**Status:** complete

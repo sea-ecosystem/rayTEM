@@ -1419,7 +1419,7 @@ class Element(SealedAttributes, SEASerializable):
 		with :math:B, D entries of the body's own :meth:transfer_block over
 		the *remaining* length, and the :math:1/L chosen so the
 		:math:L \to 0 limit is the thin kick. The integral is Simpson over 64
-		slices.
+		intervals.
 
 		This matters on a real objective. OL1 in basic_column is 10 mm thick
 		with :math:KL = 1.30, and putting the whole aberration at its entrance
@@ -2749,7 +2749,7 @@ class Quadrapole(Element):
 		self.calibration = calibration
 
 	@property
-	def _effective_strength(self) -> float:
+	def calibrated_strength(self) -> float:
 		"""Return the calibration-scaled quadrupole strength K.
 
 		Applies the same calibration mapping used by :meth:transfer_matrix
@@ -2809,7 +2809,7 @@ class Quadrapole(Element):
 		"""
 		if axis not in ('x', 'y'):
 			raise ValueError(f"axis must be 'x' or 'y', got {axis!r}.")
-		return (self._effective_strength > 0) == (axis == 'x')
+		return (self.calibrated_strength > 0) == (axis == 'x')
 
 	def _body_block(self, dz:float, axis:Literal['x','y']='x') -> xp.ndarray:
 		r"""The exact 2x2 body block over dz, for one transverse axis.
@@ -2865,7 +2865,7 @@ class Quadrapole(Element):
 		must stay positive for a forward step. The previous code wrote S/K
 		with a *signed* K, which inverted it for K < 0.
 		"""
-		k = abs(self._effective_strength)
+		k = abs(self.calibrated_strength)
 		if k == 0 or dz == 0:
 			return xp.asarray([[1.0, float(dz)], [0.0, 1.0]])
 		kz = k * abs(float(dz))
@@ -2910,7 +2910,7 @@ class Quadrapole(Element):
 		"""
 		L = self.length or 0.0
 		step = L if dz is None else float(dz)
-		if L <= 0 or self._effective_strength == 0:
+		if L <= 0 or self.calibrated_strength == 0:
 			return super().transfer_block(dz=step, axis=axis)
 		return self._body_block(step, axis)
 
@@ -2943,7 +2943,7 @@ class Quadrapole(Element):
 		_axis_focuses : Sets which axis gets the positive curvature.
 		phase_shift : Supplies the thin-quadrupole curvature kick.
 		"""
-		K = self._effective_strength
+		K = self.calibrated_strength
 		if self.length > 0 and K != 0:
 			kappa = float(K**2)
 			pair = (kappa, -kappa) if self._axis_focuses('x') else (-kappa, kappa)
@@ -2976,7 +2976,7 @@ class Quadrapole(Element):
 		_body_block : The matrix these mirror.
 		phase_shift : Uses these powers for the saddle phase screen.
 		"""
-		k = abs(self._effective_strength)
+		k = abs(self.calibrated_strength)
 		if k == 0:
 			return 0.0, 0.0
 		if self.length == 0:
@@ -3034,7 +3034,7 @@ class Quadrapole(Element):
 		#m = xp.eye(6)#[...,None]*xp.ones_like(s) # TWP 2025/08/27 - adding ones_like expression so m is 6x6x1, otherwise eigsum in propagate will fail
 		#m = xp.eye(4) # quadrupole updates xθ from x and yθ from y
 
-		K = self._effective_strength
+		K = self.calibrated_strength
 
 		if K==0:
 			return fix_mat_dims(xp.eye(4),["x","xt","y","yt"])
@@ -3365,13 +3365,10 @@ class Lens(Element):
 		super().__init__(name=name,kind=kind)
 		self._position = position
 		self.length = length
-		# historically you could pass strength and length=0, so keep that, but forcibly set f=1/sqrt(K), and proceed using f.
-		if length==0 and strength is not None and focal_length is None:
-			focal_length = xp.inf if strength==0 else 1/xp.sqrt(strength)
-		if length==0:
-			self._focal_length = focal_length ; self.strength = None
-		else:
-			self.strength = strength ; self._focal_length = None
+		self.strength = strength
+		if length == 0 and focal_length is None:
+			focal_length = xp.inf if strength == 0 else 1 / (xp.sign(strength) * strength**2)
+		self._focal_length = focal_length if length == 0 else None
 		self.calibration = calibration
 		self.rotation = 0
 		# One nested Aberrations object, not a scatter of flat scalars: it is a
@@ -3380,27 +3377,29 @@ class Lens(Element):
 		self.aberrations = _as_aberrations(aberrations)
 		self.allow_diverging = allow_diverging
 
+	@property
+	def calibrated_strength(self) -> float:
+		K = self.strength
+		if self.calibration is not None:
+			if isinstance(self.calibration, (int, float)):
+				K *= self.calibration
+			else:
+				K = sum([self.calibration[0]] + [v * K**(1 / (i + 1)) for i, v in enumerate(self.calibration[1:])])
+		return K
+
+	@property
+	def focal_power(self) -> float:
+		f = self.focal_length
+		return 0.0 if xp.isinf(f) else float(1 / f)
+
 	def transfer_matrix(self) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		"""
 
-		# HANDLE CALIBRATION SCALING
-		if self.length == 0:
-			f = self._focal_length ; K=0
-		else:
-			K=self.strength ; f=0
-
-		if self.calibration is not None:
-			# linear scaling from mA (lens current) to lens strength?
-			if isinstance(self.calibration,(int,float)):
-				c = self.calibration
-				K *= c
-			else:
-				Kvals = [self.calibration[0]] + [ v*K**(1/(i+1)) for i,v in enumerate(self.calibration[1:]) ]
-				K = sum( Kvals ) #; print("lens","calibration",self.calibration,"strength",self.strength,"Kvals",Kvals)
+		K = self.calibrated_strength
 
 		# FINITE LENGTH LENS, ZERO STRENGTH = DRIFT (try inserting a zero-strength lens and seeing if the result changes)
-		if self.length==0 and f==xp.inf or self.length>0 and K==0:
+		if (self.length == 0 and xp.isinf(self.focal_length)) or (self.length > 0 and K == 0):
 			m = xp.eye(4) # IDENTITY MATRIX, OR DRIFT-EQUIVALENT
 			m[0,1]=self.length
 			m[2,3]=self.length
@@ -3409,13 +3408,10 @@ class Lens(Element):
 
 		# THIN LENS, NO ROTATION (thick lens math will have sine term going to zero)
 		if self.length==0:
-			if not self.allow_diverging:
-				f = abs(f)
-			#sign = -1*xp.sign(K) # sign allows negative calibration to give you diverging beams???
 			X=xp.asarray([[    1   , 0 ],
-					     [ -1/f , 1 ]])
+					     [ -self.focal_power , 1 ]])
 			Y=xp.asarray([[    1   , 0 ],
-						 [ -1/f , 1 ]])
+						 [ -self.focal_power , 1 ]])
 			self.rotation = 0
 			return xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
 
@@ -3453,17 +3449,16 @@ class Lens(Element):
 
 	@property
 	def focal_length(self):
-		# if thin lens, simply return _focal_length
-		if self._focal_length !=0 and self.length==0:
-			return self.focal_length
-		# otherwise, calculate from angle of ray exiting transfer_matrix
-		columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
-		M = self.transfer_matrix()[columns,:][:,columns]
-		r0 = [1,0,1,0] # parallel starting ray
-		r1 = xp.matmul(M,r0)
-		# positions and angles exiting lens
-		x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
-		return x/xt # f = x/theta
+		if self.length == 0:
+			return self._focal_length if self.allow_diverging else abs(self._focal_length)
+		if self.calibrated_strength == 0:
+			return xp.inf
+		columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]
+		M = self.transfer_matrix()[columns, :][:, columns]
+		r1 = xp.matmul(M, [1, 0, 1, 0])
+		x = xp.sqrt(r1[0]**2 + r1[2]**2)
+		xt = xp.sqrt(r1[1]**2 + r1[3]**2)
+		return x / xt
 
 
 	# unlike below(?), here we'll *measure* focal length at the current K=I*C and L, then adjust C and L to preserve focal length and set beam rotation (K*L) to match R in radians at this current I.
@@ -3526,7 +3521,7 @@ class Lens(Element):
 		"""
 		L = self.length or 0.0
 		step = L if dz is None else float(dz)
-		K = self._effective_strength
+		K = self.calibrated_strength
 		if L <= 0 or K == 0:
 			return super().transfer_block(dz=step, axis=axis)
 		c, s = xp.cos(K * step), xp.sin(K * step)
@@ -3557,7 +3552,7 @@ class Lens(Element):
 		phase_shift : Supplies the thin-lens curvature kick.
 		waveoptics.propagate_quadratic_segment_scaled : Propagates the segment.
 		"""
-		K = self._effective_strength
+		K = self.calibrated_strength
 		if self.length > 0 and K != 0:
 			return ('quadratic', float(K**2), float(-K * self.length))
 		return None
@@ -3565,10 +3560,8 @@ class Lens(Element):
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
 		r"""Round-lens phase: :math:\chi = -k(x^2+y^2)/(2f) (handoff Eq 12).
 
-		Extends :meth:Element.phase_shift. The focal power 1/f comes from
-		:meth:focal_power (thin: sign(K)·K²; thick: K·sin(K·L), Brown
-		1983 - the pure focusing relation, so a thick lens's Larmor rotation
-		never contaminates the wave-path power).
+	Extends :meth:Element.phase_shift. The focal power is the reciprocal of
+	:meth:focal_length, so ray and wave paths use the same focus definition.
 
 		Any :attr:aberrations are added as the wave aberration function
 		:math:\chi, whatever terms they happen to contain - the same

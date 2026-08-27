@@ -152,7 +152,7 @@ def test_eq29_delta_tau_vs_numerical_integral():
 		# keep the segment on one side of the crossover (1 + dz/R0 > 0)
 		dz = RNG.uniform(0.0, 0.9 * abs(R0)) if R0 < 0 else RNG.uniform(0.0, 5.0)
 		zg = np.linspace(0.0, dz, 200001)
-		numeric = np.trapezoid(1.0 / (s0 * (1 + zg / R0))**2, zg)
+		numeric = np.trapz(1.0 / (s0 * (1 + zg / R0))**2, zg)
 		assert np.isclose(wo.scaled_delta_tau(dz, s0, R0), numeric, rtol=1e-6)
 	# flat chart (Eq 31)
 	assert wo.scaled_delta_tau(0.7, 2.0, np.inf) == 0.7 / 4.0
@@ -1188,7 +1188,7 @@ def test_segment_delta_tau_closed_form_all_regimes():
 				kappa = k**2
 			if np.abs(sg).min() < 1e-6:
 				continue
-			numeric = np.trapezoid(1.0 / sg**2, zg)
+			numeric = np.trapz(1.0 / sg**2, zg)
 			assert np.isclose(wo.scaled_delta_tau_quadratic(dz, s0, R0, kappa),
 							  numeric, rtol=1e-6), (kappa, s0, R0, dz)
 			checked += 1
@@ -1227,7 +1227,7 @@ def test_thick_lens_segment_matches_transfer_matrix():
 	# the frame advances by the element's OWN 2x2 block: s_out must equal the
 	# rotating-frame A element, and the crossover -R_out must equal -A/C
 	lens = Lens(strength=34.72, length=0.02)
-	K, L = lens._effective_strength, lens.length
+	K, L = lens.calibrated_strength, lens.length
 	U0 = wo.gaussian_field((64, 64), 1e-7, 1e-7, 5e-7, 5e-7)
 	U, s, R, dtau = wo.propagate_quadratic_segment_scaled(U0, 1e-7, 1e-7, LAM, L,
 												   1.0, np.inf, K**2)
@@ -1301,7 +1301,7 @@ def test_thick_lens_wave_rotation_matches_ray_larmor():
 	# with rotate=True the wave picks up the same Larmor angle the ray path
 	# applies (Lens.rotation = -K L): an off-axis blob's azimuth must agree
 	lens = Lens(strength=34.72, length=0.02)
-	K, L = lens._effective_strength, lens.length
+	K, L = lens.calibrated_strength, lens.length
 	n, dxi = 128, 1e-7
 	X, Y = wo.transverse_coordinates((n, n), dxi, dxi)
 	x0 = 20 * dxi
@@ -1427,8 +1427,8 @@ def test_transfer_block_matches_transfer_matrix():
 			M6 = ele.transfer_matrix()
 			stored = np.array([[M6[0, 0], M6[0, 1]], [M6[1, 0], M6[1, 1]]], float)
 			mine = np.asarray(ele.transfer_block(), float)
-			if isinstance(ele, Lens) and L > 0 and (ele._effective_strength or 0):
-				mine = mine * np.cos(ele._effective_strength * L)	# Larmor factor
+			if isinstance(ele, Lens) and L > 0 and (ele.calibrated_strength or 0):
+				mine = mine * np.cos(ele.calibrated_strength * L)	# Larmor factor
 			worst = max(worst, abs(stored - mine).max()) ; n += 1
 	assert n > 40 and worst < 1e-12
 	# a homogeneous body's halves compose exactly
@@ -2607,14 +2607,14 @@ def test_merging_a_complex_screen_into_a_real_volume_converts_it_meaningfully():
 
 
 def _thick_strength(f: float, L: float) -> float:
-	"""Strength K solving the thick-lens relation ``1/f = K sin(K L)``.
+	"""Strength K solving the back-focal relation ``1/f = K tan(K L)``.
 
-	The tests build thick lenses by focal length, and `Lens.focal_power` uses
+	The tests build thick lenses by focal length, and `Lens.focal_length` uses
 	that relation, so inverting it here keeps a test lens's f meaning what it
 	says rather than being whatever `sqrt(1/f)` happens to give for a body.
 	"""
 	from scipy.optimize import brentq
-	return float(brentq(lambda K: K * np.sin(K * L) - 1.0 / f, 1e-6, np.pi / (2 * L)))
+	return float(brentq(lambda K: K * np.tan(K * L) - 1.0 / f, 1e-6, np.pi / (2 * L) - 1e-6))
 
 
 def test_a_thick_medium_still_applies_its_screen():
