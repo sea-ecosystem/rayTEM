@@ -10,9 +10,10 @@ coherent wavefunction), and every element sits at a plausible physical z:
 2. **C** — condenser section: three round lenses C1 (f = 45 mm), C2 (30 mm),
    C3 (90 mm), each bracketed by a dipole pair (one before, one after), a
    quadrupole pair at the section end.
-3. **O** — objective section: OL1 (f = 8 mm) and OL2 (f = 10 mm) around a 4 mm
-   sample gap, a dipole pair before OL1 and one after OL2, and a quadrupole at
-   the very end.
+3. **O** — objective section: OL1 (f = 2 mm, a short high-excitation
+   probe-forming lens) with the sample plane at its back focal plane
+   (~0.9 mm past the exit), OL2 (f = 10 mm) 4 mm later, a dipole pair before
+   OL1 and one after OL2, and a quadrupole at the very end.
 4. **P** — projector section: PL1–PL4 (f = 25/40/60/80 mm), each with a pre
    and post dipole pair, a 30 cm camera drift, and a zero-length named
    ``detector`` plane at the very end (total column ≈ 1.3 m).
@@ -193,6 +194,23 @@ def build_basic_column(voltage: float = 200.0) -> Microscope:
 		Drift(length=0.12),
 	])
 
+	# OL1 and its working distance are computed FIRST because the condenser
+	# section's trailing drift compensates for them (see below).
+	# OL1: a short, strong probe-forming objective (f = 2 mm, 2 mm bore --
+	# f >= 2L/pi bounds the bore), with the SAMPLE AT ITS BACK FOCAL PLANE.
+	# That placement is what makes a fixed-excitation objective work the way
+	# a real STEM's does: the condensers deliver a wide, nearly parallel
+	# beam, and OL1 alone converts radius into angle (alpha = r/f) while
+	# demagnifying the source hard -- measured, this geometry reaches
+	# ~56 mrad at a ~12 nm probe, smoothly, so a 30 mrad probe is solved by
+	# the condensers with the objective untouched. The working distance is
+	# computed from the lens's own thick block (a parallel ray (h, 0) exits
+	# the body as (A*h, C*h) and crosses the axis wd = -A/C later), so it
+	# tracks any change to f or the bore instead of silently rotting.
+	ol1 = round_lens("OL1", f=0.002, length=0.002)
+	body = ol1.transfer_block(axis="x")
+	wd = -float(body[0][0]) / float(body[1][0])
+
 	# 2) C — condenser: C1/C2/C3, each with a dipole pair before and after,
 	#    plus a quadrupole pair at the end
 	c_elements = []
@@ -210,15 +228,23 @@ def build_basic_column(voltage: float = 200.0) -> Microscope:
 		else:
 			c_elements += [Drift(length=gap)]
 	c_elements += quadrupole_pair("CQ")
-	c_elements += [Drift(length=0.05)]
+	# not the historical 0.05: OL1's bore shrank and a working distance was
+	# inserted before the sample (below); this drift absorbs the difference so
+	# the sample, OL2, and detector keep their exact z positions
+	c_elements += [Drift(length=0.06 - ol1.length - wd)]
 	condenser = MicroscopeSection(name="C", elements=c_elements)
 
 	# 3) O — objective: OL1/OL2 twin around a 4 mm sample gap, dipole pair
 	#    before OL1 and after OL2, quadrupole at the very end
 	o_elements = []
 	o_elements += dipole_pair("O_Dpre")
-	o_elements += [round_lens("OL1", f=0.008, length=0.01),
-				   Drift(name="sample", length=0.004),
+	# the gap after the sample marker is NAMED because repair() merges a
+	# named drift with an unnamed drift that follows it -- an anonymous gap
+	# here would be absorbed into the zero-length "sample" marker, silently
+	# moving the measured sample plane 2 mm off the back focal plane
+	o_elements += [ol1,		# built above, sample at its back focal plane
+				   Drift(length=wd), Drift(name="sample", length=0.0),
+				   Drift(name="sample_gap", length=0.004),
 				   round_lens("OL2", f=0.010, length=0.01)]
 	o_elements += dipole_pair("O_Dpost")
 	o_elements += [Drift(length=0.06), Quadrapole(name="OQ", strength=0.0), Drift(length=0.12)]

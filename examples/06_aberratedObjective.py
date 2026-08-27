@@ -47,7 +47,7 @@ from pySEA.rayTEM.microscopes.objective_section import build_objective_section
 from pySEA.rayTEM.seashells import read_scaled_wavefield
 from pySEA.rayTEM import waveoptics as wo
 
-ALPHA, C30, F_OL = 30e-3, 1e-5, 8e-3
+ALPHA, C30, F_OL = 30e-3, 1e-5, 2e-3	# F_OL follows basic_column's OL1
 N_WAVE, N_PLANES = 256, 80
 LAM = 2.5078e-12
 
