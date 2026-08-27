@@ -975,7 +975,14 @@ def check_lengths(section):
 
 # look for gaps and overlaps, adjust positions and lengths of Drifts only, and combine unnamed Drifts. (we're using this instead of fixing gaps/overlaps while building inside of MicroscopeSection > __init__)
 def repair(section):
-	# check all elements and their preceeding neighbor
+	# FIRST ELEMENT CHECK:
+	e = section.elements[0]
+	if 0 <  e.position < 1e-7:
+		pass
+	elif 0 < e.position:
+		section.elements.insert(0,Drift(position=0,length=e.position))
+
+	# CHECK ALL ELEMENTS AND THEIR PRECEEDING NEIGHBOR
 	for i,e in enumerate(section.elements):
 		if i==0:
 			continue
@@ -996,13 +1003,14 @@ def repair(section):
 		elif dz < -1e-7: # THIS AND PREVIOUS ARE BOTH IMMOVABLE/UNLENGTHENABLE, AND OUT OF TOLERANCE. NO SOLUTION, RAISE ERROR
 			print("WARNING",section,"HAS ELEMENTS",em,"AND",e,"WHICH OVERLAP AT INDEX",i)
 		#: # GAP, BUT NAMED DRIFT OR OTHER ELEMENT TYPE. INSERT DRIFT
-	# special case: section.length vs last Drift's position and length:
+
+	# SPECIAL CASE: LAST ELEMENT VS SECTION.LENGTH:
 	el = section.elements[-1]
 	dz = section.length - ( el.position + getattr(el,"length",0) )
-	# GAP, LAST SECTION IS DRIFT, LENGTHEN
+	# GAP, last section is drift, lengthen
 	if 0 < dz and el.kind == "Drift":
 		el.length += dz
-	# OVERLAP: LENGTHEN SECTION
+	# OVERLAP: lengthen section
 	if dz < 0:
 		section.length -= dz
 	# crawl the list backwards, look for pairs of Drifts (second one must be unnamed)

@@ -237,7 +237,7 @@ def test_section_insertion_microscope():
 	sec2 = MicroscopeSection( elements = ele2, position=4, name="sec2" )
 	microscope = Microscope(sections = [ sec1, sec2 ])
 	#microscope.show()
-	print("OLD") ; print(microscope)
+	print("OLD") ; print(repr(microscope))
 	r1 = microscope.propagate_ray()
 	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	filename = "elements_sections_microscopes_section_insertion_microscope_rays.npy"
@@ -251,7 +251,7 @@ def test_section_insertion_microscope():
 	sec3 = MicroscopeSection( elements = ele3, name="newsec" )
 	microscope.insert(2.0,sec3)
 
-	print("NEW") ; print(microscope)
+	print("NEW") ; print(repr(microscope))
 	#microscope.show()
 	r1 = microscope.propagate_ray()
 	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
