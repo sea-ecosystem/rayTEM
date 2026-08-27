@@ -645,18 +645,34 @@ class Lens(Element):
 		M = fix_mat_dims(XY,["x","xt","y","yt"])
 		return M
 
+	@property
+	def focal_length(self):
+		# if thin lens, simply return _focal_length
+		if self._focal_length !=0 and self.length==0:
+			return self.focal_length
+		# otherwise, calculate from angle of ray exiting transfer_matrix
+		columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
+		M = self.transfer_matrix()[columns,:][:,columns]
+		r0 = [1,0,1,0] # parallel starting ray
+		r1 = xp.matmul(M,r0)
+		# positions and angles exiting lens
+		x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
+		return x/xt # f = x/theta
+
 	# unlike below(?), here we'll *measure* focal length at the current K=I*C and L, then adjust C and L to preserve focal length and set beam rotation (K*L) to match R in radians at this current I.
 	def get_C_L_from_rotation_at_I(self,I,R):
 		from scipy.optimize import minimize
 		print(self.name,I,R)
 		def FR(C,L):
-			new = Lens(strength = I, calibration = C, length = L)
-			columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
-			M = new.transfer_matrix()[columns,:][:,columns]
-			r0 = [1,0,1,0] # parallel starting ray
-			r1 = xp.matmul(M,r0)
-			x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
-			f = x/xt # f = x/theta
+			new = Lens(strength = I, calibration = C, length = L) # TODO now we have lens.focal_length property, should use that instead of fresh calculation
+			#columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
+			#M = new.transfer_matrix()[columns,:][:,columns]
+			#r0 = [1,0,1,0] # parallel starting ray
+			#r1 = xp.matmul(M,r0)
+			#x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
+			#f = x/xt # f = x/theta
+			f = new.focal_length
+			M = new.transfer_matrix()
 			rot = new.rotation
 			return f,rot
 		f0,_ = FR(self.calibration,self.length)	# initial focal length
