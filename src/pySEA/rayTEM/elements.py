@@ -56,9 +56,8 @@ class Element(SEASerializable):
     # region: Dunders
 
 	# print function: look for specific attributes on inheriting class object, and display as columns
-	def __repr__(self,header=True) -> str:
-		whitelist = [ "name", "kind", "position", "length", "strength", "calibration", "axis" ]
-		rep = { k:getattr(self,k) for k in self.__dict__ if k in whitelist }
+	def __repr__(self,header=True,columns=[ "name", "kind", "position", "length", "strength", "calibration", "axis" ]) -> str:
+		rep = { k:getattr(self,k) for k in self.__dict__ if k in columns }
 		#rep = {'name':self.name,
 		#	   'kind':self.kind,
 		#	   }
