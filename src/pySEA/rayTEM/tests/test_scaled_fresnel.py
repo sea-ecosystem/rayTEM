@@ -3046,3 +3046,43 @@ def test_the_wave_carries_current_too():
 		Source(voltage=200), Drift(length=0.01)])])
 	with pytest.raises(RuntimeError, match="no wave has been propagated"):
 		nowave.wave_current
+
+
+def test_element_beam_current_is_derived_from_the_source():
+	# A current is stated in exactly one place -- the Source -- and read
+	# everywhere else. Each element reports what ARRIVES at it, so an aperture
+	# shows the beam it receives and the next element shows what it passed.
+	src = Source(name="G", size=(1e-4, 1e-4), np_xy=(5, 5), angle=(1e-3, 1e-3),
+				 na_xy=(3, 3), beam_current=2e-9)
+	ca, oa = Aperture(name="CA", radius=3e-5), Aperture(name="OA", radius=2e-5)
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		src, Drift(length=0.1), ca, Drift(length=0.1), oa, Drift(length=0.1)])])
+	mic.propagate_ray()
+	arriving = [e.beam_current for e in mic.sections[0].elements]
+
+	assert arriving[0] == 2e-9							# the source states it
+	# CA sees the full beam -- to within the rounding of summing 225 ray
+	# intensities, which is what makes this a derived number and not the stated one
+	assert np.isclose(arriving[2], 2e-9, rtol=1e-12)
+	assert arriving[3] < arriving[2]					# and cuts it
+	assert arriving[5] < arriving[4]					# OA cuts it again
+	assert np.isclose(arriving[-1], mic.beam_current, rtol=1e-12)
+	# never rises, allowing for that same summation rounding
+	assert all(b >= a * (1 - 1e-12) for a, b in zip(arriving[1:], arriving[:-1]))
+
+	# stated on the Source, settable; derived elsewhere, read-only
+	src.beam_current = 4e-9
+	assert src.beam_current == 4e-9
+	with pytest.raises(ValueError, match="non-negative"):
+		src.beam_current = -1.0
+	with pytest.raises(AttributeError):
+		ca.beam_current = 1e-9							# derived: no setter
+
+	# doubling the source doubles every derived value
+	mic.propagate_ray()
+	assert np.allclose([e.beam_current for e in mic.sections[0].elements],
+					   [2 * a for a in arriving], rtol=1e-12)
+
+	# an element outside a propagated column has no current, reported the way
+	# every other un-propagated result on this package is
+	assert Aperture(radius=1e-5).beam_current is None

@@ -14,7 +14,7 @@ from .aberrations import Aberrations
 from copy import deepcopy
 from functools import wraps
 from difflib import get_close_matches
-from weakref import WeakSet
+from weakref import WeakSet, WeakKeyDictionary
 
 # CONVENTION: a ray is a purely *geometric* state vector: lateral positions (x,y),
 # angles (xt,yt, "t" for theta θ or tilt), position down the column (z), and energy (E).
@@ -512,6 +512,14 @@ class SealedAttributes:
 #: flag stored there would be written into every ``.sea`` file and then handed
 #: back to ``setattr`` on load, under a name the guard itself would refuse.
 _SEALED = WeakSet()
+
+
+#: Current arriving at each element in the last propagation, in amps. Held OFF
+#: the instances for the same reason as :data:`_SEALED`: anything in an
+#: element's ``__dict__`` is serialized, and this is a *result*, not data --
+#: writing it into every ``.sea`` file and handing it back to ``setattr`` on
+#: load would hit a read-only property and fail the reload.
+_ARRIVING_CURRENT = WeakKeyDictionary()
 
 
 #: Slices a thick medium is split into when it carries a screen. An aberration
@@ -1269,6 +1277,50 @@ class Element(SealedAttributes, SEASerializable):
 			T_b = b if xp.iscomplexobj(b) else xp.exp(1j * b)
 			return T_a * T_b
 		return a + b						# both real: phases add, stays real
+
+	@property
+	def beam_current(self) -> float:
+		"""Current reaching this element, in amps — derived, never stated.
+
+		:attr:`Source.beam_current` is the one place a current is declared;
+		everywhere else it is whatever survives to that point. This reads it
+		off the last propagation: an element carries no current of its own,
+		only a position in a column that has one.
+
+		Returns
+		-------
+		float or None
+			Current in amps arriving at this element's plane, or ``None`` if
+			the column has not been propagated.
+
+		Raises
+		------
+		None
+			``None`` before propagation rather than an error, matching the
+			convention every other result on this package follows
+			(``section.rays`` and friends are ``None`` until traced). A
+			property that raised would also break any machinery that
+			enumerates attributes — the tree view and the serializers both do.
+
+		Related
+		-------
+		Source.beam_current : Where a current is stated.
+		assemblies.Microscope.current_at : The same values, indexed by plane.
+
+		Notes
+		-----
+		The value **entering** the element, so an aperture reports what arrives
+		rather than what it passes — its own attenuation shows up on the next
+		element. That keeps "current at z" single-valued at a plane where the
+		beam is being cut.
+
+		Examples
+		--------
+		>>> scope["C1"].beam_current                    # doctest: +SKIP
+		1e-09
+		"""
+		current = _ARRIVING_CURRENT.get(self, self.__dict__.get("_beam_current"))
+		return None if current is None else float(current)
 
 	def aberration_kick(self, r0:xp.ndarray):
 		r"""This element's **non-linear** angular kick, from its aberrations.
@@ -2029,6 +2081,66 @@ class Source(Element):
 		self.aperture_radius = aperture_radius
 
 	# Source term, initialize rays at sweep of angles and positions
+	@property
+	def beam_current(self) -> float:
+		"""Current this source emits, in amps — **stated**, not derived.
+
+		Overrides :attr:`Element.beam_current`, which is read-only and reports
+		what *arrives*. A source is the one place in a column where a current
+		originates, so here it is a settable value; everywhere else it is a
+		consequence of this one and of whatever the beam has passed through.
+
+		Returns
+		-------
+		float
+			Emission current in amps.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		Element.beam_current : The derived read on every other element.
+		assemblies.Microscope.beam_current : What survives to the exit.
+
+		Notes
+		-----
+		Stored in the same slot the derived property reads, which costs
+		nothing and stays consistent: :meth:`assemblies.Microscope.propagate_ray`
+		seeds the per-ray intensities from this, so the current "arriving" at
+		the source is the current it emitted.
+
+		Examples
+		--------
+		>>> Source(beam_current=2e-9).beam_current
+		2e-09
+		"""
+		return float(self.__dict__["_beam_current"])
+
+	@beam_current.setter
+	def beam_current(self, value:float) -> None:
+		"""Set the emission current.
+
+		Parameters
+		----------
+		value : float
+			Current in amps.
+
+		Returns
+		-------
+		None
+
+		Raises
+		------
+		ValueError
+			If the current is negative, which no source emits.
+		"""
+		value = float(value)
+		if value < 0:
+			raise ValueError(f"beam_current must be non-negative, got {value} A.")
+		self.__dict__["_beam_current"] = value
+
 	def rays(self):
 		#print("SOURCE GENERATING RAYS",self.np_xy,self.size,self.na_xy,self.angle)
 		xs=xp.zeros(1) ; ys=xp.zeros(1) # central ray only by default if np_xy is zero

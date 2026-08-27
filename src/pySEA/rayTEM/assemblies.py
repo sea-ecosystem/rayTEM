@@ -7,7 +7,7 @@ import pickle
 import sys,inspect,os,datetime,shutil
 
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
-from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes
+from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes,_ARRIVING_CURRENT
 from typing import Literal
 from .seashells import SEASerializable
 
@@ -578,6 +578,9 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
 			# intensity/rotation are evaluated relative to the incoming rays; rotation
 			# must follow propagate_ray so thick-lens self.rotation is already set.
+			# The element is told the current ARRIVING at it, so Element.beam_current
+			# can be a derived read rather than a second place a current is stated.
+			_ARRIVING_CURRENT[ele] = float(xp.sum(Ii[-1]))
 			ele_I  = ele.apply_intensity(Ii[-1], ri[-1])
 			ele_ri = ele.propagate_ray(ri[-1], z=z)
 			ele_R  = ele.apply_rotation(Ri[-1])
@@ -3347,8 +3350,12 @@ def repair(section, combine_drifts:bool=True):
 	# OVERLAP: LENGTHEN SECTION
 	if dz < 0:
 		section.length -= dz
-	# crawl the list backwards, look for pairs of Drifts (second one must be unnamed)
-	for i in range(len(section.elements)-1,0,-1):
+	# crawl the list backwards, look for pairs of Drifts (second one must be unnamed).
+	# Skipped when the caller wants the element list exactly as written: adjacent
+	# drifts are how a column asks for dense z sampling, since propagation logs a
+	# plane per element. Merging them is tidy but silently removes the sampling --
+	# it made Microscope.subdivided a no-op and cost two tests.
+	for i in (range(len(section.elements)-1,0,-1) if combine_drifts else ()):
 		e = section.elements[i]
 		em = section.elements[i-1] # element_minus. previous element
 		if em.kind == "Drift" and e.kind == "Drift" and e.name == "":
