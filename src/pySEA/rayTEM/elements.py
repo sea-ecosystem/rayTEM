@@ -554,8 +554,8 @@ class Lens(Element):
 			if set to False, lens rotation for finite-thickness lenses is overridden and turned off.
 		"""
 	def __init__(self, name:str='', length:float=0.,
-				 strength:float=0, calibration:float=None,
-				 position:float=None) -> SEASerializable:
+				 strength:float=None, calibration:float=None,
+				 position:float=None,focal_length:float=None,allow_diverging=False) -> SEASerializable:
 		
 		if length == 0: kind = 'Thin lens'
 		else:		   kind = 'QLens'
@@ -563,41 +563,39 @@ class Lens(Element):
 		super().__init__(name=name,kind=kind)
 		self._position = position
 		self.length = length
-		self.strength = strength
+		if strength is not None and length==0:
+			self._focal_length = xp.inf if strength==0 else 1/xp.sqrt(strength) ; self.strength = 0
+			print("WARNING: YOU SPECIFIED STRENGTH",strength,"BUT DID NOT SPECIFY A LENGTH. PLEASE USE FOCAL LENGTH INSTEAD: f =1/sqrt("+str(strength)+")="+str(self._focal_length))
+		if strength is not None and length!=0: # TODO need to enforce condition of strength and length=0?
+			self.strength = strength
+		if focal_length is not None and length==0:
+			self._focal_length = focal_length
 		self.calibration = calibration
 		self.rotation = 0
-
+		self.allow_diverging = allow_diverging
 
 	def transfer_matrix(self) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		"""
 
 		# HANDLE CALIBRATION SCALING
-		K=self.strength
+		if self.length == 0:
+			f = self._focal_length ; K=0
+		else:
+			K=self.strength ; f=0
+
 		if self.calibration is not None:
 			# linear scaling from mA (lens current) to lens strength?
 			if isinstance(self.calibration,(int,float)):
 				c = self.calibration
 				K *= c
 			else:
-				# A + B*x + C*x^2 + ...(as many terms as you want)
-				#Kvals = [ v*K**i for i,v in enumerate(self.calibration) ]
-				#K = sum( Kvals ) ; print(self.calibration,self.strength,Kvals)
-				# A + B*x^(1/1) + C*x^(1/2) + D*x^(1/3) + ....
 				Kvals = [self.calibration[0]] + [ v*K**(1/(i+1)) for i,v in enumerate(self.calibration[1:]) ]
 				K = sum( Kvals ) #; print("lens","calibration",self.calibration,"strength",self.strength,"Kvals",Kvals)
-				#K = sum( [self.calibration[0]] + [ v*K**(1/(i+1)) for i,v in enumerate(self.calibration[1:]) ] )
-				#c,p = self.calibration
-				# A + B*x**C + D*x**E + ...
-				#K = self.calibration[0]
-				#for a,b in zip(self.calibration[1::2],self.calibration[2::2]):
-				#	print(a,b)
-				#	K += a*self.strength**b
-				#K = K**p * c
 
 		# FINITE LENGTH LENS, ZERO STRENGTH = DRIFT (try inserting a zero-strength lens and seeing if the result changes)
-		if K==0:
-			m = xp.eye(4)
+		if self.length==0 and f==xp.inf or self.length>0 and K==0:
+			m = xp.eye(4) # IDENTITY MATRIX, OR DRIFT-EQUIVALENT
 			m[0,1]=self.length
 			m[2,3]=self.length
 			self.rotation = 0
@@ -605,11 +603,13 @@ class Lens(Element):
 
 		# THIN LENS, NO ROTATION (thick lens math will have sine term going to zero)
 		if self.length==0:
-			sign = -1*xp.sign(K) # sign allows negative calibration to give you diverging beams???
+			if not self.allow_diverging:
+				f = abs(f)
+			#sign = -1*xp.sign(K) # sign allows negative calibration to give you diverging beams???
 			X=xp.asarray([[    1   , 0 ],
-					     [ sign*(K**2) , 1 ]])
+					     [ -1/f , 1 ]])
 			Y=xp.asarray([[    1   , 0 ],
-						 [ sign*(K**2) , 1 ]])
+						 [ -1/f , 1 ]])
 			self.rotation = 0
 			return xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
 
