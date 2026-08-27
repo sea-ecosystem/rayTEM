@@ -14,7 +14,8 @@ from matplotlib.cm import plasma as cmap
 # For now, plot2D assumes it is given unrotated-reference-frame rays, and should likely call convert_to_rotating_reference_frame.
 def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,title=None,plt_ax=None):
 	planes = findPlanes(r1,axis=axis)
-	r1 = convert_to_rotating_reference_frame(r1)
+	R = r1.R
+	r1 = convert_to_rotating_reference_frame(r1,R)
 	if plt_ax is None:
 		fig,ax = plt.subplots()
 	else:
@@ -346,18 +347,21 @@ def findPlanes4(rays,axes="x"):
 
 # TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
 # This function provides easy return to the rotated reference frame
-def convert_to_rotating_reference_frame(rays):
+def convert_to_rotating_reference_frame(rays,R):
 	"""Rotate rays into the beam's rotating (Larmor) reference frame.
 
-	Cumulative rotation ``R`` is read from the supplied :class:`Rays` object.
-	Each ray at each plane is
+	Cumulative rotation ``R`` is tracked as a separate array (no longer a ray
+	coordinate), so it must be supplied explicitly. Each ray at each plane is
 	rotated by its accumulated angle so that image/diffraction-plane detection can
 	operate in the unrotated frame.
 
 	Parameters
 	----------
-	rays : Rays
+	rays : np.ndarray
 		Geometric rays, shape ``(n_planes, n_rays, len(convention))``.
+	R : np.ndarray
+		Per-plane, per-ray cumulative rotation in radians, shape
+		``(n_planes, n_rays)``.
 
 	Returns
 	-------
@@ -369,7 +373,6 @@ def convert_to_rotating_reference_frame(rays):
 	findPlanes : Calls this before detecting planes.
 	Lens.transfer_matrix : Source of the accumulated rotation.
 	"""
-	R = rays.R
 	nl,nr,nc = rays.shape
 	converted = np.zeros(rays.shape)
 	for l in range(nl):
@@ -392,7 +395,7 @@ def findPlanes(rays,axis="xy"):
 	if axis=="xy" or axis=="yx":
 		return findPlanes(rays,axis='x') | findPlanes(rays,axis='y')
 	R = rays.R
-	rays = convert_to_rotating_reference_frame(rays)
+	rays = convert_to_rotating_reference_frame(rays,R)
 	global warned
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
 	diffRays=[] ; imageRays=[]
