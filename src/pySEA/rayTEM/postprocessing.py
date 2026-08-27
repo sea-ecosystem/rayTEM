@@ -1165,7 +1165,7 @@ def fitForCrossover(section,r0=None,targets=[],modifiable=[],axis="x",prefer={},
 		plot2D( propagateAndCheck(x0,"r1") )
 
 # PROPERTIES OF THE OUTERMOST RAYS
-def measureAtZ(z,rays=None,I=None,R=None,section=None):
+def measureAtZ(z,rays=None,I=None,R=None,section=None,live_only=False):
 	"""Measure the outermost ray's state at an arbitrary z position.
 
 	Intensity (``I``) and cumulative rotation (``R``) are no longer ray
@@ -1185,12 +1185,26 @@ def measureAtZ(z,rays=None,I=None,R=None,section=None):
 		Per-plane, per-ray rotation ``(n_planes, n_rays)``. Defaults to ``section.R``.
 	section : MicroscopeSection or Microscope, optional
 		Source of ``rays``/``I``/``R`` and of element positions when ``z`` is a name.
+	live_only : bool, optional
+		Whether to pick the outermost ray among rays still carrying intensity
+		only, by default False (every ray counts, the historical behavior). A
+		ray an aperture has masked keeps propagating geometrically with
+		``I = 0``, so by default it can still be reported as the outermost ray
+		-- which makes any beam measured after an aperture look uncut. Pass
+		True to measure the beam that actually survives; ignored when no
+		intensity array is available.
 
 	Returns
 	-------
 	tuple
 		``(x, y, xt, yt, R, I)`` for the outermost ray at ``z``. ``R``/``I`` are
 		``nan`` when the corresponding array is unavailable.
+
+	Raises
+	------
+	ValueError
+		If ``live_only`` is True and no ray at ``z`` carries intensity (the
+		aperture upstream blocked the whole fan).
 	"""
 	if rays is None:
 		if section.rays is None:
@@ -1211,7 +1225,16 @@ def measureAtZ(z,rays=None,I=None,R=None,section=None):
 		return y1+(z-z1)/(z2-z1)*(y2-y1)
 	xs = interp(z,zs[i],zs[i+1],rays[i,:,xi],rays[i+1,:,xi])	# lateral position of all rays between elements i and i+1
 	ys = interp(z,zs[i],zs[i+1],rays[i,:,yi],rays[i+1,:,yi])
-	selected = np.argmax(np.sqrt(xs**2+ys**2))				# index of outermost ray
+	radii = np.sqrt(xs**2+ys**2)
+	if live_only and I is not None:
+		live = interp(z,zs[i],zs[i+1],I[i,:],I[i+1,:]) > 0
+		if not live.any():
+			raise ValueError(f"no ray carries intensity at z={z}: an upstream "
+							 "aperture blocked the whole fan, so there is no live "
+							 "beam to measure. Measure upstream of it, or pass "
+							 "live_only=False for the geometric envelope.")
+		radii = np.where(live, radii, -1.0)
+	selected = np.argmax(radii)								# index of outermost ray
 	x = xs[selected]										# lateral position of outermost ray
 	xt = rays[i,selected,xti]								# angle of outermost ray
 	#sel_y = np.argmax(ys)

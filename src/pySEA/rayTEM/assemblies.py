@@ -1270,7 +1270,10 @@ class Microscope(SealedAttributes, SEASerializable):
 		"""
 		if self.rays is None:
 			self.propagate_ray()
-		x, y, xt, yt, R, I = measureAtZ(float(z), section=self)
+		# live_only: a masked ray keeps flying geometrically with I = 0, and an
+		# aperture is precisely the thing that DEFINES this angle -- measuring
+		# the dead rays too would report the uncut cone.
+		x, y, xt, yt, R, I = measureAtZ(float(z), section=self, live_only=True)
 		return float(xp.hypot(xt, yt))
 
 	@property
