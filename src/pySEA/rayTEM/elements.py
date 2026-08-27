@@ -3354,9 +3354,10 @@ class Lens(Element):
 			if set to False, lens rotation for finite-thickness lenses is overridden and turned off.
 		"""
 	def __init__(self, name:str='', length:float=0.,
-				 strength:float=0, calibration:float=None,
+				 strength:float=0, calibration:float=None, focal_length:float=None,
 				 aberrations:dict=None,
-				 position:float=None) -> SEASerializable:
+				 position:float=None,
+				 allow_diverging:bool=False) -> SEASerializable:
 		
 		if length == 0: kind = 'Thin lens'
 		else:		   kind = 'QLens'
@@ -3364,79 +3365,43 @@ class Lens(Element):
 		super().__init__(name=name,kind=kind)
 		self._position = position
 		self.length = length
-		self.strength = strength
+		# historically you could pass strength and length=0, so keep that, but forcibly set f=1/sqrt(K), and proceed using f.
+		if length==0 and strength is not None and focal_length is None:
+			focal_length = xp.inf if strength==0 else 1/xp.sqrt(strength)
+		if length==0:
+			self._focal_length = focal_length ; self.strength = None
+		else:
+			self.strength = strength ; self._focal_length = None
 		self.calibration = calibration
 		self.rotation = 0
 		# One nested Aberrations object, not a scatter of flat scalars: it is a
 		# SEASerializable itself, so .sea and JSON carry it as a child node, and
 		# every order is applied by one generic expression rather than per term.
 		self.aberrations = _as_aberrations(aberrations)
+		self.allow_diverging = allow_diverging
 
-
-	@property
-	def _effective_strength(self) -> float:
-		"""Return the calibration-scaled lens strength K.
-
-		Applies the same calibration mapping used by :meth:transfer_matrix
-		(linear scale for numeric calibration; the A + B·K^(1/1) + C·K^(1/2) +
-		... series for sequence calibration), so the ray and wave
-		representations always see the same effective strength.
-
-		Returns
-		-------
-		float
-			Effective strength K after calibration.
-
-		Related
-		-------
-		transfer_matrix, phase_shift
+	def transfer_matrix(self) -> xp.ndarray:
+		r"""Transfer matrix for ray propogation.
 		"""
-		K=self.strength
+
+		# HANDLE CALIBRATION SCALING
+		if self.length == 0:
+			f = self._focal_length ; K=0
+		else:
+			K=self.strength ; f=0
+
 		if self.calibration is not None:
 			# linear scaling from mA (lens current) to lens strength?
 			if isinstance(self.calibration,(int,float)):
 				c = self.calibration
 				K *= c
 			else:
-				# A + B*x^(1/1) + C*x^(1/2) + D*x^(1/3) + ....
 				Kvals = [self.calibration[0]] + [ v*K**(1/(i+1)) for i,v in enumerate(self.calibration[1:]) ]
-				K = sum( Kvals )
-		return K
-
-	@property
-	def focal_power(self) -> float:
-		r"""Return the focusing power 1/f of this lens.
-
-		Thin lens (length == 0): 1/f = sign(K)·K² (matching the
-		sign·K² matrix cell). Thick lens: the Brown (1983) focusing relation
-		1/f = K·sin(K·L).
-
-		Returns
-		-------
-		float
-			Focal power 1/f (1/metres); 0 for a zero-strength lens.
-
-		Related
-		-------
-		phase_shift : Uses this power for the quadratic phase screen.
-		"""
-		K = self._effective_strength
-		if K == 0:
-			return 0.0
-		if self.length == 0:
-			return float(xp.sign(K) * K**2)
-		return float(K * xp.sin(K * self.length))
-
-	def transfer_matrix(self) -> xp.ndarray:
-		r"""Transfer matrix for ray propogation.
-		"""
-
-		# HANDLE CALIBRATION SCALING (shared with the wave path via _effective_strength)
-		K = self._effective_strength
+				K = sum( Kvals ) #; print("lens","calibration",self.calibration,"strength",self.strength,"Kvals",Kvals)
 
 		# FINITE LENGTH LENS, ZERO STRENGTH = DRIFT (try inserting a zero-strength lens and seeing if the result changes)
-		if K==0:
-			m = xp.eye(4)
+		if self.length==0 and f==xp.inf or self.length>0 and K==0:
+			m = xp.eye(4) # IDENTITY MATRIX, OR DRIFT-EQUIVALENT
 			m[0,1]=self.length
 			m[2,3]=self.length
 			self.rotation = 0
@@ -3444,11 +3409,13 @@ class Lens(Element):
 
 		# THIN LENS, NO ROTATION (thick lens math will have sine term going to zero)
 		if self.length==0:
-			sign = -1*xp.sign(K) # sign allows negative calibration to give you diverging beams???
+			if not self.allow_diverging:
+				f = abs(f)
+			#sign = -1*xp.sign(K) # sign allows negative calibration to give you diverging beams???
 			X=xp.asarray([[    1   , 0 ],
-					     [ sign*(K**2) , 1 ]])
+					     [ -1/f , 1 ]])
 			Y=xp.asarray([[    1   , 0 ],
-						 [ sign*(K**2) , 1 ]])
+						 [ -1/f , 1 ]])
 			self.rotation = 0
 			return xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
 
@@ -3483,6 +3450,21 @@ class Lens(Element):
 		self.rotation = -kL
 		M = fix_mat_dims(XY,["x","xt","y","yt"])
 		return M
+
+	@property
+	def focal_length(self):
+		# if thin lens, simply return _focal_length
+		if self._focal_length !=0 and self.length==0:
+			return self.focal_length
+		# otherwise, calculate from angle of ray exiting transfer_matrix
+		columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
+		M = self.transfer_matrix()[columns,:][:,columns]
+		r0 = [1,0,1,0] # parallel starting ray
+		r1 = xp.matmul(M,r0)
+		# positions and angles exiting lens
+		x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
+		return x/xt # f = x/theta
+
 
 	# unlike below(?), here we'll *measure* focal length at the current K=I*C and L, then adjust C and L to preserve focal length and set beam rotation (K*L) to match R in radians at this current I.
 	def get_C_L_from_rotation_at_I(self,I,R):

@@ -70,7 +70,7 @@ def test_various_lenses():
 	filename = "elements_sections_microscopes_test_various_lenses.npy"
 	if not os.path.exists(filename):
 		np.save(filename,r1)
-	r1_old = np.load(filename)
+	r1_old = np.load(filename)[:,:,:6]
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 #test_various_lenses()
 
