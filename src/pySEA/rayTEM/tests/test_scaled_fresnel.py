@@ -3086,3 +3086,32 @@ def test_element_beam_current_is_derived_from_the_source():
 	# an element outside a propagated column has no current, reported the way
 	# every other un-propagated result on this package is
 	assert Aperture(radius=1e-5).beam_current is None
+
+
+def test_beam_current_survives_a_sea_round_trip(tmp_path):
+	# A current is one of the things a person opens a saved column to read, so
+	# BOTH the stated source current and the derived per-element currents have
+	# to be in the file. Neither used to be: the stored Source current is
+	# spelled _beam_current in __dict__ but beam_current in the constructor, so
+	# safeReinstantiate's kwarg filter dropped it and a reloaded Source
+	# silently reverted to the 1 nA default.
+	from pySEA.rayTEM.assemblies import load_microscope
+	src = Source(name="G", size=(1e-4, 1e-4), np_xy=(5, 5), angle=(1e-3, 1e-3),
+				 na_xy=(3, 3), beam_current=2e-9)
+	mic = Microscope(sections=[MicroscopeSection(elements=[
+		src, Drift(length=0.1), Aperture(name="CA", radius=3e-5),
+		Drift(length=0.1)])])
+	mic.propagate_ray()
+	before = [e.beam_current for e in mic.sections[0].elements]
+	assert before[-1] < before[0]					# the aperture actually cut it
+
+	path = str(tmp_path / "current.sea")
+	mic.to_sea(path)
+	reloaded = load_microscope(path)
+
+	# the stated current, which is the one that cannot be recomputed
+	assert reloaded.sections[0].elements[0].beam_current == 2e-9
+	# and every derived one, to the bit
+	after = [e.beam_current for e in reloaded.sections[0].elements]
+	assert after == before
+	assert reloaded.beam_current == mic.beam_current

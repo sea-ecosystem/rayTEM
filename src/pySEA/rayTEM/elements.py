@@ -14,7 +14,7 @@ from .aberrations import Aberrations
 from copy import deepcopy
 from functools import wraps
 from difflib import get_close_matches
-from weakref import WeakSet, WeakKeyDictionary
+from weakref import WeakSet
 
 # CONVENTION: a ray is a purely *geometric* state vector: lateral positions (x,y),
 # angles (xt,yt, "t" for theta θ or tilt), position down the column (z), and energy (E).
@@ -514,12 +514,6 @@ class SealedAttributes:
 _SEALED = WeakSet()
 
 
-#: Current arriving at each element in the last propagation, in amps. Held OFF
-#: the instances for the same reason as :data:`_SEALED`: anything in an
-#: element's ``__dict__`` is serialized, and this is a *result*, not data --
-#: writing it into every ``.sea`` file and handing it back to ``setattr`` on
-#: load would hit a read-only property and fail the reload.
-_ARRIVING_CURRENT = WeakKeyDictionary()
 
 
 #: Slices a thick medium is split into when it carries a screen. An aberration
@@ -601,7 +595,7 @@ class Element(SealedAttributes, SEASerializable):
 	#: ``aberrations`` is a kwarg on ``Element`` and ``Lens`` but not on every
 	#: subclass; ``_screen``'s kwarg is spelled ``screen``. Both would be
 	#: silently dropped otherwise -- and a supplied screen has no other copy.
-	_restore_attrs = ("aberrations", "_screen")
+	_restore_attrs = ("aberrations", "_screen", "_arriving_current")
 
 	def __init__(self, name:str='', kind:str=None,
 				 aberrations=None, screen=None ) -> SEASerializable:
@@ -628,6 +622,10 @@ class Element(SealedAttributes, SEASerializable):
 		"""
 		self.name = name
 		self.kind = kind
+		# Current arriving here in the last propagation, in amps. A result, not
+		# a setting -- but a recorded one: .I and .rays are stored too, and a
+		# current is the piece of a run someone reads a saved file for.
+		self._arriving_current = None
 		# Every element may carry aberrations; None means "I am exactly my
 		# matrix", so ideal columns stay bit-for-bit unchanged.
 		self.aberrations = _as_aberrations(aberrations)
@@ -1314,12 +1312,18 @@ class Element(SealedAttributes, SEASerializable):
 		element. That keeps "current at z" single-valued at a plane where the
 		beam is being cut.
 
+		It is **saved with the column**, alongside ``.I`` and ``.rays``: a
+		current is one of the things a person opens a stored ``.sea`` to read,
+		so it has to survive the round trip rather than be recomputed. Like
+		every other stored result it is the *last* propagation's — change the
+		source and re-propagate before trusting it.
+
 		Examples
 		--------
 		>>> scope["C1"].beam_current                    # doctest: +SKIP
 		1e-09
 		"""
-		current = _ARRIVING_CURRENT.get(self, self.__dict__.get("_beam_current"))
+		current = self._arriving_current
 		return None if current is None else float(current)
 
 	def aberration_kick(self, r0:xp.ndarray):
@@ -2046,6 +2050,12 @@ class Source(Element):
 		wavelength : float or None
 			Relativistic electron wavelength in metres, or ``None`` if ``voltage`` is unset.
 		"""
+
+	#: The stated current is spelled ``_beam_current`` in __dict__ but
+	#: ``beam_current`` in the constructor, so safeReinstantiate's
+	#: kwarg filter drops it and a reloaded Source silently reverts to the
+	#: default. Naming it here restores it, the same way ``_screen`` is.
+	_restore_attrs = Element._restore_attrs + ("_beam_current",)
 
 	def __init__(self, name:str=None,
 			size:tuple=(2e-3,2e-3), # size in x and y (square grid)

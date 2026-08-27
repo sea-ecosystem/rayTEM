@@ -7,7 +7,7 @@ import pickle
 import sys,inspect,os,datetime,shutil
 
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
-from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes,_ARRIVING_CURRENT
+from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes
 from typing import Literal
 from .seashells import SEASerializable
 
@@ -580,7 +580,8 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			# must follow propagate_ray so thick-lens self.rotation is already set.
 			# The element is told the current ARRIVING at it, so Element.beam_current
 			# can be a derived read rather than a second place a current is stated.
-			_ARRIVING_CURRENT[ele] = float(xp.sum(Ii[-1]))
+			# Recorded on the element, so it is saved with .I and .rays.
+			ele._arriving_current = float(xp.sum(Ii[-1]))
 			ele_I  = ele.apply_intensity(Ii[-1], ri[-1])
 			ele_ri = ele.propagate_ray(ri[-1], z=z)
 			ele_R  = ele.apply_rotation(Ri[-1])
