@@ -2,6 +2,28 @@
 
 Newest entries at top.
 
+## 2026-08-27 — [Done] The objective is never retuned
+**Goal:** enforce Eric's division of labor: probe focusing is entirely the
+condensers'; projection entirely the projectors'; objective currents fixed.
+- [x] OL1 removed from the solve (OL2/PL3/PL4 were already untouched)
+- [x] condenser-only convergent solve (direct `B(source->sample)=0` via C3)
+- [x] invariant test: no solved state carries an OL1/OL2/PL3/PL4 strength
+
+**Outcome:** 147 tests (146 pass + the pre-existing insertion failure).
+
+The convergent solve had quietly been retuning OL1 because the stored
+objective strength has no *real* object plane imaging onto the sample. The
+fix also simplified it: no intermediate-crossover chain, just C3 solved so
+the total source->sample block has `B = 0` through the frozen objective
+(virtual objects allowed), C2 swept toward the target.
+
+**Consequence to decide on:** with the stored OL1 frozen, the condensers cap
+at **~10.2 mrad** at the sample (C2 pinned at its first-branch strength
+limit) — the 30 mrad target is out of reach on this column and the script
+says so. Ways to actually reach 30 mrad, all template decisions for
+Eric/Ondrej: shorten the stored OL1 focal length (or move the sample plane
+relative to it), enlarge CA, or accept a lower target for the demo.
+
 ## 2026-08-27 — [Done] Eight states on the standard column
 **Goal:** point example 07 at `basic_column.sea` per Eric: add CA, 1 nA gun,
 solve C+OL1 -> sample and sample -> detector, save states, fix the ray/wave
