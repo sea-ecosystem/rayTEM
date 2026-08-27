@@ -2,6 +2,38 @@
 
 Newest entries at top.
 
+## 2026-08-27 — [Done] Beam current is recorded state
+**Goal:** make both the stated and the derived beam current survive a `.sea`
+round trip.
+**Why:** Eric: "This is an absolutely critical piece of information that should
+always make it to the recorded state." He was right and I had it backwards.
+- [x] the stated Source current survives reload
+- [x] the derived per-element currents survive reload
+- [x] regression test
+
+**Outcome:** 136 tests, both currents round-trip to the bit.
+
+**Two separate losses.** The *stated* source current never round-tripped at
+all, and that predates the derived-current work: it is spelled `_beam_current`
+in `__dict__` but `beam_current` in the constructor, so `safeReinstantiate`'s
+kwarg filter dropped it and a reloaded Source silently reverted to the 1 nA
+default. The value was in the HDF5 file the whole time — the loss was purely
+on the read side. Fixed by naming it in `Source._restore_attrs`, the same
+mechanism `_screen` already uses.
+
+The *derived* current I had deliberately kept off the instances so it would not
+be serialized, on the reasoning that a per-run result has no business in a
+`.sea` file. That reasoning is contradicted by the package itself: `.I` and
+`.rays` are stored on every section. It now lives on `Element._arriving_current`,
+declared in `__init__` and listed in `_restore_attrs`. Stale like every other
+stored result — change the source and re-propagate before trusting it.
+
+**`subdivided` re-verified** after the `combine_drifts` fix, on
+`basic_column.sea`: length exactly 1.264 m at every spacing, element count
+58 -> 73 -> 159 -> 271 for dz = 50/10/5 mm, ray planes logged 25 -> 238, and
+every named position preserved (only the blank `''` key moves, which is the
+bucket all unnamed elements share and carries no meaning).
+
 ## 2026-08-27 — [Done] Audit the merge, land Element.beam_current
 **Goal:** verify our work survived the merge into
 `Signal_and_propagation_additions_new`, then continue on that branch.
