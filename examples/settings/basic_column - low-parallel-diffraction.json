@@ -1,0 +1,21 @@
+{
+    "kind": "setting",
+    "name": "basic_column - low-parallel-diffraction",
+    "version": 0.001,
+    "timestamp": "2026-08-27 14:44:00",
+    "C1": {
+        "strength": 8.0
+    },
+    "C2": {
+        "strength": 33.34042904
+    },
+    "C3": {
+        "strength": 37.94696051
+    },
+    "PL1": {
+        "strength": 20.0
+    },
+    "PL2": {
+        "strength": 28.28646424
+    }
+}

@@ -1,44 +1,62 @@
-"""The eight canonical operating states of a probe-forming column.
+"""The eight canonical operating states of the standard column.
 
-One column, three binary choices — 2 x 2 x 2 = 8 configurations, every lens
-strength *solved* from a transfer-matrix condition rather than hand-tuned:
+``basic_column.sea`` — the ecosystem's stock 200 kV column, with its 1 nA gun
+and the condenser aperture CA after C1 — driven into all 2 x 2 x 2 = 8
+operating states. Nothing about the geometry is touched: a state is purely a
+set of lens strengths, each *solved* from a transfer-matrix condition the way
+an operator chains crossovers, never hand-tuned:
 
-1. **current** — C1 either images the gun crossover onto the condenser
-   aperture CA (``'high'``: the focused spot passes the hole whole) or is run
-   weak (``'low'``: a broad beam hits CA and most of the current is cut).
-2. **probe** — C2/C3 form either a **convergent** probe at the sample
+1. **current** — C1 either images the gun crossover onto CA (``'high'``: the
+   focused spot passes the hole whole) or is run weak (``'low'``: a broad
+   beam hits CA and most of the current is cut).
+2. **probe** — C2/C3/OL1 form either a **convergent** probe at the sample
    (target 30 mrad semi-angle, via a solved chain of intermediate crossovers)
    or a **nearly parallel** patch of illumination (``D = 0``: every ray from
    a single source point arrives parallel).
-3. **detector** — PL1/PL2 put either an **image** of the sample plane on the
-   detector (``B = 0``) or a **diffraction** pattern (``A = 0``: arrival
-   position reads arrival *angle* at the sample, scaled by the camera length
-   ``B``).
+3. **detector** — PL1/PL2 (PL3/PL4 kept at their stored strengths) put either
+   an **image** of the sample plane on the detector (``B = 0``) or a
+   **diffraction** pattern (``A = 0``: arrival position reads arrival *angle*
+   at the sample, scaled by the camera length ``B``).
+
+Each solved state is saved through the column's own settings mechanism
+(``Microscope.save_as_setting``) as ``settings/basic_column - <state>.json``,
+so ``scope.load_setting("basic_column - high-convergent-image")`` restores it
+onto a freshly loaded column.
 
 The same solved column is then propagated with all three methods and they are
 made to answer for each other:
 
-- **rays** (``propagate_ray``) are drawn *on top of* the scaled-wave
-  ``|psi(x, z)|`` cross-section — the geometric skeleton over the coherent
-  flesh (one figure per configuration, in ``figs/``);
-- **moments** (``propagate_moments``) print the transverse covariance at the
-  gun exit, CA, sample, and detector;
+- **rays** are drawn *on top of* the scaled-wave ``|psi(x, z)|``
+  cross-section (one figure per state, in ``figs/``). The overlay traces the
+  rays the *wave* cares about — the flat-phase family the scaled frame itself
+  follows (zero-angle rays at fractions of the wave envelope), plus the rays
+  that graze the CA edge — rather than the source's full incoherent fan,
+  which is real but wider than the single coherent mode the wave carries and
+  used to make the two look mismatched.
+- **moments** print the transverse covariance at the gun exit, CA, sample,
+  and detector;
 - the conjugate planes (image and back-focal family of every lens) are
   measured four independent ways — traced rays, accumulated transfer matrix,
   the wave run's own crossovers, and the covariance waists — and tabulated
   with their deltas.
 
-Physics worth noticing in the output: in the **low**-current state the
-30 mrad probe is *unreachable* — CA cuts angle along with current, because it
-removes phase space, not just electrons. The script prints the
-aperture-limited angle it settles for instead of pretending.
+Physics worth noticing in the output: this repository's ray-path aperture is
+a beam **rescale**, not a per-ray mask — ``Aperture.propagate_ray`` shrinks
+every ray (positions and angles) by ``radius / xmax`` and attenuates the
+intensity by the area ratio, while the **wave** path masks genuinely. So in
+the low-current state the traced current drops to ``scale_x * scale_y`` of
+the stated 1 nA, yet the condensers can still pump the (rescaled) angle back
+up to the 30 mrad target — and at CA the figure shows the two models differ
+by design: rays compress through the hole, the coherent wave is clipped by
+it.
 
 Run ``python 07_eightConfigurations.py`` from this directory; add ``--fast``
-to skip the wave runs (the solves and tables still print).
+to skip the wave runs (the solves, settings files, and tables still print).
 
 Related
 -------
-06_aberratedObjective : Same objective, aberrated, wave-vs-ray comparison.
+microscopes.basic_column : Builds the column this drives.
+assemblies.Microscope.save_as_setting : How each state is stored.
 assemblies.Microscope.conjugate_planes : The plane machinery used throughout.
 """
 
@@ -51,84 +69,107 @@ import numpy as np
 from scipy.optimize import brentq
 
 sys.path.insert(1, "../")
-from pySEA.rayTEM.elements import Source, Drift, Lens, Aperture
-from pySEA.rayTEM.assemblies import Microscope, MicroscopeSection, _scaled_wave_cross_section
+from pySEA.rayTEM.assemblies import Microscope, load_microscope, _scaled_wave_cross_section
 from pySEA.rayTEM.postprocessing import convert_to_rotating_reference_frame
-from pySEA.rayTEM.elements import columnByName
-from pySEA.rayTEM.microscopes.basic_column import round_lens
+from pySEA.rayTEM.elements import columnByName, convention
 
-# ----------------------------------------------------------------- geometry
-CA_RADIUS = 10e-6			# condenser aperture radius (m)
-SRC_SIZE = 2.5e-6			# source half-size (m)
-SRC_ANGLE = 1.5e-3			# source half-divergence (rad) -- the phase space
-							# budget: 30 mrad at the sample must be demagnified
-							# out of this, so it cannot be tiny
-GUN_CURRENT = 1e-6			# stated emission current (A)
+_HERE = os.path.dirname(os.path.abspath(__file__))
+BASE_SEA = os.path.join(_HERE, "..", "src", "pySEA", "rayTEM", "microscopes",
+						"basic_column.sea")
+
+#: The lenses a state may retune. PL3/PL4 stay at their stored strengths.
+SOLVED_LENSES = ("C1", "C2", "C3", "OL1", "PL1", "PL2")
 ALPHA_TARGET = 30e-3		# convergent-probe semi-angle at the sample (rad)
-LENS_L_C = 0.02				# condenser bore length (m)
-LENS_L_P = 0.015			# projector bore length (m)
-KMAX_C = np.pi / 2 / LENS_L_C - 1e-6	# first-branch strength limits
-KMAX_P = np.pi / 2 / LENS_L_P - 1e-6
-
-# defaults: only used before the solves overwrite them
-NOMINAL = dict(kc1=30.0, kc2=30.0, kc3=20.0, kp1=30.0, kp2=25.0)
+KC1_LOW = 8.0				# the deliberately weak C1 of the low-current state
 
 
-def build_column(kc1: float = NOMINAL["kc1"], kc2: float = NOMINAL["kc2"],
-				 kc3: float = NOMINAL["kc3"], kp1: float = NOMINAL["kp1"],
-				 kp2: float = NOMINAL["kp2"], wave_shape: tuple = (128, 128),
-				 wave_extent: float = 40e-6) -> Microscope:
-	"""Assemble the eight-configuration column with the given lens strengths.
-
-	Source, C1, condenser aperture CA, C2, C3, the OL1/sample/OL2 objective
-	group, projectors PL1/PL2, and a named detector plane. Everything except
-	the five strength arguments is fixed, so a configuration *is* its five
-	numbers.
-
-	Parameters
-	----------
-	kc1, kc2, kc3 : float, optional
-		Condenser strengths (C1 sets the current state; C2/C3 the probe).
-	kp1, kp2 : float, optional
-		Projector strengths (image vs diffraction at the detector).
-	wave_shape : tuple, optional
-		Wave grid ``(ny, nx)``, by default ``(128, 128)``.
-	wave_extent : float, optional
-		Wave grid full width (m), by default 40 µm — generous around the
-		2.5 µm source.
+def load_base() -> Microscope:
+	"""Load a fresh copy of the standard column.
 
 	Returns
 	-------
 	Microscope
-		The assembled single-section column, ~0.98 m long.
+		``basic_column.sea``, exactly as stored.
+
+	Raises
+	------
+	OSError
+		If the ``.sea`` file is missing (run ``microscopes/basic_column.py``
+		to regenerate it).
+	"""
+	return load_microscope(BASE_SEA)
+
+
+def apply_strengths(scope: Microscope, strengths: dict) -> Microscope:
+	"""Set named lens strengths on a column, in place.
+
+	Parameters
+	----------
+	scope : Microscope
+		The column to configure.
+	strengths : dict
+		``{lens_name: strength}``; lenses not named keep what they have.
+
+	Returns
+	-------
+	Microscope
+		``scope``, for chaining.
+
+	Raises
+	------
+	KeyError
+		If a name is not an element of this column.
+	"""
+	scope.update_with_settings({n: {"strength": v} for n, v in strengths.items()})
+	return scope
+
+
+def _lens_map(scope: Microscope) -> dict:
+	"""The column's solvable lenses by name.
+
+	Parameters
+	----------
+	scope : Microscope
+		The column.
+
+	Returns
+	-------
+	dict
+		``{name: Lens}`` for :data:`SOLVED_LENSES`.
 
 	Raises
 	------
 	None
 	"""
-	els = [Source(name="G", voltage=200, size=(SRC_SIZE,) * 2, np_xy=(5, 5),
-				  angle=(SRC_ANGLE,) * 2, na_xy=(3, 3), beam_current=GUN_CURRENT,
-				  wave_shape=wave_shape, wave_extent=wave_extent,
-				  wave_kind="gaussian"),
-		   Drift(length=0.10),
-		   Lens(name="C1", strength=kc1, length=LENS_L_C), Drift(length=0.07),
-		   Aperture(name="CA", radius=CA_RADIUS), Drift(length=0.05),
-		   Lens(name="C2", strength=kc2, length=LENS_L_C), Drift(length=0.09),
-		   Lens(name="C3", strength=kc3, length=LENS_L_C), Drift(length=0.10),
-		   round_lens("OL1", f=0.008, length=0.01),
-		   # the sample sits ~9 mm past OL1's center: just OUTSIDE its 8 mm
-		   # focal length, so a real image can land on it. 5 mm past it would
-		   # be INSIDE f and no condenser setting could focus there.
-		   Drift(length=0.004), Drift(name="sample", length=0.0), Drift(length=0.005),
-		   round_lens("OL2", f=0.010, length=0.01), Drift(length=0.08),
-		   Lens(name="PL1", strength=kp1, length=LENS_L_P), Drift(length=0.07),
-		   Lens(name="PL2", strength=kp2, length=LENS_L_P), Drift(length=0.30),
-		   # a short tail past the detector: a conjugate plane landing EXACTLY
-		   # on the column's last z has no interval around it, so the plane
-		   # search would silently drop the detector row from the table
-		   Drift(name="detector", length=0.0), Drift(length=0.02)]
-	return Microscope(name="eight configurations",
-					  sections=[MicroscopeSection(name="col", elements=els)])
+	return {e.name: e for s in scope.sections for e in s.elements
+			if e.name in SOLVED_LENSES}
+
+
+def sample_plane(scope: Microscope) -> float:
+	"""The z of the sample plane: the middle of the element named ``sample``.
+
+	The middle rather than the face, for the same reason
+	:attr:`Microscope.convergence_angle` measures there — the state *entering*
+	a plane is what is reported, so an element's start returns the beam before
+	the gap.
+
+	Parameters
+	----------
+	scope : Microscope
+		The column.
+
+	Returns
+	-------
+	float
+		Absolute z in metres.
+
+	Raises
+	------
+	KeyError
+		If the column has no element named ``sample``.
+	"""
+	ele = [e for s in scope.sections for e in s.elements if e.name == "sample"][0]
+	return scope.named_positions["sample"] + (getattr(ele, "length", 0) or 0) / 2
 
 
 def block_between(scope: Microscope, z_from: float, z_to: float,
@@ -170,60 +211,77 @@ def block_between(scope: Microscope, z_from: float, z_to: float,
 	return np.array([[1.0, z_to - zx], [0.0, 1.0]]) @ Mx
 
 
-def _source_grid() -> np.ndarray:
-	"""The source's exact ray grid, as (x, xt, y, yt) rows.
+def _source_grid(scope: Microscope) -> np.ndarray:
+	"""The column source's exact ray grid, as (x, xt, y, yt) rows.
 
-	Mirrors what ``Source.rays()`` emits (5x5 positions x 3x3 angles), so a
-	per-ray *prediction* through the 2x2 blocks matches the traced rays to
-	machine precision on an ideal column.
+	Mirrors what ``Source.rays()`` emits, so a per-ray *prediction* through
+	the 2x2 blocks matches the traced rays to machine precision on an ideal
+	column.
+
+	Parameters
+	----------
+	scope : Microscope
+		The column whose source defines the fan.
 
 	Returns
 	-------
 	numpy.ndarray
-		``(225, 4)`` phase-space start points.
+		``(n_rays, 4)`` phase-space start points.
 
 	Raises
 	------
 	None
 	"""
-	xs = np.linspace(-SRC_SIZE, SRC_SIZE, 5)
-	ts = np.linspace(-SRC_ANGLE, SRC_ANGLE, 3)
+	src = scope.sections[0].elements[0]
+	xs = np.linspace(-src.size[0], src.size[0], int(src.np_xy[0]))
+	ts = np.linspace(-src.angle[0], src.angle[0], int(src.na_xy[0]))
 	return np.array([(x, t, y, ty) for x in xs for y in xs for t in ts for ty in ts])
 
 
 def predict_probe(scope: Microscope) -> dict:
-	"""Predict the probe the column forms, per-ray, from its transfer blocks.
+	"""Predict the probe the configured column forms, per-ray, from its blocks.
 
-	Sends the source grid through the source->CA and source->sample blocks,
-	masks at CA, and reads off what survives. Exact for the ideal column, and
-	smooth enough in the lens strengths to solve against — unlike a traced
-	measurement, whose outermost-ray identity jumps.
+	Sends the source grid through the source->CA and source->sample blocks
+	and applies CA the way the **ray path** applies it: this repository's
+	``Aperture.propagate_ray`` does not mask individual rays — it *rescales*
+	the whole beam (positions and angles, per axis, by ``radius / xmax``) and
+	attenuates every intensity by the area ratio ``scale_x * scale_y``. The
+	rescale commutes with the linear optics downstream, so the sample-plane
+	quantities are simply the unmasked ones times the scales. (The wave path
+	is different by design: there CA is a genuine mask.) Exact for the ideal
+	column, and smooth in the lens strengths — good to solve against.
 
 	Parameters
 	----------
 	scope : Microscope
-		The column to predict.
+		The configured column.
 
 	Returns
 	-------
 	dict
-		``current_fraction`` (of rays surviving CA), ``alpha`` (max total
-		angle at the sample among survivors, rad), ``size`` (max radius, m).
+		``current_fraction`` (the transmitted intensity fraction,
+		``scale_x * scale_y``), ``alpha`` (max total angle at the sample,
+		rad), ``size`` (max radius at the sample, m).
 
 	Raises
 	------
 	None
 	"""
 	Z = scope.named_positions
-	Ms, Mca = block_between(scope, 0.0, Z["sample"]), block_between(scope, 0.0, Z["CA"])
-	x0, t0, y0, ty0 = _source_grid().T
-	live = np.hypot(Mca[0, 0] * x0 + Mca[0, 1] * t0,
-					Mca[0, 0] * y0 + Mca[0, 1] * ty0) <= CA_RADIUS
-	alpha = np.hypot(Ms[1, 0] * x0 + Ms[1, 1] * t0, Ms[1, 0] * y0 + Ms[1, 1] * ty0)
-	size = np.hypot(Ms[0, 0] * x0 + Ms[0, 1] * t0, Ms[0, 0] * y0 + Ms[0, 1] * ty0)
-	return dict(current_fraction=float(live.mean()),
-				alpha=float(alpha[live].max()) if live.any() else 0.0,
-				size=float(size[live].max()) if live.any() else 0.0)
+	ca_r = scope["CA"].radius
+	Ms = block_between(scope, 0.0, sample_plane(scope))
+	Mca = block_between(scope, 0.0, Z["CA"])
+	x0, t0, y0, ty0 = _source_grid(scope).T
+	x_ca = Mca[0, 0] * x0 + Mca[0, 1] * t0
+	y_ca = Mca[0, 0] * y0 + Mca[0, 1] * ty0
+	sx = min(1.0, ca_r / float(np.max(x_ca)))	# amax of the SIGNED positions,
+	sy = min(1.0, ca_r / float(np.max(y_ca)))	# mirroring Aperture._aperture_scales
+	alpha = np.hypot(sx * (Ms[1, 0] * x0 + Ms[1, 1] * t0),
+					 sy * (Ms[1, 0] * y0 + Ms[1, 1] * ty0))
+	size = np.hypot(sx * (Ms[0, 0] * x0 + Ms[0, 1] * t0),
+					sy * (Ms[0, 0] * y0 + Ms[0, 1] * ty0))
+	return dict(current_fraction=float(sx * sy),
+				alpha=float(alpha.max()), size=float(size.max()))
 
 
 def _brackets(f, ks) -> list:
@@ -250,166 +308,179 @@ def _brackets(f, ks) -> list:
 			if np.isfinite(vv[i]) and np.isfinite(vv[i + 1]) and vv[i] * vv[i + 1] < 0]
 
 
-def _solve_imaging(fixed: dict, kname: str, z_from: float, z_to: float,
-				   kmax: float, entry: tuple = (0, 1)) -> list:
-	"""All strengths of one lens that zero a block entry between two planes.
-
-	The workhorse of every configuration: ``entry=(0, 1)`` solves ``B = 0``
-	(imaging), ``(1, 1)`` solves ``D = 0`` (collimation), ``(0, 0)`` solves
-	``A = 0`` (diffraction).
-
-	Parameters
-	----------
-	fixed : dict
-		Strengths already decided, passed to :func:`build_column`.
-	kname : str
-		The strength being solved (``'kc2'``, ``'kp1'``, ...).
-	z_from, z_to : float
-		The two planes the condition connects (m).
-	kmax : float
-		Upper strength limit (first branch, ``K L < π/2``).
-	entry : tuple, optional
-		Block entry to zero, by default ``(0, 1)`` (``B``).
-
-	Returns
-	-------
-	list of float
-		Every solution found on a 50-point bracket scan (possibly empty).
-
-	Raises
-	------
-	None
-	"""
-	def f(k):
-		scope = build_column(**{**fixed, kname: k})
-		return block_between(scope, z_from, z_to)[entry]
-	return [brentq(f, *b) for b in _brackets(f, np.linspace(1.0, kmax, 50))]
-
-
 def solve_column(current: str, probe: str, detector: str) -> dict:
-	"""Solve the five lens strengths for one of the eight configurations.
+	"""Solve the lens strengths that put the standard column in one state.
 
-	Works the way an operator does — as a chain of crossovers, each lens a
-	1D imaging condition, so every solve is a bracketed root find rather than
-	a multidimensional shot in the dark:
+	Works the way an operator does — as a chain of crossovers, each lens a 1D
+	imaging condition, so every solve is a bracketed root find rather than a
+	multidimensional shot in the dark:
 
-	- **C1**: ``B(source→CA) = 0`` for ``'high'``; fixed weak (K = 5) for
-	  ``'low'``.
-	- **convergent**: C2 images the source to an intermediate crossover z2,
-	  C3 images z2 to OL1's object plane z3 (itself solved from OL1 alone),
-	  which lands the final crossover on the sample; z2 is then the single
-	  knob swept so the *predicted per-ray* semi-angle hits 30 mrad. When no
-	  z2 reaches it (the low-current state: CA has cut the phase space), the
-	  angle-maximizing z2 is used and ``alpha_limited`` is set.
-	- **parallel**: C2 images the source to z2 = 0.30 m, C3 zeroes
-	  ``D(source→sample)``.
+	- **C1**: ``B(source→CA) = 0`` for ``'high'``; fixed weak
+	  (:data:`KC1_LOW`) for ``'low'``.
+	- **convergent**: C2 images the source to a crossover z2, C3 images z2 to
+	  z3, OL1 images z3 onto the sample; (z2, z3) are then swept so the
+	  *predicted per-ray* semi-angle hits 30 mrad — pulling z3 toward C3
+	  raises the angle. When no (z2, z3) reaches the target, the
+	  angle-maximizing pair is used and ``alpha_limited`` is set.
+	- **parallel**: C2 images the source to z2 = 0.28 m, C3 zeroes
+	  ``D(source→sample)`` with OL1 left as stored.
 	- **image**: PL1 images the sample to an intermediate plane, PL2 images
-	  that to the detector. **diffraction**: PL2 zeroes ``A(sample→detector)``
-	  for a mid-range PL1.
+	  that to the detector. **diffraction**: PL2 zeroes
+	  ``A(sample→detector)``; among the PL1 values that admit a root, the one
+	  with the longest camera length ``|B|`` is kept.
 
 	Parameters
 	----------
 	current : {'high', 'low'}
 		C1 state: gun crossover imaged onto CA, or a broad beam cut by it.
 	probe : {'convergent', 'parallel'}
-		What C2/C3 deliver at the sample.
+		What the condensers and OL1 deliver at the sample.
 	detector : {'image', 'diffraction'}
 		What PL1/PL2 deliver at the detector.
 
 	Returns
 	-------
 	dict
-		``strengths`` (the five solved K), ``predicted`` (from
-		:func:`predict_probe`), ``alpha_limited`` (bool), and the detector
-		block ``M_det`` from the sample.
+		``strengths`` (solved ``{lens: K}`` — only the lenses this state
+		retunes), ``predicted`` (from :func:`predict_probe`),
+		``alpha_limited`` (bool), and the detector block ``M_det`` from the
+		sample.
 
 	Raises
 	------
 	ValueError
-		If a required imaging solve finds no solution (a geometry change
-		broke the chain — the message names the failing stage).
+		If the state names are unknown, or a required imaging solve finds no
+		solution (a geometry change broke the chain — the message names the
+		failing stage).
 	"""
 	if current not in ("high", "low") or probe not in ("convergent", "parallel") \
 			or detector not in ("image", "diffraction"):
-		raise ValueError(f"unknown configuration ({current!r}, {probe!r}, {detector!r}); "
+		raise ValueError(f"unknown state ({current!r}, {probe!r}, {detector!r}); "
 						 "expected ('high'|'low', 'convergent'|'parallel', 'image'|'diffraction').")
-	Z = build_column().named_positions
+	scope = load_base()
+	Z = scope.named_positions
+	z_samp, z_det = sample_plane(scope), Z["detector"]
+	lens = _lens_map(scope)
+	stored = {n: l.strength for n, l in lens.items()}
+	kmax = {n: np.pi / 2 / l.length - 1e-6 for n, l in lens.items()}
+	solved = {}
+
+	def sset(**kw):
+		"""Reset every solvable lens to stored, then apply overrides."""
+		for n, l in lens.items():
+			l.strength = stored[n]
+		for n, v in {**solved, **kw}.items():
+			lens[n].strength = v
+
+	def solve1(name, z_from, z_to, entry=(0, 1)):
+		"""All strengths of ``name`` zeroing one block entry between planes."""
+		def f(k):
+			lens[name].strength = k
+			return block_between(scope, z_from, z_to)[entry]
+		roots = [brentq(f, *b) for b in _brackets(f, np.linspace(0.5, kmax[name], 50))]
+		lens[name].strength = solved.get(name, stored[name])
+		return roots
 
 	# --- C1: the current state
 	if current == "high":
-		kc1 = brentq(lambda k: block_between(build_column(kc1=k), 0.0, Z["CA"])[0, 1], 20, 60)
+		roots = solve1("C1", 0.0, Z["CA"])
+		if not roots:
+			raise ValueError("C1 cannot image the source onto CA -- the gun/CA "
+							 "geometry changed.")
+		solved["C1"] = roots[0]
 	else:
-		kc1 = 5.0
+		solved["C1"] = KC1_LOW
+	sset()
 
-	# --- OL1's object plane: where a crossover must land to reappear on the sample
-	scope0 = build_column()
-	zb = _brackets(lambda z: block_between(scope0, z, Z["sample"])[0, 1],
-				   np.linspace(0.385, 0.473, 30))
-	if not zb:
-		raise ValueError("no OL1 object plane found between C3 and OL1 -- the objective "
-						 "geometry no longer supports a real image at the sample.")
-	z3 = brentq(lambda z: block_between(scope0, z, Z["sample"])[0, 1], *zb[0])
-
+	# --- the probe
 	alpha_limited = False
 	if probe == "convergent":
-		def best_at(z2):
+		def best_at(z2, z3):
 			best = None
-			for kc2 in _solve_imaging({"kc1": kc1}, "kc2", 0.0, z2, KMAX_C):
-				for kc3 in _solve_imaging({"kc1": kc1, "kc2": kc2}, "kc3", z2, z3, KMAX_C):
-					p = predict_probe(build_column(kc1=kc1, kc2=kc2, kc3=kc3))
-					if best is None or p["alpha"] > best[0]["alpha"]:
-						best = (p, kc2, kc3)
+			for kc2 in solve1("C2", 0.0, z2):
+				sset(C2=kc2)
+				for kc3 in solve1("C3", z2, z3):
+					sset(C2=kc2, C3=kc3)
+					for kol in solve1("OL1", z3, z_samp):
+						sset(C2=kc2, C3=kc3, OL1=kol)
+						p = predict_probe(scope)
+						if best is None or p["alpha"] > best[0]["alpha"]:
+							best = (p, kc2, kc3, kol)
+					sset(C2=kc2, C3=kc3)
+				sset(C2=kc2)
+			sset()
 			return best
-		z2s = np.linspace(0.275, 0.345, 12)
-		g = lambda z2: ((best_at(z2) or ({"alpha": np.nan},))[0]["alpha"]) - ALPHA_TARGET
-		br = _brackets(g, z2s)
-		if br:
-			z2 = brentq(g, *br[0], xtol=1e-7)
-		else:								# CA has cut the phase space: take the max
-			z2 = max(z2s, key=lambda z: (best_at(z) or ({"alpha": -1},))[0]["alpha"])
+		# z3 toward C3 raises the reachable angle; z2 fine-tunes onto target
+		z2s = np.linspace(0.235, 0.30, 9)
+		hit = None
+		for z3 in (0.36, 0.385, 0.41, 0.44):
+			g = lambda z2: ((best_at(z2, z3) or ({"alpha": np.nan},))[0]["alpha"]) - ALPHA_TARGET
+			br = _brackets(g, z2s)
+			if br:
+				z2 = brentq(g, *br[0], xtol=1e-7)
+				hit = best_at(z2, z3)
+				break
+		if hit is None:						# CA has cut the phase space: take the max
+			cands = [(z2, z3, best_at(z2, z3)) for z3 in (0.36, 0.41) for z2 in z2s[::2]]
+			cands = [c for c in cands if c[2]]
+			if not cands:
+				raise ValueError("no convergent-probe chain solves at all -- the "
+								 "condenser/objective geometry changed.")
+			z2, z3, hit = max(cands, key=lambda c: c[2][0]["alpha"])
 			alpha_limited = True
-		p, kc2, kc3 = best_at(z2)
-	else:									# parallel: D(source->sample) = 0
-		z2 = 0.30
-		sols = [(predict_probe(build_column(kc1=kc1, kc2=kc2, kc3=kc3)), kc2, kc3)
-				for kc2 in _solve_imaging({"kc1": kc1}, "kc2", 0.0, z2, KMAX_C)
-				for kc3 in _solve_imaging({"kc1": kc1, "kc2": kc2}, "kc3",
-										  0.0, Z["sample"], KMAX_C, entry=(1, 1))]
-		if not sols:
-			raise ValueError("no parallel-probe solution: C3 cannot zero D(source->sample) "
-							 "with C2 imaging the source to z2=0.30 m.")
-		p, kc2, kc3 = min(sols, key=lambda s: s[0]["alpha"])
+		p, solved["C2"], solved["C3"], solved["OL1"] = hit
+	else:								# parallel: D(source->sample) = 0 via C3
+		z2 = 0.28
+		best = None
+		for kc2 in solve1("C2", 0.0, z2):
+			sset(C2=kc2)
+			for kc3 in solve1("C3", 0.0, z_samp, entry=(1, 1)):
+				sset(C2=kc2, C3=kc3)
+				p = predict_probe(scope)
+				if best is None or p["alpha"] < best[0]["alpha"]:
+					best = (p, kc2, kc3)
+			sset(C2=kc2)
+		if best is None:
+			raise ValueError("no parallel-probe solution: C3 cannot zero "
+							 "D(source->sample) with C2 imaging the source to "
+							 f"z2={z2} m.")
+		p, solved["C2"], solved["C3"] = best
+	sset()
 
-	# --- projectors (independent of the condensers: everything is downstream
-	#     of the sample)
+	# --- the projectors (independent of the condensers: everything is
+	#     downstream of the sample; PL3/PL4 keep their stored strengths)
 	if detector == "image":
-		zp = 0.63							# intermediate image between PL1 and PL2
-		sols = [(kp1, kp2)
-				for kp1 in _solve_imaging({}, "kp1", Z["sample"], zp, KMAX_P)
-				for kp2 in _solve_imaging({"kp1": kp1}, "kp2", zp, Z["detector"], KMAX_P)]
-		if not sols:
-			raise ValueError("no imaging projector solution for the intermediate plane "
-							 f"zp={zp} m; move it or widen the strength scan.")
-		kp1, kp2 = sols[0]
-	else:									# diffraction: A(sample->detector) = 0
+		done = False
+		for zp in (0.74, 0.76, 0.72):			# intermediate image after PL1
+			for kp1 in solve1("PL1", z_samp, zp):
+				sset(PL1=kp1)
+				for kp2 in solve1("PL2", zp, z_det):
+					solved["PL1"], solved["PL2"] = kp1, kp2
+					done = True
+					break
+				if done: break
+			if done: break
+		if not done:
+			raise ValueError("no imaging projector solution -- move the "
+							 "intermediate plane or widen the strength scan.")
+	else:								# diffraction: A(sample->detector) = 0
 		found = None
-		for kp1 in np.linspace(10, KMAX_P * 0.95, 6):
-			def f(kp2):
-				return block_between(build_column(kp1=kp1, kp2=kp2),
-									 Z["sample"], Z["detector"])[0, 0]
-			for b in _brackets(f, np.linspace(1.0, KMAX_P, 40)):
-				kp2 = brentq(f, *b)
-				M = block_between(build_column(kp1=kp1, kp2=kp2), Z["sample"], Z["detector"])
+		for kp1 in np.linspace(20, kmax["PL1"] * 0.9, 5):
+			sset(PL1=kp1)
+			for kp2 in solve1("PL2", z_samp, z_det, entry=(0, 0)):
+				sset(PL1=kp1, PL2=kp2)
+				M = block_between(scope, z_samp, z_det)
 				if found is None or abs(M[0, 1]) > abs(found[2][0, 1]):
 					found = (kp1, kp2, M)	# keep the longest camera length
+			sset()
 		if found is None:
 			raise ValueError("no diffraction projector solution: PL2 cannot zero "
 							 "A(sample->detector) anywhere on the first branch.")
-		kp1, kp2, _ = found
+		solved["PL1"], solved["PL2"], _ = found
+	sset()
 
-	strengths = dict(kc1=kc1, kc2=kc2, kc3=kc3, kp1=kp1, kp2=kp2)
-	M_det = block_between(build_column(**strengths), Z["sample"], Z["detector"])
-	return dict(strengths=strengths, predicted=p, alpha_limited=alpha_limited,
+	M_det = block_between(scope, z_samp, z_det)
+	return dict(strengths=solved, predicted=p, alpha_limited=alpha_limited,
 				M_det=M_det)
 
 
@@ -458,8 +529,9 @@ def plane_table(scope: Microscope, wave_crossovers=None) -> str:
 	:meth:`Microscope.conjugate_planes` twice — once from traced rays, once
 	from the accumulated transfer matrix — and each image plane is joined by
 	the covariance mode's nearest beam waist. Wave crossovers, when a wave was
-	propagated, are matched in the same way. Every plane is labeled by the
-	nearest lens upstream: that lens's field is what folded the beam there.
+	propagated, are matched against the diffraction family (the family a
+	flat-phase seed belongs to). Every plane is labeled by the nearest lens
+	upstream: that lens's field is what folded the beam there.
 
 	Parameters
 	----------
@@ -467,7 +539,7 @@ def plane_table(scope: Microscope, wave_crossovers=None) -> str:
 		The solved, ray-propagated column.
 	wave_crossovers : Sequence[float], optional
 		``scope.crossovers`` from a hybrid wave run, by default None (column
-		omitted). The wave logs the conjugate family its seed belongs to.
+		omitted).
 
 	Returns
 	-------
@@ -483,8 +555,8 @@ def plane_table(scope: Microscope, wave_crossovers=None) -> str:
 	ray = scope.conjugate_planes(method='ray')
 	waists = scope.beam_waists()
 	Z = scope.named_positions
-	lenses = sorted([(z, n) for n, z in Z.items()
-					 if n in ("C1", "C2", "C3", "OL1", "OL2", "PL1", "PL2")])
+	lens_names = ("C1", "C2", "C3", "OL1", "OL2", "PL1", "PL2", "PL3", "PL4")
+	lenses = sorted([(z, n) for n, z in Z.items() if n in lens_names])
 
 	def upstream_lens(z):
 		names = [n for zl, n in lenses if zl < z]
@@ -518,12 +590,54 @@ def plane_table(scope: Microscope, wave_crossovers=None) -> str:
 	return "\n".join(rows)
 
 
-def ray_over_wave_figure(scope: Microscope, title: str, filename: str) -> None:
-	"""Draw the traced rays on top of the wave |psi(x, z)| cross-section.
+def wave_matched_rays(scope: Microscope) -> np.ndarray:
+	"""The ray bundle that traces what the wave actually does.
+
+	The scaled wave carries one coherent mode seeded with a **flat phase**, so
+	the trajectories it follows are the flat-phase family: zero-angle rays
+	whose height sets everything downstream. This bundle is that family —
+	rays at fractions of the wave envelope's half-width (2 sigma of the seed
+	gaussian), plus the pair that exactly grazes the CA edge and one pair just
+	inside it, so the aperture region reads clearly. The source's full
+	incoherent fan is wider than the coherent mode and drawing it over the
+	wave made the two look mismatched.
+
+	Parameters
+	----------
+	scope : Microscope
+		The configured column (used for the seed size and the source->CA
+		block that locates the CA-grazing heights).
+
+	Returns
+	-------
+	numpy.ndarray
+		``(n_rays, len(convention))`` start vectors for ``propagate_ray(r0=)``.
+
+	Raises
+	------
+	None
+	"""
+	src = scope.sections[0].elements[0]
+	w_env = 2.0 * src.size[0]					# the wave envelope half-width
+	heights = list(np.linspace(-1.0, 1.0, 7) * w_env)
+	A_ca = block_between(scope, 0.0, scope.named_positions["CA"])[0, 0]
+	if abs(A_ca) > 1e-12:
+		h_edge = scope["CA"].radius / abs(A_ca)
+		heights += [h_edge, -h_edge, 0.85 * h_edge, -0.85 * h_edge]
+	r0 = np.zeros((len(heights), len(convention)))
+	r0[:, columnByName('x')] = heights			# flat family: zero angle
+	return r0
+
+
+def ray_over_wave_figure(scope: Microscope, title: str, filename: str) -> list:
+	"""Draw the wave-matched rays on top of the wave |psi(x, z)| cross-section.
 
 	The geometric skeleton over the coherent flesh: the same column, the same
 	planes, one picture. The column is subdivided for smooth z sampling; the
-	rays are converted to the rotating frame the wave propagates in.
+	rays are the flat-phase family from :func:`wave_matched_rays`, converted
+	to the rotating frame the wave propagates in, so they ride the wave
+	envelope through every lens and cross exactly at its crossovers. The
+	CA-grazing pair is drawn brighter.
 
 	Parameters
 	----------
@@ -546,7 +660,8 @@ def ray_over_wave_figure(scope: Microscope, title: str, filename: str) -> None:
 	import matplotlib.pyplot as plt
 	dense = scope.subdivided(4e-3)
 	dense.propagate(kind="wave-hybrid")
-	rays = dense.propagate_ray()
+	r0 = wave_matched_rays(scope)
+	rays = dense.propagate_ray(r0=r0)
 	rot = convert_to_rotating_reference_frame(rays, dense.R)
 	fig, ax = plt.subplots(figsize=(13, 5))
 	_scaled_wave_cross_section(dense._wave_scaled_planes, ax,
@@ -555,11 +670,15 @@ def ray_over_wave_figure(scope: Microscope, title: str, filename: str) -> None:
 	zs = rays[:, 0, columnByName('z')] * 1e3
 	ylim = ax.get_ylim()
 	xcol = rot[:, :, columnByName('x')] * 1e6
-	live = dense.I[-1] > 0					# rays the apertures let through
+	live = dense.I[-1] > 0						# rays the aperture let through
+	n_env = 7									# the envelope fan; the rest graze CA
 	for j in range(xcol.shape[1]):
-		ax.plot(zs, xcol[:, j], lw=0.4, alpha=0.7 if live[j] else 0.25,
-				color="deepskyblue" if live[j] else "tomato")
-	ax.set_ylim(ylim)						# rays cut at CA may exceed the wave frame
+		grazing = j >= n_env
+		ax.plot(zs, xcol[:, j],
+				lw=0.9 if grazing else 0.5,
+				alpha=(0.9 if live[j] else 0.35) if grazing else 0.6,
+				color=("cyan" if live[j] else "tomato") if grazing else "deepskyblue")
+	ax.set_ylim(ylim)
 	fig.tight_layout()
 	fig.savefig(filename, dpi=140)
 	plt.close(fig)
@@ -568,7 +687,7 @@ def ray_over_wave_figure(scope: Microscope, title: str, filename: str) -> None:
 
 def run_configuration(current: str, probe: str, detector: str,
 					  wave: bool = True, figdir: str = "figs") -> dict:
-	"""Solve, propagate, and report one of the eight configurations.
+	"""Solve, save, propagate, and report one of the eight states.
 
 	Parameters
 	----------
@@ -576,7 +695,8 @@ def run_configuration(current: str, probe: str, detector: str,
 		The three choices — see :func:`solve_column`.
 	wave : bool, optional
 		Whether to run the scaled-wave propagation and figure, by default
-		True. The solves, ray/moments checks, and tables run regardless.
+		True. The solves, settings files, ray/moments checks, and tables run
+		regardless.
 	figdir : str, optional
 		Where figures land, by default ``'figs'``.
 
@@ -584,7 +704,7 @@ def run_configuration(current: str, probe: str, detector: str,
 	-------
 	dict
 		The solve result plus measured ``beam_current`` (A), ``alpha_meas``
-		(rad, live rays only), and the solved ``scope``.
+		(rad, live rays only), and the configured ``scope``.
 
 	Raises
 	------
@@ -592,15 +712,22 @@ def run_configuration(current: str, probe: str, detector: str,
 	"""
 	tag = f"{current}-{probe}-{detector}"
 	sol = solve_column(current, probe, detector)
-	scope = build_column(**sol["strengths"])
+	scope = apply_strengths(load_base(), sol["strengths"])
 	Z = scope.named_positions
 	scope.propagate_ray()
+	stated = scope.sections[0].elements[0].beam_current
+
+	# store the state through the column's own settings mechanism:
+	# settings/basic_column - <state>.json, reloadable via load_setting
+	scope.save_as_setting(f"basic_column - {tag}",
+						  {n: "strength" for n in sol["strengths"]})
 
 	print(f"\n=== {tag} ===")
 	print("  strengths:", {k: round(v, 4) for k, v in sol['strengths'].items()})
-	print(f"  current: stated {GUN_CURRENT*1e9:.1f} nA at the gun -> "
-		  f"{scope.beam_current*1e9:.2f} nA at the detector "
-		  f"({sol['predicted']['current_fraction']*100:.0f}% of rays pass CA)")
+	print(f"  setting:  settings/basic_column - {tag}.json")
+	print(f"  current: stated {stated*1e9:.2f} nA at the gun -> "
+		  f"{scope.beam_current*1e9:.3f} nA at the detector "
+		  f"({sol['predicted']['current_fraction']*100:.0f}% of the current passes CA)")
 	alpha_meas = scope.convergence_angle
 	note = "  [aperture-limited: CA cut the phase space this angle needed]" \
 		if sol["alpha_limited"] else ""
@@ -615,7 +742,8 @@ def run_configuration(current: str, probe: str, detector: str,
 			  f"(A = {A:.1e} -> 0)")
 
 	print(covariance_report(scope, {"gun exit": 0.0, "CA": Z["CA"],
-									"sample": Z["sample"], "detector": Z["detector"]}))
+									"sample": sample_plane(scope),
+									"detector": Z["detector"]}))
 	crossovers = None
 	if wave:
 		os.makedirs(figdir, exist_ok=True)

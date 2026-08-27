@@ -1,0 +1,21 @@
+{
+    "kind": "setting",
+    "name": "basic_column - high-parallel-image",
+    "version": 0.001,
+    "timestamp": "2026-08-27 14:43:10",
+    "C1": {
+        "strength": 39.01491226
+    },
+    "C2": {
+        "strength": 49.13352223
+    },
+    "C3": {
+        "strength": 37.94696051
+    },
+    "PL1": {
+        "strength": 46.78522294
+    },
+    "PL2": {
+        "strength": 61.45961585
+    }
+}
