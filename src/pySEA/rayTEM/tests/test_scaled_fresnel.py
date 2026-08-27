@@ -675,7 +675,9 @@ def test_full_column_hybrid_source_to_detector():
 
 	# the run reaches the detector through every crossover
 	zs = [read_scaled_wavefield(p)[7] for p in planes]
-	assert np.isclose(max(zs), 1.264, atol=1e-6)
+	# the column ends 1 cm past the detector marker (a tail so plane
+	# searches keep the detector interior); the run ends at the column end
+	assert np.isclose(max(zs), 1.274, atol=1e-6)
 	assert len(scope.crossovers) >= 4		# C1, condenser chain, objective, projectors
 	assert np.isclose(scope.crossovers[0], 0.175, atol=1e-3)		# C1 focus
 
@@ -834,7 +836,9 @@ def test_padded_grid_hybrid_completes():
 	src.wave_extent = 40e-6
 	scope.propagate_wave(mode="hybrid")		# used to raise the s_min backstop
 	zs = [read_scaled_wavefield(p)[7] for p in scope._wave_scaled_planes]
-	assert np.isclose(max(zs), 1.264, atol=1e-6)
+	# the column ends 1 cm past the detector marker (a tail so plane
+	# searches keep the detector interior); the run ends at the column end
+	assert np.isclose(max(zs), 1.274, atol=1e-6)
 	assert len(scope.crossovers) >= 4
 
 

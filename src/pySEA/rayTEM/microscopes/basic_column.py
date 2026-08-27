@@ -51,7 +51,7 @@ from __future__ import annotations
 import os
 import numpy as xp
 
-from pySEA.rayTEM.elements import Source, Drift, Lens, Dipole, Quadrapole
+from pySEA.rayTEM.elements import Source, Drift, Lens, Dipole, Quadrapole, Aperture
 from pySEA.rayTEM.assemblies import Microscope, MicroscopeSection
 
 
@@ -182,9 +182,10 @@ def build_basic_column(voltage: float = 200.0) -> Microscope:
 	beam_size = 2.5e-6		# RMS transverse size entering the condenser (m)
 	beam_angle = 1e-4		# RMS divergence (rad)
 
-	# 1) G — gun: the source, plus the accelerator drift into the condenser
+	# 1) G — gun: the source, plus the accelerator drift into the condenser.
+	#    The stated emission current: 1 nA. Everything downstream derives from it.
 	gun = MicroscopeSection(name="G", elements=[
-		Source(name="G", voltage=voltage,
+		Source(name="G", voltage=voltage, beam_current=1e-9,
 			   size=(beam_size, beam_size), np_xy=(5, 5),
 			   angle=(beam_angle, beam_angle), na_xy=(3, 3),
 			   wave_shape=(256, 256), wave_extent=8 * beam_size,
@@ -199,7 +200,15 @@ def build_basic_column(voltage: float = 200.0) -> Microscope:
 		c_elements += dipole_pair(f"{name}_Dpre")
 		c_elements += [round_lens(name, f=f, length=0.02)]
 		c_elements += dipole_pair(f"{name}_Dpost")
-		c_elements += [Drift(length=gap)]
+		if name == "C1":
+			# the condenser aperture: the beam-defining hole after C1. With the
+			# gun crossover imaged onto it the whole current passes; defocused,
+			# it cuts current (and with it the phase space downstream states
+			# can spend). 10 µm: smaller than the ~21 µm unfocused beam here.
+			c_elements += [Drift(length=0.04), Aperture(name="CA", radius=10e-6),
+						   Drift(length=gap - 0.04)]
+		else:
+			c_elements += [Drift(length=gap)]
 	c_elements += quadrupole_pair("CQ")
 	c_elements += [Drift(length=0.05)]
 	condenser = MicroscopeSection(name="C", elements=c_elements)
@@ -226,8 +235,11 @@ def build_basic_column(voltage: float = 200.0) -> Microscope:
 		if gap:
 			p_elements += [Drift(length=gap)]
 	p_elements += [Drift(length=0.30)]			# camera length to the detector
-	# 5) detector plane at the very end (zero-length named marker)
-	p_elements += [Drift(name="detector", length=0.0)]
+	# 5) detector plane (zero-length named marker), plus a short tail: a
+	#    conjugate plane landing EXACTLY on the column's last z has no
+	#    interval around it, so plane searches would silently skip the
+	#    detector. 1 cm of nothing keeps it an interior plane.
+	p_elements += [Drift(name="detector", length=0.0), Drift(length=0.01)]
 	projector = MicroscopeSection(name="P", elements=p_elements)
 
 	return Microscope(name="basic column", sections=[gun, condenser, objective, projector])
