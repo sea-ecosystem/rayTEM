@@ -165,7 +165,7 @@ def _(Lens, Quadrapole, np):
 		"""
 		L = getattr(ele, "length", 0) or 0.0
 		if isinstance(ele, Lens) and L > 0:
-			K = ele._effective_strength()
+			K = ele._effective_strength
 			if K != 0:
 				c, s = np.cos(K * dz), np.sin(K * dz)
 				return c, s / K, -K * s, c
@@ -173,7 +173,7 @@ def _(Lens, Quadrapole, np):
 		if isinstance(ele, Lens) and L == 0:
 			P = ele.focal_power()
 		elif isinstance(ele, Quadrapole):
-			P = ele.focal_powers()[0]				# x axis
+			P = ele.focal_powers[0]				# x axis
 		return 1 - dz * P, dz, -P, 1.0
 
 	def _roots(ele, L, P0, Q0):
@@ -196,7 +196,7 @@ def _(Lens, Quadrapole, np):
 		"""
 		if L <= 0:
 			return []
-		K = ele._effective_strength() if isinstance(ele, Lens) else 0
+		K = ele._effective_strength if isinstance(ele, Lens) else 0
 		if isinstance(ele, Lens) and (K or 0) != 0:
 			if P0 == 0 and Q0 == 0:
 				return []
@@ -280,8 +280,8 @@ def _(Lens, flat_elements, np, partial_xblock, scope):
 							  dtype=float)
 			m00, m01, m10, m11 = partial_xblock(ele, L)
 			mine = np.array([[m00, m01], [m10, m11]])
-			if isinstance(ele, Lens) and L > 0 and (ele._effective_strength() or 0):
-				mine = mine * np.cos(ele._effective_strength() * L)	# rotation factor
+			if isinstance(ele, Lens) and L > 0 and (ele._effective_strength or 0):
+				mine = mine * np.cos(ele._effective_strength * L)	# rotation factor
 			rows.append((ele.name or ele.kind, ele.kind,
 						 float(np.abs(stored - mine).max())))
 		return rows
@@ -569,7 +569,7 @@ def _(Lens, flat_elements, np, scope):
 	print("-" * 72)
 	for _z0, _ele, _L in flat_elements(scope):
 		if isinstance(_ele, Lens) and _L > 0:
-			_K = _ele._effective_strength()
+			_K = _ele._effective_strength
 			_kL = _K * _L
 			_P = _K * np.sin(_kL)						# == focal_power()
 			_d_exact = np.cos(_kL) / (_K * np.sin(_kL))

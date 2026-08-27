@@ -4,6 +4,9 @@ from pySEA.rayTEM.elements import Lens,Drift,Quadrapole,fix_ray_dims
 from pySEA.rayTEM.assemblies import MicroscopeSection
 from pySEA.rayTEM.postprocessing import plot2D,plot3D,plotSliceSeries
 import numpy as np
+import os
+
+os.makedirs("figs", exist_ok=True)		# plots save here; running from any cwd works
 
 # Construct our microscope section: drifts and lenses
 elements=[ 	Drift(length=1),
