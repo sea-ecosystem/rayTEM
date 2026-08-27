@@ -10,11 +10,12 @@ an operator chains crossovers, never hand-tuned:
    focused spot passes the hole whole) or is run weak (``'low'``: a broad
    beam hits CA and most of the current is cut).
 2. **probe** — C2/C3 alone (the objective lenses are **never retuned**)
-   form either a **convergent** probe at the sample (target 30 mrad
-   semi-angle; the frozen objective caps what the condensers can deliver,
-   and the script reports the reachable angle when the target is beyond it)
-   or a **nearly parallel** patch of illumination (``D = 0``: every ray from
-   a single source point arrives parallel).
+   form either a **convergent** 30 mrad probe at the sample — possible with
+   a frozen objective because the sample sits at OL1's back focal plane, so
+   the condensers only choose how much beam to land on it (the script still
+   reports the reachable maximum honestly if a geometry change ever puts the
+   target out of reach) — or a **nearly parallel** patch of illumination
+   (``D = 0``: every ray from a single source point arrives parallel).
 3. **detector** — PL1/PL2 (PL3/PL4 kept at their stored strengths) put either
    an **image** of the sample plane on the detector (``B = 0``) or a
    **diffraction** pattern (``A = 0``: arrival position reads arrival *angle*
@@ -379,12 +380,17 @@ def solve_column(current: str, probe: str, detector: str) -> dict:
 		for n, v in {**solved, **kw}.items():
 			lens[n].strength = v
 
-	def solve1(name, z_from, z_to, entry=(0, 1)):
-		"""All strengths of ``name`` zeroing one block entry between planes."""
+	def solve1(name, z_from, z_to, entry=(0, 1), n_scan=50):
+		"""All strengths of ``name`` zeroing one block entry between planes.
+
+		``n_scan`` sets the bracket-scan density; a pair of roots closer
+		together than one scan step is invisible, so a solve whose physical
+		branch lives in a narrow window needs a denser scan.
+		"""
 		def f(k):
 			lens[name].strength = k
 			return block_between(scope, z_from, z_to)[entry]
-		roots = [brentq(f, *b) for b in _brackets(f, np.linspace(0.5, kmax[name], 50))]
+		roots = [brentq(f, *b) for b in _brackets(f, np.linspace(0.5, kmax[name], n_scan))]
 		lens[name].strength = solved.get(name, stored[name])
 		return roots
 
@@ -405,31 +411,55 @@ def solve_column(current: str, probe: str, detector: str) -> dict:
 		def best_at(kc2):
 			# for this C2, every C3 that lands the crossover on the sample --
 			# B(source->sample) = 0 THROUGH the frozen objective, so no
-			# intermediate crossover is prescribed and virtual objects count
-			best = None
+			# intermediate crossover is prescribed and virtual objects count.
+			# Among the roots, a genuinely SMALL probe wins: B = 0 alone is
+			# also satisfied by magnifying branches (a huge image of the
+			# source, each point converging at a large angle), which are not
+			# probes. The scan is dense because the probe branch can live in
+			# a C3 window narrower than a coarse scan's step.
+			best, best_any = None, None
 			sset(C2=kc2)
-			for kc3 in solve1("C3", 0.0, z_samp):
+			for kc3 in solve1("C3", 0.0, z_samp, n_scan=220):
 				sset(C2=kc2, C3=kc3)
 				p = predict_probe(scope)
-				if best is None or p["alpha"] > best[0]["alpha"]:
+				if p["size"] <= 1e-6 and (best is None or p["alpha"] > best[0]["alpha"]):
 					best = (p, kc2, kc3)
+				if best_any is None or p["alpha"] > best_any[0]["alpha"]:
+					best_any = (p, kc2, kc3)
 			sset()
-			return best
-		kc2s = np.linspace(1.0, kmax["C2"], 25)
-		g = lambda kc2: ((best_at(kc2) or ({"alpha": np.nan},))[0]["alpha"]) - ALPHA_TARGET
-		br = _brackets(g, kc2s)
-		if br:
-			kc2 = brentq(g, *br[0], xtol=1e-7)
-			hit = best_at(kc2)
-		else:	# the frozen objective caps the condensers' reach: take the max
-			cands = [best_at(k) for k in kc2s]
-			cands = [c for c in cands if c]
-			if not cands:
-				raise ValueError("no convergent-probe solution at all: C3 cannot "
-								 "zero B(source->sample) for any C2 -- the "
-								 "condenser/objective geometry changed.")
-			hit = max(cands, key=lambda c: c[0]["alpha"])
+			return best or best_any
+		def alpha_of(kc2):
+			return ((best_at(kc2) or ({"alpha": -1.0},))[0]["alpha"])
+		# the reachable angle is a NARROW resonance in C2 (the setting that
+		# lands the most beam on the frozen objective), so a two-stage search:
+		# a coarse scan to find the peak, local refinement, then bisection on
+		# the rising edge for the exact target crossing
+		kc2s = np.linspace(1.0, kmax["C2"], 120)
+		alphas = np.array([alpha_of(k) for k in kc2s])
+		if not (alphas > 0).any():
+			raise ValueError("no convergent-probe solution at all: C3 cannot "
+							 "zero B(source->sample) for any C2 -- the "
+							 "condenser/objective geometry changed.")
+		if alphas.max() < ALPHA_TARGET:		# the frozen objective caps the reach
+			i = int(np.argmax(alphas))
+			fine = np.linspace(kc2s[max(i - 1, 0)], kc2s[min(i + 1, len(kc2s) - 1)], 40)
+			hit = best_at(fine[int(np.argmax([alpha_of(k) for k in fine]))])
 			alpha_limited = True
+		else:
+			# bisect the first coarse interval whose endpoints straddle the
+			# target (the crossing can sit far from the peak, on the slope)
+			cross = [i for i in range(len(kc2s) - 1)
+					 if (alphas[i] - ALPHA_TARGET) * (alphas[i + 1] - ALPHA_TARGET) < 0]
+			a, b = kc2s[cross[0]], kc2s[cross[0] + 1]
+			if alphas[cross[0]] > ALPHA_TARGET:		# orient: alpha(a) below target
+				a, b = b, a
+			for _ in range(60):
+				mid = 0.5 * (a + b)
+				if alpha_of(mid) < ALPHA_TARGET:
+					a = mid
+				else:
+					b = mid
+			hit = best_at(b)
 		p, kc2, kc3 = hit
 		solved["C2"], solved["C3"] = float(kc2), float(kc3)
 	else:								# parallel: D(source->sample) = 0 via C3
