@@ -3324,6 +3324,13 @@ def repair(section, combine_drifts:bool=True):
 	--------
 	>>> repair(section, combine_drifts=False)               # doctest: +SKIP
 	"""
+	# FIRST ELEMENT CHECK:
+	e = section.elements[0]
+	if 0 <  e.position < 1e-7:
+		pass
+	elif 0 < e.position:
+		section.elements.insert(0,Drift(position=0,length=e.position))
+
 	# check all elements and their preceeding neighbor
 	for i,e in enumerate(section.elements):
 		if i==0:
