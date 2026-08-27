@@ -111,7 +111,7 @@
         "position": 0.0,
         "ignoreLensThickness": false,
         "length": 2.6,
-        "rays": "<pySEA.rayTEM.elements.Rays object at 0x703b1510ac90>",
+        "rays": "<pySEA.rayTEM.elements.Rays object at 0x7c51e83c0950>",
         "I": [
           [
             1.234567901234568e-11,
@@ -1149,7 +1149,7 @@
         "position": 2.6,
         "ignoreLensThickness": false,
         "length": 2.1,
-        "rays": "<pySEA.rayTEM.elements.Rays object at 0x703b14fbf8f0>",
+        "rays": "<pySEA.rayTEM.elements.Rays object at 0x7c51e961eea0>",
         "I": [
           [
             1.234567901234568e-11,

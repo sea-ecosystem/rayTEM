@@ -65,7 +65,8 @@ def test_every_element():
 	section = MicroscopeSection(elements=elements)
 	section.show(filename="elements_sections_microscopes_every_element.png")
 	r1 = section.propagate_ray()
-	plot3D(r1)
+	print(repr(section))
+	plot3D(r1,filename="elements_sections_microscopes_every_element2.png")
 	filename = "elements_sections_microscopes_every_element.npy"
 	if not os.path.exists(filename):
 		np.save(filename,r1)

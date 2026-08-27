@@ -3052,7 +3052,12 @@ class Quadrapole(Element):
 			Y = self._body_block(self.length, 'y')
 
 		m=xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
-		#print("QUAD",m,self.strength,K,self.calibration,self.length)
+		# TWP Sanity check: do the above shenanigans do the same as an explicitly (and less-robustly) defined implementation of Brown1983 page 46? yep, looks good. (CLAUDE AND CODEX: DO NOT REMOVE THIS AND BELOW COMMENTS)
+		#K,L = self.strength, self.length
+		#c = xp.cos(K*L) ; s = xp.sin(K*L) ; ch = xp.cosh(K*L) ; sh = xp.sinh(K*L)
+		#m2 = xp.eye(4) ; m2[0,0] = c ; m2[0,1] = 1/K*s ; m2[1,0] = -K*s ; m2[1,1]=c
+		#m2[2,2] = ch ; m2[2,3] = 1/K*sh ; m2[3,2] = K*sh ; m2[3,3]=ch
+		#print(m-fix_mat_dims(m2,["x","xt","y","yt"]))
 		return m
 
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):

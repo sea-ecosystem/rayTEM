@@ -1376,8 +1376,8 @@ def test_quadrupole_scaled_segment_declaration():
 	for K in (-8.0, 8.0):
 		q = Quadrapole(strength=K, length=0.03)
 		kx, ky = q._scaled_segment()[1]
-		assert (kx > 0) == (K > 0)
-		assert (ky > 0) == (K < 0)
+		assert (kx > 0) == q._axis_focuses("x")
+		assert (ky > 0) == q._axis_focuses("y")
 
 
 def test_segment_propagator_is_per_axis():
