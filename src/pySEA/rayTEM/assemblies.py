@@ -366,11 +366,15 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			item = names.index(item)
 		self.elements[item] = value
 
-	def __repr__(self) -> str:
+	def __repr__(self):
+		return self.tabulate()
+
+	def tabulate(self,columns=None) -> str:
+		if columns is None:
+			columns = ['name', 'kind', 'position', 'length', 'strength', 'calibration']
 		if self.elements is None:
 			return ''
 		else:
-			columns=['name', 'kind', 'position', 'length', 'strength', 'calibration']
 			reps = []
 			for e in self.elements:
 				reps.append([])
@@ -1006,15 +1010,17 @@ class Microscope(SealedAttributes, SEASerializable):
 		new.length = new.sections[-1].position+new.sections[-1].length
 		return new
 
-	def __repr__(self) -> str:
+	def __repr__(self):
+		return self.tabulate()
 
+	def tabulate(self,columns=None) -> str:
 		strings = []
 		for s in self.sections:
 			header = "Section: "+s.name+" @ "+str(s.position)+" , length="+str(s.length)
 			#if self.print_fancy:
 			#	print(header)
 			strings.append( header )
-			strings.append( s.__repr__() )
+			strings.append( s.tabulate(columns=columns) )
 		#if self.print_fancy:
 		#	return ''
 		return "\n".join(strings)
@@ -3374,13 +3380,14 @@ def repair(section, combine_drifts:bool=True):
 		elif dz < -1e-7: # THIS AND PREVIOUS ARE BOTH IMMOVABLE/UNLENGTHENABLE, AND OUT OF TOLERANCE. NO SOLUTION, RAISE ERROR
 			print("WARNING",section,"HAS ELEMENTS",em,"AND",e,"WHICH OVERLAP AT INDEX",i)
 		#: # GAP, BUT NAMED DRIFT OR OTHER ELEMENT TYPE. INSERT DRIFT
-	# special case: section.length vs last Drift's position and length:
+
+	# SPECIAL CASE: LAST ELEMENT VS SECTION.LENGTH:
 	el = section.elements[-1]
 	dz = section.length - ( el.position + getattr(el,"length",0) )
-	# GAP, LAST SECTION IS DRIFT, LENGTHEN
+	# GAP, last section is drift, lengthen
 	if 0 < dz and el.kind == "Drift":
 		el.length += dz
-	# OVERLAP: LENGTHEN SECTION
+	# OVERLAP: lengthen section
 	if dz < 0:
 		section.length -= dz
 	# crawl the list backwards, look for pairs of Drifts (second one must be unnamed).

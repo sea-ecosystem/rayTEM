@@ -665,10 +665,11 @@ class Element(SealedAttributes, SEASerializable):
 	#####################################
     # region: Dunders
 
-	# print function: look for specific attributes on inheriting class object, and display as columns
-	def __repr__(self,header=True) -> str:
-		whitelist = [ "name", "kind", "position", "length", "strength", "calibration", "axis" ]
-		rep = { k:getattr(self,k) for k in self.__dict__ if k in whitelist }
+	def __repr__(self):
+		return self.tabulate()
+
+	def tabulate(self,header=True,columns=[ "name", "kind", "position", "length", "strength", "calibration", "axis" ]) -> str:
+		rep = { k:getattr(self,k) for k in self.__dict__ if k in columns }
 		#rep = {'name':self.name,
 		#	   'kind':self.kind,
 		#	   }
@@ -3354,9 +3355,8 @@ class Lens(Element):
 			if set to False, lens rotation for finite-thickness lenses is overridden and turned off.
 		"""
 	def __init__(self, name:str='', length:float=0.,
-				 strength:float=0, calibration:float=None,
-				 aberrations:dict=None,
-				 position:float=None) -> SEASerializable:
+				 strength:float=None, calibration:float=None,
+				 position:float=None,focal_length:float=None,allow_diverging=False) -> SEASerializable:
 		
 		if length == 0: kind = 'Thin lens'
 		else:		   kind = 'QLens'
@@ -3364,7 +3364,13 @@ class Lens(Element):
 		super().__init__(name=name,kind=kind)
 		self._position = position
 		self.length = length
-		self.strength = strength
+		if strength is not None and length==0:
+			self._focal_length = xp.inf if strength==0 else 1/xp.sqrt(strength) ; self.strength = 0
+			print("WARNING: YOU SPECIFIED STRENGTH",strength,"BUT DID NOT SPECIFY A LENGTH. PLEASE USE FOCAL LENGTH INSTEAD: f =1/sqrt("+str(strength)+")="+str(self._focal_length))
+		if strength is not None and length!=0: # TODO need to enforce condition of strength and length=0?
+			self.strength = strength
+		if focal_length is not None and length==0:
+			self._focal_length = focal_length
 		self.calibration = calibration
 		self.rotation = 0
 		# One nested Aberrations object, not a scatter of flat scalars: it is a
@@ -3387,11 +3393,12 @@ class Lens(Element):
 		float
 			Effective strength K after calibration.
 
-		Related
-		-------
-		transfer_matrix, phase_shift
-		"""
-		K=self.strength
+		# HANDLE CALIBRATION SCALING
+		if self.length == 0:
+			f = self._focal_length ; K=0
+		else:
+			K=self.strength ; f=0
+
 		if self.calibration is not None:
 			# linear scaling from mA (lens current) to lens strength?
 			if isinstance(self.calibration,(int,float)):
@@ -3435,8 +3442,8 @@ class Lens(Element):
 		K = self._effective_strength
 
 		# FINITE LENGTH LENS, ZERO STRENGTH = DRIFT (try inserting a zero-strength lens and seeing if the result changes)
-		if K==0:
-			m = xp.eye(4)
+		if self.length==0 and f==xp.inf or self.length>0 and K==0:
+			m = xp.eye(4) # IDENTITY MATRIX, OR DRIFT-EQUIVALENT
 			m[0,1]=self.length
 			m[2,3]=self.length
 			self.rotation = 0
@@ -3444,11 +3451,13 @@ class Lens(Element):
 
 		# THIN LENS, NO ROTATION (thick lens math will have sine term going to zero)
 		if self.length==0:
-			sign = -1*xp.sign(K) # sign allows negative calibration to give you diverging beams???
+			if not self.allow_diverging:
+				f = abs(f)
+			#sign = -1*xp.sign(K) # sign allows negative calibration to give you diverging beams???
 			X=xp.asarray([[    1   , 0 ],
-					     [ sign*(K**2) , 1 ]])
+					     [ -1/f , 1 ]])
 			Y=xp.asarray([[    1   , 0 ],
-						 [ sign*(K**2) , 1 ]])
+						 [ -1/f , 1 ]])
 			self.rotation = 0
 			return xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
 
@@ -3484,18 +3493,34 @@ class Lens(Element):
 		M = fix_mat_dims(XY,["x","xt","y","yt"])
 		return M
 
+	@property
+	def focal_length(self):
+		# if thin lens, simply return _focal_length
+		if self._focal_length !=0 and self.length==0:
+			return self.focal_length
+		# otherwise, calculate from angle of ray exiting transfer_matrix
+		columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
+		M = self.transfer_matrix()[columns,:][:,columns]
+		r0 = [1,0,1,0] # parallel starting ray
+		r1 = xp.matmul(M,r0)
+		# positions and angles exiting lens
+		x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
+		return x/xt # f = x/theta
+
 	# unlike below(?), here we'll *measure* focal length at the current K=I*C and L, then adjust C and L to preserve focal length and set beam rotation (K*L) to match R in radians at this current I.
 	def get_C_L_from_rotation_at_I(self,I,R):
 		from scipy.optimize import minimize
 		print(self.name,I,R)
 		def FR(C,L):
-			new = Lens(strength = I, calibration = C, length = L)
-			columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
-			M = new.transfer_matrix()[columns,:][:,columns]
-			r0 = [1,0,1,0] # parallel starting ray
-			r1 = xp.matmul(M,r0)
-			x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
-			f = x/xt # f = x/theta
+			new = Lens(strength = I, calibration = C, length = L) # TODO now we have lens.focal_length property, should use that instead of fresh calculation
+			#columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
+			#M = new.transfer_matrix()[columns,:][:,columns]
+			#r0 = [1,0,1,0] # parallel starting ray
+			#r1 = xp.matmul(M,r0)
+			#x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
+			#f = x/xt # f = x/theta
+			f = new.focal_length
+			M = new.transfer_matrix()
 			rot = new.rotation
 			return f,rot
 		f0,_ = FR(self.calibration,self.length)	# initial focal length

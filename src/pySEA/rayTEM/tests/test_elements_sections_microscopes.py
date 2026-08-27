@@ -58,6 +58,22 @@ def test_basic_section_wsource():
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 #test_basic_section_wsource()
 
+def test_various_lenses():
+	elements = [ Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)),
+					Lens(position=1,strength=3,length=.1),
+					Lens(position=2,focal_length=3,length=0),
+					Drift(position=2,length=1)
+			 ]
+	section = MicroscopeSection(elements=elements)
+	#section.show()
+	r1 = section.propagate_ray()
+	filename = "elements_sections_microscopes_test_various_lenses.npy"
+	if not os.path.exists(filename):
+		np.save(filename,r1)
+	r1_old = np.load(filename)
+	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+#test_various_lenses()
+
 # basic stack including Source, Drift, Lens, Aperture (TODO add additional elements as support is added)
 # test: resulting rays should always be identical (compare to numpy saved rays), plotting should work
 def test_every_element():
@@ -219,7 +235,7 @@ def test_section_insertion_microscope():
 	sec2 = MicroscopeSection( elements = ele2, position=4, name="sec2" )
 	microscope = Microscope(sections = [ sec1, sec2 ])
 	#microscope.show()
-	print("OLD") ; print(microscope)
+	print("OLD") ; print(repr(microscope))
 	r1 = microscope.propagate_ray()
 	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	filename = "elements_sections_microscopes_section_insertion_microscope_rays.npy"
@@ -233,7 +249,7 @@ def test_section_insertion_microscope():
 	sec3 = MicroscopeSection( elements = ele3, name="newsec" )
 	microscope.insert(2.0,sec3)
 
-	print("NEW") ; print(microscope)
+	print("NEW") ; print(microscope.tabulate(columns=["name","length","position"]))
 	#microscope.show()
 	r1 = microscope.propagate_ray()
 	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
