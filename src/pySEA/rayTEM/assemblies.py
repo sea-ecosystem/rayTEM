@@ -191,11 +191,18 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			The position of the Section along the z-axis, by default None
 		ignoreLensThickness : bool, optional
 			if set to True, all lenses are set to zero thickness??
+		combine_drifts : bool, optional
+			Whether :func:`repair` may merge adjacent unnamed Drifts into one,
+			by default True. Set False to keep the element list exactly as
+			written: propagation logs one plane per element, so a run of short
+			drifts is how a caller asks for dense z sampling, and merging them
+			throws that sampling away (see :meth:`Microscope.subdivided`).
 		"""
 
 	def __init__(self, name:str='',
 				 elements:ArrayLike=None, # list of Elements, or list of dicts
-				 position:float=0., ignoreLensThickness=False ) -> SEASerializable:
+				 position:float=0., ignoreLensThickness=False,
+				 combine_drifts:bool=True ) -> SEASerializable:
 		self.name = name
 		#if isinstance(elements[0],dict):
 		#	self.elements = []
@@ -253,7 +260,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			#print("new length = ",self.length)
 		self.elements = new
 
-		repair(self)
+		repair(self, combine_drifts=combine_drifts)
 
 	#####################################
     # region: Dunders
@@ -1674,8 +1681,11 @@ class Microscope(SealedAttributes, SEASerializable):
 					ele._position = None		# restack sequentially in the new section
 					elements.append(ele)
 				z += L
+			# combine_drifts=False, or repair() merges the cuts straight back
+			# together and this returns the column unchanged
 			sections.append(MicroscopeSection(name=sec.name, elements=elements,
-											  position=sec.position))
+											  position=sec.position,
+											  combine_drifts=False))
 		return Microscope(name=scope.name, sections=sections)
 
 	def _accumulate_blocks(self, axis:Literal['x','y']='x', reference=None):
@@ -3272,7 +3282,41 @@ def check_lengths(section):
 	assert xp.sum( xp.absolute( dz-ls[:-1] ) ) < .00001
 
 # look for gaps and overlaps, adjust positions and lengths of Drifts only, and combine unnamed Drifts. (we're using this instead of fixing gaps/overlaps while building inside of MicroscopeSection > __init__)
-def repair(section):
+def repair(section, combine_drifts:bool=True):
+	"""Close gaps and overlaps in a section's element list, in place.
+
+	Walks the elements, adjusts the position and length of Drifts only so that
+	each element starts where the previous one ended, grows or shrinks the
+	section to match, and -- optionally -- merges neighbouring unnamed Drifts.
+	Used instead of fixing the spacing while the section is being built.
+
+	Parameters
+	----------
+	section : MicroscopeSection
+		The section to repair. Modified in place.
+	combine_drifts : bool, optional
+		Whether adjacent unnamed Drifts may be merged into one, by default
+		True. Pass False to leave the element list as written -- see
+		:class:`MicroscopeSection` for why that matters.
+
+	Returns
+	-------
+	None
+		``section`` is modified in place.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	check_lengths : Assert that a repaired section is self-consistent.
+	MicroscopeSection.__init__ : Calls this once the elements are stacked.
+
+	Examples
+	--------
+	>>> repair(section, combine_drifts=False)               # doctest: +SKIP
+	"""
 	# check all elements and their preceeding neighbor
 	for i,e in enumerate(section.elements):
 		if i==0:

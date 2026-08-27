@@ -109,9 +109,13 @@ def test_envelope_waist_matches_ray_optics_focus():
 	d1, K = 2.0, np.sqrt(2.0)		# thin lens: 1/f = K^2 -> f = 0.5
 	f = 1.0/K**2
 	slices = [Drift(length=0.02) for _ in range(60)]	# fine z sampling after the lens
+	# combine_drifts=False: a plane is logged per element, so adjacent drifts ARE
+	# the sampling. repair() merges them by default, which would collapse all 60
+	# into one and leave nothing to find a waist in.
 	section = MicroscopeSection(elements=[
 		Source(size=(0.5,0.5),np_xy=(9,9),angle=(0.0,0.0),na_xy=(1,1)),
-		Drift(length=d1), Lens(strength=K,length=0.0), *slices])
+		Drift(length=d1), Lens(strength=K,length=0.0), *slices],
+		combine_drifts=False)
 
 	# envelope: z of minimum x-width
 	section.propagate_moments()
