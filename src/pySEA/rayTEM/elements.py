@@ -2683,7 +2683,7 @@ class Aperture(Element):
 
 		Overrides :meth:Element.phase_shift. An aperture used to apply itself
 		through its own :meth:propagate_wave override, because a screen was
-		unit-modulus by construction and no real χ makes |exp(iχ)|
+		unit-modulus by construction and no real χ makes :math:`\lvert\exp(i\chi)\rvert`
 		anything but 1. A screen may now be **complex**, so an aperture is
 		simply a screen whose modulus is its transmission and whose phase is
 		zero - the same mechanism a phase plate uses, differing only in whether
@@ -2693,7 +2693,7 @@ class Aperture(Element):
 		coordinates (s_x·ξ, s_y·η), so a circular aperture is correctly an
 		**ellipse** in scaled coordinates whenever the frame is anisotropic
 		(s_x ≠ s_y, i.e. any quadrupole upstream), and identical to masking
-		at radius/|s| when the axes agree. Sign-safe past a crossover, since
+		at radius/:math:`\lvert s\rvert` when the axes agree. Sign-safe past a crossover, since
 		the pitches are squared.
 
 		Parameters
@@ -2800,7 +2800,7 @@ class Drift(Element):
 
 		Extends :meth:Element.phase_shift. A drift imprints no real-space
 		screen - its entire action is the paraxial propagator phase
-		:math:-\pi\lambda\,\Delta z\,(f_\xi^2 + f_\eta^2) applied in the FFT
+		:math:`-\pi\lambda\,\Delta z\,(f_\xi^2 + f_\eta^2)` applied in the FFT
 		domain (handoff Eq 33).
 
 		Parameters
@@ -3291,7 +3291,7 @@ class Quadrapole(Element):
 
 		Thin (length == 0): the impulsive kick ±K². Thick: +k·sin(kL)
 		on the focusing axis and −k·sinh(kL) on the defocusing one, with
-		k = |K|. The hyperbolic magnitude grows without bound in kL,
+		:math:`k = \lvert K\rvert`. The hyperbolic magnitude grows without bound in kL,
 		which is correct - a long defocusing quadrupole throws rays out
 		exponentially, and the old sin on both axes hid that.
 
@@ -3324,7 +3324,7 @@ class Quadrapole(Element):
 		r"""Transfer matrix for ray propagation through the quadrupole.
 
 		A quadrupole focuses one transverse axis and defocuses the other. The
-		homogeneous equation of motion :math:u'' \pm k^2 u = 0 (k = |K|)
+		homogeneous equation of motion :math:`u'' \pm k^2 u = 0` (:math:`k = \lvert K\rvert`)
 		is therefore **harmonic** on the focusing axis and **hyperbolic** on the
 		defocusing one, and both solutions have unit determinant, as Liouville
 		requires. The per-axis blocks come from :meth:_body_block; a thin
@@ -3933,8 +3933,8 @@ class Lens(Element):
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
 		r"""Round-lens phase: :math:\chi = -k(x^2+y^2)/(2f) (handoff Eq 12).
 
-	Extends :meth:Element.phase_shift. The focal power is the reciprocal of
-	:meth:focal_length, so ray and wave paths use the same focus definition.
+		Extends :meth:Element.phase_shift. The focal power is the reciprocal of
+		:meth:focal_length, so ray and wave paths use the same focus definition.
 
 		Any :attr:aberrations are added as the wave aberration function
 		:math:\chi, whatever terms they happen to contain - the same
