@@ -258,7 +258,7 @@
     "signature": "roundjson(jdict)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3200,
+    "source_lineno": 3300,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -270,7 +270,7 @@
     "signature": "load_section(filename)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3218,
+    "source_lineno": 3318,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 53,
     "wiki_method_lineno": null
@@ -282,7 +282,7 @@
     "signature": "check_lengths(section)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3290,
+    "source_lineno": 3390,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -294,7 +294,7 @@
     "signature": "repair(section, combine_drifts)",
     "doc": "Close gaps and overlaps in a section's element list, in place.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3304,
+    "source_lineno": 3404,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -306,7 +306,7 @@
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3389,
+    "source_lineno": 3489,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 57,
     "wiki_method_lineno": null
@@ -318,10 +318,10 @@
     "signature": "__init__(self, name, sections)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 846,
+    "source_lineno": 915,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 146
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 158
   },
   {
     "class": "Microscope",
@@ -330,9 +330,9 @@
     "signature": "__getitemOLD__(self, item)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 878,
+    "source_lineno": 947,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -342,9 +342,9 @@
     "signature": "keys(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 946,
+    "source_lineno": 1015,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -354,10 +354,10 @@
     "signature": "__getitem__(self, item)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 952,
+    "source_lineno": 1021,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 154
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 166
   },
   {
     "class": "Microscope",
@@ -366,9 +366,9 @@
     "signature": "__repr__(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1006,
+    "source_lineno": 1075,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -378,9 +378,9 @@
     "signature": "__str__(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1019,
+    "source_lineno": 1088,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -390,9 +390,9 @@
     "signature": "beam_current(self)",
     "doc": "Current leaving the column, in **amps**.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1028,
+    "source_lineno": 1097,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -402,9 +402,9 @@
     "signature": "current_at(self, plane)",
     "doc": "Current at one logged plane, in amps.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1070,
+    "source_lineno": 1139,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -414,9 +414,9 @@
     "signature": "wave_current_at(self, plane)",
     "doc": "Current carried by the propagated **wave** at one plane, in amps.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1142,
+    "source_lineno": 1211,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -426,9 +426,9 @@
     "signature": "wave_current(self)",
     "doc": "Current the **wave** carries out of the column, in amps.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1203,
+    "source_lineno": 1272,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -438,9 +438,9 @@
     "signature": "convergence_angle_at(self, z)",
     "doc": "Convergence **semi**-angle of the outermost ray at a plane.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1233,
+    "source_lineno": 1302,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -450,9 +450,9 @@
     "signature": "convergence_angle(self)",
     "doc": "Convergence **semi**-angle at the specimen, in radians.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1292,
+    "source_lineno": 1361,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -462,9 +462,9 @@
     "signature": "focus_error(self, expected_crossover, after, regenerate)",
     "doc": "How far the first crossover after a lens sits from where it should.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1345,
+    "source_lineno": 1414,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -472,12 +472,12 @@
     "method": "index",
     "kind": "method",
     "signature": "index(self, item)",
-    "doc": "",
+    "doc": "Locate a section or element by name.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1461,
+    "source_lineno": 1529,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 150
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 162
   },
   {
     "class": "Microscope",
@@ -486,10 +486,10 @@
     "signature": "insert(self, index, elementOrSection)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1474,
+    "source_lineno": 1572,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 160
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 172
   },
   {
     "class": "Microscope",
@@ -498,10 +498,10 @@
     "signature": "adjust_element_length(self, element, newlength)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1506,
+    "source_lineno": 1604,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 164
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 176
   },
   {
     "class": "Microscope",
@@ -510,9 +510,9 @@
     "signature": "get_element_position(self, e)",
     "doc": "Absolute z of a named element.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1519,
+    "source_lineno": 1617,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -522,9 +522,9 @@
     "signature": "move_element(self, element, z, dz, allow_unsafe)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1551,
+    "source_lineno": 1649,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -534,9 +534,9 @@
     "signature": "update_with_settings(self, settings)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1569,
+    "source_lineno": 1667,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -546,10 +546,10 @@
     "signature": "named_positions(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1613,
+    "source_lineno": 1711,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 168
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 180
   },
   {
     "class": "Microscope",
@@ -558,10 +558,10 @@
     "signature": "subdivided(self, zpts)",
     "doc": "Return a copy of this column with its plain drifts split for dense sampling.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1621,
+    "source_lineno": 1719,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 271
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 283
   },
   {
     "class": "Microscope",
@@ -570,10 +570,10 @@
     "signature": "conjugate_planes(self, axis, method, reference, x0, theta0)",
     "doc": "Locate this column's image and diffraction (back-focal) planes, in metres.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1913,
+    "source_lineno": 2011,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 211
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 223
   },
   {
     "class": "Microscope",
@@ -582,9 +582,9 @@
     "signature": "focal_surface(self, family, aperture, radii, azimuths, reference, near, window)",
     "doc": "Where the beam actually focuses, as a function of aperture position.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2029,
+    "source_lineno": 2127,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -594,10 +594,10 @@
     "signature": "beam_waists(self, axis, sigma0)",
     "doc": "Locate the beam-envelope waists (minimum-width planes), in metres.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2310,
+    "source_lineno": 2408,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 242
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 254
   },
   {
     "class": "Microscope",
@@ -606,10 +606,10 @@
     "signature": "propagate_ray(self, r0, z, verbose, apply_aberrations)",
     "doc": "Propagate rays through every section, carrying intensity/rotation across boundaries.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2427,
+    "source_lineno": 2527,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 172
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 184
   },
   {
     "class": "Microscope",
@@ -618,9 +618,9 @@
     "signature": "propagate_moments(self, mu0, Sigma0, z, apply_aberrations)",
     "doc": "Propagate beam moments through every section, chaining across boundaries.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2478,
+    "source_lineno": 2578,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -630,10 +630,10 @@
     "signature": "propagate_wave(self, wave0, mode, s_min, absorb, crossover, rotate, apply_aberrations)",
     "doc": "Propagate a wavefield through every section, chaining boundaries.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2525,
+    "source_lineno": 2625,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 176
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 188
   },
   {
     "class": "Microscope",
@@ -642,10 +642,10 @@
     "signature": "wavefield_at(self, z, target_dx, target_shape)",
     "doc": "Reconstruct the physical wavefield \u03c8(x, y) at a logged plane.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2798,
+    "source_lineno": 2898,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 187
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 199
   },
   {
     "class": "Microscope",
@@ -654,9 +654,9 @@
     "signature": "rays_signalset(self)",
     "doc": "A sea_eco ``SignalSet`` view of the traced rays (rays + I + R).",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2857,
+    "source_lineno": 2957,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -666,10 +666,10 @@
     "signature": "propagate(self, *args, kind, **kwargs)",
     "doc": "Unified propagation dispatcher across the three modes.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2884,
+    "source_lineno": 2984,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 315
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 327
   },
   {
     "class": "Microscope",
@@ -678,9 +678,9 @@
     "signature": "planes(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2915,
+    "source_lineno": 3015,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -690,9 +690,9 @@
     "signature": "named_sections(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2927,
+    "source_lineno": 3027,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -702,10 +702,10 @@
     "signature": "show(self, kind, filename, title, ylims, zlims, regenerate, plt_ax, plane, zpts, conjugates)",
     "doc": "Visualize a propagation result.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 2930,
+    "source_lineno": 3030,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 320
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 332
   },
   {
     "class": "Microscope",
@@ -714,10 +714,10 @@
     "signature": "save(self, filename)",
     "doc": "Write this microscope to ``<filename>.json``.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3100,
+    "source_lineno": 3200,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
-    "wiki_method_lineno": 324
+    "wiki_lineno": 154,
+    "wiki_method_lineno": 336
   },
   {
     "class": "Microscope",
@@ -726,9 +726,9 @@
     "signature": "copy(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3142,
+    "source_lineno": 3242,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -738,9 +738,9 @@
     "signature": "save_as_setting(self, setting_name, keys)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3153,
+    "source_lineno": 3253,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -750,9 +750,9 @@
     "signature": "save_as_calibration(self, calibration_name, keys)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3157,
+    "source_lineno": 3257,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -762,9 +762,9 @@
     "signature": "save_subset(self, name, keys, kind)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3161,
+    "source_lineno": 3261,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -774,9 +774,9 @@
     "signature": "load_setting(self, setting_name)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3188,
+    "source_lineno": 3288,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -786,9 +786,9 @@
     "signature": "load_calibration(self, calibration_name)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3191,
+    "source_lineno": 3291,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
@@ -798,16 +798,16 @@
     "signature": "load_subset(self, name, kind)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3194,
+    "source_lineno": 3294,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
-    "wiki_lineno": 142,
+    "wiki_lineno": 154,
     "wiki_method_lineno": null
   },
   {
     "class": "MicroscopeSection",
     "method": "__init__",
     "kind": "method",
-    "signature": "__init__(self, name, elements, position, ignoreLensThickness, combine_drifts)",
+    "signature": "__init__(self, name, elements, position, ignoreLensThickness, combine_drifts, aberrations)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
     "source_lineno": 203,
@@ -822,7 +822,7 @@
     "signature": "__delitem__(self, item)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 269,
+    "source_lineno": 275,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
     "wiki_method_lineno": null
@@ -834,7 +834,7 @@
     "signature": "__getitemOLD__(self, item)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 280,
+    "source_lineno": 286,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
     "wiki_method_lineno": null
@@ -846,7 +846,7 @@
     "signature": "__getitem__(self, item)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 316,
+    "source_lineno": 322,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
     "wiki_method_lineno": null
@@ -858,7 +858,7 @@
     "signature": "__setitem__(self, item, value)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 364,
+    "source_lineno": 370,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
     "wiki_method_lineno": null
@@ -870,7 +870,7 @@
     "signature": "__repr__(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 370,
+    "source_lineno": 376,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
     "wiki_method_lineno": null
@@ -882,7 +882,7 @@
     "signature": "__str__(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 389,
+    "source_lineno": 395,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
     "wiki_method_lineno": null
@@ -894,7 +894,7 @@
     "signature": "__len__(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 394,
+    "source_lineno": 400,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
     "wiki_method_lineno": null
@@ -906,10 +906,10 @@
     "signature": "index(self, item)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 421,
+    "source_lineno": 427,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
-    "wiki_method_lineno": 76
+    "wiki_method_lineno": 88
   },
   {
     "class": "MicroscopeSection",
@@ -918,10 +918,10 @@
     "signature": "insert(self, index, element)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 426,
+    "source_lineno": 432,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
-    "wiki_method_lineno": 84
+    "wiki_method_lineno": 96
   },
   {
     "class": "MicroscopeSection",
@@ -930,10 +930,10 @@
     "signature": "append(self, element)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 451,
+    "source_lineno": 457,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
-    "wiki_method_lineno": 90
+    "wiki_method_lineno": 102
   },
   {
     "class": "MicroscopeSection",
@@ -942,7 +942,7 @@
     "signature": "move_element(self, elementName, z, dz, allow_unsafe)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 454,
+    "source_lineno": 460,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
     "wiki_method_lineno": null
@@ -954,10 +954,10 @@
     "signature": "wobble(self, r0, elementIndex, func, kwargName, valRange, numSteps)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 493,
+    "source_lineno": 499,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
-    "wiki_method_lineno": 94
+    "wiki_method_lineno": 106
   },
   {
     "class": "MicroscopeSection",
@@ -966,10 +966,22 @@
     "signature": "named_positions(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 503,
+    "source_lineno": 509,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
-    "wiki_method_lineno": 98
+    "wiki_method_lineno": 110
+  },
+  {
+    "class": "MicroscopeSection",
+    "method": "focal_power",
+    "kind": "property",
+    "signature": "focal_power(self)",
+    "doc": "The section's composite focusing power ``1/f`` (1/metres).",
+    "source_path": "src/pySEA/rayTEM/assemblies.py",
+    "source_lineno": 521,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
+    "wiki_lineno": 63,
+    "wiki_method_lineno": null
   },
   {
     "class": "MicroscopeSection",
@@ -978,10 +990,10 @@
     "signature": "propagate_ray(self, r0, I0, R0, z, verbose, apply_aberrations)",
     "doc": "Propagate rays through every element in the section, bottom-up.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 514,
+    "source_lineno": 583,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
-    "wiki_method_lineno": 102
+    "wiki_method_lineno": 114
   },
   {
     "class": "MicroscopeSection",
@@ -990,7 +1002,7 @@
     "signature": "propagate_moments(self, mu0, Sigma0, z, apply_aberrations)",
     "doc": "Propagate beam moments (mean + covariance) through every element.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 600,
+    "source_lineno": 669,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
     "wiki_method_lineno": null
@@ -1002,10 +1014,10 @@
     "signature": "propagate_wave(self, wave0, mode, s_min, absorb, crossover, rotate, apply_aberrations)",
     "doc": "Propagate a wavefield through every element in the section.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 659,
+    "source_lineno": 728,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
-    "wiki_method_lineno": 108
+    "wiki_method_lineno": 120
   },
   {
     "class": "MicroscopeSection",
@@ -1014,7 +1026,7 @@
     "signature": "rays_signalset(self)",
     "doc": "A sea_eco ``SignalSet`` view of the traced rays (rays + I + R).",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 743,
+    "source_lineno": 812,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
     "wiki_method_lineno": null
@@ -1026,10 +1038,10 @@
     "signature": "propagate(self, *args, kind, **kwargs)",
     "doc": "Unified propagation dispatcher across the three modes.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 770,
+    "source_lineno": 839,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
-    "wiki_method_lineno": 127
+    "wiki_method_lineno": 139
   },
   {
     "class": "MicroscopeSection",
@@ -1038,10 +1050,10 @@
     "signature": "show(self, filename, title, ylims, zlims, regenerate)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 814,
+    "source_lineno": 883,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
-    "wiki_method_lineno": 132
+    "wiki_method_lineno": 144
   },
   {
     "class": "MicroscopeSection",
@@ -1050,7 +1062,7 @@
     "signature": "copy(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 823,
+    "source_lineno": 892,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 63,
     "wiki_method_lineno": null
@@ -1064,7 +1076,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 32,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 79,
+    "wiki_lineno": 80,
     "wiki_method_lineno": null
   },
   {
@@ -1076,7 +1088,7 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 35,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 83,
+    "wiki_lineno": 84,
     "wiki_method_lineno": null
   },
   {
@@ -1088,7 +1100,43 @@
     "source_path": "src/pySEA/rayTEM/elements.py",
     "source_lineno": 42,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 87,
+    "wiki_lineno": 88,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": "AberrationScreen",
+    "method": "__init__",
+    "kind": "method",
+    "signature": "__init__(self, name, position, aberrations, pupil_power)",
+    "doc": "Build the plate.",
+    "source_path": "src/pySEA/rayTEM/elements.py",
+    "source_lineno": 2852,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
+    "wiki_lineno": 359,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": "AberrationScreen",
+    "method": "aberration_kick",
+    "kind": "method",
+    "signature": "aberration_kick(self, r0)",
+    "doc": "The plate's ray kick: one impulsive thin kick, exact.",
+    "source_path": "src/pySEA/rayTEM/elements.py",
+    "source_lineno": 2877,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
+    "wiki_lineno": 359,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": "AberrationScreen",
+    "method": "phase_shift",
+    "kind": "method",
+    "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
+    "doc": "The plate's wave screen: :math:`\\exp(i\\chi)` and nothing else.",
+    "source_path": "src/pySEA/rayTEM/elements.py",
+    "source_lineno": 2915,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
+    "wiki_lineno": 359,
     "wiki_method_lineno": null
   },
   {
@@ -1098,10 +1146,10 @@
     "signature": "__init__(self, name, radius, calibration, position)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2472,
+    "source_lineno": 2534,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 264,
-    "wiki_method_lineno": 268
+    "wiki_lineno": 265,
+    "wiki_method_lineno": 269
   },
   {
     "class": "Aperture",
@@ -1110,10 +1158,10 @@
     "signature": "propagate_ray(self, r0, z, z0)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2520,
+    "source_lineno": 2582,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 264,
-    "wiki_method_lineno": 272
+    "wiki_lineno": 265,
+    "wiki_method_lineno": 273
   },
   {
     "class": "Aperture",
@@ -1122,9 +1170,9 @@
     "signature": "apply_intensity(self, I, r0)",
     "doc": "Attenuate intensity by the fraction of beam area the aperture passes.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2531,
+    "source_lineno": 2593,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 264,
+    "wiki_lineno": 265,
     "wiki_method_lineno": null
   },
   {
@@ -1134,9 +1182,9 @@
     "signature": "propagate_moments(self, mu, Sigma)",
     "doc": "Pass moments through unchanged (aperture is treated as non-truncating here).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2553,
+    "source_lineno": 2615,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 264,
+    "wiki_lineno": 265,
     "wiki_method_lineno": null
   },
   {
@@ -1146,9 +1194,9 @@
     "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
     "doc": "The aperture's screen: a real transmission carried as a complex one.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2577,
+    "source_lineno": 2639,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 264,
+    "wiki_lineno": 265,
     "wiki_method_lineno": null
   },
   {
@@ -1158,10 +1206,10 @@
     "signature": "__init__(self, name, position, length, strength, calibration, axis)",
     "doc": "Dipole.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3115,
+    "source_lineno": 3435,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 351,
-    "wiki_method_lineno": 355
+    "wiki_lineno": 379,
+    "wiki_method_lineno": 383
   },
   {
     "class": "Dipole",
@@ -1170,9 +1218,9 @@
     "signature": "effective_tilts(self)",
     "doc": "Return the calibration-scaled deflection angles ``(tilt_x, tilt_y)``.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3169,
+    "source_lineno": 3489,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 351,
+    "wiki_lineno": 379,
     "wiki_method_lineno": null
   },
   {
@@ -1182,10 +1230,10 @@
     "signature": "transfer_matrix(self)",
     "doc": "Transfer matrix for ray propogation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3200,
+    "source_lineno": 3520,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 351,
-    "wiki_method_lineno": 359
+    "wiki_lineno": 379,
+    "wiki_method_lineno": 387
   },
   {
     "class": "Dipole",
@@ -1194,9 +1242,9 @@
     "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
     "doc": "Dipole phase: the linear tilt :math:`\\chi = k(\\theta_x x + \\theta_y y)`.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3240,
+    "source_lineno": 3560,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 351,
+    "wiki_lineno": 379,
     "wiki_method_lineno": null
   },
   {
@@ -1206,10 +1254,10 @@
     "signature": "__init__(self, name, length, calibration, position)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2670,
+    "source_lineno": 2732,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 292,
-    "wiki_method_lineno": 296
+    "wiki_lineno": 293,
+    "wiki_method_lineno": 297
   },
   {
     "class": "Drift",
@@ -1218,10 +1266,10 @@
     "signature": "transfer_matrix(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2677,
+    "source_lineno": 2739,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 292,
-    "wiki_method_lineno": 300
+    "wiki_lineno": 293,
+    "wiki_method_lineno": 301
   },
   {
     "class": "Drift",
@@ -1230,9 +1278,9 @@
     "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
     "doc": "Free-space phase: the reciprocal-space Fresnel kernel over ``length``.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2694,
+    "source_lineno": 2756,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 292,
+    "wiki_lineno": 293,
     "wiki_method_lineno": null
   },
   {
@@ -1242,10 +1290,10 @@
     "signature": "__init__(self, name, kind, aberrations, screen)",
     "doc": "General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional attributed can be defined at the inheriting class level. e.g. a Lens has a \"strength\", but a Drift section does not.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 593,
+    "source_lineno": 650,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
-    "wiki_method_lineno": 97
+    "wiki_lineno": 94,
+    "wiki_method_lineno": 98
   },
   {
     "class": "Element",
@@ -1254,9 +1302,9 @@
     "signature": "__repr__(self, header)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 635,
+    "source_lineno": 692,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
+    "wiki_lineno": 94,
     "wiki_method_lineno": null
   },
   {
@@ -1266,9 +1314,9 @@
     "signature": "__str__(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 654,
+    "source_lineno": 711,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
+    "wiki_lineno": 94,
     "wiki_method_lineno": null
   },
   {
@@ -1278,9 +1326,9 @@
     "signature": "copy(self)",
     "doc": "A deep copy of this element, sealed like the original.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 661,
+    "source_lineno": 718,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
+    "wiki_lineno": 94,
     "wiki_method_lineno": null
   },
   {
@@ -1290,9 +1338,9 @@
     "signature": "kget(self, key)",
     "doc": "Get an element attribute by name.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 691,
+    "source_lineno": 748,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
+    "wiki_lineno": 94,
     "wiki_method_lineno": null
   },
   {
@@ -1302,9 +1350,9 @@
     "signature": "kset(self, key, value)",
     "doc": "Set an element attribute by name.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 719,
+    "source_lineno": 776,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
+    "wiki_lineno": 94,
     "wiki_method_lineno": null
   },
   {
@@ -1314,9 +1362,9 @@
     "signature": "position(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 744,
+    "source_lineno": 801,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
+    "wiki_lineno": 94,
     "wiki_method_lineno": null
   },
   {
@@ -1326,10 +1374,10 @@
     "signature": "transfer_matrix(self)",
     "doc": "Transfer matrix for ray propagation: https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 753,
+    "source_lineno": 810,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
-    "wiki_method_lineno": 101
+    "wiki_lineno": 94,
+    "wiki_method_lineno": 102
   },
   {
     "class": "Element",
@@ -1338,10 +1386,10 @@
     "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
     "doc": "Wave-side element contract: the phase this element imprints on a wave.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 775,
+    "source_lineno": 832,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
-    "wiki_method_lineno": 111
+    "wiki_lineno": 94,
+    "wiki_method_lineno": 112
   },
   {
     "class": "Element",
@@ -1350,9 +1398,9 @@
     "signature": "transfer_block(self, dz, axis)",
     "doc": "Rotating-frame 2x2 transfer block for one transverse axis.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 839,
+    "source_lineno": 896,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
+    "wiki_lineno": 94,
     "wiki_method_lineno": null
   },
   {
@@ -1362,9 +1410,9 @@
     "signature": "screen(self)",
     "doc": "The screen this element imprints, or ``1`` when it imprints none.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 908,
+    "source_lineno": 970,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
+    "wiki_lineno": 94,
     "wiki_method_lineno": null
   },
   {
@@ -1374,9 +1422,9 @@
     "signature": "screen(self, value)",
     "doc": "Supply, replace, or clear this element's screen.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 955,
+    "source_lineno": 1017,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
+    "wiki_lineno": 94,
     "wiki_method_lineno": null
   },
   {
@@ -1386,9 +1434,9 @@
     "signature": "beam_current(self)",
     "doc": "Current reaching this element, in amps \u2014 derived, never stated.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1273,
+    "source_lineno": 1335,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
+    "wiki_lineno": 94,
     "wiki_method_lineno": null
   },
   {
@@ -1398,9 +1446,9 @@
     "signature": "aberration_kick(self, r0)",
     "doc": "This element's **non-linear** angular kick, from its aberrations.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1322,
+    "source_lineno": 1384,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
+    "wiki_lineno": 94,
     "wiki_method_lineno": null
   },
   {
@@ -1410,10 +1458,10 @@
     "signature": "propagate_ray(self, r0, z, z0)",
     "doc": "propagate an array through an element.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1576,
+    "source_lineno": 1638,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
-    "wiki_method_lineno": 105
+    "wiki_lineno": 94,
+    "wiki_method_lineno": 106
   },
   {
     "class": "Element",
@@ -1422,9 +1470,9 @@
     "signature": "apply_intensity(self, I, r0)",
     "doc": "Return the beam intensity after passing through this element.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1614,
+    "source_lineno": 1676,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
+    "wiki_lineno": 94,
     "wiki_method_lineno": null
   },
   {
@@ -1434,9 +1482,9 @@
     "signature": "apply_rotation(self, R)",
     "doc": "Return the cumulative Larmor rotation after this element.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1641,
+    "source_lineno": 1703,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
+    "wiki_lineno": 94,
     "wiki_method_lineno": null
   },
   {
@@ -1446,9 +1494,9 @@
     "signature": "propagate_moments(self, mu, Sigma)",
     "doc": "Propagate the beam's first and second moments through this element.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1665,
+    "source_lineno": 1727,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
+    "wiki_lineno": 94,
     "wiki_method_lineno": null
   },
   {
@@ -1458,10 +1506,10 @@
     "signature": "propagate_wave(self, signal, mode, s_min, log, absorb, crossover, rotate)",
     "doc": "Propagate a wavefield through this element in the selected wave mode.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1707,
+    "source_lineno": 1769,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
-    "wiki_method_lineno": 186
+    "wiki_lineno": 94,
+    "wiki_method_lineno": 187
   },
   {
     "class": "Element",
@@ -1470,10 +1518,10 @@
     "signature": "propagate(self, *args, kind, **kwargs)",
     "doc": "Unified propagation dispatcher across the three modes.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 1968,
+    "source_lineno": 2030,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 93,
-    "wiki_method_lineno": 222
+    "wiki_lineno": 94,
+    "wiki_method_lineno": 223
   },
   {
     "class": "Gun",
@@ -1482,7 +1530,7 @@
     "signature": "__init__(self, *args, **kwargs)",
     "doc": "Build a Source and relabel its kind.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2438,
+    "source_lineno": 2500,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -1494,10 +1542,10 @@
     "signature": "__init__(self, name, length, strength, calibration, aberrations, position)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3362,
+    "source_lineno": 3682,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 369,
-    "wiki_method_lineno": 373
+    "wiki_lineno": 397,
+    "wiki_method_lineno": 401
   },
   {
     "class": "Lens",
@@ -1506,9 +1554,9 @@
     "signature": "focal_power(self)",
     "doc": "Return the focusing power ``1/f`` of this lens.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3413,
+    "source_lineno": 3733,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 369,
+    "wiki_lineno": 397,
     "wiki_method_lineno": null
   },
   {
@@ -1518,10 +1566,10 @@
     "signature": "transfer_matrix(self)",
     "doc": "Transfer matrix for ray propogation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3436,
+    "source_lineno": 3756,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 369,
-    "wiki_method_lineno": 381
+    "wiki_lineno": 397,
+    "wiki_method_lineno": 409
   },
   {
     "class": "Lens",
@@ -1530,9 +1578,9 @@
     "signature": "get_C_L_from_rotation_at_I(self, I, R)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3494,
+    "source_lineno": 3814,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 369,
+    "wiki_lineno": 397,
     "wiki_method_lineno": null
   },
   {
@@ -1542,9 +1590,9 @@
     "signature": "transfer_block(self, dz, axis)",
     "doc": "Rotating-frame 2x2 block of a round lens, exact at any partial length.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3517,
+    "source_lineno": 3837,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 369,
+    "wiki_lineno": 397,
     "wiki_method_lineno": null
   },
   {
@@ -1554,9 +1602,9 @@
     "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
     "doc": "Round-lens phase: :math:`\\chi = -k(x^2+y^2)/(2f)` (handoff Eq 12).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3589,
+    "source_lineno": 3909,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 369,
+    "wiki_lineno": 397,
     "wiki_method_lineno": null
   },
   {
@@ -1566,9 +1614,9 @@
     "signature": "aberration_powers(self)",
     "doc": "Split the aberration function into frame powers and a residual.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3729,
+    "source_lineno": 4049,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 369,
+    "wiki_lineno": 397,
     "wiki_method_lineno": null
   },
   {
@@ -1578,10 +1626,10 @@
     "signature": "calibration_from_f_and_I(self, f, I, rotationPerAmp)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3793,
+    "source_lineno": 4099,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 369,
-    "wiki_method_lineno": 388
+    "wiki_lineno": 397,
+    "wiki_method_lineno": 416
   },
   {
     "class": "Prism",
@@ -1590,10 +1638,10 @@
     "signature": "__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)",
     "doc": "Prism.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3834,
+    "source_lineno": 4140,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 394,
-    "wiki_method_lineno": 398
+    "wiki_lineno": 422,
+    "wiki_method_lineno": 426
   },
   {
     "class": "Prism",
@@ -1602,10 +1650,10 @@
     "signature": "focus_matrix(self)",
     "doc": "Transfer matrix for the entrance/exit surfaces of the spectrometer used for ray propogation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3887,
+    "source_lineno": 4193,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 394,
-    "wiki_method_lineno": 402
+    "wiki_lineno": 422,
+    "wiki_method_lineno": 430
   },
   {
     "class": "Prism",
@@ -1614,10 +1662,10 @@
     "signature": "bending_matrix(self, s)",
     "doc": "Transfer matrix for the bending of the spectrometer used for ray propogation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3906,
+    "source_lineno": 4212,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 394,
-    "wiki_method_lineno": 406
+    "wiki_lineno": 422,
+    "wiki_method_lineno": 434
   },
   {
     "class": "Prism",
@@ -1626,10 +1674,10 @@
     "signature": "transfer_matrix(self)",
     "doc": "Transfer matrix for ray propogation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3925,
+    "source_lineno": 4231,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 394,
-    "wiki_method_lineno": 410
+    "wiki_lineno": 422,
+    "wiki_method_lineno": 438
   },
   {
     "class": "Prism",
@@ -1638,22 +1686,22 @@
     "signature": "propagate_wave(self, signal, mode, s_min, log, absorb, crossover, rotate)",
     "doc": "Wave-optics propagation through a prism/spectrometer (not implemented).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3937,
+    "source_lineno": 4243,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 394,
+    "wiki_lineno": 422,
     "wiki_method_lineno": null
   },
   {
     "class": "Quadrapole",
     "method": "__init__",
     "kind": "method",
-    "signature": "__init__(self, name, position, length, strength, calibration)",
+    "signature": "__init__(self, name, position, length, strength, calibration, skew)",
     "doc": "Quadripole.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2728,
+    "source_lineno": 2977,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 306,
-    "wiki_method_lineno": 310
+    "wiki_lineno": 307,
+    "wiki_method_lineno": 311
   },
   {
     "class": "Quadrapole",
@@ -1662,9 +1710,9 @@
     "signature": "transfer_block(self, dz, axis)",
     "doc": "Rotating-frame 2x2 block of a quadrupole, exact at any partial length.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2889,
+    "source_lineno": 3149,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 306,
+    "wiki_lineno": 307,
     "wiki_method_lineno": null
   },
   {
@@ -1674,9 +1722,9 @@
     "signature": "focal_powers(self)",
     "doc": "Return the astigmatic focusing powers ``(1/f_x, 1/f_y)``.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2965,
+    "source_lineno": 3241,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 306,
+    "wiki_lineno": 307,
     "wiki_method_lineno": null
   },
   {
@@ -1686,10 +1734,10 @@
     "signature": "transfer_matrix(self)",
     "doc": "Transfer matrix for ray propagation through the quadrupole.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3001,
+    "source_lineno": 3281,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 306,
-    "wiki_method_lineno": 314
+    "wiki_lineno": 307,
+    "wiki_method_lineno": 315
   },
   {
     "class": "Quadrapole",
@@ -1698,9 +1746,9 @@
     "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
     "doc": "Quadrupole phase: the astigmatic saddle :math:`\\chi = -k(P_x x^2 + P_y y^2)/2`.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3069,
+    "source_lineno": 3366,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 306,
+    "wiki_lineno": 307,
     "wiki_method_lineno": null
   },
   {
@@ -1746,10 +1794,10 @@
     "signature": "__init__(self, name, size, np_xy, angle, na_xy, position, voltage, beam_current, wave_shape, wave_extent, wave_kind, aperture_radius)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2047,
+    "source_lineno": 2109,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 231,
-    "wiki_method_lineno": 235
+    "wiki_lineno": 232,
+    "wiki_method_lineno": 236
   },
   {
     "class": "Source",
@@ -1758,9 +1806,9 @@
     "signature": "beam_current(self)",
     "doc": "Current this source emits, in amps \u2014 **stated**, not derived.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2082,
+    "source_lineno": 2144,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 231,
+    "wiki_lineno": 232,
     "wiki_method_lineno": null
   },
   {
@@ -1770,9 +1818,9 @@
     "signature": "beam_current(self, value)",
     "doc": "Set the emission current.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2119,
+    "source_lineno": 2181,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 231,
+    "wiki_lineno": 232,
     "wiki_method_lineno": null
   },
   {
@@ -1782,10 +1830,10 @@
     "signature": "rays(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2141,
+    "source_lineno": 2203,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 231,
-    "wiki_method_lineno": 242
+    "wiki_lineno": 232,
+    "wiki_method_lineno": 243
   },
   {
     "class": "Source",
@@ -1794,10 +1842,10 @@
     "signature": "propagate_ray(self, r0, **kwargs)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2165,
+    "source_lineno": 2227,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 231,
-    "wiki_method_lineno": 246
+    "wiki_lineno": 232,
+    "wiki_method_lineno": 247
   },
   {
     "class": "Source",
@@ -1806,9 +1854,9 @@
     "signature": "moments(self)",
     "doc": "Seed the initial mean and covariance for beam-envelope propagation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2168,
+    "source_lineno": 2230,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 231,
+    "wiki_lineno": 232,
     "wiki_method_lineno": null
   },
   {
@@ -1818,9 +1866,9 @@
     "signature": "propagate_moments(self, mu, Sigma)",
     "doc": "Pass moments through unchanged (the source only originates the beam).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2198,
+    "source_lineno": 2260,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 231,
+    "wiki_lineno": 232,
     "wiki_method_lineno": null
   },
   {
@@ -1830,10 +1878,10 @@
     "signature": "wave(self, mode)",
     "doc": "Build the initial wavefield for wave-optics propagation.",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2219,
+    "source_lineno": 2281,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 231,
-    "wiki_method_lineno": 250
+    "wiki_lineno": 232,
+    "wiki_method_lineno": 251
   },
   {
     "class": "Source",
@@ -1842,9 +1890,9 @@
     "signature": "propagate_wave(self, signal, mode, s_min, log, absorb, crossover, rotate)",
     "doc": "Pass the wavefield through unchanged (the source only originates the beam).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2346,
+    "source_lineno": 2408,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 231,
+    "wiki_lineno": 232,
     "wiki_method_lineno": null
   },
   {
@@ -1854,9 +1902,9 @@
     "signature": "phase_shift(self, dimensions, wavelength, scaled, s)",
     "doc": "A source originates waves; it imprints no phase (not part of this contract).",
     "source_path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2373,
+    "source_lineno": 2435,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/elements.md",
-    "wiki_lineno": 231,
+    "wiki_lineno": 232,
     "wiki_method_lineno": null
   },
   {
@@ -1904,7 +1952,7 @@
     "source_path": "src/pySEA/rayTEM/generalized_CL_PL_fitting.py",
     "source_lineno": 12,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/generalized_CL_PL_fitting.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 22,
     "wiki_method_lineno": null
   },
   {
@@ -1916,7 +1964,7 @@
     "source_path": "src/pySEA/rayTEM/generalized_CL_PL_fitting.py",
     "source_lineno": 36,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/generalized_CL_PL_fitting.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 27,
     "wiki_method_lineno": null
   },
   {
@@ -1928,7 +1976,7 @@
     "source_path": "src/pySEA/rayTEM/generalized_CL_PL_fitting.py",
     "source_lineno": 56,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/generalized_CL_PL_fitting.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 32,
     "wiki_method_lineno": null
   },
   {
@@ -1940,7 +1988,7 @@
     "source_path": "src/pySEA/rayTEM/generalized_CL_PL_fitting.py",
     "source_lineno": 108,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/generalized_CL_PL_fitting.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 37,
     "wiki_method_lineno": null
   },
   {
@@ -1952,7 +2000,7 @@
     "source_path": "src/pySEA/rayTEM/generalized_CL_PL_fitting.py",
     "source_lineno": 150,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/generalized_CL_PL_fitting.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 42,
     "wiki_method_lineno": null
   },
   {
@@ -1964,7 +2012,7 @@
     "source_path": "src/pySEA/rayTEM/generalized_CL_PL_fitting.py",
     "source_lineno": 210,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/generalized_CL_PL_fitting.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 47,
     "wiki_method_lineno": null
   },
   {
@@ -2036,7 +2084,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs.py",
     "source_lineno": 17,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/CLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 23,
     "wiki_method_lineno": null
   },
   {
@@ -2048,7 +2096,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs.py",
     "source_lineno": 25,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/CLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 28,
     "wiki_method_lineno": null
   },
   {
@@ -2060,7 +2108,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs.py",
     "source_lineno": 95,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/CLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 33,
     "wiki_method_lineno": null
   },
   {
@@ -2072,7 +2120,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs.py",
     "source_lineno": 99,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/CLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 38,
     "wiki_method_lineno": null
   },
   {
@@ -2084,7 +2132,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs.py",
     "source_lineno": 109,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/CLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 43,
     "wiki_method_lineno": null
   },
   {
@@ -2096,7 +2144,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs.py",
     "source_lineno": 271,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/CLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 48,
     "wiki_method_lineno": null
   },
   {
@@ -2108,7 +2156,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs.py",
     "source_lineno": 299,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/CLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 53,
     "wiki_method_lineno": null
   },
   {
@@ -2120,7 +2168,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/OLs.py",
     "source_lineno": 27,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/OLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 17,
     "wiki_method_lineno": null
   },
   {
@@ -2132,7 +2180,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 23,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 32,
     "wiki_method_lineno": null
   },
   {
@@ -2144,7 +2192,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 38,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 37,
     "wiki_method_lineno": null
   },
   {
@@ -2156,7 +2204,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 117,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 42,
     "wiki_method_lineno": null
   },
   {
@@ -2168,7 +2216,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 200,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 47,
     "wiki_method_lineno": null
   },
   {
@@ -2180,7 +2228,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 245,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 52,
     "wiki_method_lineno": null
   },
   {
@@ -2192,7 +2240,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 327,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 57,
     "wiki_method_lineno": null
   },
   {
@@ -2204,7 +2252,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 331,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 62,
     "wiki_method_lineno": null
   },
   {
@@ -2216,7 +2264,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 341,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 67,
     "wiki_method_lineno": null
   },
   {
@@ -2228,7 +2276,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 632,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 72,
     "wiki_method_lineno": null
   },
   {
@@ -2240,7 +2288,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 709,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 77,
     "wiki_method_lineno": null
   },
   {
@@ -2252,7 +2300,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 806,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 82,
     "wiki_method_lineno": null
   },
   {
@@ -2264,7 +2312,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 829,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 87,
     "wiki_method_lineno": null
   },
   {
@@ -2276,7 +2324,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 852,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 92,
     "wiki_method_lineno": null
   },
   {
@@ -2288,7 +2336,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 892,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 97,
     "wiki_method_lineno": null
   },
   {
@@ -2300,7 +2348,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 911,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 102,
     "wiki_method_lineno": null
   },
   {
@@ -2312,7 +2360,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 976,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/PLs.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 107,
     "wiki_method_lineno": null
   },
   {
@@ -2324,7 +2372,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/rederive.py",
     "source_lineno": 11,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/rederive.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 18,
     "wiki_method_lineno": null
   },
   {
@@ -2336,7 +2384,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/rederive.py",
     "source_lineno": 20,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/rederive.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 23,
     "wiki_method_lineno": null
   },
   {
@@ -2348,7 +2396,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 27,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 40,
     "wiki_method_lineno": null
   },
   {
@@ -2360,7 +2408,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 63,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 45,
     "wiki_method_lineno": null
   },
   {
@@ -2372,7 +2420,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 78,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 50,
     "wiki_method_lineno": null
   },
   {
@@ -2384,7 +2432,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 85,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 55,
     "wiki_method_lineno": null
   },
   {
@@ -2396,7 +2444,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 122,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 60,
     "wiki_method_lineno": null
   },
   {
@@ -2408,7 +2456,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 130,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 65,
     "wiki_method_lineno": null
   },
   {
@@ -2420,7 +2468,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 139,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 70,
     "wiki_method_lineno": null
   },
   {
@@ -2432,7 +2480,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 183,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 75,
     "wiki_method_lineno": null
   },
   {
@@ -2444,7 +2492,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 189,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 80,
     "wiki_method_lineno": null
   },
   {
@@ -2456,7 +2504,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 203,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 85,
     "wiki_method_lineno": null
   },
   {
@@ -2468,7 +2516,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 209,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 90,
     "wiki_method_lineno": null
   },
   {
@@ -2480,7 +2528,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 214,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 95,
     "wiki_method_lineno": null
   },
   {
@@ -2492,7 +2540,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 221,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 100,
     "wiki_method_lineno": null
   },
   {
@@ -2504,7 +2552,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 264,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 105,
     "wiki_method_lineno": null
   },
   {
@@ -2516,7 +2564,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 330,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 110,
     "wiki_method_lineno": null
   },
   {
@@ -2528,7 +2576,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 379,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 115,
     "wiki_method_lineno": null
   },
   {
@@ -2540,7 +2588,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 428,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 120,
     "wiki_method_lineno": null
   },
   {
@@ -2552,7 +2600,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 462,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 125,
     "wiki_method_lineno": null
   },
   {
@@ -2564,7 +2612,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 482,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 130,
     "wiki_method_lineno": null
   },
   {
@@ -2576,7 +2624,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 529,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 135,
     "wiki_method_lineno": null
   },
   {
@@ -2588,7 +2636,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 544,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 140,
     "wiki_method_lineno": null
   },
   {
@@ -2600,7 +2648,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 591,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 145,
     "wiki_method_lineno": null
   },
   {
@@ -2612,7 +2660,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 598,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 150,
     "wiki_method_lineno": null
   },
   {
@@ -2624,7 +2672,7 @@
     "source_path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 683,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/microscopes/MACSTEM/viewAndCalculate.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 155,
     "wiki_method_lineno": null
   },
   {
@@ -3488,7 +3536,7 @@
     "source_path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 46,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_eight_configurations.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 28,
     "wiki_method_lineno": null
   },
   {
@@ -3500,7 +3548,7 @@
     "source_path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 52,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_eight_configurations.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 33,
     "wiki_method_lineno": null
   },
   {
@@ -3512,7 +3560,7 @@
     "source_path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 77,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_eight_configurations.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 38,
     "wiki_method_lineno": null
   },
   {
@@ -3524,7 +3572,7 @@
     "source_path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 87,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_eight_configurations.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 43,
     "wiki_method_lineno": null
   },
   {
@@ -3536,7 +3584,7 @@
     "source_path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 100,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_eight_configurations.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 48,
     "wiki_method_lineno": null
   },
   {
@@ -3548,7 +3596,7 @@
     "source_path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 127,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_eight_configurations.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 53,
     "wiki_method_lineno": null
   },
   {
@@ -3560,7 +3608,7 @@
     "source_path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 134,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_eight_configurations.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 58,
     "wiki_method_lineno": null
   },
   {
@@ -3572,7 +3620,7 @@
     "source_path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 147,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_eight_configurations.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 63,
     "wiki_method_lineno": null
   },
   {
@@ -3584,7 +3632,7 @@
     "source_path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 160,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_eight_configurations.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 68,
     "wiki_method_lineno": null
   },
   {
@@ -3596,7 +3644,7 @@
     "source_path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 170,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_eight_configurations.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 73,
     "wiki_method_lineno": null
   },
   {
@@ -3608,7 +3656,7 @@
     "source_path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 183,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_eight_configurations.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 78,
     "wiki_method_lineno": null
   },
   {
@@ -3620,7 +3668,7 @@
     "source_path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 211,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_eight_configurations.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 83,
     "wiki_method_lineno": null
   },
   {
@@ -3775,6 +3823,54 @@
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
     "source_lineno": 340,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_skew_quadrupole",
+    "kind": "method",
+    "signature": "test_skew_quadrupole()",
+    "doc": "A rolled quadrupole couples the planes; pi/2 swaps them exactly.",
+    "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 386,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_section_level_aberrations",
+    "kind": "method",
+    "signature": "test_section_level_aberrations()",
+    "doc": "Aberrations declared on a section act, suspend, and round-trip.",
+    "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 419,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_aberration_screen_element",
+    "kind": "method",
+    "signature": "test_aberration_screen_element()",
+    "doc": "A stand-alone AberrationScreen kicks rays and is transparent when idle.",
+    "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 444,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_microscope_index_raises",
+    "kind": "method",
+    "signature": "test_microscope_index_raises()",
+    "doc": "Microscope.index raises KeyError for unknown names instead of returning None.",
+    "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 468,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null

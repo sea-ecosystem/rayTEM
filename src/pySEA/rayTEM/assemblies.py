@@ -7,7 +7,7 @@ import pickle
 import sys,inspect,os,datetime,shutil
 
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
-from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,Rays,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes
+from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,Rays,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes,AberrationScreen,_as_aberrations
 from typing import Literal
 from .seashells import SEASerializable
 
@@ -203,8 +203,14 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 	def __init__(self, name:str='',
 				 elements:ArrayLike=None, # list of Elements, or list of dicts
 				 position:float=0., ignoreLensThickness=False,
-				 combine_drifts:bool=False ) -> SEASerializable:
+				 combine_drifts:bool=False,
+				 aberrations=None ) -> SEASerializable:
 		self.name = name
+		# Aberrations belonging to the SECTION as a whole (e.g. a measured
+		# objective-doublet aberration no single lens owns). Applied as a thin
+		# AberrationScreen at the section's exit, with the section's composite
+		# focal power as the pupil scale. None means ideal, and costs nothing.
+		self.aberrations = _as_aberrations(aberrations)
 		#if isinstance(elements[0],dict):
 		#	self.elements = []
 		#else:
@@ -515,6 +521,69 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		return positions
 
 	# returns nthElement,nthRay,xythetaetc
+	@property
+	def focal_power(self) -> float:
+		"""The section's composite focusing power ``1/f`` (1/metres).
+
+		The ``-C`` entry of the section's accumulated rotating-frame transfer
+		block: the power of the single thin lens that would produce the same
+		angular response at the exit. It is the pupil scale the section-level
+		:attr:`aberrations` are defined against.
+
+		Returns
+		-------
+		float
+			Composite power; 0 for a section of pure drifts.
+
+		Raises
+		------
+		NotImplementedError
+			If an element cannot provide a per-axis block (e.g. a skewed
+			quadrupole).
+
+		Related
+		-------
+		elements.Lens.focal_power : The single-element equivalent.
+		aberrations : The consumer of this pupil scale.
+		"""
+		M = xp.eye(2)
+		for ele in (self.elements or ()):
+			M = xp.matmul(ele.transfer_block(), M)
+		return float(-M[1, 0])
+
+	def _propagation_elements(self) -> list:
+		"""The element list every propagation loop walks, screens included.
+
+		The stored :attr:`elements` plus, when the section carries
+		:attr:`aberrations`, a transient zero-length
+		:class:`elements.AberrationScreen` at the exit whose pupil scale is
+		the section's composite :attr:`focal_power`. The screen is
+		synthesized per call and never stored, so serialization sees only
+		the declared geometry plus the section's own ``aberrations``.
+
+		Returns
+		-------
+		list of Element
+			The propagation order.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		elements.AberrationScreen : The synthesized carrier.
+		elements.suspended_aberrations : Detaching ``self.aberrations``
+			makes this return the bare list, so ``apply_aberrations=False``
+			reaches the section level too.
+		"""
+		els = list(self.elements or ())
+		if self.aberrations:
+			els.append(AberrationScreen(name=(self.name or 'section') + ' aberrations',
+										aberrations=self.aberrations,
+										pupil_power=self.focal_power))
+		return els
+
 	def propagate_ray(self, r0:xp.ndarray=None,
 					   I0:xp.ndarray=None, R0:xp.ndarray=None,
 					   z: float = None,
@@ -559,7 +628,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			If ``r0`` is ``None`` and the first element is not a ``Source``.
 		"""
 		if not apply_aberrations:
-			with suspended_aberrations(self.elements):
+			with suspended_aberrations(list(self.elements or ()) + [self]):
 				return self.propagate_ray(r0, I0, R0, z=z, verbose=verbose)
 		#print("Section r0",r0)
 		if r0 is None:
@@ -582,7 +651,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		if R0 is None:
 			R0 = xp.zeros(n_rays)
 		ri=[r0] ; Ii=[I0] ; Ri=[R0]
-		for i,ele in enumerate(self.elements):
+		for i,ele in enumerate(self._propagation_elements()):
 			if verbose:
 				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
 			# intensity/rotation are evaluated relative to the incoming rays; rotation
@@ -644,7 +713,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			If moments are not provided and the first element is not a ``Source``.
 		"""
 		if not apply_aberrations:
-			with suspended_aberrations(self.elements):
+			with suspended_aberrations(list(self.elements or ()) + [self]):
 				return self.propagate_moments(mu0, Sigma0, z=z)
 		if mu0 is None or Sigma0 is None:
 			if isinstance(self.elements[0], Source):
@@ -652,7 +721,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			else:
 				raise UserWarning("First element is not a Source, and no (mu0, Sigma0) provided to propagate_moments. Please provide initial moments or ensure first element is a Source.")
 		mui=[mu0] ; Si=[Sigma0]
-		for ele in self.elements:
+		for ele in self._propagation_elements():
 			mu, S = ele.propagate_moments(mui[-1], Si[-1])
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
 				mui.append(mu) ; Si.append(S)
@@ -721,7 +790,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			crossover (use ``mode='hybrid'`` to switch frames through it).
 		"""
 		if not apply_aberrations:
-			with suspended_aberrations(self.elements):
+			with suspended_aberrations(list(self.elements or ()) + [self]):
 				return self.propagate_wave(wave0, mode=mode, s_min=s_min, absorb=absorb,
 										   crossover=crossover, rotate=rotate)
 		if wave0 is None:
@@ -730,7 +799,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			else:
 				raise UserWarning("First element is not a Source, and no wave0 provided to propagate_wave. Please provide an initial wavefield or ensure first element is a Source.")
 		fi=[wave0]
-		for ele in self.elements:
+		for ele in self._propagation_elements():
 			interior = [] if mode == 'hybrid' else None
 			f = ele.propagate_wave(fi[-1], mode=mode, s_min=s_min, log=interior, absorb=absorb, crossover=crossover, rotate=rotate)
 			if interior:
@@ -1465,18 +1534,47 @@ class Microscope(SealedAttributes, SEASerializable):
     # endregion
     #####################################
 
-	# given a string for an element name, return the index of that element
 	def index(self,item):
+		"""Locate a section or element by name.
+
+		Sections are searched first; if ``item`` names a section, its integer
+		index in ``self.sections`` is returned. Otherwise every section's
+		elements are searched and a ``(section_index, element_index)`` tuple is
+		returned for the first match.
+
+		Parameters
+		----------
+		item : str
+			Name of a section or of an element inside any section.
+
+		Returns
+		-------
+		int or tuple of int
+			The section index, or ``(section_index, element_index)`` for an
+			element.
+
+		Raises
+		------
+		KeyError
+			If no section or element carries the name. (Previously this
+			printed ``ERROR:`` and returned ``None``, which made callers such
+			as ``adjust_element_length`` fail later with an opaque unpacking
+			error.)
+
+		Related
+		-------
+		MicroscopeSection.index : The per-section equivalent.
+		get_element_position : Position lookup built on the same names.
+		"""
 		names = [ s.name for s in self.sections ]
 		if item in names:
 			return names.index(item)
 		subnames = [ [ getattr(e,"name","") for e in s.elements ] for s in self.sections ]
-		if item not in sum(subnames,[]):
-			print("ERROR: name",item,"not found in Microscope or Microscope's sections' elements")
-			return None
 		for i,names in enumerate(subnames):
 			if item in names:
 				return (i,names.index(item))
+		available = sorted({n for n in sum(subnames,[]) if n} | {s.name for s in self.sections if s.name})
+		raise KeyError(f"name {item!r} not found among this Microscope's sections or their elements; available names: {available}")
 
 	# TWP 2026-03-05 allow element insertion by coordinate ("add a lens midway through this drift section at z=etc"
 	def insert(self,index,elementOrSection):
@@ -2414,13 +2512,14 @@ class Microscope(SealedAttributes, SEASerializable):
 
 		Used where an operation applies to the whole column rather than to one
 		section — currently only suspending aberrations, which must reach every
-		element the propagation will touch.
+		element the propagation will touch. Sections are included too, since a
+		section may carry :attr:`MicroscopeSection.aberrations` of its own.
 
 		Returns
 		-------
-		list of Element
-			The elements, in column order. Empty when the microscope has no
-			sections yet.
+		list
+			The elements in column order, followed by the sections. Empty
+			when the microscope has no sections yet.
 
 		Raises
 		------
@@ -2430,7 +2529,8 @@ class Microscope(SealedAttributes, SEASerializable):
 		-------
 		elements.suspended_aberrations : The consumer.
 		"""
-		return [e for sec in (self.sections or ()) for e in (sec.elements or ())]
+		return ([e for sec in (self.sections or ()) for e in (sec.elements or ())]
+				+ list(self.sections or ()))
 
 	def propagate_ray(self, r0:xp.ndarray=None, z: float = None, verbose=False,
 					   apply_aberrations:bool=True):

@@ -401,3 +401,95 @@ def test_old_json_compatibility():
 
 #test_element_move()
 #test_element_insertion_microscope()
+
+
+def test_skew_quadrupole():
+	"""A rolled quadrupole couples the planes; pi/2 swaps them exactly."""
+	from pySEA.rayTEM.elements import Quadrapole as Q
+	P = Q(strength=2.0).focal_powers[0]
+	# 45 degrees: the classic skew stigmator kick, dxt = -P*y, dyt = -P*x
+	M = np.asarray(Q(strength=2.0, skew=np.pi / 4).transfer_matrix())
+	r = np.zeros(6) ; r[0] = 1.0
+	out = M @ r
+	assert abs(out[1]) < 1e-12 and abs(out[3] + P) < 1e-12
+	# rolling by pi/2 is the same as flipping the strength sign
+	assert np.allclose(Q(strength=2.0, skew=np.pi / 2).transfer_matrix(),
+					   Q(strength=-2.0).transfer_matrix(), atol=1e-12)
+	# a thick skew body stays symplectic (unit determinant)
+	Mt = np.asarray(Q(strength=30.0, length=0.02, skew=0.3).transfer_matrix())
+	assert abs(np.linalg.det(Mt[:4, :4]) - 1) < 1e-9
+	# per-axis machinery must refuse rather than silently answer wrong
+	with pytest.raises(NotImplementedError):
+		Q(strength=30.0, length=0.02, skew=0.3).transfer_block()
+	# skew survives a .sea round trip
+	sec = MicroscopeSection(name="S", elements=[
+		Source(voltage=200, size=(2e-6, 2e-6), np_xy=(3, 3),
+			   angle=(1e-4, 1e-4), na_xy=(3, 3)),
+		Drift(length=0.05),
+		Quadrapole(name="SQ", strength=2.0, skew=np.pi / 4),
+		Drift(length=0.05)])
+	m = Microscope(sections=[sec])
+	m.to_sea("t_skew.sea")
+	back = load_microscope("t_skew.sea")
+	os.remove("t_skew.sea")
+	assert back["SQ"].skew == pytest.approx(np.pi / 4)
+	assert np.allclose(back.propagate_ray(), m.propagate_ray())
+
+
+def test_section_level_aberrations():
+	"""Aberrations declared on a section act, suspend, and round-trip."""
+	def build(ab):
+		sec = MicroscopeSection(name="S", elements=[
+			Source(voltage=200, size=(2e-6, 2e-6), np_xy=(3, 3),
+				   angle=(1e-4, 1e-4), na_xy=(3, 3)),
+			Drift(length=0.05),
+			Lens(name="L", strength=np.sqrt(1 / 0.02)),
+			Drift(length=0.03)], aberrations=ab)
+		return Microscope(sections=[sec]), sec
+	m, sec = build({'C30': 1e-4})
+	assert sec.focal_power == pytest.approx(50.0)		# the pupil scale
+	r_ab = np.array(m.propagate_ray()).copy()
+	r_id = np.array(m.propagate_ray(apply_aberrations=False)).copy()
+	assert np.abs(r_ab[-1, :, 1] - r_id[-1, :, 1]).max() > 0
+	assert sec.aberrations is not None					# suspension restored them
+	# the screen is transient: same number of logged planes as the ideal run
+	assert r_ab.shape == r_id.shape
+	m.to_sea("t_secab.sea")
+	back = load_microscope("t_secab.sea")
+	os.remove("t_secab.sea")
+	assert back.sections[0].aberrations
+	assert np.allclose(back.propagate_ray(), r_ab)
+
+
+def test_aberration_screen_element():
+	"""A stand-alone AberrationScreen kicks rays and is transparent when idle."""
+	from pySEA.rayTEM.elements import AberrationScreen
+	def build(**kw):
+		return Microscope(sections=[MicroscopeSection(name="S", elements=[
+			Source(voltage=200, size=(2e-6, 2e-6), np_xy=(3, 3),
+				   angle=(1e-4, 1e-4), na_xy=(3, 3)),
+			Drift(length=0.05),
+			AberrationScreen(name="plate", **kw),
+			Drift(length=0.03)])])
+	act = build(aberrations={'C30': 1e-4}, pupil_power=50.0)
+	idle = build(aberrations={'C30': 1e-4}, pupil_power=0.0)
+	r_act = np.array(act.propagate_ray())
+	r_idle = np.array(idle.propagate_ray())
+	r_ref = np.array(act.propagate_ray(apply_aberrations=False))
+	assert np.abs(r_act - r_ref).max() > 0
+	assert np.allclose(r_idle, r_ref)					# zero pupil power = transparent
+	act.to_sea("t_plate.sea")
+	back = load_microscope("t_plate.sea")
+	os.remove("t_plate.sea")
+	assert back["plate"].pupil_power == pytest.approx(50.0)
+	assert np.allclose(back.propagate_ray(), r_act)
+
+
+def test_microscope_index_raises():
+	"""Microscope.index raises KeyError for unknown names instead of returning None."""
+	m = Microscope(sections=[MicroscopeSection(name="S", elements=[
+		Source(voltage=200), Drift(length=0.05), Lens(name="L1", strength=5.0)])])
+	assert m.index("S") == 0
+	assert m.index("L1") == (0, 2)
+	with pytest.raises(KeyError):
+		m.index("definitely-not-here")
