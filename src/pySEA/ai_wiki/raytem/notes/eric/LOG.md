@@ -2,17 +2,33 @@
 
 Newest entries at top.
 
-## 2026-08-28 — [Under Construction] Terminology page + audit items 1–4
+## 2026-08-28 — [Done] Terminology page + audit items 1–4
 **Goal:** Answer issue #8 with a docs terminology page, and clear the four
 queued items: section-level Aberrations, skew quadrupole, example 06
 cleanups, `Microscope.index` raising instead of print-and-None.
 **Why:** Thomas is confused by the lens naming (issue #8), and the four
 items have been flagged repeatedly across sessions without being started.
-- [ ] terminology page + docs rebuild
-- [ ] section-level `Aberrations`
-- [ ] skew quadrupole
-- [ ] example 06 cleanups
-- [ ] `Microscope.index` raises
+- [x] terminology page + docs rebuild
+- [x] section-level `Aberrations`
+- [x] skew quadrupole
+- [x] example 06 cleanups
+- [x] `Microscope.index` raises
+**Outcome:** `docs/terminology.md` answers issue #8 (strength vs focal length
+vs focal power, aberration powers, transfer blocks, moments, wave_kind,
+body/screen, with Brown/Krivanek references). New `AberrationScreen` element
+(zero-thickness plate with explicit pupil_power) backs the new
+`MicroscopeSection.aberrations` — applied as a transient screen at the
+section exit with the section's composite `focal_power` as pupil scale;
+suspension and .sea round trips covered. `Quadrapole(skew=...)` rolls the
+principal frame into the lab 4×4 (45° stigmator works; per-axis views raise).
+`Microscope.index` raises KeyError with the available names instead of
+print-and-None. Example 06: tab-only continuations, OL1 plane derived from z
+instead of magic index 2 (output verified identical). Suite 152/152; docs
+site rebuilt (11 known duplicate warnings, was 9 — the two new are
+AberrationScreen re-exports). NOTE for Eric: example 06's header still
+claims Strehl 0.62 / delivered 0.122x, but it has printed Strehl 0.103
+since the column rebuild — the narrative needs re-deriving against the new
+OL1; left untouched deliberately.
 
 ## 2026-08-27 — [Done] Sphinx docs paralleling sea-eco
 **Goal:** Eric: the docs structure paralleling sea-eco was missing — build it,

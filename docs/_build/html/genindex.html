@@ -44,6 +44,7 @@
 <li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="propagation_modes.html">Propagation Modes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="operating_the_column.html">Operating the Column</a></li>
+<li class="toctree-l1"><a class="reference internal" href="terminology.html">Terminology</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
 <ul>
@@ -136,11 +137,19 @@
 <h2 id="A">A</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api_reference.html#pySEA.rayTEM.elements.Element.aberration_kick">aberration_kick() (pySEA.rayTEM.elements.Element method)</a>
+      <li><a href="api_reference.html#id0">aberration_kick() (pySEA.rayTEM.elements.AberrationScreen method)</a>, <a href="api_reference.html#pySEA.rayTEM.elements.AberrationScreen.aberration_kick">[1]</a>
+
+      <ul>
+        <li><a href="api_reference.html#pySEA.rayTEM.elements.Element.aberration_kick">(pySEA.rayTEM.elements.Element method)</a>
 </li>
+      </ul></li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Lens.aberration_powers">aberration_powers() (pySEA.rayTEM.elements.Lens method)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations">Aberrations (class in pySEA.rayTEM.aberrations)</a>
+</li>
+      <li><a href="api_reference.html#pySEA.rayTEM.elements.AberrationScreen.aberrations">aberrations (pySEA.rayTEM.elements.AberrationScreen attribute)</a>
+</li>
+      <li><a href="api_reference.html#pySEA.rayTEM.elements.AberrationScreen">AberrationScreen (class in pySEA.rayTEM.elements)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope.adjust_element_length">adjust_element_length() (pySEA.rayTEM.assemblies.Microscope method)</a>
 </li>
@@ -150,10 +159,10 @@
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.aperture_mask">aperture_mask() (in module pySEA.rayTEM.waveoptics)</a>
 </li>
-      <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.aperture_transmission">aperture_transmission() (in module pySEA.rayTEM.waveoptics)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.aperture_transmission">aperture_transmission() (in module pySEA.rayTEM.waveoptics)</a>
+</li>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.append">append() (pySEA.rayTEM.assemblies.MicroscopeSection method)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Aperture.apply_intensity">apply_intensity() (pySEA.rayTEM.elements.Aperture method)</a>
@@ -248,7 +257,7 @@
 <h2 id="D">D</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api_reference.html#id3">deflection_at() (pySEA.rayTEM.aberrations.Aberrations method)</a>, <a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.deflection_at">[1]</a>
+      <li><a href="api_reference.html#id5">deflection_at() (pySEA.rayTEM.aberrations.Aberrations method)</a>, <a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.deflection_at">[1]</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Dipole">Dipole (class in pySEA.rayTEM.elements)</a>
 </li>
@@ -308,8 +317,12 @@
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.focal_phase">focal_phase() (in module pySEA.rayTEM.waveoptics)</a>
 </li>
-      <li><a href="api_reference.html#pySEA.rayTEM.elements.Lens.focal_power">focal_power (pySEA.rayTEM.elements.Lens property)</a>
+      <li><a href="api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.focal_power">focal_power (pySEA.rayTEM.assemblies.MicroscopeSection property)</a>
+
+      <ul>
+        <li><a href="api_reference.html#pySEA.rayTEM.elements.Lens.focal_power">(pySEA.rayTEM.elements.Lens property)</a>
 </li>
+      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Quadrapole.focal_powers">focal_powers (pySEA.rayTEM.elements.Quadrapole property)</a>
@@ -322,15 +335,15 @@
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.fourier_resample">fourier_resample() (in module pySEA.rayTEM.waveoptics)</a>
 </li>
-      <li><a href="api_reference.html#id0">from_hdf5_group() (pySEA.rayTEM.elements.SealedAttributes method)</a>, <a href="api_reference.html#pySEA.rayTEM.elements.SealedAttributes.from_hdf5_group">[1]</a>
+      <li><a href="api_reference.html#id4">from_hdf5_group() (pySEA.rayTEM.elements.SealedAttributes method)</a>, <a href="api_reference.html#pySEA.rayTEM.elements.SealedAttributes.from_hdf5_group">[1]</a>
 </li>
-      <li><a href="api_reference.html#id4">from_letters() (pySEA.rayTEM.aberrations.Aberrations class method)</a>
+      <li><a href="api_reference.html#id6">from_letters() (pySEA.rayTEM.aberrations.Aberrations class method)</a>
 
       <ul>
         <li><a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.from_letters">(pySEA.rayTEM.aberrations.Aberrations method)</a>
 </li>
       </ul></li>
-      <li><a href="api_reference.html#id5">from_metadata() (pySEA.rayTEM.aberrations.Aberrations class method)</a>
+      <li><a href="api_reference.html#id7">from_metadata() (pySEA.rayTEM.aberrations.Aberrations class method)</a>
 
       <ul>
         <li><a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.from_metadata">(pySEA.rayTEM.aberrations.Aberrations method)</a>
@@ -352,7 +365,7 @@
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api_reference.html#id6">gradient() (pySEA.rayTEM.aberrations.Aberrations method)</a>, <a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.gradient">[1]</a>
+      <li><a href="api_reference.html#id8">gradient() (pySEA.rayTEM.aberrations.Aberrations method)</a>, <a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.gradient">[1]</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.seashells.grid_of">grid_of() (in module pySEA.rayTEM.seashells)</a>
 </li>
@@ -535,13 +548,15 @@
 <h2 id="P">P</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api_reference.html#id7">phase() (pySEA.rayTEM.aberrations.Aberrations method)</a>, <a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.phase">[1]</a>
+      <li><a href="api_reference.html#id9">phase() (pySEA.rayTEM.aberrations.Aberrations method)</a>, <a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.phase">[1]</a>
 </li>
-      <li><a href="api_reference.html#id8">phase_at() (pySEA.rayTEM.aberrations.Aberrations method)</a>, <a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.phase_at">[1]</a>
+      <li><a href="api_reference.html#id10">phase_at() (pySEA.rayTEM.aberrations.Aberrations method)</a>, <a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.phase_at">[1]</a>
 </li>
-      <li><a href="api_reference.html#pySEA.rayTEM.elements.Aperture.phase_shift">phase_shift() (pySEA.rayTEM.elements.Aperture method)</a>
+      <li><a href="api_reference.html#id1">phase_shift() (pySEA.rayTEM.elements.AberrationScreen method)</a>, <a href="api_reference.html#pySEA.rayTEM.elements.AberrationScreen.phase_shift">[1]</a>
 
       <ul>
+        <li><a href="api_reference.html#pySEA.rayTEM.elements.Aperture.phase_shift">(pySEA.rayTEM.elements.Aperture method)</a>
+</li>
         <li><a href="api_reference.html#pySEA.rayTEM.elements.Dipole.phase_shift">(pySEA.rayTEM.elements.Dipole method)</a>
 </li>
         <li><a href="api_reference.html#pySEA.rayTEM.elements.Drift.phase_shift">(pySEA.rayTEM.elements.Drift method)</a>
@@ -627,6 +642,8 @@
         <li><a href="api_reference.html#pySEA.rayTEM.elements.Source.propagate_wave">(pySEA.rayTEM.elements.Source method)</a>
 </li>
       </ul></li>
+      <li><a href="api_reference.html#pySEA.rayTEM.elements.AberrationScreen.pupil_power">pupil_power (pySEA.rayTEM.elements.AberrationScreen attribute)</a>
+</li>
       <li>
     pySEA.rayTEM.aberrations
 
@@ -749,7 +766,7 @@
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.segment_zero">segment_zero() (in module pySEA.rayTEM.waveoptics)</a>
 </li>
-      <li><a href="api_reference.html#id9">setdefault() (pySEA.rayTEM.aberrations.Aberrations method)</a>, <a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.setdefault">[1]</a>
+      <li><a href="api_reference.html#id11">setdefault() (pySEA.rayTEM.aberrations.Aberrations method)</a>, <a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.setdefault">[1]</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.postprocessing.setkeys_to_settables_dict">setkeys_to_settables_dict() (in module pySEA.rayTEM.postprocessing)</a>
 </li>
@@ -783,7 +800,7 @@
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Element.tilt_y">tilt_y (pySEA.rayTEM.elements.Element attribute)</a>
 </li>
-      <li><a href="api_reference.html#id10">to_letters() (pySEA.rayTEM.aberrations.Aberrations method)</a>, <a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.to_letters">[1]</a>
+      <li><a href="api_reference.html#id12">to_letters() (pySEA.rayTEM.aberrations.Aberrations method)</a>, <a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.to_letters">[1]</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.seashells.SEASerializable.to_sea">to_sea() (pySEA.rayTEM.seashells.SEASerializable method)</a>
 </li>

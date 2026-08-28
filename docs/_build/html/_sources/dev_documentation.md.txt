@@ -60,6 +60,14 @@ per-aberration code. Screens generalize this: a real-valued screen is a phase
 fabricated plate has). A *supplied* screen is stored (nothing can recompute
 it); a derivable one is recomputed on demand.
 
+Aberrations attach at three levels: an element's own `aberrations`, a
+stand-alone `AberrationScreen` (a zero-thickness plate with an explicit
+pupil power), and a `MicroscopeSection`'s `aberrations` — the section case
+synthesizes a transient screen at its exit with the section's composite
+focal power as the pupil scale. The low-order terms are power changes, not
+phase: see [Terminology](terminology.md) for the strength / focal length /
+focal power distinctions and the aberration-power split.
+
 ## High-risk seams
 
 - `elements.py` — `columnByName()` and `fix_mat_dims()` are referenced
@@ -106,7 +114,7 @@ sphinx-build -d docs/_build/doctrees docs docs/_build/html
 ```
 
 The API Reference is generated from docstrings at build time — there is no
-separate regeneration step. A clean build currently emits nine known
+separate regeneration step. A clean build currently emits eleven known
 "duplicate object description" warnings, all from classes re-exported across
 modules; anything beyond those is a regression. The built HTML is
 **committed** under `docs/_build/html/` so the rendered site travels with

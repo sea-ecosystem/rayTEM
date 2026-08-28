@@ -47,6 +47,7 @@
 <li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="propagation_modes.html">Propagation Modes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="operating_the_column.html">Operating the Column</a></li>
+<li class="toctree-l1"><a class="reference internal" href="terminology.html">Terminology</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
 <ul>
@@ -161,6 +162,13 @@ per-aberration code. Screens generalize this: a real-valued screen is a phase
 χ; a complex one is a transmission <code class="docutils literal notranslate"><span class="pre">T</span></code> (amplitude and phase, what a
 fabricated plate has). A <em>supplied</em> screen is stored (nothing can recompute
 it); a derivable one is recomputed on demand.</p>
+<p>Aberrations attach at three levels: an element’s own <code class="docutils literal notranslate"><span class="pre">aberrations</span></code>, a
+stand-alone <code class="docutils literal notranslate"><span class="pre">AberrationScreen</span></code> (a zero-thickness plate with an explicit
+pupil power), and a <code class="docutils literal notranslate"><span class="pre">MicroscopeSection</span></code>’s <code class="docutils literal notranslate"><span class="pre">aberrations</span></code> — the section case
+synthesizes a transient screen at its exit with the section’s composite
+focal power as the pupil scale. The low-order terms are power changes, not
+phase: see <a class="reference internal" href="terminology.html"><span class="std std-doc">Terminology</span></a> for the strength / focal length /
+focal power distinctions and the aberration-power split.</p>
 </section>
 <section id="high-risk-seams">
 <h2>High-risk seams<a class="headerlink" href="#high-risk-seams" title="Link to this heading"></a></h2>
@@ -211,7 +219,7 @@ sphinx-build<span class="w"> </span>-d<span class="w"> </span>docs/_build/doctre
 </pre></div>
 </div>
 <p>The API Reference is generated from docstrings at build time — there is no
-separate regeneration step. A clean build currently emits nine known
+separate regeneration step. A clean build currently emits eleven known
 “duplicate object description” warnings, all from classes re-exported across
 modules; anything beyond those is a regression. The built HTML is
 <strong>committed</strong> under <code class="docutils literal notranslate"><span class="pre">docs/_build/html/</span></code> so the rendered site travels with

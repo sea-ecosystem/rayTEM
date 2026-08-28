@@ -44,6 +44,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../propagation_modes.html">Propagation Modes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../operating_the_column.html">Operating the Column</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../terminology.html">Terminology</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
 <ul>
@@ -696,6 +697,63 @@
 					<span class="sa">f</span><span class="s2">"mapping, or None; got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_split_quadratic_aberrations</span><span class="p">(</span><span class="n">aberrations</span><span class="p">,</span> <span class="n">pupil_power</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span>
+								 <span class="n">base_x</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">base_y</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""Split an aberration function into per-axis power changes and a residual.</span>
+
+<span class="sd">	The first-order Krivanek terms are quadratic in the pupil coordinate, so</span>
+<span class="sd">	they are not "extra phase" but changes of effective focal power:</span>
+<span class="sd">	``C10`` (defocus) adds :math:`\Delta P = C_{10}P^2` isotropically, and an</span>
+<span class="sd">	**aligned** ``C12`` (twofold astigmatism, zero imaginary part) adds</span>
+<span class="sd">	:math:`\pm C_{12}P^2` per axis. Everything of second order and above, and</span>
+<span class="sd">	any *skew* ``C12``, is genuinely non-quadratic per axis and stays in the</span>
+<span class="sd">	residual. Shared by :meth:`Lens.aberration_powers` (base = the lens's own</span>
+<span class="sd">	power) and :class:`AberrationScreen` (base = 0), so the split cannot</span>
+<span class="sd">	drift between the two.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	aberrations : Aberrations or None</span>
+<span class="sd">		The aberration function to split. ``None`` or empty splits to the</span>
+<span class="sd">		bases and an empty residual.</span>
+<span class="sd">	pupil_power : float</span>
+<span class="sd">		The pupil scale ``P`` (1/metres) the ``C_{n,m}`` are defined against.</span>
+<span class="sd">	base_x, base_y : float, optional</span>
+<span class="sd">		Per-axis powers to add the quadratic terms onto, by default 0.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	tuple</span>
+<span class="sd">		``(power_x, power_y, residual)`` — the per-axis powers and an</span>
+<span class="sd">		:class:`aberrations.Aberrations` of the terms left unsplit.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	Lens.aberration_powers : The lens-side caller, with the rationale.</span>
+<span class="sd">	AberrationScreen.phase_shift : The plate-side caller.</span>
+<span class="sd">	"""</span>
+	<span class="n">P</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">pupil_power</span><span class="p">)</span>
+	<span class="n">residual</span> <span class="o">=</span> <span class="n">Aberrations</span><span class="p">()</span>
+	<span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">base_x</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">base_y</span><span class="p">)</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">aberrations</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span><span class="p">,</span> <span class="n">residual</span>
+	<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">aberrations</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+		<span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s1">'C10'</span><span class="p">:</span>						<span class="c1"># isotropic quadratic: pure power</span>
+			<span class="n">P_x</span> <span class="o">+=</span> <span class="n">c</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">P</span><span class="o">**</span><span class="mi">2</span>
+			<span class="n">P_y</span> <span class="o">+=</span> <span class="n">c</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">P</span><span class="o">**</span><span class="mi">2</span>
+			<span class="k">continue</span>
+		<span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s1">'C12'</span> <span class="ow">and</span> <span class="n">c</span><span class="o">.</span><span class="n">imag</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>		<span class="c1"># aligned: +-a on the two axes</span>
+			<span class="n">P_x</span> <span class="o">+=</span> <span class="n">c</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">P</span><span class="o">**</span><span class="mi">2</span>
+			<span class="n">P_y</span> <span class="o">-=</span> <span class="n">c</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">P</span><span class="o">**</span><span class="mi">2</span>
+			<span class="k">continue</span>
+		<span class="n">residual</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span>
+	<span class="k">return</span> <span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span><span class="p">,</span> <span class="n">residual</span>
+
+
 <div class="viewcode-block" id="Element">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Element">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Element</span><span class="p">(</span><span class="n">SealedAttributes</span><span class="p">,</span> <span class="n">SEASerializable</span><span class="p">):</span>
@@ -1027,6 +1085,11 @@
 		<span class="n">step</span> <span class="o">=</span> <span class="n">L</span> <span class="k">if</span> <span class="n">dz</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">dz</span><span class="p">)</span>
 		<span class="n">power</span> <span class="o">=</span> <span class="mf">0.0</span>
 		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Quadrapole</span><span class="p">):</span>
+			<span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">'skew'</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">):</span>
+				<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+					<span class="sa">f</span><span class="s2">"Quadrapole </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">''</span><span class="si">!r}</span><span class="s2"> has skew=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">skew</span><span class="si">}</span><span class="s2">, which couples x and y: "</span>
+					<span class="s2">"no independent per-axis 2x2 block exists. Locate planes with skew "</span>
+					<span class="s2">"temporarily set to 0, or work in the element's principal frame."</span><span class="p">)</span>
 			<span class="n">power</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">focal_powers</span><span class="p">[</span><span class="mi">0</span> <span class="k">if</span> <span class="n">axis</span> <span class="o">==</span> <span class="s1">'x'</span> <span class="k">else</span> <span class="mi">1</span><span class="p">]</span>
 		<span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_power"</span><span class="p">):</span>
 			<span class="n">power</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">focal_power</span>
@@ -2937,12 +3000,209 @@
 </div>
 
 
+<div class="viewcode-block" id="AberrationScreen">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.AberrationScreen">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AberrationScreen</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""A zero-thickness pure aberration plate.</span>
+
+<span class="sd">	Carries an aberration function and *nothing else*: identity transfer</span>
+<span class="sd">	matrix, no focusing power of its own, zero length. It exists for</span>
+<span class="sd">	aberrations that belong to no single lens — a whole section's measured</span>
+<span class="sd">	aberrations (see :attr:`assemblies.MicroscopeSection.aberrations`, which</span>
+<span class="sd">	synthesizes one of these at its exit), or a stand-alone corrector /</span>
+<span class="sd">	phase-plate model.</span>
+
+<span class="sd">	Because the plate has no focal power, the Krivanek coefficients need an</span>
+<span class="sd">	externally supplied ``pupil_power`` to convert positions at the plate</span>
+<span class="sd">	into the pupil angles the :math:`C_{n,m}` are defined against</span>
+<span class="sd">	(:math:`\alpha = P\,r`). With ``pupil_power = 0`` the plate is</span>
+<span class="sd">	transparent.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	name : str, optional</span>
+<span class="sd">		Element name, by default ``''``.</span>
+<span class="sd">	position : float, optional</span>
+<span class="sd">		Position along z within the section, by default ``None`` (stacked).</span>
+<span class="sd">	aberrations : Aberrations or dict, optional</span>
+<span class="sd">		The aberration function, Krivanek ``C_{n,m}`` notation, by default</span>
+<span class="sd">		``None`` (transparent).</span>
+<span class="sd">	pupil_power : float, optional</span>
+<span class="sd">		Focal power ``1/f`` (1/metres) of the optic this plate's pupil</span>
+<span class="sd">		belongs to, by default 0. Sets the position-to-angle scale only —</span>
+<span class="sd">		it adds **no** focusing.</span>
+
+<span class="sd">	Attributes</span>
+<span class="sd">	----------</span>
+<span class="sd">	aberrations : Aberrations or None</span>
+<span class="sd">		The stored aberration function.</span>
+<span class="sd">	pupil_power : float</span>
+<span class="sd">		The pupil scale (see above).</span>
+
+<span class="sd">	Methods</span>
+<span class="sd">	-------</span>
+<span class="sd">	aberration_kick(r0)</span>
+<span class="sd">		The ray path's kick, thin and impulsive (exact).</span>
+<span class="sd">	phase_shift(dimensions, wavelength, scaled, s)</span>
+<span class="sd">		The wave path's screen; quadratic terms become frame powers on the</span>
+<span class="sd">		scaled path.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	Element.aberration_kick : The generic thick/thin machinery this bypasses.</span>
+<span class="sd">	Lens.aberration_powers : The same quadratic/residual split, on a lens.</span>
+<span class="sd">	assemblies.MicroscopeSection.aberrations : The section-level consumer.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	Deliberately **not** implemented by giving the plate a fake</span>
+<span class="sd">	``focal_power``: everything that reads ``focal_power`` treats it as real</span>
+<span class="sd">	focusing (transfer blocks, conjugate planes), and a plate must never</span>
+<span class="sd">	focus.</span>
+<span class="sd">	"""</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span> <span class="n">position</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+				 <span class="n">aberrations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pupil_power</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Build the plate.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		name : str, optional</span>
+<span class="sd">			Element name, by default ``''``.</span>
+<span class="sd">		position : float, optional</span>
+<span class="sd">			Position along z, by default ``None``.</span>
+<span class="sd">		aberrations : Aberrations or dict, optional</span>
+<span class="sd">			Aberration function, by default ``None``.</span>
+<span class="sd">		pupil_power : float, optional</span>
+<span class="sd">			Pupil scale ``1/f`` (1/metres), by default 0.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		TypeError</span>
+<span class="sd">			If ``aberrations`` is neither an ``Aberrations``, a mapping, nor</span>
+<span class="sd">			``None`` (from :func:`_as_aberrations`).</span>
+<span class="sd">		"""</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">'AberrationScreen'</span><span class="p">,</span> <span class="n">aberrations</span><span class="o">=</span><span class="n">aberrations</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_position</span> <span class="o">=</span> <span class="n">position</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">pupil_power</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">pupil_power</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AberrationScreen.aberration_kick">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.AberrationScreen.aberration_kick">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">aberration_kick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The plate's ray kick: one impulsive thin kick, exact.</span>
+
+<span class="sd">		Overrides :meth:`Element.aberration_kick`, which keys the pupil scale</span>
+<span class="sd">		off ``focal_power`` — a plate has none, so the scale comes from</span>
+<span class="sd">		:attr:`pupil_power` instead. Zero length means no thick-body</span>
+<span class="sd">		integral: the eikonal kick :math:`\Delta\theta = k^{-1}\nabla\chi`</span>
+<span class="sd">		acts at the plane, position offsets are zero.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		r0 : xp.ndarray</span>
+<span class="sd">			Rays entering the plate, shape ``(n_rays, len(convention))``.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		tuple of xp.ndarray or None</span>
+<span class="sd">			``(dx, dy, dxt, dyt)`` with zero position offsets, or ``None``</span>
+<span class="sd">			when transparent (no aberrations or zero pupil power).</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		aberrations.Aberrations.deflection_at : The physics.</span>
+<span class="sd">		"""</span>
+		<span class="n">ab</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span>
+		<span class="n">P</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pupil_power</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">ab</span> <span class="ow">or</span> <span class="n">P</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="k">return</span> <span class="kc">None</span>
+		<span class="n">x</span> <span class="o">=</span> <span class="n">r0</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)]</span>
+		<span class="n">y</span> <span class="o">=</span> <span class="n">r0</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)]</span>
+		<span class="n">dxt</span><span class="p">,</span> <span class="n">dyt</span> <span class="o">=</span> <span class="n">ab</span><span class="o">.</span><span class="n">deflection_at</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">P</span><span class="p">)</span>
+		<span class="n">z</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">z</span><span class="p">,</span> <span class="n">z</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">dxt</span><span class="p">,</span> <span class="n">dyt</span></div>
+
+
+<div class="viewcode-block" id="AberrationScreen.phase_shift">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.AberrationScreen.phase_shift">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">phase_shift</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dimensions</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">scaled</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The plate's wave screen: :math:`\exp(i\chi)` and nothing else.</span>
+
+<span class="sd">		Extends :meth:`Element.phase_shift`. On the fixed path the whole</span>
+<span class="sd">		aberration function is one real screen. On the scaled path the</span>
+<span class="sd">		quadratic terms (``C10``, aligned ``C12``) are absorbed into the</span>
+<span class="sd">		frame's curvature as per-axis powers — exactly as</span>
+<span class="sd">		:meth:`Lens.aberration_powers` does, but around a base power of</span>
+<span class="sd">		zero — and only the genuinely non-quadratic residual is sampled.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		dimensions : Dimensions or tuple</span>
+<span class="sd">			Transverse grid (see :meth:`Element.phase_shift`).</span>
+<span class="sd">		wavelength : float</span>
+<span class="sd">			Wavelength (metres).</span>
+<span class="sd">		scaled : bool, optional</span>
+<span class="sd">			See :meth:`Element.phase_shift`, by default False.</span>
+<span class="sd">		s : float, optional</span>
+<span class="sd">			Frame scale for ``scaled=True``: the screen is evaluated at</span>
+<span class="sd">			physical coordinates ``x = s·ξ``, by default 1.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		list or tuple</span>
+<span class="sd">			``scaled=False``: ``[screen(χ)]`` (empty when transparent).</span>
+<span class="sd">			``scaled=True``: ``(powers, screen)`` with ``powers`` the</span>
+<span class="sd">			absorbed quadratic terms (scalar, or an ``(x, y)`` pair when an</span>
+<span class="sd">			aligned ``C12`` splits the axes) and ``screen`` the residual.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		aberrations.Aberrations.phase : Builds χ.</span>
+<span class="sd">		aberration_kick : The ray-side gradient of the same χ.</span>
+<span class="sd">		"""</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.waveoptics</span><span class="w"> </span><span class="kn">import</span> <span class="n">axis_components</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">grid_of</span>
+		<span class="n">ab</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span>
+		<span class="n">P</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pupil_power</span>
+		<span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">dx</span> <span class="o">=</span> <span class="n">grid_of</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">scaled</span><span class="p">:</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="n">ab</span> <span class="ow">or</span> <span class="n">P</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+				<span class="k">return</span> <span class="mf">0.0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scaled_screen</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">(</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">),</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span>
+												<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s2">"aberration screen"</span><span class="p">)</span>
+			<span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span><span class="p">,</span> <span class="n">residual</span> <span class="o">=</span> <span class="n">_split_quadratic_aberrations</span><span class="p">(</span><span class="n">ab</span><span class="p">,</span> <span class="n">P</span><span class="p">)</span>
+			<span class="n">powers</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">P_x</span><span class="p">)</span> <span class="k">if</span> <span class="n">P_x</span> <span class="o">==</span> <span class="n">P_y</span> <span class="k">else</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">P_x</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">P_y</span><span class="p">))</span>
+			<span class="n">chi</span> <span class="o">=</span> <span class="kc">None</span>
+			<span class="k">if</span> <span class="n">residual</span><span class="p">:</span>
+				<span class="n">s_x</span><span class="p">,</span> <span class="n">s_y</span> <span class="o">=</span> <span class="n">axis_components</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+				<span class="n">chi</span> <span class="o">=</span> <span class="n">residual</span><span class="o">.</span><span class="n">phase</span><span class="p">((</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">),</span> <span class="n">s_x</span> <span class="o">*</span> <span class="n">dx</span><span class="p">,</span> <span class="n">s_y</span> <span class="o">*</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">P</span><span class="p">)</span>
+			<span class="k">return</span> <span class="n">powers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scaled_screen</span><span class="p">(</span><span class="n">chi</span><span class="p">,</span> <span class="p">(</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">),</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span>
+											   <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s2">"aberration screen"</span><span class="p">)</span>
+		<span class="n">chi</span> <span class="o">=</span> <span class="n">ab</span><span class="o">.</span><span class="n">phase</span><span class="p">((</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">),</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">P</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">ab</span> <span class="ow">and</span> <span class="n">P</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phase_program</span><span class="p">(</span><span class="n">dimensions</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">chi</span><span class="p">,</span>
+								   <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s2">"aberration screen"</span><span class="p">)</span></div>
+</div>
+
+
+
 <div class="viewcode-block" id="Quadrapole">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Quadrapole">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Quadrapole</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
-	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span> 
+	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span>
 				 <span class="n">position</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">length</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span>
-				 <span class="n">strength</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">calibration</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>
+				 <span class="n">strength</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">calibration</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+				 <span class="n">skew</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>
 
 <span class="w">		</span><span class="sd">"""Quadripole.</span>
 
@@ -2959,12 +3219,21 @@
 <span class="sd">			see equations in brown1983), by default 0</span>
 <span class="sd">		calibration : float, optional</span>
 <span class="sd">			Currnet calibration of the lens in units of ???/A, by default None</span>
+<span class="sd">		skew : float, optional</span>
+<span class="sd">			Roll of the focusing axis about z, in **radians** from lab +x</span>
+<span class="sd">			toward +y, by default 0. A nonzero skew couples the transverse</span>
+<span class="sd">			planes: ``skew=pi/4`` is the classic 45° (skew) stigmator, whose</span>
+<span class="sd">			thin kick is ``Δθ_x = -P·y``, ``Δθ_y = -P·x``. The ray path</span>
+<span class="sd">			supports any skew (the 4×4 matrix is conjugated by the roll);</span>
+<span class="sd">			per-lab-axis machinery (``transfer_block``, the scaled-wave</span>
+<span class="sd">			curvature) raises for a skewed quadrupole, because a coupled</span>
+<span class="sd">			plane has no independent per-axis description.</span>
 <span class="sd">		label : bool, optional</span>
 <span class="sd">			If the element should be labeled when plotted, by default False</span>
 <span class="sd">		print_fancy : bool, optional</span>
 <span class="sd">			If a fancy table should be used when printed, by default True</span>
 <span class="sd">		"""</span>
-		
+
 		<span class="k">if</span> <span class="n">length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="n">kind</span> <span class="o">=</span> <span class="s1">'Thin quad'</span>
 		<span class="k">else</span><span class="p">:</span>		   <span class="n">kind</span> <span class="o">=</span> <span class="s1">'Quad'</span>
 
@@ -2973,6 +3242,7 @@
 		<span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">=</span> <span class="n">length</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">strength</span> <span class="o">=</span> <span class="n">strength</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">calibration</span> <span class="o">=</span> <span class="n">calibration</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">skew</span> <span class="o">=</span> <span class="n">skew</span>
 
 	<span class="nd">@property</span>
 	<span class="k">def</span><span class="w"> </span><span class="nf">_effective_strength</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
@@ -3131,11 +3401,22 @@
 <span class="sd">		transfer_matrix : The full 6x6 matrix this mirrors.</span>
 <span class="sd">		focal_powers : The thin-element powers.</span>
 
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		NotImplementedError</span>
+<span class="sd">			If ``skew != 0``: a rolled quadrupole couples x and y, so no</span>
+<span class="sd">			independent per-axis block exists.</span>
+
 <span class="sd">		Notes</span>
 <span class="sd">		-----</span>
 <span class="sd">		Delegates to :meth:`_body_block`, the same helper :meth:`transfer_matrix`</span>
 <span class="sd">		uses, so plane finding and ray tracing cannot disagree.</span>
 <span class="sd">		"""</span>
+		<span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">'skew'</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">):</span>
+			<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+				<span class="sa">f</span><span class="s2">"Quadrapole </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">''</span><span class="si">!r}</span><span class="s2"> has skew=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">skew</span><span class="si">}</span><span class="s2">, which couples x and y: "</span>
+				<span class="s2">"no independent per-axis 2x2 block exists. Locate planes with skew "</span>
+				<span class="s2">"temporarily set to 0, or work in the element's principal frame."</span><span class="p">)</span>
 		<span class="n">L</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="ow">or</span> <span class="mf">0.0</span>
 		<span class="n">step</span> <span class="o">=</span> <span class="n">L</span> <span class="k">if</span> <span class="n">dz</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">dz</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">L</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_effective_strength</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -3174,6 +3455,11 @@
 <span class="sd">		"""</span>
 		<span class="n">K</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_effective_strength</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">K</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skew</span><span class="p">:</span>
+				<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+					<span class="sa">f</span><span class="s2">"Quadrapole </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">''</span><span class="si">!r}</span><span class="s2"> has skew=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">skew</span><span class="si">}</span><span class="s2">: the scaled frame's "</span>
+					<span class="s2">"per-axis curvature (R_x, R_y) cannot represent a coupled saddle. "</span>
+					<span class="s2">"Use mode='fixed' near this element, or skew=0."</span><span class="p">)</span>
 			<span class="n">kappa</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">K</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
 			<span class="n">pair</span> <span class="o">=</span> <span class="p">(</span><span class="n">kappa</span><span class="p">,</span> <span class="o">-</span><span class="n">kappa</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_axis_focuses</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)</span> <span class="k">else</span> <span class="p">(</span><span class="o">-</span><span class="n">kappa</span><span class="p">,</span> <span class="n">kappa</span><span class="p">)</span>
 			<span class="k">return</span> <span class="p">(</span><span class="s1">'quadratic'</span><span class="p">,</span> <span class="n">pair</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
@@ -3199,6 +3485,10 @@
 <span class="sd">		-------</span>
 <span class="sd">		tuple of float</span>
 <span class="sd">			``(power_x, power_y)`` in 1/metres; ``(0, 0)`` at zero strength.</span>
+<span class="sd">			These are powers along the quadrupole's **principal axes** — for a</span>
+<span class="sd">			skewed quadrupole (``skew != 0``) they are the element-frame</span>
+<span class="sd">			values, not lab-frame ones (no independent lab-frame pair exists</span>
+<span class="sd">			once the planes couple).</span>
 
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
@@ -3252,8 +3542,14 @@
 <span class="sd">		giving ``det = cos(2|KL|)`` — 0.75 over a 30 mm body, so a quarter of</span>
 <span class="sd">		the phase-space area vanished and the block's halves did not compose.</span>
 
-<span class="sd">		A **skew** (rotated) quadrupole is not supported: that couples x and y,</span>
-<span class="sd">		so it cannot be written as two independent 2×2 blocks.</span>
+<span class="sd">		A **skew** (rolled) quadrupole is supported here by conjugation: the</span>
+<span class="sd">		element's own matrix (two independent 2×2 blocks in its principal</span>
+<span class="sd">		frame) is rotated into the lab frame, ``M_lab = G(-skew)·M·G(skew)``,</span>
+<span class="sd">		which fills the coupling entries. Per-axis views</span>
+<span class="sd">		(:meth:`transfer_block`, :meth:`focal_powers` read in the lab frame,</span>
+<span class="sd">		the scaled-wave curvature) remain undefined for ``skew != 0`` and</span>
+<span class="sd">		raise, because a coupled plane has no independent per-axis</span>
+<span class="sd">		description.</span>
 
 <span class="sd">		References</span>
 <span class="sd">		----------</span>
@@ -3284,6 +3580,17 @@
 
 		<span class="n">m</span><span class="o">=</span><span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span> <span class="n">fix_mat_dims</span><span class="p">(</span><span class="n">X</span><span class="p">,[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">])</span> <span class="p">,</span> <span class="n">fix_mat_dims</span><span class="p">(</span><span class="n">Y</span><span class="p">,[</span><span class="s2">"y"</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">])</span> <span class="p">)</span>
 		<span class="c1">#print("QUAD",m,self.strength,K,self.calibration,self.length)</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skew</span><span class="p">:</span>
+			<span class="c1"># roll the principal frame into the lab frame: lab -&gt; element is</span>
+			<span class="c1"># G(skew) on (x, xt, y, yt), so M_lab = G(-skew) @ M_elem @ G(skew)</span>
+			<span class="n">c</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skew</span><span class="p">))</span> <span class="p">;</span> <span class="n">s_</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skew</span><span class="p">))</span>
+			<span class="n">G</span>  <span class="o">=</span> <span class="n">fix_mat_dims</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([[</span> <span class="n">c</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="n">s_</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="n">s_</span><span class="p">],</span>
+										  <span class="p">[</span><span class="o">-</span><span class="n">s_</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="o">-</span><span class="n">s_</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="p">]]),</span>
+							  <span class="p">[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">])</span>
+			<span class="n">Gi</span> <span class="o">=</span> <span class="n">fix_mat_dims</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([[</span> <span class="n">c</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">-</span><span class="n">s_</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">-</span><span class="n">s_</span><span class="p">],</span>
+										  <span class="p">[</span> <span class="n">s_</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span> <span class="n">s_</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="p">]]),</span>
+							  <span class="p">[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">])</span>
+			<span class="n">m</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">Gi</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">G</span><span class="p">))</span>
 		<span class="k">return</span> <span class="n">m</span></div>
 
 
@@ -3319,18 +3626,41 @@
 <span class="sd">			(``1/R_a⁺ = 1/R_a⁻ − P_a`` per axis), so the saddle never touches</span>
 <span class="sd">			the sampled field U and arbitrarily strong quadrupoles carry no</span>
 <span class="sd">			sampling limit. ``(0.0, None)`` at zero strength.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		NotImplementedError</span>
+<span class="sd">			``scaled=True`` with ``skew != 0``: the per-axis curvature state</span>
+<span class="sd">			cannot represent a coupled saddle. The fixed path instead</span>
+<span class="sd">			evaluates χ on the rolled coordinates, so a skewed quadrupole is</span>
+<span class="sd">			usable there.</span>
 <span class="sd">		"""</span>
-		<span class="kn">from</span><span class="w"> </span><span class="nn">.waveoptics</span><span class="w"> </span><span class="kn">import</span> <span class="n">quadratic_phase</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.waveoptics</span><span class="w"> </span><span class="kn">import</span> <span class="n">quadratic_phase</span><span class="p">,</span> <span class="n">transverse_coordinates</span>
 		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">grid_of</span>
 		<span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">focal_powers</span>
 		<span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">dx</span> <span class="o">=</span> <span class="n">grid_of</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">scaled</span><span class="p">:</span>
+			<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skew</span> <span class="ow">and</span> <span class="p">(</span><span class="n">P_x</span> <span class="ow">or</span> <span class="n">P_y</span><span class="p">):</span>
+				<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+					<span class="sa">f</span><span class="s2">"Quadrapole </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">''</span><span class="si">!r}</span><span class="s2"> has skew=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">skew</span><span class="si">}</span><span class="s2">: the scaled frame's "</span>
+					<span class="s2">"per-axis curvature (R_x, R_y) cannot represent a coupled saddle. "</span>
+					<span class="s2">"Use mode='fixed' near this element, or skew=0."</span><span class="p">)</span>
 			<span class="n">screen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scaled_screen</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">(</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">),</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span>
 										 <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s2">"quadrupole"</span><span class="p">)</span>
 			<span class="k">if</span> <span class="n">P_x</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">P_y</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
 				<span class="k">return</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">screen</span>
 			<span class="k">return</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">P_x</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">P_y</span><span class="p">)),</span> <span class="n">screen</span>
-		<span class="n">chi</span> <span class="o">=</span> <span class="n">quadratic_phase</span><span class="p">((</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">),</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">P_x</span> <span class="ow">or</span> <span class="n">P_y</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skew</span> <span class="ow">and</span> <span class="p">(</span><span class="n">P_x</span> <span class="ow">or</span> <span class="n">P_y</span><span class="p">):</span>
+			<span class="c1"># the saddle is separable only in the element's principal frame:</span>
+			<span class="c1"># evaluate chi on the rolled coordinates instead of raising, since a</span>
+			<span class="c1"># fixed-grid screen has no per-axis constraint</span>
+			<span class="n">X</span><span class="p">,</span> <span class="n">Y</span> <span class="o">=</span> <span class="n">transverse_coordinates</span><span class="p">((</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">),</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">)</span>
+			<span class="n">c</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skew</span><span class="p">))</span> <span class="p">;</span> <span class="n">s_</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skew</span><span class="p">))</span>
+			<span class="n">Xe</span> <span class="o">=</span> <span class="n">c</span> <span class="o">*</span> <span class="n">X</span> <span class="o">+</span> <span class="n">s_</span> <span class="o">*</span> <span class="n">Y</span> <span class="p">;</span> <span class="n">Ye</span> <span class="o">=</span> <span class="o">-</span><span class="n">s_</span> <span class="o">*</span> <span class="n">X</span> <span class="o">+</span> <span class="n">c</span> <span class="o">*</span> <span class="n">Y</span>
+			<span class="n">k</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">xp</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">wavelength</span>
+			<span class="n">chi</span> <span class="o">=</span> <span class="o">-</span><span class="n">k</span> <span class="o">*</span> <span class="p">(</span><span class="n">P_x</span> <span class="o">*</span> <span class="n">Xe</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">P_y</span> <span class="o">*</span> <span class="n">Ye</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">chi</span> <span class="o">=</span> <span class="n">quadratic_phase</span><span class="p">((</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">),</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">P_x</span> <span class="ow">or</span> <span class="n">P_y</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
 		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_phase_program</span><span class="p">(</span><span class="n">dimensions</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">chi</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s2">"quadrupole"</span><span class="p">)</span></div>
 </div>
 
@@ -4027,21 +4357,7 @@
 <span class="sd">		a skew quadrupole.</span>
 <span class="sd">		"""</span>
 		<span class="n">P</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">focal_power</span><span class="p">)</span>
-		<span class="n">residual</span> <span class="o">=</span> <span class="n">Aberrations</span><span class="p">()</span>
-		<span class="n">P_x</span> <span class="o">=</span> <span class="n">P_y</span> <span class="o">=</span> <span class="n">P</span>
-		<span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span><span class="p">:</span>
-			<span class="k">return</span> <span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span><span class="p">,</span> <span class="n">residual</span>
-		<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-			<span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s1">'C10'</span><span class="p">:</span>						<span class="c1"># isotropic quadratic: pure power</span>
-				<span class="n">P_x</span> <span class="o">+=</span> <span class="n">c</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">P</span><span class="o">**</span><span class="mi">2</span>
-				<span class="n">P_y</span> <span class="o">+=</span> <span class="n">c</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">P</span><span class="o">**</span><span class="mi">2</span>
-				<span class="k">continue</span>
-			<span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s1">'C12'</span> <span class="ow">and</span> <span class="n">c</span><span class="o">.</span><span class="n">imag</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>		<span class="c1"># aligned: +-a on the two axes</span>
-				<span class="n">P_x</span> <span class="o">+=</span> <span class="n">c</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">P</span><span class="o">**</span><span class="mi">2</span>
-				<span class="n">P_y</span> <span class="o">-=</span> <span class="n">c</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">P</span><span class="o">**</span><span class="mi">2</span>
-				<span class="k">continue</span>
-			<span class="n">residual</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span>
-		<span class="k">return</span> <span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span><span class="p">,</span> <span class="n">residual</span></div>
+		<span class="k">return</span> <span class="n">_split_quadratic_aberrations</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">P</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Lens.calibration_from_f_and_I">
