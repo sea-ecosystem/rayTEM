@@ -2,6 +2,21 @@
 
 Newest entries at top.
 
+## 2026-08-27 — [Done] 6 mm objective gap, sample at its middle
+**Goal:** Eric: OL1-OL2 gap 6 mm, sample halfway (3 mm past OL1's exit),
+replacing the back-focal-plane placement.
+- [x] builder + .sea + objective_section regenerated (total 776.7 mm)
+- [x] all 8 states re-solved; settings + figures regenerated
+- [x] suite 147 (146 pass + pre-existing insertion failure)
+
+**Consequences (reported, not hidden):** at v ≈ 3 mm from the f = 2 mm
+objective the high-angle branches magnify — the 30.000 mrad high-current
+probe is ~31 µm across (surveyed: nothing under ~24 µm exists above
+20 mrad), and the low state caps at 13.4 mrad (with a 6 nm probe). If a
+small AND 30 mrad probe is wanted at mid-gap, the knobs are OL1's f (down
+toward ~1.4 mm puts the BFP near mid-gap) or the gap. One wave-test bound
+moved 1.5% → 2% ring texture at the new sample plane.
+
 ## 2026-08-27 — [Done] Compact thin-lens column, and a real hybrid-engine bug
 **Goal:** rebuild `basic_column` to Eric's spec — every lens a 0.08 mm bore;
 gun–50–C1–50–CA–10–50–C2–50–C3–250–OL1–20 (sample at BFP inside)–OL2–50–PL1–
