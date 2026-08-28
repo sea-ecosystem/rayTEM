@@ -1,8 +1,8 @@
 {
     "kind": "setting",
     "name": "basic_column - high-parallel-diffraction",
-    "version": 0.009,
-    "timestamp": "2026-08-28 01:07:27",
+    "version": 0.011,
+    "timestamp": "2026-08-28 01:19:22",
     "C1": {
         "strength": 707.01251411
     },

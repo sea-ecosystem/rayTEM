@@ -1,19 +1,19 @@
 {
     "kind": "setting",
     "name": "basic_column - high-convergent-image",
-    "version": 0.014,
-    "timestamp": "2026-08-28 01:06:35",
+    "version": 0.016,
+    "timestamp": "2026-08-28 01:18:29",
     "C1": {
         "strength": 707.01251411
     },
     "C2": {
-        "strength": 717.82175963
+        "strength": 720.4032599
     },
     "C3": {
-        "strength": 1157.96186314
+        "strength": 1151.37817489
     },
     "PL1": {
-        "strength": 975.37862876
+        "strength": 854.01724307
     },
     "PL2": {
         "strength": 999.73341154
