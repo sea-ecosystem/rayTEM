@@ -591,13 +591,13 @@ def segment_block(dz: float, kappa: float) -> tuple:
 	sign of :math:`\kappa`. Only the first row is returned, because that is all
 	the scaled frame needs: :math:`s(dz) = A s_0 + B u_0`.
 
-	============  ==========================  ==================================
-	:math:`\kappa`  regime                      :math:`(A, B)`
-	============  ==========================  ==================================
-	``> 0``       focusing (harmonic)         :math:`(\cos k\,dz,\ \sin(k\,dz)/k)`
-	``= 0``       free space                  :math:`(1,\ dz)`
-	``< 0``       defocusing (hyperbolic)     :math:`(\cosh k\,dz,\ \sinh(k\,dz)/k)`
-	============  ==========================  ==================================
+	==============  =========================  =========================================
+	:math:`\kappa`  regime                     :math:`(A, B)`
+	==============  =========================  =========================================
+	``> 0``         focusing (harmonic)        :math:`(\cos k\,dz,\ \sin(k\,dz)/k)`
+	``= 0``         free space                 :math:`(1,\ dz)`
+	``< 0``         defocusing (hyperbolic)    :math:`(\cosh k\,dz,\ \sinh(k\,dz)/k)`
+	==============  =========================  =========================================
 
 	with :math:`k = \sqrt{|\kappa|}` in both non-trivial rows. Every case has
 	unit determinant, so :func:`scaled_delta_tau_quadratic`'s closed form applies

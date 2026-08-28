@@ -3070,8 +3070,8 @@ class Quadrapole(Element):
 
 		Notes
 		-----
-		Brown 1983 p. 46. The defocusing axis previously reused cos/sin,
-		giving det = cos(2|KL|) - 0.75 over a 30 mm body, so a quarter of
+		Brown 1983 [1]_, p. 46. The defocusing axis previously reused ``cos``/``sin``,
+		giving ``det = cos(2|KL|)`` — 0.75 over a 30 mm body, so a quarter of
 		the phase-space area vanished and the block's halves did not compose.
 
 		A **skew** (rotated) quadrupole is not supported: that couples x and y,

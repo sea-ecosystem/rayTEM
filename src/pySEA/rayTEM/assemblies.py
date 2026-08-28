@@ -1354,7 +1354,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		return self.convergence_angle_at(z0 + length / 2)
 	def focus_error(self, expected_crossover:float=0.0, after:str="C3",
 					regenerate:bool=False) -> float:
-		"""How far the first crossover after a lens sits from where it should.
+		r"""How far the first crossover after a lens sits from where it should.
 
 		The condenser's job is to put a crossover at a known plane; this
 		measures the miss. It finds the first **diffraction** plane downstream
@@ -1407,13 +1407,13 @@ class Microscope(SealedAttributes, SEASerializable):
 		at C3, which at ``f = 90 mm`` is a pupil angle of 0.1 mrad, so the terms
 		scale as:
 
-		=====  ==============  ===================================
-		term   goes as         kick at that height (coefficient 1 mm)
-		=====  ==============  ===================================
-		C10    :math:`\theta`   1.2e-6 rad
-		C21    :math:`\theta^2` 1.3e-10 rad
-		C30    :math:`\theta^3` 1.3e-14 rad
-		=====  ==============  ===================================
+		=====  =================  =======================================
+		term   goes as            kick at that height (coefficient 1 mm)
+		=====  =================  =======================================
+		C10    :math:`\theta`     1.2e-6 rad
+		C21    :math:`\theta^2`   1.3e-10 rad
+		C30    :math:`\theta^3`   1.3e-14 rad
+		=====  =================  =======================================
 
 		Measured: ``C10 = 1 mm`` moves it 0.22 µm and an aligned ``C12`` moves
 		it the other way by the same amount, while ``C30`` does not move it at
@@ -2946,10 +2946,10 @@ class Microscope(SealedAttributes, SEASerializable):
 		``|E|²`` at one plane, respectively (sea_eco's ``Signal.show`` renders ≤2D, so a
 		single z-plane is selected via ``plane``). ``kind="wave-scaled"`` /
 		``"wave-hybrid"`` show the scaled-Fresnel result: with no ``plane``, the
-		|ψ(x, y=0, z)| **cross-section** — the wave analog of the ray diagram,
+		``|ψ(x, y=0, z)|`` **cross-section** — the wave analog of the ray diagram,
 		with element and crossover annotations; with a ``plane`` (index into the
 		logged planes, a z in metres, or a named position like ``"sample"``),
-		the reconstructed physical |ψ|² at that plane via the wavefield
+		the reconstructed physical ``|ψ|²`` at that plane via the wavefield
 		Signal's own ``.show()``.
 
 		Parameters
