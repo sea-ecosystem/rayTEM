@@ -10,12 +10,13 @@ an operator chains crossovers, never hand-tuned:
    focused spot passes the hole whole) or is run weak (``'low'``: a broad
    beam hits CA and most of the current is cut).
 2. **probe** — C2/C3 alone (the objective lenses are **never retuned**)
-   form either a **convergent** 30 mrad probe at the sample — possible with
-   a frozen objective because the sample sits at OL1's back focal plane, so
-   the condensers only choose how much beam to land on it (the script still
-   reports the reachable maximum honestly if a geometry change ever puts the
-   target out of reach) — or a **nearly parallel** patch of illumination
-   (``D = 0``: every ray from a single source point arrives parallel).
+   form either a **convergent** probe at the sample (target 30 mrad
+   semi-angle; with the sample at the middle of the 6 mm objective gap the
+   high-angle branches magnify, so the 30 mrad probe is tens of µm across
+   and the low-current state cannot reach the target at all — the script
+   reports the reachable maximum honestly) — or a **nearly parallel** patch
+   of illumination (``D = 0``: every ray from a single source point arrives
+   parallel).
 3. **detector** — the projector chain PL1–PL4, solved lens by lens as a
    relay of intermediate images, puts either an **image** of the sample
    plane on the detector (``B = 0``) or a **diffraction** pattern
