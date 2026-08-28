@@ -1,16 +1,16 @@
 {
     "kind": "setting",
     "name": "basic_column - low-convergent-diffraction",
-    "version": 0.011,
-    "timestamp": "2026-08-28 01:20:09",
+    "version": 0.014,
+    "timestamp": "2026-08-28 02:37:34",
     "C1": {
         "strength": 1225.23446081
     },
     "C2": {
-        "strength": 3559.57199367
+        "strength": 665.62486755
     },
     "C3": {
-        "strength": 553.18836774
+        "strength": 1310.7017025
     },
     "PL1": {
         "strength": 900.98810933
