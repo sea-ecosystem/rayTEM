@@ -10,10 +10,10 @@ coherent wavefunction), and every element sits at a plausible physical z:
 2. **C** — condenser section: three round lenses C1 (f = 45 mm), C2 (30 mm),
    C3 (90 mm), each bracketed by a dipole pair (one before, one after), a
    quadrupole pair at the section end.
-3. **O** — objective section: OL1 (f = 2 mm, a short high-excitation
-   probe-forming lens) with the sample plane at its back focal plane
-   (~0.9 mm past the exit), OL2 (f = 10 mm) 4 mm later, a dipole pair before
-   OL1 and one after OL2, and a quadrupole at the very end.
+3. **O** — objective section: OL1 (f = 3 mm, matching the sample halfway
+   across the 6 mm gap so its focal plane lands on the specimen), OL2
+   (f = 10 mm), a dipole pair before OL1 and one after OL2, and the OQ
+   stigmator after OL2.
 4. **P** — projector section: PL1–PL4 (f = 25/40/60/80 mm), each with a pre
    and post dipole pair, a 30 cm camera drift, and a zero-length named
    ``detector`` plane at the very end (total column ≈ 1.3 m).
@@ -240,10 +240,13 @@ def build_basic_column(voltage: float = 200.0) -> Microscope:
 	condenser = MicroscopeSection(name="C", elements=c_elements)
 
 	# 3) O — objective: OL1 and OL2 around a 6 mm gap, with the sample
-	#    HALFWAY across it (3 mm past OL1's exit) — a plain mid-gap specimen
-	#    position. OL1 stays the short, strong probe-forming lens (f = 2 mm;
-	#    f >= 2L/pi bounds the bore).
-	ol1 = round_lens("OL1", f=0.002, length=L_LENS)
+	#    HALFWAY across it (3 mm past OL1's exit) — and OL1's focal length is
+	#    3 mm to match, so its focal plane lands on the sample (to within the
+	#    40 µm principal-plane offset of the thin bore). That is what lets the
+	#    condensers form a small high-angle probe there with the objective
+	#    frozen: a nearly parallel beam into OL1 converges at the sample with
+	#    alpha = r / f.
+	ol1 = round_lens("OL1", f=0.003, length=L_LENS)
 	wd = 0.003
 	o_elements = dipole_pair("O_Dpre")
 	# the gap remainder after the sample marker is NAMED because repair()
