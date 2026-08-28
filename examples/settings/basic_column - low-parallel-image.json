@@ -1,21 +1,27 @@
 {
     "kind": "setting",
     "name": "basic_column - low-parallel-image",
-    "version": 0.001,
-    "timestamp": "2026-08-27 14:43:51",
+    "version": 0.016,
+    "timestamp": "2026-08-28 02:37:42",
     "C1": {
-        "strength": 8.0
+        "strength": 1225.23446081
     },
     "C2": {
-        "strength": 33.34042904
+        "strength": 978.71827367
     },
     "C3": {
-        "strength": 37.94696051
+        "strength": 638.2320105
     },
     "PL1": {
-        "strength": 46.78522294
+        "strength": 854.01724307
     },
     "PL2": {
-        "strength": 61.45961585
+        "strength": 999.73341154
+    },
+    "PL3": {
+        "strength": 999.73341154
+    },
+    "PL4": {
+        "strength": 790.29552825
     }
 }

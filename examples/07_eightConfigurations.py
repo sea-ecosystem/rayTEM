@@ -9,14 +9,20 @@ an operator chains crossovers, never hand-tuned:
 1. **current** — C1 either images the gun crossover onto CA (``'high'``: the
    focused spot passes the hole whole) or is run weak (``'low'``: a broad
    beam hits CA and most of the current is cut).
-2. **probe** — C2/C3/OL1 form either a **convergent** probe at the sample
-   (target 30 mrad semi-angle, via a solved chain of intermediate crossovers)
-   or a **nearly parallel** patch of illumination (``D = 0``: every ray from
-   a single source point arrives parallel).
-3. **detector** — PL1/PL2 (PL3/PL4 kept at their stored strengths) put either
-   an **image** of the sample plane on the detector (``B = 0``) or a
-   **diffraction** pattern (``A = 0``: arrival position reads arrival *angle*
-   at the sample, scaled by the camera length ``B``).
+2. **probe** — C2/C3 alone (the objective lenses are **never retuned**)
+   form either a **convergent** 30 mrad probe at the sample — small in both
+   current states because OL1's 3 mm focal length matches the mid-gap sample
+   position, so the condensers only choose how much beam to land on it (the
+   script still reports the reachable maximum honestly if a geometry change
+   ever puts the target out of reach) — or a **nearly parallel** patch of
+   illumination (``D = 0``: every ray from a single source point arrives
+   parallel).
+3. **detector** — the projector chain PL1–PL4, solved lens by lens as a
+   relay of intermediate images, puts either an **image** of the sample
+   plane on the detector (``B = 0``) or a **diffraction** pattern
+   (``A = 0``: arrival position reads arrival *angle* at the sample, scaled
+   by the camera length ``B``; PL1 first puts the angular spectrum at its
+   back focal plane, and the relay carries that instead).
 
 Each solved state is saved through the column's own settings mechanism
 (``Microscope.save_as_setting``) as ``settings/basic_column - <state>.json``,
@@ -29,10 +35,11 @@ made to answer for each other:
 - **rays** are drawn *on top of* the scaled-wave ``|psi(x, z)|``
   cross-section (one figure per state, in ``figs/``). The overlay traces the
   rays the *wave* cares about — the flat-phase family the scaled frame itself
-  follows (zero-angle rays at fractions of the wave envelope), plus the rays
-  that graze the CA edge — rather than the source's full incoherent fan,
-  which is real but wider than the single coherent mode the wave carries and
-  used to make the two look mismatched.
+  follows (zero-angle rays at fractions of the wave envelope, plus the
+  CA-grazing pair where it falls inside that envelope) — rather than the
+  source's full incoherent fan, which is real but wider than the single
+  coherent mode the wave carries and used to make the two look mismatched.
+  Every drawn ray stays within the wave pattern.
 - **moments** print the transverse covariance at the gun exit, CA, sample,
   and detector;
 - the conjugate planes (image and back-focal family of every lens) are
@@ -72,15 +79,23 @@ sys.path.insert(1, "../")
 from pySEA.rayTEM.assemblies import Microscope, load_microscope, _scaled_wave_cross_section
 from pySEA.rayTEM.postprocessing import convert_to_rotating_reference_frame
 from pySEA.rayTEM.elements import columnByName, convention
+from pySEA.rayTEM.microscopes.basic_column import strength_for_focal_length
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 BASE_SEA = os.path.join(_HERE, "..", "src", "pySEA", "rayTEM", "microscopes",
 						"basic_column.sea")
 
-#: The lenses a state may retune. PL3/PL4 stay at their stored strengths.
-SOLVED_LENSES = ("C1", "C2", "C3", "OL1", "PL1", "PL2")
+#: The lenses a state may retune. The objective pair NEVER changes -- probe
+#: focusing is entirely the condensers' job and projection entirely the
+#: projectors' (all four of them: with the 50 mm projector spacings, PL1/PL2
+#: alone cannot land a conjugate on the detector past a frozen PL3/PL4).
+SOLVED_LENSES = ("C1", "C2", "C3", "PL1", "PL2", "PL3", "PL4")
 ALPHA_TARGET = 30e-3		# convergent-probe semi-angle at the sample (rad)
-KC1_LOW = 8.0				# the deliberately weak C1 of the low-current state
+#: The low-current state OVERFOCUSES C1: its crossover lands this fraction of
+#: the way from C1's exit to CA, so the beam diverges hard into the aperture
+#: and most of the current is cut. (A merely weak C1 no longer works: with
+#: 50 mm drifts the unfocused beam only slightly overfills the 10 µm hole.)
+LOW_CROSSOVER_FRACTION = 0.2
 
 
 def load_base() -> Microscope:
@@ -272,8 +287,17 @@ def predict_probe(scope: Microscope) -> dict:
 	Ms = block_between(scope, 0.0, sample_plane(scope))
 	Mca = block_between(scope, 0.0, Z["CA"])
 	x0, t0, y0, ty0 = _source_grid(scope).T
-	x_ca = Mca[0, 0] * x0 + Mca[0, 1] * t0
-	y_ca = Mca[0, 0] * y0 + Mca[0, 1] * ty0
+	x_rot = Mca[0, 0] * x0 + Mca[0, 1] * t0
+	y_rot = Mca[0, 0] * y0 + Mca[0, 1] * ty0
+	# the aperture reads per-axis maxima in the LAB frame, and the fan is a
+	# square grid: rotated by the Larmor angle accumulated upstream, its
+	# corner grows the per-axis maximum by up to cos+sin (~8% at C1's 5 deg
+	# in the overfocused low state) -- taking the rotating-frame max instead
+	# made the predicted cut, and with it the solved angle, ~9% optimistic
+	phi = sum(l.strength * l.length for n, l in _lens_map(scope).items()
+			  if Z[n] < Z["CA"])
+	x_ca = np.cos(phi) * x_rot - np.sin(phi) * y_rot
+	y_ca = np.sin(phi) * x_rot + np.cos(phi) * y_rot
 	sx = min(1.0, ca_r / float(np.max(x_ca)))	# amax of the SIGNED positions,
 	sy = min(1.0, ca_r / float(np.max(y_ca)))	# mirroring Aperture._aperture_scales
 	alpha = np.hypot(sx * (Ms[1, 0] * x0 + Ms[1, 1] * t0),
@@ -317,24 +341,28 @@ def solve_column(current: str, probe: str, detector: str) -> dict:
 
 	- **C1**: ``B(source→CA) = 0`` for ``'high'``; fixed weak
 	  (:data:`KC1_LOW`) for ``'low'``.
-	- **convergent**: C2 images the source to a crossover z2, C3 images z2 to
-	  z3, OL1 images z3 onto the sample; (z2, z3) are then swept so the
-	  *predicted per-ray* semi-angle hits 30 mrad — pulling z3 toward C3
-	  raises the angle. When no (z2, z3) reaches the target, the
-	  angle-maximizing pair is used and ``alpha_limited`` is set.
+	- **convergent**: for each C2, C3 is solved so the **total**
+	  ``B(source→sample) = 0`` through the frozen objective (a direct
+	  condition — no intermediate crossover is prescribed, so virtual
+	  objects are allowed); C2 is then swept so the *predicted per-ray*
+	  semi-angle hits 30 mrad. When no C2 reaches the target — the frozen
+	  objective caps what the condensers can deliver — the angle-maximizing
+	  setting is used and ``alpha_limited`` is set.
 	- **parallel**: C2 images the source to z2 = 0.28 m, C3 zeroes
 	  ``D(source→sample)`` with OL1 left as stored.
-	- **image**: PL1 images the sample to an intermediate plane, PL2 images
-	  that to the detector. **diffraction**: PL2 zeroes
-	  ``A(sample→detector)``; among the PL1 values that admit a root, the one
-	  with the longest camera length ``|B|`` is kept.
+	- **image**: the projector relay — PL1 images the sample to a plane
+	  between PL1 and PL2, PL2 relays it to between PL2 and PL3, PL3 to
+	  between PL3 and PL4, and PL4 lands it on the detector; four bracketed
+	  1D imaging solves. **diffraction**: identical relay, except PL1's
+	  first condition is ``A = 0`` (its back focal plane), so the angular
+	  spectrum is what gets relayed to the detector.
 
 	Parameters
 	----------
 	current : {'high', 'low'}
 		C1 state: gun crossover imaged onto CA, or a broad beam cut by it.
 	probe : {'convergent', 'parallel'}
-		What the condensers and OL1 deliver at the sample.
+		What the condensers deliver at the sample (the objective is frozen).
 	detector : {'image', 'diffraction'}
 		What PL1/PL2 deliver at the detector.
 
@@ -362,7 +390,13 @@ def solve_column(current: str, probe: str, detector: str) -> dict:
 	z_samp, z_det = sample_plane(scope), Z["detector"]
 	lens = _lens_map(scope)
 	stored = {n: l.strength for n, l in lens.items()}
-	kmax = {n: np.pi / 2 / l.length - 1e-6 for n, l in lens.items()}
+	# scan each lens's strength over a PHYSICAL focal range (2 m down to
+	# 1 mm) rather than up to the first-branch cap: with thin bores the cap
+	# sits orders of magnitude above any strength a column would run, and a
+	# scan stretched to it would step right over the working region
+	krange = {n: (strength_for_focal_length(2.0, l.length),
+				  strength_for_focal_length(0.001, l.length))
+			  for n, l in lens.items()}
 	solved = {}
 
 	def sset(**kw):
@@ -372,112 +406,141 @@ def solve_column(current: str, probe: str, detector: str) -> dict:
 		for n, v in {**solved, **kw}.items():
 			lens[n].strength = v
 
-	def solve1(name, z_from, z_to, entry=(0, 1)):
-		"""All strengths of ``name`` zeroing one block entry between planes."""
+	def solve1(name, z_from, z_to, entry=(0, 1), n_scan=50):
+		"""All strengths of ``name`` zeroing one block entry between planes.
+
+		``n_scan`` sets the bracket-scan density; a pair of roots closer
+		together than one scan step is invisible, so a solve whose physical
+		branch lives in a narrow window needs a denser scan.
+		"""
 		def f(k):
 			lens[name].strength = k
 			return block_between(scope, z_from, z_to)[entry]
-		roots = [brentq(f, *b) for b in _brackets(f, np.linspace(0.5, kmax[name], 50))]
+		roots = [brentq(f, *b) for b in _brackets(f, np.linspace(*krange[name], n_scan))]
 		lens[name].strength = solved.get(name, stored[name])
 		return roots
 
-	# --- C1: the current state
-	if current == "high":
-		roots = solve1("C1", 0.0, Z["CA"])
-		if not roots:
-			raise ValueError("C1 cannot image the source onto CA -- the gun/CA "
-							 "geometry changed.")
-		solved["C1"] = roots[0]
-	else:
-		solved["C1"] = KC1_LOW
+	# --- C1: the current state. 'high' images the gun crossover ONTO the
+	# aperture; 'low' overfocuses so the crossover lands well before it and
+	# the diverging beam overfills the hole.
+	z_c1 = Z["C1"]
+	z_target = Z["CA"] if current == "high" else \
+		z_c1 + LOW_CROSSOVER_FRACTION * (Z["CA"] - z_c1)
+	roots = solve1("C1", 0.0, z_target)
+	if not roots:
+		raise ValueError("C1 cannot place the gun crossover at "
+						 f"z = {z_target:.4f} m -- the gun/CA geometry changed.")
+	solved["C1"] = roots[0]
 	sset()
 
-	# --- the probe
+	# --- the probe (condensers ONLY: the objective pair is never retuned)
 	alpha_limited = False
 	if probe == "convergent":
-		def best_at(z2, z3):
-			best = None
-			for kc2 in solve1("C2", 0.0, z2):
-				sset(C2=kc2)
-				for kc3 in solve1("C3", z2, z3):
-					sset(C2=kc2, C3=kc3)
-					for kol in solve1("OL1", z3, z_samp):
-						sset(C2=kc2, C3=kc3, OL1=kol)
-						p = predict_probe(scope)
-						if best is None or p["alpha"] > best[0]["alpha"]:
-							best = (p, kc2, kc3, kol)
-					sset(C2=kc2, C3=kc3)
-				sset(C2=kc2)
-			sset()
-			return best
-		# z3 toward C3 raises the reachable angle; z2 fine-tunes onto target
-		z2s = np.linspace(0.235, 0.30, 9)
-		hit = None
-		for z3 in (0.36, 0.385, 0.41, 0.44):
-			g = lambda z2: ((best_at(z2, z3) or ({"alpha": np.nan},))[0]["alpha"]) - ALPHA_TARGET
-			br = _brackets(g, z2s)
-			if br:
-				z2 = brentq(g, *br[0], xtol=1e-7)
-				hit = best_at(z2, z3)
-				break
-		if hit is None:						# CA has cut the phase space: take the max
-			cands = [(z2, z3, best_at(z2, z3)) for z3 in (0.36, 0.41) for z2 in z2s[::2]]
-			cands = [c for c in cands if c[2]]
-			if not cands:
-				raise ValueError("no convergent-probe chain solves at all -- the "
-								 "condenser/objective geometry changed.")
-			z2, z3, hit = max(cands, key=lambda c: c[2][0]["alpha"])
-			alpha_limited = True
-		p, solved["C2"], solved["C3"], solved["OL1"] = hit
-	else:								# parallel: D(source->sample) = 0 via C3
-		z2 = 0.28
-		best = None
-		for kc2 in solve1("C2", 0.0, z2):
+		def best_at(kc2):
+			# for this C2, every C3 that lands the crossover on the sample --
+			# B(source->sample) = 0 THROUGH the frozen objective, so no
+			# intermediate crossover is prescribed and virtual objects count.
+			# Among the roots, a genuinely SMALL probe wins: B = 0 alone is
+			# also satisfied by magnifying branches (a huge image of the
+			# source, each point converging at a large angle), which are not
+			# probes. The scan is dense because the probe branch can live in
+			# a C3 window narrower than a coarse scan's step.
+			best, best_any = None, None
 			sset(C2=kc2)
-			for kc3 in solve1("C3", 0.0, z_samp, entry=(1, 1)):
+			for kc3 in solve1("C3", 0.0, z_samp, n_scan=220):
 				sset(C2=kc2, C3=kc3)
 				p = predict_probe(scope)
-				if best is None or p["alpha"] < best[0]["alpha"]:
+				if p["size"] <= 1e-6 and (best is None or p["alpha"] > best[0]["alpha"]):
 					best = (p, kc2, kc3)
-			sset(C2=kc2)
+				if best_any is None or p["alpha"] > best_any[0]["alpha"]:
+					best_any = (p, kc2, kc3)
+			sset()
+			return best or best_any
+		def alpha_of(kc2):
+			return ((best_at(kc2) or ({"alpha": -1.0},))[0]["alpha"])
+		# the reachable angle is a NARROW resonance in C2 (the setting that
+		# lands the most beam on the frozen objective), so a two-stage search:
+		# a coarse scan to find the peak, local refinement, then bisection on
+		# the rising edge for the exact target crossing
+		kc2s = np.linspace(*krange["C2"], 120)
+		alphas = np.array([alpha_of(k) for k in kc2s])
+		if not (alphas > 0).any():
+			raise ValueError("no convergent-probe solution at all: C3 cannot "
+							 "zero B(source->sample) for any C2 -- the "
+							 "condenser/objective geometry changed.")
+		if alphas.max() < ALPHA_TARGET:		# the frozen objective caps the reach
+			i = int(np.argmax(alphas))
+			fine = np.linspace(kc2s[max(i - 1, 0)], kc2s[min(i + 1, len(kc2s) - 1)], 40)
+			hit = best_at(fine[int(np.argmax([alpha_of(k) for k in fine]))])
+			alpha_limited = True
+		else:
+			# bisect each coarse interval whose endpoints straddle the target
+			# (the crossing can sit far from the peak, on the slope), and
+			# VERIFY the result: alpha can jump discontinuously where the C3
+			# branch structure changes, and a bisection converging onto a
+			# jump lands far from the target -- then the next interval is tried
+			cross = [i for i in range(len(kc2s) - 1)
+					 if (alphas[i] - ALPHA_TARGET) * (alphas[i + 1] - ALPHA_TARGET) < 0]
+			hit = None
+			for i in cross:
+				a, b = kc2s[i], kc2s[i + 1]
+				if alphas[i] > ALPHA_TARGET:		# orient: alpha(a) below target
+					a, b = b, a
+				for _ in range(60):
+					mid = 0.5 * (a + b)
+					if alpha_of(mid) < ALPHA_TARGET:
+						a = mid
+					else:
+						b = mid
+				cand = best_at(b)
+				if cand and abs(cand[0]["alpha"] - ALPHA_TARGET) < 1e-4 * ALPHA_TARGET:
+					hit = cand
+					break
+			if hit is None:				# every straddle was a branch jump
+				i = int(np.argmin(np.abs(alphas - ALPHA_TARGET)))
+				hit = best_at(kc2s[i])
+				alpha_limited = True
+		p, kc2, kc3 = hit
+		solved["C2"], solved["C3"] = float(kc2), float(kc3)
+	else:								# parallel: D(source->sample) = 0 via C3
+		best = None
+		for frac in (0.3, 0.5, 0.7):	# intermediate crossover between C2 and C3
+			z2 = Z["C2"] + frac * (Z["C3"] - Z["C2"])
+			for kc2 in solve1("C2", 0.0, z2):
+				sset(C2=kc2)
+				for kc3 in solve1("C3", 0.0, z_samp, entry=(1, 1)):
+					sset(C2=kc2, C3=kc3)
+					p = predict_probe(scope)
+					if best is None or p["alpha"] < best[0]["alpha"]:
+						best = (p, kc2, kc3)
+				sset(C2=kc2)
+			sset()
 		if best is None:
 			raise ValueError("no parallel-probe solution: C3 cannot zero "
-							 "D(source->sample) with C2 imaging the source to "
-							 f"z2={z2} m.")
+							 "D(source->sample) for any C2 crossover between "
+							 "C2 and C3.")
 		p, solved["C2"], solved["C3"] = best
 	sset()
 
 	# --- the projectors (independent of the condensers: everything is
-	#     downstream of the sample; PL3/PL4 keep their stored strengths)
-	if detector == "image":
-		done = False
-		for zp in (0.74, 0.76, 0.72):			# intermediate image after PL1
-			for kp1 in solve1("PL1", z_samp, zp):
-				sset(PL1=kp1)
-				for kp2 in solve1("PL2", zp, z_det):
-					solved["PL1"], solved["PL2"] = kp1, kp2
-					done = True
-					break
-				if done: break
-			if done: break
-		if not done:
-			raise ValueError("no imaging projector solution -- move the "
-							 "intermediate plane or widen the strength scan.")
-	else:								# diffraction: A(sample->detector) = 0
-		found = None
-		for kp1 in np.linspace(20, kmax["PL1"] * 0.9, 5):
-			sset(PL1=kp1)
-			for kp2 in solve1("PL2", z_samp, z_det, entry=(0, 0)):
-				sset(PL1=kp1, PL2=kp2)
-				M = block_between(scope, z_samp, z_det)
-				if found is None or abs(M[0, 1]) > abs(found[2][0, 1]):
-					found = (kp1, kp2, M)	# keep the longest camera length
-			sset()
-		if found is None:
-			raise ValueError("no diffraction projector solution: PL2 cannot zero "
-							 "A(sample->detector) anywhere on the first branch.")
-		solved["PL1"], solved["PL2"], _ = found
-	sset()
+	#     downstream of the sample). A relay: each lens hands an intermediate
+	#     conjugate to the next, so every solve is a bracketed 1D root.
+	#     'image' relays the SAMPLE PLANE; 'diffraction' relays the angular
+	#     spectrum (PL1's first condition is A = 0, its back focal plane).
+	zp = [0.5 * (Z["PL1"] + Z["PL2"]), 0.5 * (Z["PL2"] + Z["PL3"]),
+		  0.5 * (Z["PL3"] + Z["PL4"])]
+	stages = [("PL1", z_samp, zp[0], (0, 1) if detector == "image" else (0, 0)),
+			  ("PL2", zp[0], zp[1], (0, 1)),
+			  ("PL3", zp[1], zp[2], (0, 1)),
+			  ("PL4", zp[2], z_det, (0, 1))]
+	for name, z_from, z_to, entry in stages:
+		roots = solve1(name, z_from, z_to, entry=entry)
+		if not roots:
+			raise ValueError(f"projector relay broke at {name}: no strength "
+							 f"images {z_from:.4f} m onto {z_to:.4f} m -- the "
+							 "projector geometry changed.")
+		solved[name] = roots[0]
+		sset()
 
 	M_det = block_between(scope, z_samp, z_det)
 	return dict(strengths=solved, predicted=p, alpha_limited=alpha_limited,
@@ -597,10 +660,12 @@ def wave_matched_rays(scope: Microscope) -> np.ndarray:
 	the trajectories it follows are the flat-phase family: zero-angle rays
 	whose height sets everything downstream. This bundle is that family —
 	rays at fractions of the wave envelope's half-width (2 sigma of the seed
-	gaussian), plus the pair that exactly grazes the CA edge and one pair just
-	inside it, so the aperture region reads clearly. The source's full
-	incoherent fan is wider than the coherent mode and drawing it over the
-	wave made the two look mismatched.
+	gaussian), plus the pair that grazes the CA edge **when that pair lies
+	inside the envelope**. A grazing pair taller than the envelope belongs to
+	beam the wave does not carry — drawing it put rays outside the |psi|
+	pattern for no gain — and when the aperture is that much wider than the
+	coherent mode it does not shape the wave anyway, so the pair is simply
+	omitted. Every ray drawn stays within the wave.
 
 	Parameters
 	----------
@@ -623,7 +688,8 @@ def wave_matched_rays(scope: Microscope) -> np.ndarray:
 	A_ca = block_between(scope, 0.0, scope.named_positions["CA"])[0, 0]
 	if abs(A_ca) > 1e-12:
 		h_edge = scope["CA"].radius / abs(A_ca)
-		heights += [h_edge, -h_edge, 0.85 * h_edge, -0.85 * h_edge]
+		if h_edge < w_env:					# only where the aperture bites the wave
+			heights += [h_edge, -h_edge]
 	r0 = np.zeros((len(heights), len(convention)))
 	r0[:, columnByName('x')] = heights			# flat family: zero angle
 	return r0
@@ -636,8 +702,7 @@ def ray_over_wave_figure(scope: Microscope, title: str, filename: str) -> list:
 	planes, one picture. The column is subdivided for smooth z sampling; the
 	rays are the flat-phase family from :func:`wave_matched_rays`, converted
 	to the rotating frame the wave propagates in, so they ride the wave
-	envelope through every lens and cross exactly at its crossovers. The
-	CA-grazing pair is drawn brighter.
+	envelope through every lens and cross exactly at its crossovers.
 
 	Parameters
 	----------
@@ -670,14 +735,8 @@ def ray_over_wave_figure(scope: Microscope, title: str, filename: str) -> list:
 	zs = rays[:, 0, columnByName('z')] * 1e3
 	ylim = ax.get_ylim()
 	xcol = rot[:, :, columnByName('x')] * 1e6
-	live = dense.I[-1] > 0						# rays the aperture let through
-	n_env = 7									# the envelope fan; the rest graze CA
 	for j in range(xcol.shape[1]):
-		grazing = j >= n_env
-		ax.plot(zs, xcol[:, j],
-				lw=0.9 if grazing else 0.5,
-				alpha=(0.9 if live[j] else 0.35) if grazing else 0.6,
-				color=("cyan" if live[j] else "tomato") if grazing else "deepskyblue")
+		ax.plot(zs, xcol[:, j], lw=0.5, alpha=0.6, color="deepskyblue")
 	ax.set_ylim(ylim)
 	fig.tight_layout()
 	fig.savefig(filename, dpi=140)
@@ -729,7 +788,7 @@ def run_configuration(current: str, probe: str, detector: str,
 		  f"{scope.beam_current*1e9:.3f} nA at the detector "
 		  f"({sol['predicted']['current_fraction']*100:.0f}% of the current passes CA)")
 	alpha_meas = scope.convergence_angle
-	note = "  [aperture-limited: CA cut the phase space this angle needed]" \
+	note = "  [limited: with the objective frozen, this is the most the condensers can deliver]" \
 		if sol["alpha_limited"] else ""
 	print(f"  probe:   predicted alpha {sol['predicted']['alpha']*1e3:.3f} mrad, "
 		  f"measured {alpha_meas*1e3:.3f} mrad, size {sol['predicted']['size']*1e9:.0f} nm{note}")

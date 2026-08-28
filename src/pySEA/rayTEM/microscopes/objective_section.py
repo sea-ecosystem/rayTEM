@@ -13,7 +13,7 @@ Layout:
    own aperture/illumination is set by the caller; the defaults here give a
    collimated 30 mrad pencil at OL1.
 2. **O** — *the objective section of* ``basic_column``, taken from it rather
-   than re-declared, so OL1 (f = 8 mm) and OL2 (f = 10 mm) cannot drift apart
+   than re-declared, so OL1 (f = 3 mm) and OL2 (f = 10 mm) cannot drift apart
    from the real column's. It already carries 0.18 m of drift after the lenses;
    this adds the leading drift the column's own gun/condenser used to provide.
 
@@ -113,7 +113,7 @@ def build_objective_section(alpha: float = 30e-3, voltage: float = 200,
 	# the objective. Same element objects, so OL1/OL2 stay identical.
 	objective = MicroscopeSection(name="O", elements=column["O"].elements,
 								  position=ENTRANCE_DRIFT)
-	f_ol1 = 0.008									# OL1's focal length in basic_column
+	f_ol1 = 0.003									# OL1's focal length in basic_column
 	aperture = alpha * f_ol1
 	source = Source(name="G", voltage=voltage,
 					size=(aperture, 0), np_xy=(n_rays, 1),

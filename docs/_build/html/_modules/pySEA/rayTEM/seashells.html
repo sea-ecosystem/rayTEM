@@ -1,0 +1,1038 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pySEA.rayTEM.seashells &mdash; rayTEM 0.0.1beta documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=e02f3e7d"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            rayTEM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../propagation_modes.html">Propagation Modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../operating_the_column.html">Operating the Column</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../terminology.html">Terminology</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Example Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">AI Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../ai_tools/install.html">AI Tools</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Into the SEA-weeds (For developers)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../dev_documentation.html">Into the SEA-weeds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../wave-optics-sampling.html">Why full-column electron wave propagation breaks fixed-grid sampling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_reference.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">rayTEM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">pySEA.rayTEM.seashells</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for pySEA.rayTEM.seashells</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">seashells serves as a wrapper around the sea_eco SEASerializable object, enabling easy integration with sea_eco.</span>
+<span class="sd">to install sea_eco and rayTEM side-by-side, this module should be installed as a plugin inside the pySEA folder, as a sibling to sea_eco, also in the pySEA folder</span>
+<span class="sd">if sea_eco IS installed, the SEASerializable object is wrapped, enabling direct access to, or wrapping of, all SEASerializable functions</span>
+<span class="sd">to wrap a function, we simply define it, do our custom stuff, then call super().funcname to call up to SEASerializable's version, and do more custom stuff after</span>
+<span class="sd">if sea_eco is NOT installed, we create a dummy SEASerializable object, with dummy functions (which raise warnings) for the functions we expect to use</span>
+<span class="sd">All objects we then expect to integrate with sea_eco then inherit the SEASerializable class from here (whether it is wrapping sea_eco's SEASerializable, or using the dummy version)</span>
+<span class="sd">"""</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span><span class="o">,</span><span class="nn">inspect</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">warnings</span><span class="w"> </span><span class="kn">import</span> <span class="n">warn</span>
+
+<span class="n">sea_available</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="k">try</span><span class="p">:</span>
+	<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s2">"../../"</span><span class="p">)</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.sea_eco.architecture.base_structure</span><span class="w"> </span><span class="kn">import</span> <span class="n">SEASerializable</span> <span class="k">as</span> <span class="n">_SEASerializable</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.sea_eco.architecture.base_structure</span><span class="w"> </span><span class="kn">import</span> <span class="n">Signal</span> <span class="k">as</span> <span class="n">_Signal</span><span class="p">,</span> <span class="n">Dimension</span> <span class="k">as</span> <span class="n">_Dimension</span><span class="p">,</span> <span class="n">SignalSet</span> <span class="k">as</span> <span class="n">_SignalSet</span>
+	<span class="n">sea_available</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+	<span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">+</span><span class="s2">". This is just a warning from rayTEM.seashells: rayTEM pySEA integration will not work."</span><span class="p">)</span>
+	<span class="k">pass</span>
+
+<span class="k">if</span> <span class="n">sea_available</span><span class="p">:</span>
+	<span class="k">class</span><span class="w"> </span><span class="nc">SEASerializable</span><span class="p">(</span><span class="n">_SEASerializable</span><span class="p">):</span>
+		<span class="k">def</span><span class="w"> </span><span class="nf">to_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">):</span>												<span class="c1"># sea_eco's SEASerializable will default naming like "Drift_2" but we'll set them to None so we can easily undo the naming later</span>
+			<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">"sections"</span><span class="p">):</span>										<span class="c1"># user might to_sea a Microscope object (loop section &gt; elements)</span>
+				<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"None_Microscope"</span>
+				<span class="k">for</span> <span class="n">s</span><span class="p">,</span><span class="n">sec</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sections</span><span class="p">):</span>
+					<span class="k">if</span> <span class="n">sec</span><span class="o">.</span><span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">sec</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+						<span class="n">sec</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"None_"</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+					<span class="k">for</span> <span class="n">e</span><span class="p">,</span><span class="n">ele</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sec</span><span class="o">.</span><span class="n">elements</span><span class="p">):</span>
+						<span class="k">if</span> <span class="n">ele</span><span class="o">.</span><span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">ele</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+							<span class="n">ele</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"None_"</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+			<span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">"elements"</span><span class="p">):</span>										<span class="c1"># ... or a MicroscopeSection object (loop elements only)</span>
+				<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"None_Section"</span>
+				<span class="k">for</span> <span class="n">e</span><span class="p">,</span><span class="n">ele</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">):</span>
+					<span class="k">if</span> <span class="n">ele</span><span class="o">.</span><span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">ele</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+						<span class="n">ele</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"None_"</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+			<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">to_sea</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+		<span class="k">def</span><span class="w"> </span><span class="nf">from_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">):</span>											<span class="c1"># sea_eco will reaload purely-SEASerializable objects, so reinitalize as our shared-inheritance object</span>
+			<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">from_sea</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+			<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">"sections"</span><span class="p">):</span>
+				<span class="k">if</span> <span class="s2">"None"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">""</span>
+				<span class="n">sections</span> <span class="o">=</span> <span class="p">[]</span>
+				<span class="k">for</span> <span class="n">s</span><span class="p">,</span><span class="n">sec</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sections</span><span class="p">):</span>
+					<span class="k">if</span> <span class="s2">"None"</span> <span class="ow">in</span> <span class="n">sec</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+						<span class="n">sec</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">""</span>
+					<span class="n">elements</span> <span class="o">=</span> <span class="p">[]</span>
+					<span class="k">for</span> <span class="n">e</span><span class="p">,</span><span class="n">ele</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sec</span><span class="o">.</span><span class="n">elements</span><span class="p">):</span>
+						<span class="k">if</span> <span class="s2">"None"</span> <span class="ow">in</span> <span class="n">ele</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+							<span class="n">ele</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">""</span>
+						<span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">safeReinstantiate</span><span class="p">(</span><span class="n">ele</span><span class="p">,</span><span class="n">ele</span><span class="o">.</span><span class="n">kind</span><span class="p">)</span> <span class="p">)</span>
+					<span class="n">sec</span><span class="o">.</span><span class="n">elements</span> <span class="o">=</span> <span class="n">elements</span>
+					<span class="n">sections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">safeReinstantiate</span><span class="p">(</span><span class="n">sec</span><span class="p">,</span><span class="s2">"Section"</span><span class="p">)</span> <span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">sections</span> <span class="o">=</span> <span class="n">sections</span>
+			<span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">"elements"</span><span class="p">):</span>
+				<span class="k">if</span> <span class="s2">"None"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">""</span>
+				<span class="n">elements</span> <span class="o">=</span> <span class="p">[]</span>
+				<span class="k">for</span> <span class="n">e</span><span class="p">,</span><span class="n">ele</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">):</span>
+					<span class="k">if</span> <span class="s2">"None"</span> <span class="ow">in</span> <span class="n">ele</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+						<span class="n">ele</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">""</span>
+					<span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">safeReinstantiate</span><span class="p">(</span><span class="n">ele</span><span class="p">,</span><span class="n">ele</span><span class="o">.</span><span class="n">kind</span><span class="p">)</span> <span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="o">=</span> <span class="n">elements</span>
+<span class="k">else</span><span class="p">:</span>
+<div class="viewcode-block" id="SEASerializable">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.SEASerializable">[docs]</a>
+	<span class="k">class</span><span class="w"> </span><span class="nc">SEASerializable</span><span class="p">():</span>
+		<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+			<span class="k">pass</span>
+<div class="viewcode-block" id="SEASerializable.to_sea">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.SEASerializable.to_sea">[docs]</a>
+		<span class="k">def</span><span class="w"> </span><span class="nf">to_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">):</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s2">"WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead"</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SEASerializable.from_sea">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.SEASerializable.from_sea">[docs]</a>
+		<span class="k">def</span><span class="w"> </span><span class="nf">from_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">):</span>
+			<span class="nb">print</span><span class="p">(</span><span class="s2">"WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead"</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_Wavefield</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Lightweight fallback wavefield container used when sea_eco is unavailable.</span>
+
+<span class="sd">	Mirrors the read surface of a sea_eco wavefield ``Signal`` (data plus transverse</span>
+<span class="sd">	sampling, wavelength, and z position) so wave-optics propagation still runs and</span>
+<span class="sd">	round-trips in-memory without the calibrated-Signal machinery. Serialization</span>
+<span class="sd">	(``to_sea``) is not available in this mode.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	data : numpy.ndarray</span>
+<span class="sd">		Complex field, shape ``(ny, nx)`` for a single plane or ``(nz, ny, nx)``</span>
+<span class="sd">		for a stack.</span>
+<span class="sd">	dx, dy : float</span>
+<span class="sd">		Transverse sample spacings (metres).</span>
+<span class="sd">	wavelength : float</span>
+<span class="sd">		Wavelength (metres).</span>
+<span class="sd">	z : float or numpy.ndarray or None</span>
+<span class="sd">		Plane position (2D) or array of plane positions (3D), metres.</span>
+
+<span class="sd">	Attributes</span>
+<span class="sd">	----------</span>
+<span class="sd">	data : numpy.ndarray</span>
+<span class="sd">		The complex field.</span>
+<span class="sd">	dx, dy : float</span>
+<span class="sd">		Transverse sample spacings (metres).</span>
+<span class="sd">	wavelength : float</span>
+<span class="sd">		Wavelength (metres).</span>
+<span class="sd">	z : float or numpy.ndarray or None</span>
+<span class="sd">		Plane position(s) (metres).</span>
+<span class="sd">	"""</span>
+	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">dx</span> <span class="o">=</span> <span class="n">dx</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">dy</span> <span class="o">=</span> <span class="n">dy</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span> <span class="o">=</span> <span class="n">wavelength</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">z</span>
+
+
+<div class="viewcode-block" id="make_wavefield_signal">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.make_wavefield_signal">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_wavefield_signal</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"wavefield"</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Wrap a complex field array as a calibrated sea_eco wavefield ``Signal``.</span>
+
+<span class="sd">	Builds a ``Signal`` whose transverse axes carry the pixel-size calibration and</span>
+<span class="sd">	whose metadata carries the wavelength (and, for a single plane, the z position);</span>
+<span class="sd">	for a stack, ``z`` becomes an unstructured z axis with explicit coordinates.</span>
+<span class="sd">	When sea_eco is unavailable a :class:`_Wavefield` fallback is returned instead so</span>
+<span class="sd">	wave propagation still works in-memory (with a warning).</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	data : numpy.ndarray</span>
+<span class="sd">		Complex field. ``(ny, nx)`` for one plane, or ``(nz, ny, nx)`` for a stack.</span>
+<span class="sd">	dx, dy : float</span>
+<span class="sd">		Transverse sample spacings (metres).</span>
+<span class="sd">	wavelength : float</span>
+<span class="sd">		Wavelength (metres).</span>
+<span class="sd">	z : float or Sequence[float] or None, optional</span>
+<span class="sd">		Plane position for a single plane, or the ``nz`` plane positions for a</span>
+<span class="sd">		stack. Stack positions become an unstructured z axis.</span>
+<span class="sd">	name : str, optional</span>
+<span class="sd">		Signal name, by default ``"wavefield"``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	Signal or _Wavefield</span>
+<span class="sd">		A calibrated complex ``Signal`` when sea_eco is present, otherwise a</span>
+<span class="sd">		:class:`_Wavefield` fallback.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	read_wavefield : Inverse accessor returning ``(data, dx, dy, wavelength, z)``.</span>
+<span class="sd">	"""</span>
+	<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_np</span>
+	<span class="n">data</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">sea_available</span><span class="p">:</span>
+		<span class="n">warn</span><span class="p">(</span><span class="s2">"sea_eco is not installed; make_wavefield_signal returns a lightweight "</span>
+			 <span class="s2">"_Wavefield fallback (no .sea serialization)."</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">_Wavefield</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+	<span class="n">ny</span><span class="p">,</span> <span class="n">nx</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+	<span class="c1"># size is set on every axis so Dimensions.ndim matches data.ndim (Signal.show relies on it)</span>
+	<span class="n">xdim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"x"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">dx</span><span class="p">,</span> <span class="n">offset</span><span class="o">=-</span><span class="p">(</span><span class="n">nx</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">nx</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">)</span>
+	<span class="n">ydim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"y"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span> <span class="n">offset</span><span class="o">=-</span><span class="p">(</span><span class="n">ny</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">dy</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">ny</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">)</span>
+	<span class="c1"># calibration is also mirrored into metadata for robust, parse-free read-back</span>
+	<span class="n">meta</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"wavelength_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">wavelength</span><span class="p">),</span> <span class="s2">"dx_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">dx</span><span class="p">),</span> <span class="s2">"dy_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">dy</span><span class="p">)}</span>
+	<span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+		<span class="n">zvals</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">z</span> <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">range</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+		<span class="c1"># unstructured z: pass a representative scale/offset so sea_eco skips its</span>
+		<span class="c1"># values-without-scale inference (which is only a plotting fallback here).</span>
+		<span class="n">zscale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">zvals</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">zvals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">zvals</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">1.0</span>
+		<span class="n">zdim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"z"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">zscale</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">zvals</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+						  <span class="n">size</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">zvals</span><span class="p">),</span> <span class="n">values</span><span class="o">=</span><span class="n">zvals</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">,</span> <span class="n">unstructured</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+		<span class="n">dimensions</span> <span class="o">=</span> <span class="p">[</span><span class="n">zdim</span><span class="p">,</span> <span class="n">ydim</span><span class="p">,</span> <span class="n">xdim</span><span class="p">]</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="n">meta</span><span class="p">[</span><span class="s2">"z_m"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.0</span>
+		<span class="n">dimensions</span> <span class="o">=</span> <span class="p">[</span><span class="n">ydim</span><span class="p">,</span> <span class="n">xdim</span><span class="p">]</span>
+	<span class="k">return</span> <span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="n">dimensions</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="n">meta</span><span class="p">,</span> <span class="n">signal_type</span><span class="o">=</span><span class="s2">"Image"</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="make_rays_signalset">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.make_rays_signalset">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_rays_signalset</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span> <span class="n">I</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">components</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rays"</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Wrap traced rays and their intensity/rotation as a sea_eco ``SignalSet``.</span>
+
+<span class="sd">	Assembles a Signal-backed view of a ray-mode result: the geometric ray table</span>
+<span class="sd">	plus the separate intensity (``I``) and rotation (``R``) arrays, sharing an</span>
+<span class="sd">	unstructured plane-``z`` axis and an unstructured ray-index axis. The ray table</span>
+<span class="sd">	additionally carries an unstructured component axis (the ``convention`` columns,</span>
+<span class="sd">	listed in metadata). Returns ``None`` (with a warning) when sea_eco is absent.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	rays : numpy.ndarray</span>
+<span class="sd">		Geometric rays, shape ``(n_planes, n_rays, n_components)``.</span>
+<span class="sd">	I : numpy.ndarray</span>
+<span class="sd">		Per-plane, per-ray intensity, shape ``(n_planes, n_rays)``.</span>
+<span class="sd">	R : numpy.ndarray</span>
+<span class="sd">		Per-plane, per-ray cumulative rotation, shape ``(n_planes, n_rays)``.</span>
+<span class="sd">	components : Sequence[str]</span>
+<span class="sd">		Names of the ray-vector components (the ``convention`` list).</span>
+<span class="sd">	name : str, optional</span>
+<span class="sd">		Name for the SignalSet, by default ``"rays"``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	SignalSet or None</span>
+<span class="sd">		A SignalSet of ``[rays, I, R]`` when sea_eco is present, else ``None``.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	MicroscopeSection.rays_signalset, Microscope.rays_signalset</span>
+<span class="sd">	"""</span>
+	<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_np</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">sea_available</span><span class="p">:</span>
+		<span class="n">warn</span><span class="p">(</span><span class="s2">"sea_eco is not installed; rays_signalset requires sea_eco and returns None."</span><span class="p">)</span>
+		<span class="k">return</span> <span class="kc">None</span>
+	<span class="n">rays</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">rays</span><span class="p">)</span> <span class="p">;</span> <span class="n">I</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">I</span><span class="p">)</span> <span class="p">;</span> <span class="n">R</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
+	<span class="n">n_planes</span><span class="p">,</span> <span class="n">n_rays</span><span class="p">,</span> <span class="n">n_comp</span> <span class="o">=</span> <span class="n">rays</span><span class="o">.</span><span class="n">shape</span>
+	<span class="n">z_index</span> <span class="o">=</span> <span class="n">components</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">"z"</span><span class="p">)</span> <span class="k">if</span> <span class="s2">"z"</span> <span class="ow">in</span> <span class="n">components</span> <span class="k">else</span> <span class="mi">0</span>
+	<span class="n">zvals</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">rays</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">z_index</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="c1"># plane-z is genuinely non-uniform (unstructured); ray/component are index axes.</span>
+	<span class="c1"># A representative scale/offset is passed so sea_eco skips its values-without-scale</span>
+	<span class="c1"># inference path (a plotting fallback that also emits stray debug output).</span>
+	<span class="n">zscale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">zvals</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">zvals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">zvals</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">1.0</span>
+	<span class="n">zdim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"plane_z"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">zscale</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">zvals</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+					  <span class="n">size</span><span class="o">=</span><span class="n">n_planes</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">zvals</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">,</span> <span class="n">unstructured</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+	<span class="n">rdim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"ray"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n_rays</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">unstructured</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+	<span class="n">cdim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"component"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n_comp</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">unstructured</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+	<span class="n">ray_sig</span> <span class="o">=</span> <span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">rays</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rays"</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">,</span> <span class="n">rdim</span><span class="p">,</span> <span class="n">cdim</span><span class="p">],</span>
+					  <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">"components"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">components</span><span class="p">)})</span>
+	<span class="n">I_sig</span> <span class="o">=</span> <span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">I</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"I"</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">,</span> <span class="n">rdim</span><span class="p">])</span>
+	<span class="n">R_sig</span> <span class="o">=</span> <span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">R</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"R"</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">,</span> <span class="n">rdim</span><span class="p">])</span>
+	<span class="k">return</span> <span class="n">_SignalSet</span><span class="p">(</span><span class="n">signals</span><span class="o">=</span><span class="p">[</span><span class="n">ray_sig</span><span class="p">,</span> <span class="n">I_sig</span><span class="p">,</span> <span class="n">R_sig</span><span class="p">],</span> <span class="n">main_signal</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span></div>
+
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_Phase</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Lightweight fallback phase container used when sea_eco is unavailable.</span>
+
+<span class="sd">	Mirrors the read surface consumed by the wave propagators: the real phase</span>
+<span class="sd">	array plus its application domain. Produced by the phase-Signal factories in</span>
+<span class="sd">	place of a calibrated ``Signal``.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	data : numpy.ndarray</span>
+<span class="sd">		Real phase χ (radians), shape ``(ny, nx)``.</span>
+<span class="sd">	space : str</span>
+<span class="sd">		Application domain: ``'position'`` (real-space screen) or</span>
+<span class="sd">		``'scattering'`` (reciprocal-space propagator phase).</span>
+<span class="sd">	name : str</span>
+<span class="sd">		Human-readable name.</span>
+
+<span class="sd">	Attributes</span>
+<span class="sd">	----------</span>
+<span class="sd">	data : numpy.ndarray</span>
+<span class="sd">		The phase array.</span>
+<span class="sd">	space : str</span>
+<span class="sd">		The application domain.</span>
+<span class="sd">	name : str</span>
+<span class="sd">		The name.</span>
+<span class="sd">	"""</span>
+	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">space</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">space</span> <span class="o">=</span> <span class="n">space</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+
+<div class="viewcode-block" id="make_screen_phase_signal">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.make_screen_phase_signal">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_screen_phase_signal</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"phase screen"</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Wrap a real-space screen as a space-tagged Signal.</span>
+
+<span class="sd">	The returned Signal's transverse Dimensions carry the pixel calibration and</span>
+<span class="sd">	``space='position'``, which is how the wave propagators recognize a screen</span>
+<span class="sd">	applied by multiplying the field. Falls back to :class:`_Phase` when</span>
+<span class="sd">	sea_eco is absent.</span>
+
+<span class="sd">	The data may be **real**, meaning a phase χ in radians applied as</span>
+<span class="sd">	``exp(iχ)``, or **complex**, meaning a transmission ``T`` applied directly</span>
+<span class="sd">	— amplitude and phase in one object, which is what a physical plate has.</span>
+<span class="sd">	See :func:`waveoptics.apply_phase` for the convention.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	data : numpy.ndarray</span>
+<span class="sd">		Real phase χ (radians) or complex transmission ``T``. ``(ny, nx)`` for</span>
+<span class="sd">		a screen at one plane, or ``(n, ny, nx)`` for a **volume** — a medium</span>
+<span class="sd">		described slice by slice, which the propagator turns into a multislice</span>
+<span class="sd">		through the element's body.</span>
+<span class="sd">	dx, dy : float</span>
+<span class="sd">		Sample spacings of the grid the phase was built on (metres).</span>
+<span class="sd">	name : str, optional</span>
+<span class="sd">		Signal name, by default ``"phase screen"``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	Signal or _Phase</span>
+<span class="sd">		The domain-tagged phase.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	make_kernel_phase_signal : Reciprocal-space counterpart.</span>
+<span class="sd">	phase_space_of : Reads the domain tag back.</span>
+<span class="sd">	"""</span>
+	<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_np</span>
+	<span class="n">data</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">sea_available</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">_Phase</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">"position"</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+	<span class="n">ny</span><span class="p">,</span> <span class="n">nx</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
+	<span class="n">xdim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"x"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">dx</span><span class="p">,</span> <span class="n">offset</span><span class="o">=-</span><span class="p">(</span><span class="n">nx</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">nx</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">)</span>
+	<span class="n">ydim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"y"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">dy</span><span class="p">,</span> <span class="n">offset</span><span class="o">=-</span><span class="p">(</span><span class="n">ny</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">dy</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">ny</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">)</span>
+	<span class="n">dims</span> <span class="o">=</span> <span class="p">[</span><span class="n">ydim</span><span class="p">,</span> <span class="n">xdim</span><span class="p">]</span>
+	<span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+		<span class="c1"># a VOLUME screen: slices through the element's body, evenly spaced by</span>
+		<span class="c1"># construction (the propagator divides the length by their count), so</span>
+		<span class="c1"># the leading axis is an index rather than a calibrated z</span>
+		<span class="n">dims</span> <span class="o">=</span> <span class="p">[</span><span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"slice"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+						   <span class="n">units</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">unstructured</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span> <span class="o">+</span> <span class="n">dims</span>
+	<span class="k">return</span> <span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="n">dims</span><span class="p">,</span> <span class="n">signal_type</span><span class="o">=</span><span class="s2">"Image"</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="make_kernel_phase_signal">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.make_kernel_phase_signal">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_kernel_phase_signal</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">fx</span><span class="p">,</span> <span class="n">fy</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"propagator phase"</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Wrap a reciprocal-space propagator phase χ(f_x, f_y) as a space-tagged Signal.</span>
+
+<span class="sd">	The returned Signal's Dimensions carry the (unshifted, fftfreq-ordered)</span>
+<span class="sd">	spatial frequencies and ``space='scattering'``, which is how the wave</span>
+<span class="sd">	propagators recognize a phase to apply in the FFT domain. Falls back to</span>
+<span class="sd">	:class:`_Phase` when sea_eco is absent.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	data : numpy.ndarray</span>
+<span class="sd">		Real phase χ (radians), shape ``(ny, nx)``, in fftfreq order.</span>
+<span class="sd">	fx, fy : numpy.ndarray</span>
+<span class="sd">		Spatial-frequency axes (1/m), fftfreq order, lengths ``nx``/``ny``.</span>
+<span class="sd">	name : str, optional</span>
+<span class="sd">		Signal name, by default ``"propagator phase"``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	Signal or _Phase</span>
+<span class="sd">		The domain-tagged phase.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	make_screen_phase_signal : Real-space counterpart.</span>
+<span class="sd">	phase_space_of : Reads the domain tag back.</span>
+<span class="sd">	"""</span>
+	<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_np</span>
+	<span class="n">data</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">sea_available</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">_Phase</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">"scattering"</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+	<span class="n">fxdim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"f_x"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"scattering"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">fx</span><span class="p">),</span>
+					   <span class="n">values</span><span class="o">=</span><span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">fx</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="s2">"1/m"</span><span class="p">,</span> <span class="n">unstructured</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+	<span class="n">fydim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"f_y"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"scattering"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">fy</span><span class="p">),</span>
+					   <span class="n">values</span><span class="o">=</span><span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">fy</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="s2">"1/m"</span><span class="p">,</span> <span class="n">unstructured</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">fydim</span><span class="p">,</span> <span class="n">fxdim</span><span class="p">],</span> <span class="n">signal_type</span><span class="o">=</span><span class="s2">"Image"</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="phase_space_of">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.phase_space_of">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">phase_space_of</span><span class="p">(</span><span class="n">phase</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Return the application domain of a phase produced by the factories above.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	phase : Signal or _Phase</span>
+<span class="sd">		A domain-tagged phase.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	str</span>
+<span class="sd">		``'position'`` or ``'scattering'`` (read from the fallback attribute or</span>
+<span class="sd">		from the first Dimension's ``space``).</span>
+<span class="sd">	"""</span>
+	<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">phase</span><span class="p">,</span> <span class="n">_Phase</span><span class="p">):</span>
+		<span class="k">return</span> <span class="n">phase</span><span class="o">.</span><span class="n">space</span>
+	<span class="k">return</span> <span class="n">phase</span><span class="o">.</span><span class="n">dimensions</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">space</span></div>
+
+
+
+<div class="viewcode-block" id="grid_of">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.grid_of">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">grid_of</span><span class="p">(</span><span class="n">dimensions</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Normalize a transverse-grid description to ``(ny, nx, dy, dx)``.</span>
+
+<span class="sd">	Accepts either a sea_eco ``Dimensions`` object whose last two axes are the</span>
+<span class="sd">	calibrated transverse y/x dimensions (the wavefield-Signal layout), or a</span>
+<span class="sd">	plain ``(shape, dx, dy)`` tuple used on the sea_eco-absent fallback path.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	dimensions : Dimensions or tuple</span>
+<span class="sd">		Grid description: a ``Dimensions`` with trailing y/x axes, or</span>
+<span class="sd">		``((ny, nx), dx, dy)``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	tuple</span>
+<span class="sd">		``(ny, nx, dy, dx)``.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	TypeError</span>
+<span class="sd">		If ``dimensions`` is neither form.</span>
+<span class="sd">	"""</span>
+	<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dimensions</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+		<span class="p">(</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">),</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span> <span class="o">=</span> <span class="n">dimensions</span>
+		<span class="k">return</span> <span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">dx</span>
+	<span class="n">dims</span> <span class="o">=</span> <span class="n">dimensions</span><span class="o">.</span><span class="n">dimensions</span>
+	<span class="n">ydim</span><span class="p">,</span> <span class="n">xdim</span> <span class="o">=</span> <span class="n">dims</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">dims</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+	<span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">ydim</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">xdim</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">ydim</span><span class="o">.</span><span class="n">scale</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">xdim</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="as_ndarray">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.as_ndarray">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">as_ndarray</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Return the raw ndarray behind a sea_eco ``Signal`` (passthrough for arrays).</span>
+
+<span class="sd">	Discriminates on the presence of a ``dimensions`` attribute (Signals have one;</span>
+<span class="sd">	plain ndarrays and the ``_Wavefield`` fallback do not), so it cannot be fooled</span>
+<span class="sd">	by ``numpy.ndarray.data`` (which is a memoryview, not the array).</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	x : Signal or numpy.ndarray or _Wavefield</span>
+<span class="sd">		A calibrated Signal or a raw array-like.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	numpy.ndarray</span>
+<span class="sd">		``x.data`` when ``x`` is a Signal, otherwise ``x`` unchanged.</span>
+<span class="sd">	"""</span>
+	<span class="k">return</span> <span class="n">x</span><span class="o">.</span><span class="n">data</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">"dimensions"</span><span class="p">)</span> <span class="k">else</span> <span class="n">x</span></div>
+
+
+
+<div class="viewcode-block" id="make_covariance_signal">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.make_covariance_signal">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_covariance_signal</span><span class="p">(</span><span class="n">covariance</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">components</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"covariance"</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Wrap a stack of per-plane covariance matrices as a calibrated sea_eco ``Signal``.</span>
+
+<span class="sd">	Builds a ``(n_planes, n_comp, n_comp)`` Signal for the beam-envelope result: an</span>
+<span class="sd">	unstructured plane-``z`` axis plus two component (row/col) index axes whose</span>
+<span class="sd">	labels (the ``convention`` columns) are recorded in metadata. Returns the raw</span>
+<span class="sd">	ndarray (with a warning) when sea_eco is unavailable.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	covariance : numpy.ndarray</span>
+<span class="sd">		Per-plane covariance matrices, shape ``(n_planes, n_comp, n_comp)``.</span>
+<span class="sd">	z : Sequence[float]</span>
+<span class="sd">		The ``n_planes`` plane positions (metres) for the unstructured z axis.</span>
+<span class="sd">	components : Sequence[str]</span>
+<span class="sd">		Names of the phase-space components (the ``convention`` list).</span>
+<span class="sd">	name : str, optional</span>
+<span class="sd">		Signal name, by default ``"covariance"``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	Signal or numpy.ndarray</span>
+<span class="sd">		A calibrated ``Signal`` when sea_eco is present, else ``covariance`` unchanged.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	make_rays_signalset, make_wavefield_signal, as_ndarray</span>
+<span class="sd">	"""</span>
+	<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_np</span>
+	<span class="n">covariance</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">covariance</span><span class="p">)</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">sea_available</span><span class="p">:</span>
+		<span class="n">warn</span><span class="p">(</span><span class="s2">"sea_eco is not installed; make_covariance_signal returns a raw ndarray."</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">covariance</span>
+	<span class="n">zvals</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">ncomp</span> <span class="o">=</span> <span class="n">covariance</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+	<span class="n">zscale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">zvals</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">zvals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">zvals</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">1.0</span>
+	<span class="n">zdim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"z"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">zscale</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">zvals</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+					  <span class="n">size</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">zvals</span><span class="p">),</span> <span class="n">values</span><span class="o">=</span><span class="n">zvals</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">,</span> <span class="n">unstructured</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+	<span class="c1"># row/col are regular (structured) index axes so Signal.show renders a heatmap,</span>
+	<span class="c1"># not an unstructured scatter.</span>
+	<span class="n">rowdim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"row"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">ncomp</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">unstructured</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+	<span class="n">coldim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"col"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">ncomp</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">unstructured</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">covariance</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">,</span> <span class="n">rowdim</span><span class="p">,</span> <span class="n">coldim</span><span class="p">],</span>
+				   <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">"components"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">components</span><span class="p">)},</span> <span class="n">signal_type</span><span class="o">=</span><span class="s2">"Image"</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="read_wavefield">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.read_wavefield">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_wavefield</span><span class="p">(</span><span class="n">signal</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Read ``(data, dx, dy, wavelength, z)`` from a wavefield Signal or fallback.</span>
+
+<span class="sd">	Inverse of :func:`make_wavefield_signal`. Reads the transverse sampling and</span>
+<span class="sd">	wavelength from metadata (mirrored there by the factory) so it does not depend</span>
+<span class="sd">	on parsing ``Dimension`` objects, and works for both a real sea_eco ``Signal``</span>
+<span class="sd">	and the :class:`_Wavefield` fallback.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	signal : Signal or _Wavefield</span>
+<span class="sd">		A wavefield produced by :func:`make_wavefield_signal`.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	tuple</span>
+<span class="sd">		``(data, dx, dy, wavelength, z)`` where ``data`` is the complex field and</span>
+<span class="sd">		``z`` is a float (single plane) or ndarray (stack) or ``None``.</span>
+<span class="sd">	"""</span>
+	<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">_Wavefield</span><span class="p">):</span>
+		<span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">dx</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">dy</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">wavelength</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">z</span>
+	<span class="n">meta</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">if</span> <span class="n">signal</span><span class="o">.</span><span class="n">metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">{}</span>
+	<span class="n">dx</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"dx_m"</span><span class="p">)</span>
+	<span class="n">dy</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"dy_m"</span><span class="p">)</span>
+	<span class="n">wavelength</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"wavelength_m"</span><span class="p">)</span>
+	<span class="n">z</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"z_m"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span></div>
+
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_ScaledWavefield</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Lightweight fallback scaled-wavefield container used when sea_eco is unavailable.</span>
+
+<span class="sd">	Mirrors the read surface of a scaled-wavefield ``Signal`` produced by</span>
+<span class="sd">	:func:`make_scaled_wavefield_signal`: the reduced field ``U(ξ, η)`` of the</span>
+<span class="sd">	scaled-Fresnel factorization ``ψ = (1/s)·U·exp[ik(x²+y²)/2R]`` plus its scaled</span>
+<span class="sd">	sampling and the frame state ``(s, R, τ)``, so scaled propagation still runs</span>
+<span class="sd">	and round-trips in-memory without the calibrated-Signal machinery.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	data : numpy.ndarray</span>
+<span class="sd">		Complex reduced field ``U``, shape ``(neta, nxi)``.</span>
+<span class="sd">	dxi, deta : float</span>
+<span class="sd">		Scaled transverse sample spacings Δξ, Δη (metres).</span>
+<span class="sd">	wavelength : float</span>
+<span class="sd">		Wavelength (metres).</span>
+<span class="sd">	s : float</span>
+<span class="sd">		Scale factor at this plane (physical pixel size is ``|s|·Δξ``).</span>
+<span class="sd">	R : float</span>
+<span class="sd">		Wavefront radius of curvature (metres); ``numpy.inf`` for a flat frame.</span>
+<span class="sd">	tau : float</span>
+<span class="sd">		Reduced propagation coordinate ``τ = ∫ dz/s²`` accumulated so far.</span>
+<span class="sd">	z : float or None</span>
+<span class="sd">		Physical plane position (metres).</span>
+
+<span class="sd">	Attributes</span>
+<span class="sd">	----------</span>
+<span class="sd">	data : numpy.ndarray</span>
+<span class="sd">		The complex reduced field ``U``.</span>
+<span class="sd">	dxi, deta : float</span>
+<span class="sd">		Scaled sample spacings (metres).</span>
+<span class="sd">	wavelength : float</span>
+<span class="sd">		Wavelength (metres).</span>
+<span class="sd">	s, R, tau : float</span>
+<span class="sd">		Chart state at this plane.</span>
+<span class="sd">	z : float or None</span>
+<span class="sd">		Physical plane position (metres).</span>
+<span class="sd">	"""</span>
+	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">deta</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">z_cross</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">dxi</span> <span class="o">=</span> <span class="n">dxi</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">deta</span> <span class="o">=</span> <span class="n">deta</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span> <span class="o">=</span> <span class="n">wavelength</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">s</span> <span class="o">=</span> <span class="n">s</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">R</span> <span class="o">=</span> <span class="n">R</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">tau</span> <span class="o">=</span> <span class="n">tau</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">z</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">z_cross</span> <span class="o">=</span> <span class="n">z_cross</span>
+
+
+<div class="viewcode-block" id="make_scaled_wavefield_signal">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.make_scaled_wavefield_signal">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_scaled_wavefield_signal</span><span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">deta</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+								 <span class="n">z_cross</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"scaled wavefield"</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Wrap a reduced field ``U(ξ, η)`` as a single-plane scaled-wavefield ``Signal``.</span>
+
+<span class="sd">	Builds the in-flight state of scaled-Fresnel propagation: the reduced field of</span>
+<span class="sd">	the factorization ``ψ = (1/s)·U(ξ, η)·exp[ik(x²+y²)/2R]`` on a ``Signal`` whose</span>
+<span class="sd">	ξ/η axes carry the *scaled* sampling Δξ/Δη as their calibration, with the chart</span>
+<span class="sd">	scalars ``(s, R, τ)``, the wavelength, and the physical plane position in</span>
+<span class="sd">	metadata. When sea_eco is unavailable a :class:`_ScaledWavefield` fallback is</span>
+<span class="sd">	returned instead (with a warning).</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	U : numpy.ndarray</span>
+<span class="sd">		Complex reduced field, shape ``(neta, nxi)``.</span>
+<span class="sd">	dxi, deta : float</span>
+<span class="sd">		Scaled transverse sample spacings Δξ, Δη (metres). The physical pixel size</span>
+<span class="sd">		at this plane is ``|s|·Δξ``.</span>
+<span class="sd">	wavelength : float</span>
+<span class="sd">		Wavelength (metres).</span>
+<span class="sd">	s : float or Sequence[float]</span>
+<span class="sd">		Scale factor at this plane; an ``(s_x, s_y)`` pair on an anisotropic</span>
+<span class="sd">		frame (stored as per-axis metadata keys ``s_x``/``s_y``).</span>
+<span class="sd">	R : float or Sequence[float]</span>
+<span class="sd">		Wavefront radius of curvature (metres); ``numpy.inf`` for a flat frame;</span>
+<span class="sd">		per-axis pair on an anisotropic frame (keys ``R_x_m``/``R_y_m``).</span>
+<span class="sd">	tau : float or Sequence[float]</span>
+<span class="sd">		Accumulated reduced propagation coordinate ``τ = ∫ dz/s²``; per-axis</span>
+<span class="sd">		pair on an anisotropic frame (keys ``tau_x``/``tau_y``).</span>
+<span class="sd">	z : float or None, optional</span>
+<span class="sd">		Physical plane position (metres), stored in metadata.</span>
+<span class="sd">	z_cross : float, Sequence, or None, optional</span>
+<span class="sd">		Position of the crossover a flat frame is currently traversing</span>
+<span class="sd">		(set by the hybrid frame-switching policy; ``None`` otherwise).</span>
+<span class="sd">		Stored in metadata as ``z_cross_m`` only when set; a per-axis pair</span>
+<span class="sd">		(entries ``None`` where inactive) stores ``z_cross_x_m``/``z_cross_y_m``.</span>
+<span class="sd">	tag : str or None, optional</span>
+<span class="sd">		Frame-event tag for interior planes logged by the hybrid policy</span>
+<span class="sd">		(``'flatten'``/``'crossover'``/``'rediverge'``); stored in metadata as</span>
+<span class="sd">		``frame_tag`` only when set.</span>
+<span class="sd">	name : str, optional</span>
+<span class="sd">		Signal name, by default ``"scaled wavefield"``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	Signal or _ScaledWavefield</span>
+<span class="sd">		A calibrated complex ``Signal`` when sea_eco is present, otherwise a</span>
+<span class="sd">		:class:`_ScaledWavefield` fallback.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	read_scaled_wavefield : Inverse accessor.</span>
+<span class="sd">	make_scaled_wave_signalset : Stacked multi-plane variant.</span>
+<span class="sd">	make_wavefield_signal : The physical (unscaled) wavefield factory.</span>
+<span class="sd">	"""</span>
+	<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_np</span>
+	<span class="n">U</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">U</span><span class="p">)</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">sea_available</span><span class="p">:</span>
+		<span class="n">warn</span><span class="p">(</span><span class="s2">"sea_eco is not installed; make_scaled_wavefield_signal returns a "</span>
+			 <span class="s2">"lightweight _ScaledWavefield fallback (no .sea serialization)."</span><span class="p">)</span>
+		<span class="n">out</span> <span class="o">=</span> <span class="n">_ScaledWavefield</span><span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">deta</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">z_cross</span><span class="p">)</span>
+		<span class="n">out</span><span class="o">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">tag</span>
+		<span class="k">return</span> <span class="n">out</span>
+	<span class="n">neta</span><span class="p">,</span> <span class="n">nxi</span> <span class="o">=</span> <span class="n">U</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">U</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+	<span class="n">xidim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"xi"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">dxi</span><span class="p">,</span> <span class="n">offset</span><span class="o">=-</span><span class="p">(</span><span class="n">nxi</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">nxi</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">)</span>
+	<span class="n">etadim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"eta"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">deta</span><span class="p">,</span> <span class="n">offset</span><span class="o">=-</span><span class="p">(</span><span class="n">neta</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">deta</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">neta</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">)</span>
+	<span class="c1"># frame scalars mirrored into metadata for robust, parse-free read-back;</span>
+	<span class="c1"># isotropic frames keep the scalar keys (old files load unchanged), an</span>
+	<span class="c1"># anisotropic frame stores per-axis keys instead</span>
+	<span class="n">meta</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"wavelength_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">wavelength</span><span class="p">),</span> <span class="s2">"dxi_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">dxi</span><span class="p">),</span> <span class="s2">"deta_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">deta</span><span class="p">),</span>
+			<span class="s2">"z_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">}</span>
+	<span class="k">if</span> <span class="n">_np</span><span class="o">.</span><span class="n">ndim</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">_np</span><span class="o">.</span><span class="n">ndim</span><span class="p">(</span><span class="n">R</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">_np</span><span class="o">.</span><span class="n">ndim</span><span class="p">(</span><span class="n">tau</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+		<span class="n">meta</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">"s"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="s2">"R_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">R</span><span class="p">),</span> <span class="s2">"tau"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">tau</span><span class="p">)})</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.waveoptics</span><span class="w"> </span><span class="kn">import</span> <span class="n">axis_components</span>
+		<span class="n">s_x</span><span class="p">,</span> <span class="n">s_y</span> <span class="o">=</span> <span class="n">axis_components</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+		<span class="n">R_x</span><span class="p">,</span> <span class="n">R_y</span> <span class="o">=</span> <span class="n">axis_components</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
+		<span class="n">t_x</span><span class="p">,</span> <span class="n">t_y</span> <span class="o">=</span> <span class="n">axis_components</span><span class="p">(</span><span class="n">tau</span><span class="p">)</span>
+		<span class="n">meta</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">"s_x"</span><span class="p">:</span> <span class="n">s_x</span><span class="p">,</span> <span class="s2">"s_y"</span><span class="p">:</span> <span class="n">s_y</span><span class="p">,</span> <span class="s2">"R_x_m"</span><span class="p">:</span> <span class="n">R_x</span><span class="p">,</span> <span class="s2">"R_y_m"</span><span class="p">:</span> <span class="n">R_y</span><span class="p">,</span>
+					 <span class="s2">"tau_x"</span><span class="p">:</span> <span class="n">t_x</span><span class="p">,</span> <span class="s2">"tau_y"</span><span class="p">:</span> <span class="n">t_y</span><span class="p">})</span>
+	<span class="k">if</span> <span class="n">z_cross</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="k">if</span> <span class="n">_np</span><span class="o">.</span><span class="n">ndim</span><span class="p">(</span><span class="n">z_cross</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">meta</span><span class="p">[</span><span class="s2">"z_cross_m"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">z_cross</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">if</span> <span class="n">z_cross</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+				<span class="n">meta</span><span class="p">[</span><span class="s2">"z_cross_x_m"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">z_cross</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+			<span class="k">if</span> <span class="n">z_cross</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+				<span class="n">meta</span><span class="p">[</span><span class="s2">"z_cross_y_m"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">z_cross</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+	<span class="k">if</span> <span class="n">tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="n">meta</span><span class="p">[</span><span class="s2">"frame_tag"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">U</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">etadim</span><span class="p">,</span> <span class="n">xidim</span><span class="p">],</span> <span class="n">metadata</span><span class="o">=</span><span class="n">meta</span><span class="p">,</span> <span class="n">signal_type</span><span class="o">=</span><span class="s2">"Image"</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="read_scaled_wavefield">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.read_scaled_wavefield">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_scaled_wavefield</span><span class="p">(</span><span class="n">signal</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Read ``(U, dxi, deta, wavelength, s, R, tau, z)`` from a scaled wavefield.</span>
+
+<span class="sd">	Inverse of :func:`make_scaled_wavefield_signal`. Reads the scaled sampling and</span>
+<span class="sd">	the frame state from metadata (mirrored there by the factory) so it does not</span>
+<span class="sd">	depend on parsing ``Dimension`` objects, and works for both a real sea_eco</span>
+<span class="sd">	``Signal`` and the :class:`_ScaledWavefield` fallback.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	signal : Signal or _ScaledWavefield</span>
+<span class="sd">		A scaled wavefield produced by :func:`make_scaled_wavefield_signal`.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	tuple</span>
+<span class="sd">		``(U, dxi, deta, wavelength, s, R, tau, z)`` where ``U`` is the complex</span>
+<span class="sd">		reduced field and the remaining entries are floats — ``s``/``R``/``tau``</span>
+<span class="sd">		come back as ``(x, y)`` pairs when the plane was stored anisotropic.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	make_scaled_wavefield_signal, read_wavefield</span>
+<span class="sd">	"""</span>
+	<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">_ScaledWavefield</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">dxi</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">deta</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">wavelength</span><span class="p">,</span>
+				<span class="n">signal</span><span class="o">.</span><span class="n">s</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">R</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">tau</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">z</span><span class="p">)</span>
+	<span class="n">meta</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">if</span> <span class="n">signal</span><span class="o">.</span><span class="n">metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">{}</span>
+	<span class="k">if</span> <span class="s2">"s_x"</span> <span class="ow">in</span> <span class="n">meta</span><span class="p">:</span>		<span class="c1"># anisotropic frame: per-axis keys</span>
+		<span class="k">return</span> <span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"dxi_m"</span><span class="p">),</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"deta_m"</span><span class="p">),</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"wavelength_m"</span><span class="p">),</span>
+				<span class="p">(</span><span class="n">meta</span><span class="p">[</span><span class="s2">"s_x"</span><span class="p">],</span> <span class="n">meta</span><span class="p">[</span><span class="s2">"s_y"</span><span class="p">]),</span> <span class="p">(</span><span class="n">meta</span><span class="p">[</span><span class="s2">"R_x_m"</span><span class="p">],</span> <span class="n">meta</span><span class="p">[</span><span class="s2">"R_y_m"</span><span class="p">]),</span>
+				<span class="p">(</span><span class="n">meta</span><span class="p">[</span><span class="s2">"tau_x"</span><span class="p">],</span> <span class="n">meta</span><span class="p">[</span><span class="s2">"tau_y"</span><span class="p">]),</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"z_m"</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+	<span class="k">return</span> <span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"dxi_m"</span><span class="p">),</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"deta_m"</span><span class="p">),</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"wavelength_m"</span><span class="p">),</span>
+			<span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"s"</span><span class="p">),</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"R_m"</span><span class="p">),</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"tau"</span><span class="p">),</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"z_m"</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="scaled_frame_crossover">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.scaled_frame_crossover">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">scaled_frame_crossover</span><span class="p">(</span><span class="n">signal</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Read the crossover marker of a scaled wavefield's flat frame, if any.</span>
+
+<span class="sd">	The hybrid frame-switching policy records the position of the crossover a</span>
+<span class="sd">	flat frame is currently traversing so the marker survives element</span>
+<span class="sd">	boundaries; this accessor reads it back from either a real sea_eco</span>
+<span class="sd">	``Signal`` (metadata key ``z_cross_m``) or the :class:`_ScaledWavefield`</span>
+<span class="sd">	fallback.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	signal : Signal or _ScaledWavefield</span>
+<span class="sd">		A scaled wavefield produced by :func:`make_scaled_wavefield_signal`.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	float, tuple, or None</span>
+<span class="sd">		The crossover position ``z_cross`` (metres), ``None`` when the frame</span>
+<span class="sd">		is not traversing a crossover, or a per-axis ``(x, y)`` pair (entries</span>
+<span class="sd">		``None`` where inactive) on an anisotropic frame.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	make_scaled_wavefield_signal : Stores the marker.</span>
+<span class="sd">	"""</span>
+	<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">_ScaledWavefield</span><span class="p">):</span>
+		<span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">z_cross</span>
+	<span class="n">meta</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">if</span> <span class="n">signal</span><span class="o">.</span><span class="n">metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">{}</span>
+	<span class="k">if</span> <span class="s2">"z_cross_x_m"</span> <span class="ow">in</span> <span class="n">meta</span> <span class="ow">or</span> <span class="s2">"z_cross_y_m"</span> <span class="ow">in</span> <span class="n">meta</span><span class="p">:</span>		<span class="c1"># per-axis markers</span>
+		<span class="k">return</span> <span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"z_cross_x_m"</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"z_cross_y_m"</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+	<span class="k">return</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"z_cross_m"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="scaled_frame_tag">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.scaled_frame_tag">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">scaled_frame_tag</span><span class="p">(</span><span class="n">signal</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Read the frame-event tag of a scaled wavefield plane, if any.</span>
+
+<span class="sd">	Interior planes logged by the hybrid frame-switching policy carry a tag</span>
+<span class="sd">	(``'flatten'``/``'crossover'``/``'rediverge'``); ordinary element-exit</span>
+<span class="sd">	planes carry none. Works for both a real sea_eco ``Signal`` (metadata key</span>
+<span class="sd">	``frame_tag``) and the :class:`_ScaledWavefield` fallback.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	signal : Signal or _ScaledWavefield</span>
+<span class="sd">		A scaled wavefield produced by :func:`make_scaled_wavefield_signal`.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	str or None</span>
+<span class="sd">		The tag, or ``None`` for an untagged plane.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	make_scaled_wavefield_signal : Stores the tag.</span>
+<span class="sd">	"""</span>
+	<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">_ScaledWavefield</span><span class="p">):</span>
+		<span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="s2">"tag"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+	<span class="n">meta</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">if</span> <span class="n">signal</span><span class="o">.</span><span class="n">metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">{}</span>
+	<span class="k">return</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"frame_tag"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="make_scaled_wave_signalset">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.make_scaled_wave_signalset">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_scaled_wave_signalset</span><span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">deta</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+							   <span class="n">name</span><span class="o">=</span><span class="s2">"scaled wave"</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Wrap a stack of reduced fields and their frame state as a sea_eco ``SignalSet``.</span>
+
+<span class="sd">	Assembles the stacked result of a scaled-Fresnel run: the reduced field</span>
+<span class="sd">	``U(z, η, ξ)`` on an unstructured plane-``z`` axis plus calibrated ξ/η axes</span>
+<span class="sd">	(the ξ,η grid is fixed for the whole run), with companion 1-D Signals ``s(z)``,</span>
+<span class="sd">	``R(z)``, ``tau(z)`` sharing the same plane-z axis — the same pattern as</span>
+<span class="sd">	:func:`make_rays_signalset`. Returns ``None`` (with a warning) when sea_eco</span>
+<span class="sd">	is absent.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	U : numpy.ndarray</span>
+<span class="sd">		Reduced-field stack, shape ``(n_planes, neta, nxi)``.</span>
+<span class="sd">	dxi, deta : float</span>
+<span class="sd">		Scaled transverse sample spacings Δξ, Δη (metres), shared by every plane.</span>
+<span class="sd">	wavelength : float</span>
+<span class="sd">		Wavelength (metres), stored in metadata.</span>
+<span class="sd">	s, R, tau : Sequence</span>
+<span class="sd">		Chart state per plane, each of length ``n_planes``; entries are scalars</span>
+<span class="sd">		or per-axis ``(x, y)`` pairs (anisotropic planes). Physical pixel size</span>
+<span class="sd">		at plane ``i`` is ``|s[i]|·Δξ``; ``R`` may contain ``numpy.inf``.</span>
+<span class="sd">	z : Sequence[float]</span>
+<span class="sd">		The ``n_planes`` physical plane positions (metres) for the unstructured</span>
+<span class="sd">		z axis.</span>
+<span class="sd">	tags : Sequence[str or None], optional</span>
+<span class="sd">		Per-plane frame-event tags from the hybrid policy (``None`` entries</span>
+<span class="sd">		for ordinary planes). When given, a ``frame`` companion Signal is added</span>
+<span class="sd">		(an integer frame index that increments at each ``flatten``/</span>
+<span class="sd">		``rediverge`` switch) and the tags are stored on the U Signal's</span>
+<span class="sd">		metadata as the comma-joined string ``plane_tags``.</span>
+<span class="sd">	name : str, optional</span>
+<span class="sd">		Name for the SignalSet, by default ``"scaled wave"``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	SignalSet or None</span>
+<span class="sd">		A SignalSet of ``[U, s, R, tau]`` (per-axis companions ``s_x``/``s_y``,</span>
+<span class="sd">		``R_x``/``R_y``, ``tau_x``/``tau_y`` replace a companion whose axes</span>
+<span class="sd">		differ anywhere; plus ``frame`` when ``tags`` is given; main Signal</span>
+<span class="sd">		``U``) when sea_eco is present, else ``None``.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	make_scaled_wavefield_signal, make_rays_signalset</span>
+<span class="sd">	"""</span>
+	<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_np</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">sea_available</span><span class="p">:</span>
+		<span class="n">warn</span><span class="p">(</span><span class="s2">"sea_eco is not installed; make_scaled_wave_signalset requires sea_eco and returns None."</span><span class="p">)</span>
+		<span class="k">return</span> <span class="kc">None</span>
+	<span class="n">U</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">U</span><span class="p">)</span>
+	<span class="n">n_planes</span><span class="p">,</span> <span class="n">neta</span><span class="p">,</span> <span class="n">nxi</span> <span class="o">=</span> <span class="n">U</span><span class="o">.</span><span class="n">shape</span>
+	<span class="n">zvals</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">zscale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">zvals</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">zvals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">zvals</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">1.0</span>
+	<span class="n">zdim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"plane_z"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">zscale</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">zvals</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+					  <span class="n">size</span><span class="o">=</span><span class="n">n_planes</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">zvals</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">,</span> <span class="n">unstructured</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+	<span class="n">xidim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"xi"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">dxi</span><span class="p">,</span> <span class="n">offset</span><span class="o">=-</span><span class="p">(</span><span class="n">nxi</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">nxi</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">)</span>
+	<span class="n">etadim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"eta"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">deta</span><span class="p">,</span> <span class="n">offset</span><span class="o">=-</span><span class="p">(</span><span class="n">neta</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">deta</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">neta</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">)</span>
+	<span class="n">meta</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"wavelength_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">wavelength</span><span class="p">),</span> <span class="s2">"dxi_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">dxi</span><span class="p">),</span> <span class="s2">"deta_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">deta</span><span class="p">)}</span>
+	<span class="k">if</span> <span class="n">tags</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="n">meta</span><span class="p">[</span><span class="s2">"plane_tags"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">","</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tag</span> <span class="ow">or</span> <span class="s2">""</span> <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">tags</span><span class="p">)</span>
+	<span class="n">U_sig</span> <span class="o">=</span> <span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">U</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"U"</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">,</span> <span class="n">etadim</span><span class="p">,</span> <span class="n">xidim</span><span class="p">],</span> <span class="n">metadata</span><span class="o">=</span><span class="n">meta</span><span class="p">,</span>
+					<span class="n">signal_type</span><span class="o">=</span><span class="s2">"Image"</span><span class="p">)</span>
+	<span class="n">signals</span> <span class="o">=</span> <span class="p">[</span><span class="n">U_sig</span><span class="p">]</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_axes</span><span class="p">(</span><span class="n">seq</span><span class="p">):</span>
+		<span class="c1"># per-plane scalar-or-pair sequence -&gt; per-axis float arrays</span>
+		<span class="n">xs</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">v</span> <span class="k">if</span> <span class="n">_np</span><span class="o">.</span><span class="n">ndim</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">seq</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+		<span class="n">ys</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">v</span> <span class="k">if</span> <span class="n">_np</span><span class="o">.</span><span class="n">ndim</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">seq</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">xs</span><span class="p">,</span> <span class="n">ys</span>
+
+	<span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">seq</span> <span class="ow">in</span> <span class="p">((</span><span class="s2">"s"</span><span class="p">,</span> <span class="n">s</span><span class="p">),</span> <span class="p">(</span><span class="s2">"R"</span><span class="p">,</span> <span class="n">R</span><span class="p">),</span> <span class="p">(</span><span class="s2">"tau"</span><span class="p">,</span> <span class="n">tau</span><span class="p">)):</span>
+		<span class="n">xs</span><span class="p">,</span> <span class="n">ys</span> <span class="o">=</span> <span class="n">_axes</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">_np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">):</span>		<span class="c1"># isotropic run: one scalar companion</span>
+			<span class="n">signals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">xs</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">]))</span>
+		<span class="k">else</span><span class="p">:</span>							<span class="c1"># anisotropic: per-axis companions</span>
+			<span class="n">signals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">xs</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">label</span> <span class="o">+</span> <span class="s2">"_x"</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">]))</span>
+			<span class="n">signals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">ys</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">label</span> <span class="o">+</span> <span class="s2">"_y"</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">]))</span>
+	<span class="k">if</span> <span class="n">tags</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="c1"># integer frame index: increments at each frame switch (per-axis</span>
+		<span class="c1"># switches like 'flatten-x' count too)</span>
+		<span class="n">frame</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">([</span><span class="mi">1</span> <span class="k">if</span> <span class="p">(</span><span class="n">tag</span> <span class="ow">or</span> <span class="s2">""</span><span class="p">)</span><span class="o">.</span><span class="n">startswith</span><span class="p">((</span><span class="s2">"flatten"</span><span class="p">,</span> <span class="s2">"rediverge"</span><span class="p">,</span> <span class="s2">"jump"</span><span class="p">))</span>
+							<span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">tags</span><span class="p">])</span>
+		<span class="n">signals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">frame</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">"frame"</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">]))</span>
+	<span class="k">return</span> <span class="n">_SignalSet</span><span class="p">(</span><span class="n">signals</span><span class="o">=</span><span class="n">signals</span><span class="p">,</span> <span class="n">main_signal</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span></div>
+
+
+
+<span class="c1">#SEASerializable.from_sea will create a purely-SEASerializable object. rayTEM objects (Element, MicroscopeSection, Microscope, etc) will have inherited from SEASerializable, so we may need to reinstantiate rayTEM objects to ensure they have the rayTEM-specific functionality (e.g. "scope=Microscope(); scope.from_sea" will find scope.sections is a list of purely-SEASerializable objects without functions like "propagate_ray").</span>
+<div class="viewcode-block" id="safeReinstantiate">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.safeReinstantiate">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">safeReinstantiate</span><span class="p">(</span><span class="n">source</span><span class="p">,</span><span class="bp">cls</span><span class="p">):</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Drift</span><span class="p">,</span><span class="n">Lens</span><span class="p">,</span><span class="n">Source</span><span class="p">,</span><span class="n">Gun</span><span class="p">,</span><span class="n">Dipole</span><span class="p">,</span><span class="n">Quadrapole</span><span class="p">,</span><span class="n">Aperture</span><span class="p">,</span><span class="n">Prism</span><span class="p">,</span><span class="n">AberrationScreen</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">.assemblies</span><span class="w"> </span><span class="kn">import</span> <span class="n">Microscope</span><span class="p">,</span><span class="n">MicroscopeSection</span>
+	<span class="c1"># Every `kind` an element can report has to appear here or the object cannot</span>
+	<span class="c1"># be reloaded at all. Aperture and Prism were missing, so any saved column</span>
+	<span class="c1"># containing one raised KeyError on load -- which meant no column with an</span>
+	<span class="c1"># aperture had ever round-tripped.</span>
+	<span class="n">known</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"Drift"</span><span class="p">:</span><span class="n">Drift</span><span class="p">,</span> <span class="s2">"QLens"</span><span class="p">:</span><span class="n">Lens</span><span class="p">,</span> <span class="s2">"Thin lens"</span><span class="p">:</span><span class="n">Lens</span><span class="p">,</span> <span class="s2">"Source"</span><span class="p">:</span><span class="n">Source</span><span class="p">,</span> <span class="s2">"Gun"</span><span class="p">:</span><span class="n">Gun</span><span class="p">,</span>
+			 <span class="s2">"Microscope"</span><span class="p">:</span><span class="n">Microscope</span><span class="p">,</span> <span class="s2">"Section"</span><span class="p">:</span><span class="n">MicroscopeSection</span><span class="p">,</span>
+			 <span class="s2">"Dipole"</span><span class="p">:</span><span class="n">Dipole</span><span class="p">,</span> <span class="s2">"Thin dipole"</span><span class="p">:</span><span class="n">Dipole</span><span class="p">,</span>
+			 <span class="s2">"Quad"</span><span class="p">:</span><span class="n">Quadrapole</span><span class="p">,</span> <span class="s2">"Thin quad"</span><span class="p">:</span><span class="n">Quadrapole</span><span class="p">,</span>
+			 <span class="s2">"Aperture"</span><span class="p">:</span><span class="n">Aperture</span><span class="p">,</span> <span class="s2">"Prism"</span><span class="p">:</span><span class="n">Prism</span><span class="p">,</span>
+			 <span class="s2">"AberrationScreen"</span><span class="p">:</span><span class="n">AberrationScreen</span><span class="p">}</span>
+	<span class="k">if</span> <span class="bp">cls</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">known</span><span class="p">:</span>
+		<span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
+			<span class="sa">f</span><span class="s2">"cannot reinstantiate a stored object of kind </span><span class="si">{</span><span class="bp">cls</span><span class="si">!r}</span><span class="s2">: it is not in "</span>
+			<span class="sa">f</span><span class="s2">"safeReinstantiate's table, which knows </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">known</span><span class="p">)</span><span class="si">}</span><span class="s2">. A new element "</span>
+			<span class="s2">"class needs its `kind` added there, or it will save but never load."</span><span class="p">)</span>
+	<span class="bp">cls</span> <span class="o">=</span> <span class="n">known</span><span class="p">[</span><span class="bp">cls</span><span class="p">]</span>
+	<span class="n">dic</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="vm">__dict__</span>
+	<span class="n">allowed_kwargs</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>	<span class="c1"># infer allowed kwargs from the class itself</span>
+	<span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span> <span class="n">k</span><span class="p">:</span><span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">dic</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">allowed_kwargs</span> <span class="p">}</span>	<span class="c1"># and filter kwargs to those accepted</span>
+	<span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+	<span class="c1"># The constructor's only job here is to produce an object of the right</span>
+	<span class="c1"># class (methods, defaults, validation); the RECORDED state then wins,</span>
+	<span class="c1"># verbatim. The kwarg filter above cannot be trusted to carry everything:</span>
+	<span class="c1"># any attribute whose __dict__ spelling differs from its constructor kwarg</span>
+	<span class="c1"># (a property storing `_x` for kwarg `x`), or that is not a constructor</span>
+	<span class="c1"># parameter at all, would be silently dropped -- Source.beam_current</span>
+	<span class="c1"># reverted to its default on every reload this way. Writing the stored</span>
+	<span class="c1"># __dict__ back restores exactly what was saved, including names the class</span>
+	<span class="c1"># no longer declares (same leniency as Element.from_hdf5_group: an old</span>
+	<span class="c1"># file must stay openable). Nested objects are safe because the from_sea</span>
+	<span class="c1"># rebuild reinstantiates children before their parent, so `dic` already</span>
+	<span class="c1"># holds real rayTEM objects.</span>
+	<span class="n">obj</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">dic</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">obj</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, rayTEM contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

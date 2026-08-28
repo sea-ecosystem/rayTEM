@@ -677,15 +677,19 @@ def test_full_column_hybrid_source_to_detector():
 	zs = [read_scaled_wavefield(p)[7] for p in planes]
 	# the column ends 1 cm past the detector marker (a tail so plane
 	# searches keep the detector interior); the run ends at the column end
-	assert np.isclose(max(zs), 1.274, atol=1e-6)
+	z_end = sum(sec.length for sec in scope.sections)
+	assert np.isclose(max(zs), z_end, atol=1e-6)
 	assert len(scope.crossovers) >= 4		# C1, condenser chain, objective, projectors
-	assert np.isclose(scope.crossovers[0], 0.175, atol=1e-3)		# C1 focus
+	# the first crossover is C1's focus, upstream of CA
+	assert scope.crossovers[0] < scope.named_positions["CA"]
 
 	# frame switches are balanced and s stays finite everywhere
 	tags = [scaled_frame_tag(p) for p in planes]
 	assert tags.count("flatten") == tags.count("crossover") == tags.count("rediverge")
 	ss = [read_scaled_wavefield(p)[4] for p in planes]
-	assert min(np.abs(ss)) > 1e-3 and max(np.abs(ss)) > 1		# contracts and re-expands
+	# contracts and re-expands; the bound tracks the tightest focus the column
+	# makes (the f = 2 mm objective contracts s below the old 1e-3)
+	assert min(np.abs(ss)) > 1e-5 and max(np.abs(ss)) > 1
 
 	# energy conserved at every logged plane (all frames, all switches)
 	E = [(np.abs(read_scaled_wavefield(p)[0])**2).sum() for p in planes]
@@ -698,7 +702,8 @@ def test_full_column_hybrid_source_to_detector():
 	# physical reconstruction at the named detector plane and at the C1 focus
 	det = scope.wavefield_at("detector")
 	data, dx, dy, lam, z_out = read_wavefield(det)
-	assert np.isclose(z_out, 1.264, atol=1e-6) and np.isfinite(data).all()
+	assert np.isclose(z_out, scope.named_positions["detector"], atol=1e-6)
+	assert np.isfinite(data).all()
 	foc = scope.wavefield_at(scope.crossovers[0])
 	fdata, fdx, *_ = read_wavefield(foc)
 	assert np.isfinite(fdata).all() and fdx < 1e-8		# focal-plane pixel is nm-scale
@@ -778,8 +783,10 @@ def test_full_column_aperture_interior_is_clean():
 	# core std/mean is isotropic ring contrast only (the radial absorber edge
 	# adds weak concentric ringlets: ~0.012 at the sample, ~0.023 at the
 	# detector; no fourfold — that is what c4 below enforces)
-	for z, mod_max, flat_min in ((scope.named_positions["sample"], 0.015, 0.9),
-								 (1.264, 0.03, 0.85)):
+	# bounds sit at ringlet scale (the plaid this guards against was ~4%);
+	# the mid-gap sample plane carries ~1.8% of concentric ring texture
+	for z, mod_max, flat_min in ((scope.named_positions["sample"], 0.02, 0.9),
+								 (scope.named_positions["detector"], 0.03, 0.85)):
 		data, dx, *_ = read_wavefield(scope.wavefield_at(z))
 		I = np.abs(data)**2
 		n = I.shape[0]
@@ -838,7 +845,7 @@ def test_padded_grid_hybrid_completes():
 	zs = [read_scaled_wavefield(p)[7] for p in scope._wave_scaled_planes]
 	# the column ends 1 cm past the detector marker (a tail so plane
 	# searches keep the detector interior); the run ends at the column end
-	assert np.isclose(max(zs), 1.274, atol=1e-6)
+	assert np.isclose(max(zs), sum(sec.length for sec in scope.sections), atol=1e-6)
 	assert len(scope.crossovers) >= 4
 
 
@@ -1455,14 +1462,17 @@ def test_conjugate_planes_frame_ray_and_wave_agree():
 	scope.propagate_wave(mode="hybrid")
 	for zc in scope.crossovers:							# the wave rides this family
 		assert min(abs(frame["diff"] - zc)) < 1e-9
-	# the image family exists for the wave too, and differs from the diffraction one
-	assert len(frame["image"]) == len(frame["diff"])
+	# the image family exists for the wave too, and differs from the
+	# diffraction one (the counts need not match: how often each family
+	# crosses depends on the strengths, not on each other)
+	assert len(frame["image"]) and len(frame["diff"])
 	assert min(abs(frame["image"][:, None] - frame["diff"][None, :]).min(axis=1)) > 1e-6
-	# one image plane sits inside OL1's body: there the ray method interpolates
-	# across the wrong functional form, the frame walk solves it exactly
-	inside = [z for z in frame["image"] if 0.490 < z < 0.500]
-	assert len(inside) == 1
-	assert 1e-5 < min(abs(ray["image"] - inside[0])) < 1e-3		# ~188 um apart
+	# with thin 0.08 mm bores every conjugate plane falls in free space, so
+	# the ray method's straight-line interpolation matches the frame walk on
+	# the image family too (a fat lens body used to hold one plane where the
+	# two methods legitimately differed by ~188 um)
+	for z in frame["image"]:
+		assert min(abs(ray["image"] - z)) < 1e-6
 
 
 def test_conjugate_planes_reference_plane():
@@ -1803,22 +1813,42 @@ def test_mid_element_hybrid_leaves_the_common_case_alone():
 
 @pytest.mark.skipif(not sea_available, reason="basic_column.sea requires sea_eco")
 def test_mid_element_crossover_lands_on_the_analytic_plane():
-	# the column case that motivated this: a point object at -500 mm has an
-	# image plane at 320.474 mm, INSIDE C3's body (0.320-0.340). The free engine
-	# used to flatten around C3 and record the plane 99 mm away.
-	import os
-	from pySEA.rayTEM.assemblies import load_microscope
+	# the case that motivated this: a point object whose image plane lands
+	# INSIDE a thick lens body. The free engine used to flatten around the
+	# body and record the plane ~99 mm away. The standard column's lenses are
+	# thin now, so the fixture builds its own thick pair: L1 converges the
+	# point's beam so it images inside TL's 0.320-0.340 body, and L2 relays
+	# that image downstream, so the "ray restored past the body" claim has a
+	# free-space plane to check too.
+	from pySEA.rayTEM.assemblies import Microscope, MicroscopeSection
+	from pySEA.rayTEM.elements import Source, Drift, Lens
+	from pySEA.rayTEM.microscopes.basic_column import strength_for_focal_length
 	from pySEA.rayTEM.seashells import make_scaled_wavefield_signal
-	here = os.path.dirname(os.path.abspath(__file__))
-	path = os.path.join(here, "..", "microscopes", "basic_column.sea")
+
+	def thick_fixture():
+		return Microscope(sections=[MicroscopeSection(elements=[
+			Source(voltage=200, wave_shape=(64, 64), wave_extent=20e-6,
+				   wave_kind="gaussian"),
+			Drift(length=0.05),
+			Lens(name="L1", strength=strength_for_focal_length(0.185, 0.02),
+				 length=0.02),
+			Drift(length=0.25),
+			Lens(name="TL", strength=strength_for_focal_length(0.09, 0.02),
+				 length=0.02),
+			Drift(length=0.08),
+			Lens(name="L2", strength=strength_for_focal_length(0.05, 0.02),
+				 length=0.02),
+			Drift(length=0.12)])])
+
 	R0 = 0.5											# virtual point at z = -R0
-	scope = load_microscope(path)
+	scope = thick_fixture()
 	predicted = scope.conjugate_planes(axis="x", method="frame",
 									   reference=-R0)["image"]
 	z_in_body = [float(z) for z in predicted if 0.320 < z < 0.340]
-	assert len(z_in_body) == 1, "fixture no longer has a plane inside C3"
+	assert len(z_in_body) == 1, "fixture no longer has a plane inside the body"
+	assert any(z > 0.36 for z in predicted), "no downstream plane to check"
 
-	run = load_microscope(path)
+	run = thick_fixture()
 	U, dxi, deta, lam, *_ = read_scaled_wavefield(
 		run.sections[0].elements[0].wave(mode="scaled"))
 	seed = make_scaled_wavefield_signal(U, dxi, deta, lam, s=1.0, R=R0,
@@ -1947,7 +1977,12 @@ def test_thick_body_aberration_matches_the_perturbed_ray_equation():
 	# integration of x'' = -K^2 x - c x r^2 through the body -- an independent
 	# route that uses none of the transfer-block machinery.
 	from scipy.integrate import solve_ivp
-	K, L, Cs = 129.80, 0.010, 1e-3			# OL1's real parameters
+	# Cs was 1e-3 when focal_power meant the EFL power K*sin(KL); the measured
+	# focal_length on main makes a thick lens's power K*tan(KL) instead (464/m
+	# here, was 125/m), and the test's perturbation coefficient scales as P^4,
+	# so the same Cs left the first-order regime this comparison lives in.
+	# 5e-6 restores the old perturbation strength; the check is unchanged.
+	K, L, Cs = 129.80, 0.010, 5e-6			# OL1's real K and L
 	lens = Lens(strength=K, length=L, aberrations={'C30': Cs})
 	c = Cs * lens.focal_power**4 / L
 	A, B = np.cos(K * L), np.sin(K * L) / K
@@ -2872,7 +2907,7 @@ def test_focus_error_finds_the_first_crossover_after_the_condenser():
 					  rtol=1e-9)
 
 	# both failure modes say what is wrong instead of raising from deep inside
-	with pytest.raises(KeyError, match="no element named 'CL3'"):
+	with pytest.raises(KeyError, match="'CL3' not found"):
 		mic.focus_error(after="CL3")
 	with pytest.raises(ValueError, match="no crossover found downstream"):
 		mic.focus_error(after="detector")
@@ -2893,19 +2928,23 @@ def test_convergence_angle_is_a_semi_angle_and_a_total_deflection():
 	mic.propagate_ray()
 	r = np.asarray(mic.rays)
 	zs = r[:, 0, columnByName('z')]
-	i = int(np.argmin(np.abs(zs - 0.062)))			# inside the sample gap
+	i = int(np.argmin(np.abs(zs - mic.named_positions["sample"])))	# the sample plane
 	ang = np.hypot(r[i, :, 1], r[i, :, 3])
 
 	# SEMI-angle: the half-cone. The rays span +-alpha, so the full opening is 2x
 	assert np.isclose(ang.max(), 30e-3, rtol=1e-9)
 	assert np.isclose(mic.convergence_angle, ang.max(), rtol=1e-9)
 
-	# TOTAL deflection, not the x component: OL1 is thick, so it rotates the ray
-	# by its Larmor angle while focusing it, and xt alone under-reports by
-	# cos(KL) -- a factor of ~3.7 here
+	# TOTAL deflection, not the x component: a lens body rotates the ray by
+	# its Larmor angle while focusing it, and xt alone under-reports by
+	# exactly cos(K L) -- computed from the lens itself so the bound follows
+	# any change to OL1's strength or bore. (With the current thin 0.08 mm
+	# bores the rotation is small, so the factor sits near 1; the equality is
+	# the physics being pinned, not the size of the effect.)
+	ol1 = mic["OL1"]
+	larmor = np.cos(ol1.strength * ol1.length)
 	xt_only = np.abs(r[i, :, 1]).max()
-	assert xt_only < 0.4 * mic.convergence_angle
-	assert mic.convergence_angle / xt_only > 3.0
+	assert np.isclose(xt_only, larmor * mic.convergence_angle, rtol=1e-6)
 
 	# and it must not depend on landing a floating-point epsilon past the
 	# sample's entrance face, which is where measureAtZ flips between the state
@@ -3050,6 +3089,24 @@ def test_the_wave_carries_current_too():
 		Source(voltage=200), Drift(length=0.01)])])
 	with pytest.raises(RuntimeError, match="no wave has been propagated"):
 		nowave.wave_current
+
+
+def test_gun_is_a_source_and_survives_a_round_trip(tmp_path):
+	# a Gun IS a Source under the microscope's name for it; it must construct
+	# identically, state a current, and come back from a .sea as a Gun
+	from pySEA.rayTEM.elements import Gun
+	from pySEA.rayTEM.assemblies import load_microscope
+	gun = Gun(name="G", voltage=200, beam_current=2e-9,
+			  size=(1e-5, 1e-5), np_xy=(3, 3), angle=(1e-4, 1e-4), na_xy=(3, 3))
+	assert isinstance(gun, Source) and gun.kind == "Gun"
+	mic = Microscope(sections=[MicroscopeSection(elements=[gun, Drift(length=0.1)])])
+	mic.propagate_ray()
+	assert np.isclose(mic.beam_current, 2e-9, rtol=1e-9)
+	path = str(tmp_path / "gun.sea")
+	mic.to_sea(path)
+	back = load_microscope(path).sections[0].elements[0]
+	assert type(back).__name__ == "Gun" and back.kind == "Gun"
+	assert back.beam_current == 2e-9
 
 
 def test_element_beam_current_is_derived_from_the_source():

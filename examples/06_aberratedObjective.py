@@ -47,7 +47,7 @@ from pySEA.rayTEM.microscopes.objective_section import build_objective_section
 from pySEA.rayTEM.seashells import read_scaled_wavefield
 from pySEA.rayTEM import waveoptics as wo
 
-ALPHA, C30, F_OL = 30e-3, 1e-5, 8e-3
+ALPHA, C30, F_OL = 30e-3, 1e-5, 2e-3	# F_OL follows basic_column's OL1
 N_WAVE, N_PLANES = 256, 80
 LAM = 2.5078e-12
 
@@ -183,7 +183,7 @@ gs = fig.add_gridspec(3, 2, hspace=0.38, wspace=0.26)
 
 # ---- A, B: the ray caustic ----------------------------------------------
 for k, (m, lbl) in enumerate(((ideal, "A   rays, ideal objective"),
-							  (aberrated, f"B   rays, C30 = {C30*1e6:g} " + r"$\mu$m"))):
+								(aberrated, f"B   rays, C30 = {C30*1e6:g} " + r"$\mu$m"))):
 	ax = fig.add_subplot(gs[0, k])
 	m.show(kind="ray", plt_ax=ax, regenerate=False, conjugates=False, title=lbl)
 	for t in ax.texts:
@@ -209,7 +209,7 @@ for k, ((zs, xs, I, _nat), lbl) in enumerate(zip(panels,
 	# a power stretch, not linear: the focus is orders of magnitude brighter
 	# than the converging beam, and the structure worth seeing is in the wings
 	ax.pcolormesh(z_edges, x_edges * 1e12, norm.T, cmap="magma", shading="flat",
-				  norm=PowerNorm(0.5, vmin=0, vmax=1))
+					norm=PowerNorm(0.5, vmin=0, vmax=1))
 	ax.axvline(Z_PAR, color="w", lw=1.0, ls=":", alpha=0.7)
 	ax.set_xlim(Z_LO, Z_HI)
 	ax.set_title(lbl)
@@ -225,25 +225,29 @@ si = iso.focal_surface(family="diff", aperture=ALPHA * F_OL, radii=12, azimuths=
 ai = si["radius"] / F_OL
 oi = np.argsort(ai)
 axE.plot(ai[oi] * 1e3, (si["z"][oi] - si["z_paraxial"]) * 1e9, "o", ms=6,
-		 color="tab:blue", label="isolated thin lens, traced")
+			color="tab:blue", label="isolated thin lens, traced")
 aa = np.linspace(0, ALPHA, 100)
 axE.plot(aa * 1e3, -C30 * aa ** 2 * 1e9, "-", lw=1.6, color="k",
-		 label=r"closed form $-C_{30}\alpha^2$")
+			label=r"closed form $-C_{30}\alpha^2$")
 sc = aberrated.focal_surface(family="diff", aperture=ALPHA * F_OL, radii=12,
-							 azimuths=4, near=Z_PAR)
+								azimuths=4, near=Z_PAR)
 r0 = np.zeros((sc["radius"].size, 6)); r0[:, 0] = sc["radius"]
 rr = np.asarray(aberrated.propagate_ray(r0.copy()))
-h_f = np.abs(rr[2, :, 0]) / F_OL					# ray heights at OL1's entrance
+# ray heights at OL1's entrance: pick the logged plane at OL1's z, rather than
+# hardcoding a plane index that silently rots if the column changes
+z_ol = aberrated.get_element_position("OL1")
+i_ol = int(np.argmin(np.abs(rr[:, 0, 4] - z_ol)))
+h_f = np.abs(rr[i_ol, :, 0]) / F_OL
 oc = np.argsort(h_f)
 axE.plot(h_f[oc] * 1e3, (sc["z"][oc] - sc["z_paraxial"]) * 1e9, "s", ms=6,
-		 color="tab:red", label="OL1 (10 mm thick), traced")
+			color="tab:red", label="OL1 (10 mm thick), traced")
 axE.set_xlabel(r"$h/f$ at OL1 (mrad) — what enters the kick")
 axE.set_ylabel(r"$z-z_{\rm paraxial}$ (nm)")
 axE.set_title("E   the plane becomes a surface")
 # both go in the empty lower-left triangle: the squares run along the top and
 # the closed form sweeps the diagonal
 axE.legend(fontsize=8, loc="lower left", bbox_to_anchor=(0.02, 0.20),
-		   framealpha=0.92)
+			framealpha=0.92)
 axE.grid(alpha=0.3)
 axE.text(0.03, 0.04,
 	"the red curve is NOT expected to follow the closed form:\n"
@@ -260,7 +264,7 @@ for (_zs, _xs, _I, (xn, In, zn)), c30, c in zip(panels, (0.0, C30),
 		ref = In.max()							# normalise BOTH to the ideal peak,
 	line = In / ref								# or the Strehl loss is hidden
 	axF.plot(xn * 1e12, line, "-", color=c, lw=1.6,
-			 label=f"C30 = {c30*1e6:g} um   (peak {line.max():.3f})")
+				label=f"C30 = {c30*1e6:g} um   (peak {line.max():.3f})")
 	if c30:
 		strehl = line.max()
 axF.set_xlim(-X_HALF * 1e12, X_HALF * 1e12)
@@ -280,13 +284,13 @@ axF.text(0.03, 0.62,
 	transform=axF.transAxes, fontsize=7.6)
 
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures",
-				   "OL1_spherical_aberration.png")
+					"OL1_spherical_aberration.png")
 fig.suptitle(f"Spherical aberration on objective_section's OL1   "
-			 f"(C30 = {C30*1e6:g} " + r"$\mu$m" + f", {ALPHA*1e3:.0f} mrad)", fontsize=14, y=0.995)
+				f"(C30 = {C30*1e6:g} " + r"$\mu$m" + f", {ALPHA*1e3:.0f} mrad)", fontsize=14, y=0.995)
 fig.savefig(out, dpi=130, bbox_inches="tight")
 print("wrote", out)
 print(f"paraxial focus z = {Z_PAR*1e3:.6f} mm")
 print(f"isolated: c20={si['fit']['c20']*1e9:8.3f} nm  vs closed form "
-	  f"{-C30*ALPHA**2*1e9:.3f} nm")
+		f"{-C30*ALPHA**2*1e9:.3f} nm")
 print(f"OL1     : c20={sc['fit']['c20']*1e9:8.3f} nm  sag={sc['sag']*1e9:.2f} nm")
 print(f"Strehl  : {strehl:.3f}")

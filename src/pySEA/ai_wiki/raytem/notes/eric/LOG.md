@@ -2,6 +2,226 @@
 
 Newest entries at top.
 
+## 2026-08-28 — [Done] Merge main into Signal_and_propagation_additions_new (PR #9)
+**Goal:** Land Thomas's post-#7 fixes from main here, resolve the conflicts,
+keep our new functionality and docs, and merge PR #9.
+**Why:** Thomas fixed his #7 merge directly on main (Rays class, measured
+focal_length, calibrated_strength rename, JSON compatibility, MACSTEM
+history), which made PR #9 un-mergeable.
+**Outcome:** 6 conflict hunks resolved (mostly docstring overlaps; kept
+Thomas's do-not-remove quad sanity comment AND our skew block; kept our
+None-safe first-element repair fix, same semantics as his). Kept our full
+`test_eight_configurations.py` over main's empty `dont_test_` rename — it
+passes here. Post-merge fixes: made Thomas's `test_old_json_compatibility`
+cwd-independent; re-scaled the thick-body aberration test's C30 (1e-3 →
+5e-6) because the measured `focal_length` changes a thick lens's
+`focal_power` from K·sin(KL) to K·tan(KL) (125 → 464/m on that fixture) and
+the perturbation scales as P⁴ — this is the "actual failure" Thomas noted;
+repaired RST that the docstring de-backticking broke (Lens.phase_shift
+indentation, four bare `|K|`-style tokens). Suite 154/154; docs rebuild
+clean (same 11 known duplicates); example 06 runs (Strehl now 0.094 — the
+focal-power semantics shift moved delivered aberration; header narrative
+still stale, flagged earlier). NOTE: the K·tan(KL) thick-lens power now
+feeds every aberration pupil scale — physics choice worth a look.
+
+## 2026-08-28 — [Done] Terminology page + audit items 1–4
+**Goal:** Answer issue #8 with a docs terminology page, and clear the four
+queued items: section-level Aberrations, skew quadrupole, example 06
+cleanups, `Microscope.index` raising instead of print-and-None.
+**Why:** Thomas is confused by the lens naming (issue #8), and the four
+items have been flagged repeatedly across sessions without being started.
+- [x] terminology page + docs rebuild
+- [x] section-level `Aberrations`
+- [x] skew quadrupole
+- [x] example 06 cleanups
+- [x] `Microscope.index` raises
+**Outcome:** `docs/terminology.md` answers issue #8 (strength vs focal length
+vs focal power, aberration powers, transfer blocks, moments, wave_kind,
+body/screen, with Brown/Krivanek references). New `AberrationScreen` element
+(zero-thickness plate with explicit pupil_power) backs the new
+`MicroscopeSection.aberrations` — applied as a transient screen at the
+section exit with the section's composite `focal_power` as pupil scale;
+suspension and .sea round trips covered. `Quadrapole(skew=...)` rolls the
+principal frame into the lab 4×4 (45° stigmator works; per-axis views raise).
+`Microscope.index` raises KeyError with the available names instead of
+print-and-None. Example 06: tab-only continuations, OL1 plane derived from z
+instead of magic index 2 (output verified identical). Suite 152/152; docs
+site rebuilt (11 known duplicate warnings, was 9 — the two new are
+AberrationScreen re-exports). NOTE for Eric: example 06's header still
+claims Strehl 0.62 / delivered 0.122x, but it has printed Strehl 0.103
+since the column rebuild — the narrative needs re-deriving against the new
+OL1; left untouched deliberately.
+
+## 2026-08-27 — [Done] Sphinx docs paralleling sea-eco
+**Goal:** Eric: the docs structure paralleling sea-eco was missing — build it,
+keeping the existing `wave-optics-sampling.md` untouched (he may simplify it
+on a private branch).
+- [x] conf.py / index.rst / requirements mirroring sea-eco's five sections
+- [x] Guides: getting_started, propagation_modes, operating_the_column
+- [x] Example Scripts page; AI Tools page (wiki slice + recorded omissions)
+- [x] "Into the SEA-weeds" landing page (mental model, invariants, seams,
+  Schema omission on record, Provenance and verification, Building the docs)
+- [x] `wave-optics-sampling.md` slotted in AS-IS
+- [x] build verified; 4 real docstring defects fixed at the source
+
+**Outcome:** `sphinx-build docs docs/_build/html` exits clean with nine known
+duplicate-object warnings (cross-module re-exports) and nothing else. The
+big win was one conf line — `napoleon_custom_sections = [("Related", "see
+also")]` — our house "Related" section was tripping ~650 field-list warnings.
+Real defects found by the build and fixed in code: two literal tables
+narrower than their widest cells (`focus_error`, `segment_block`), a
+`:math:\theta` in a non-raw docstring (rendered a TAB), bare `|psi|` pipes
+parsing as RST substitution references, and an unreferenced footnote.
+
+Note for whoever simplifies `wave-optics-sampling.md`: only `index.rst`
+references it (one toctree line), so renaming/splitting it touches nothing
+else.
+
+## 2026-08-27 — [Done] OL1 f = 3 mm; suite fully green; Gun; two old bugs down
+**Goal:** Eric's five calls: OL1 f matches the mid-gap sample (3 mm); keep
+pushing to the branch (no PR); combine_drifts default False; diagnose the
+insertion failure; add the small stuff.
+- [x] OL1 f = 3 mm -> 30.000 mrad at 43 nm (high) / 2 nm (low), condensers only
+- [x] `combine_drifts` defaults to **False** (three confirmed casualties of the
+  merging default; tidying is opt-in with True)
+- [x] **the long-standing `test_section_insertion_microscope` failure is FIXED**
+- [x] `Gun(Source)` class (kind='Gun', reloadable, round-trip test)
+- [x] `convergence_angle` = max total angle among LIVE rays
+- [x] predict_probe reads the aperture in the LAB frame
+- [x] wiki refreshed (MACSTEM stays, per Eric: "leave it")
+
+**Outcome:** **148/148 — the suite is fully green for the first time.**
+
+**The insertion bug**, as Eric suspected, was reconstruction robustness:
+`repair()` skips i == 0, so a FIRST element placed past the section start
+never got a leading drift — the offset was silently dropped and everything
+downstream compressed by exactly the missing distance. The old gap handling
+that covered this was commented out of `__init__` when `repair()` was
+introduced; the test's committed reference rays predate that and were right
+all along. repair() now inserts the leading drift.
+
+**A second subtle one:** predicted and traced probe angles disagreed ~9% in
+the low state because the aperture reads per-axis maxima in the LAB frame
+while the prediction took them in the rotating frame — the square ray fan
+arrives rotated by C1's Larmor angle (~5°), and a rotated square's per-axis
+max grows by cos+sin. Prediction now rotates first; predicted == measured ==
+30.000 mrad in both states and the predicted transmitted fraction matches
+the traced current.
+
+Still open: MACSTEM stays by Eric's decision (wiki now indexes it);
+aperture rescale-vs-mask model deferred ("not now").
+
+## 2026-08-27 — [Done] 6 mm objective gap, sample at its middle
+**Goal:** Eric: OL1-OL2 gap 6 mm, sample halfway (3 mm past OL1's exit),
+replacing the back-focal-plane placement.
+- [x] builder + .sea + objective_section regenerated (total 776.7 mm)
+- [x] all 8 states re-solved; settings + figures regenerated
+- [x] suite 147 (146 pass + pre-existing insertion failure)
+
+**Consequences (reported, not hidden):** at v ≈ 3 mm from the f = 2 mm
+objective the high-angle branches magnify — the 30.000 mrad high-current
+probe is ~31 µm across (surveyed: nothing under ~24 µm exists above
+20 mrad), and the low state caps at 13.4 mrad (with a 6 nm probe). If a
+small AND 30 mrad probe is wanted at mid-gap, the knobs are OL1's f (down
+toward ~1.4 mm puts the BFP near mid-gap) or the gap. One wave-test bound
+moved 1.5% → 2% ring texture at the new sample plane.
+
+## 2026-08-27 — [Done] Compact thin-lens column, and a real hybrid-engine bug
+**Goal:** rebuild `basic_column` to Eric's spec — every lens a 0.08 mm bore;
+gun–50–C1–50–CA–10–50–C2–50–C3–250–OL1–20 (sample at BFP inside)–OL2–50–PL1–
+50–PL2–50–PL3–50–PL4–100–detector; dipoles/stigmators kept.
+- [x] new layout (790.7 mm total; focal lengths kept — 0.08 mm is the only
+  bore all of them can legally share, f >= 2L/pi)
+- [x] solver reworked: physical focal-range scans, overfocused-C1 low state,
+  verified bisection, four-lens projector relay
+- [x] hybrid-engine bug found and fixed (below)
+- [x] all examples green; settings + figures regenerated
+
+**Outcome:** 147 tests (146 pass + pre-existing insertion failure). All 8
+states: 30.000 mrad probes in both current states (1.000 / 0.079 nA), image
+4.5x or 25 mm-camera diffraction at the detector, objective untouched.
+
+**The bug (waveoptics):** when a lens body ends between a wave crossover and
+its rediverge, the pending marker was handed to the free-space engine —
+whose converging-frame flatten knew nothing about pending markers and
+OVERWROTE it with the frame's own crossing (z+|R|), a different ray family.
+Every crossover logged downstream was then mislabeled (55 mm off in the
+fixture; the wave itself stays exact — the labels lied). Fixed twice over:
+the free engine now guards its flatten and rediverges onto the original ray,
+and the body walker hands off the marker projected to the exit ray's
+straight-line zero (z_end − B/D, slope-independent), which closes the last
+23 µm to exact. Found only because the mid-element-crossover test had to be
+rebuilt around its own thick fixture once the column went thin — the old
+column had been hiding the handoff case.
+
+**Solver changes worth knowing:** with 50 mm drifts a weak C1 no longer
+overfills CA, so the low state OVERFOCUSES C1 (crossover 20% of the way to
+CA — 7.9% transmitted); and PL1/PL2 alone cannot land a conjugate on the
+detector past frozen PL3/PL4, so the projector is now a four-lens relay —
+all four are projection lenses and Eric's rule assigns projection to them
+collectively. OL1/OL2 remain the only frozen lenses (invariant tested).
+
+## 2026-08-27 — [Done] 30 mrad for real: OL1 becomes a probe-forming objective
+**Goal:** Eric: "Shorten OL1's focal length so we can actually reach 30 mrad"
+— with the objective still frozen and the condensers doing the focusing.
+- [x] OL1: f = 2 mm, 2 mm bore, **sample at its back focal plane**
+- [x] geometry compensated (sample z = 0.5, detector 1.264 m unchanged)
+- [x] solver: coarse-curve bracketing + small-probe branch preference
+- [x] objective_section / example 06 / four tests follow the new lens
+- [x] all six examples + ex07 full run green
+
+**Outcome:** 147 tests (146 pass + pre-existing insertion failure). On the
+standard column, objective untouched: **30.000 mrad at a 21 nm probe** (high
+current) and a 5 nm probe (low, 0.2 nA); reach is smooth up to ~56 mrad.
+
+**Shortening f alone was NOT enough** — with the sample ~2 mm from OL1's
+center, any reachable f left it inside the focal length, and the condensers
+capped at ~10 mrad however strong. The fix is the placement a real STEM
+uses: the sample sits at OL1's back focal plane, so the condensers deliver a
+wide nearly-parallel beam and OL1 alone converts radius into angle
+(alpha = r/f) while demagnifying hard. The working distance is computed in
+the builder from the lens's own thick block (wd = -A/C of the body), so it
+tracks f/bore changes.
+
+**Trap worth remembering:** `repair()`'s drift merging absorbed the unnamed
+4 mm gap into the zero-length "sample" marker on build, silently moving the
+measured sample plane 2 mm off the focal plane (predictions and traces then
+disagreed hard). The gap is now the NAMED drift `sample_gap`, which the
+merge leaves alone.
+
+**Solver traps fixed:** B(source→sample)=0 is also satisfied by MAGNIFYING
+branches (a 40–120 µm "probe" converging steeply — not a probe); branch
+selection now prefers small size. And the 30 mrad crossing can sit far down
+the slope from the alpha peak, so the target search brackets on the coarse
+curve, not beside the maximum.
+
+Fallout tracked: objective_section.py (f_ol1) and example 06 (F_OL)
+followed; four tests updated (BFP-driven s contraction, Larmor factor now
+computed from the lens, a plane that used to sit inside the old fat bore now
+in free space, hardcoded sample z).
+
+## 2026-08-27 — [Done] The objective is never retuned
+**Goal:** enforce Eric's division of labor: probe focusing is entirely the
+condensers'; projection entirely the projectors'; objective currents fixed.
+- [x] OL1 removed from the solve (OL2/PL3/PL4 were already untouched)
+- [x] condenser-only convergent solve (direct `B(source->sample)=0` via C3)
+- [x] invariant test: no solved state carries an OL1/OL2/PL3/PL4 strength
+
+**Outcome:** 147 tests (146 pass + the pre-existing insertion failure).
+
+The convergent solve had quietly been retuning OL1 because the stored
+objective strength has no *real* object plane imaging onto the sample. The
+fix also simplified it: no intermediate-crossover chain, just C3 solved so
+the total source->sample block has `B = 0` through the frozen objective
+(virtual objects allowed), C2 swept toward the target.
+
+**Consequence to decide on:** with the stored OL1 frozen, the condensers cap
+at **~10.2 mrad** at the sample (C2 pinned at its first-branch strength
+limit) — the 30 mrad target is out of reach on this column and the script
+says so. Ways to actually reach 30 mrad, all template decisions for
+Eric/Ondrej: shorten the stored OL1 focal length (or move the sample plane
+relative to it), enlarge CA, or accept a lower target for the demo.
+
 ## 2026-08-27 — [Done] Eight states on the standard column
 **Goal:** point example 07 at `basic_column.sea` per Eric: add CA, 1 nA gun,
 solve C+OL1 -> sample and sample -> detector, save states, fix the ray/wave

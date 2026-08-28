@@ -7,7 +7,7 @@ import pickle
 import sys,inspect,os,datetime,shutil
 
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
-from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,Rays,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes
+from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,Rays,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes,AberrationScreen,_as_aberrations
 from typing import Literal
 from .seashells import SEASerializable
 
@@ -193,17 +193,24 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			if set to True, all lenses are set to zero thickness??
 		combine_drifts : bool, optional
 			Whether :func:`repair` may merge adjacent unnamed Drifts into one,
-			by default True. Set False to keep the element list exactly as
-			written: propagation logs one plane per element, so a run of short
-			drifts is how a caller asks for dense z sampling, and merging them
-			throws that sampling away (see :meth:`Microscope.subdivided`).
+			by default False: the element list is kept exactly as written.
+			Propagation logs one plane per element, so a run of short drifts
+			is how a caller asks for dense z sampling, and merging silently
+			threw that away — it also let zero-length named markers absorb
+			their neighboring gaps. Pass True for the old tidying behavior.
 		"""
 
 	def __init__(self, name:str='',
 				 elements:ArrayLike=None, # list of Elements, or list of dicts
 				 position:float=0., ignoreLensThickness=False,
-				 combine_drifts:bool=True ) -> SEASerializable:
+				 combine_drifts:bool=False,
+				 aberrations=None ) -> SEASerializable:
 		self.name = name
+		# Aberrations belonging to the SECTION as a whole (e.g. a measured
+		# objective-doublet aberration no single lens owns). Applied as a thin
+		# AberrationScreen at the section's exit, with the section's composite
+		# focal power as the pupil scale. None means ideal, and costs nothing.
+		self.aberrations = _as_aberrations(aberrations)
 		#if isinstance(elements[0],dict):
 		#	self.elements = []
 		#else:
@@ -514,6 +521,69 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		return positions
 
 	# returns nthElement,nthRay,xythetaetc
+	@property
+	def focal_power(self) -> float:
+		"""The section's composite focusing power ``1/f`` (1/metres).
+
+		The ``-C`` entry of the section's accumulated rotating-frame transfer
+		block: the power of the single thin lens that would produce the same
+		angular response at the exit. It is the pupil scale the section-level
+		:attr:`aberrations` are defined against.
+
+		Returns
+		-------
+		float
+			Composite power; 0 for a section of pure drifts.
+
+		Raises
+		------
+		NotImplementedError
+			If an element cannot provide a per-axis block (e.g. a skewed
+			quadrupole).
+
+		Related
+		-------
+		elements.Lens.focal_power : The single-element equivalent.
+		aberrations : The consumer of this pupil scale.
+		"""
+		M = xp.eye(2)
+		for ele in (self.elements or ()):
+			M = xp.matmul(ele.transfer_block(), M)
+		return float(-M[1, 0])
+
+	def _propagation_elements(self) -> list:
+		"""The element list every propagation loop walks, screens included.
+
+		The stored :attr:`elements` plus, when the section carries
+		:attr:`aberrations`, a transient zero-length
+		:class:`elements.AberrationScreen` at the exit whose pupil scale is
+		the section's composite :attr:`focal_power`. The screen is
+		synthesized per call and never stored, so serialization sees only
+		the declared geometry plus the section's own ``aberrations``.
+
+		Returns
+		-------
+		list of Element
+			The propagation order.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		elements.AberrationScreen : The synthesized carrier.
+		elements.suspended_aberrations : Detaching ``self.aberrations``
+			makes this return the bare list, so ``apply_aberrations=False``
+			reaches the section level too.
+		"""
+		els = list(self.elements or ())
+		if self.aberrations:
+			els.append(AberrationScreen(name=(self.name or 'section') + ' aberrations',
+										aberrations=self.aberrations,
+										pupil_power=self.focal_power))
+		return els
+
 	def propagate_ray(self, r0:xp.ndarray=None,
 					   I0:xp.ndarray=None, R0:xp.ndarray=None,
 					   z: float = None,
@@ -558,7 +628,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			If ``r0`` is ``None`` and the first element is not a ``Source``.
 		"""
 		if not apply_aberrations:
-			with suspended_aberrations(self.elements):
+			with suspended_aberrations(list(self.elements or ()) + [self]):
 				return self.propagate_ray(r0, I0, R0, z=z, verbose=verbose)
 		#print("Section r0",r0)
 		if r0 is None:
@@ -581,7 +651,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		if R0 is None:
 			R0 = xp.zeros(n_rays)
 		ri=[r0] ; Ii=[I0] ; Ri=[R0]
-		for i,ele in enumerate(self.elements):
+		for i,ele in enumerate(self._propagation_elements()):
 			if verbose:
 				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
 			# intensity/rotation are evaluated relative to the incoming rays; rotation
@@ -643,7 +713,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			If moments are not provided and the first element is not a ``Source``.
 		"""
 		if not apply_aberrations:
-			with suspended_aberrations(self.elements):
+			with suspended_aberrations(list(self.elements or ()) + [self]):
 				return self.propagate_moments(mu0, Sigma0, z=z)
 		if mu0 is None or Sigma0 is None:
 			if isinstance(self.elements[0], Source):
@@ -651,7 +721,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			else:
 				raise UserWarning("First element is not a Source, and no (mu0, Sigma0) provided to propagate_moments. Please provide initial moments or ensure first element is a Source.")
 		mui=[mu0] ; Si=[Sigma0]
-		for ele in self.elements:
+		for ele in self._propagation_elements():
 			mu, S = ele.propagate_moments(mui[-1], Si[-1])
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
 				mui.append(mu) ; Si.append(S)
@@ -720,7 +790,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			crossover (use ``mode='hybrid'`` to switch frames through it).
 		"""
 		if not apply_aberrations:
-			with suspended_aberrations(self.elements):
+			with suspended_aberrations(list(self.elements or ()) + [self]):
 				return self.propagate_wave(wave0, mode=mode, s_min=s_min, absorb=absorb,
 										   crossover=crossover, rotate=rotate)
 		if wave0 is None:
@@ -729,7 +799,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			else:
 				raise UserWarning("First element is not a Source, and no wave0 provided to propagate_wave. Please provide an initial wavefield or ensure first element is a Source.")
 		fi=[wave0]
-		for ele in self.elements:
+		for ele in self._propagation_elements():
 			interior = [] if mode == 'hybrid' else None
 			f = ele.propagate_wave(fi[-1], mode=mode, s_min=s_min, log=interior, absorb=absorb, crossover=crossover, rotate=rotate)
 			if interior:
@@ -1280,11 +1350,22 @@ class Microscope(SealedAttributes, SEASerializable):
 		"""
 		if self.rays is None:
 			self.propagate_ray()
-		# live_only: a masked ray keeps flying geometrically with I = 0, and an
-		# aperture is precisely the thing that DEFINES this angle -- measuring
-		# the dead rays too would report the uncut cone.
-		x, y, xt, yt, R, I = measureAtZ(float(z), section=self, live_only=True)
-		return float(xp.hypot(xt, yt))
+		# the MAX total angle among rays still carrying intensity -- not the
+		# angle of the outermost-by-position ray, which at a crossover is
+		# picked by residuals and under-reads the cone. A masked ray keeps
+		# flying geometrically with I = 0, and an aperture is precisely the
+		# thing that DEFINES this angle, so dead rays do not count.
+		rays = xp.asarray(self.rays)
+		zs = rays[:, 0, columnByName('z')]
+		i = int(xp.where(zs <= float(z))[0][-1])		# plane entering z
+		live = xp.asarray(self.I)[i] > 0
+		if not live.any():
+			raise ValueError(f"no ray carries intensity at z={z}: an upstream "
+							 "aperture blocked the whole fan, so there is no "
+							 "live beam whose convergence could be measured.")
+		xt = rays[i, live, columnByName('xt')]
+		yt = rays[i, live, columnByName('yt')]
+		return float(xp.hypot(xt, yt).max())
 
 	@property
 	def convergence_angle(self) -> float:
@@ -1342,7 +1423,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		return self.convergence_angle_at(z0 + length / 2)
 	def focus_error(self, expected_crossover:float=0.0, after:str="C3",
 					regenerate:bool=False) -> float:
-		"""How far the first crossover after a lens sits from where it should.
+		r"""How far the first crossover after a lens sits from where it should.
 
 		The condenser's job is to put a crossover at a known plane; this
 		measures the miss. It finds the first **diffraction** plane downstream
@@ -1395,13 +1476,13 @@ class Microscope(SealedAttributes, SEASerializable):
 		at C3, which at ``f = 90 mm`` is a pupil angle of 0.1 mrad, so the terms
 		scale as:
 
-		=====  ==============  ===================================
-		term   goes as         kick at that height (coefficient 1 mm)
-		=====  ==============  ===================================
-		C10    :math:`\theta`   1.2e-6 rad
-		C21    :math:`\theta^2` 1.3e-10 rad
-		C30    :math:`\theta^3` 1.3e-14 rad
-		=====  ==============  ===================================
+		=====  =================  =======================================
+		term   goes as            kick at that height (coefficient 1 mm)
+		=====  =================  =======================================
+		C10    :math:`\theta`     1.2e-6 rad
+		C21    :math:`\theta^2`   1.3e-10 rad
+		C30    :math:`\theta^3`   1.3e-14 rad
+		=====  =================  =======================================
 
 		Measured: ``C10 = 1 mm`` moves it 0.22 µm and an aligned ``C12`` moves
 		it the other way by the same amount, while ``C30`` does not move it at
@@ -1453,18 +1534,47 @@ class Microscope(SealedAttributes, SEASerializable):
     # endregion
     #####################################
 
-	# given a string for an element name, return the index of that element
 	def index(self,item):
+		"""Locate a section or element by name.
+
+		Sections are searched first; if ``item`` names a section, its integer
+		index in ``self.sections`` is returned. Otherwise every section's
+		elements are searched and a ``(section_index, element_index)`` tuple is
+		returned for the first match.
+
+		Parameters
+		----------
+		item : str
+			Name of a section or of an element inside any section.
+
+		Returns
+		-------
+		int or tuple of int
+			The section index, or ``(section_index, element_index)`` for an
+			element.
+
+		Raises
+		------
+		KeyError
+			If no section or element carries the name. (Previously this
+			printed ``ERROR:`` and returned ``None``, which made callers such
+			as ``adjust_element_length`` fail later with an opaque unpacking
+			error.)
+
+		Related
+		-------
+		MicroscopeSection.index : The per-section equivalent.
+		get_element_position : Position lookup built on the same names.
+		"""
 		names = [ s.name for s in self.sections ]
 		if item in names:
 			return names.index(item)
 		subnames = [ [ getattr(e,"name","") for e in s.elements ] for s in self.sections ]
-		if item not in sum(subnames,[]):
-			print("ERROR: name",item,"not found in Microscope or Microscope's sections' elements")
-			return None
 		for i,names in enumerate(subnames):
 			if item in names:
 				return (i,names.index(item))
+		available = sorted({n for n in sum(subnames,[]) if n} | {s.name for s in self.sections if s.name})
+		raise KeyError(f"name {item!r} not found among this Microscope's sections or their elements; available names: {available}")
 
 	# TWP 2026-03-05 allow element insertion by coordinate ("add a lens midway through this drift section at z=etc"
 	def insert(self,index,elementOrSection):
@@ -2402,13 +2512,14 @@ class Microscope(SealedAttributes, SEASerializable):
 
 		Used where an operation applies to the whole column rather than to one
 		section — currently only suspending aberrations, which must reach every
-		element the propagation will touch.
+		element the propagation will touch. Sections are included too, since a
+		section may carry :attr:`MicroscopeSection.aberrations` of its own.
 
 		Returns
 		-------
-		list of Element
-			The elements, in column order. Empty when the microscope has no
-			sections yet.
+		list
+			The elements in column order, followed by the sections. Empty
+			when the microscope has no sections yet.
 
 		Raises
 		------
@@ -2418,7 +2529,8 @@ class Microscope(SealedAttributes, SEASerializable):
 		-------
 		elements.suspended_aberrations : The consumer.
 		"""
-		return [e for sec in (self.sections or ()) for e in (sec.elements or ())]
+		return ([e for sec in (self.sections or ()) for e in (sec.elements or ())]
+				+ list(self.sections or ()))
 
 	def propagate_ray(self, r0:xp.ndarray=None, z: float = None, verbose=False,
 					   apply_aberrations:bool=True):
@@ -2934,10 +3046,10 @@ class Microscope(SealedAttributes, SEASerializable):
 		``|E|²`` at one plane, respectively (sea_eco's ``Signal.show`` renders ≤2D, so a
 		single z-plane is selected via ``plane``). ``kind="wave-scaled"`` /
 		``"wave-hybrid"`` show the scaled-Fresnel result: with no ``plane``, the
-		|ψ(x, y=0, z)| **cross-section** — the wave analog of the ray diagram,
+		``|ψ(x, y=0, z)|`` **cross-section** — the wave analog of the ray diagram,
 		with element and crossover annotations; with a ``plane`` (index into the
 		logged planes, a z in metres, or a named position like ``"sample"``),
-		the reconstructed physical |ψ|² at that plane via the wavefield
+		the reconstructed physical ``|ψ|²`` at that plane via the wavefield
 		Signal's own ``.show()``.
 
 		Parameters
@@ -3317,7 +3429,7 @@ def check_lengths(section):
 	assert xp.sum( xp.absolute( dz-ls[:-1] ) ) < .00001
 
 # look for gaps and overlaps, adjust positions and lengths of Drifts only, and combine unnamed Drifts. (we're using this instead of fixing gaps/overlaps while building inside of MicroscopeSection > __init__)
-def repair(section, combine_drifts:bool=True):
+def repair(section, combine_drifts:bool=False):
 	"""Close gaps and overlaps in a section's element list, in place.
 
 	Walks the elements, adjusts the position and length of Drifts only so that
@@ -3331,7 +3443,7 @@ def repair(section, combine_drifts:bool=True):
 		The section to repair. Modified in place.
 	combine_drifts : bool, optional
 		Whether adjacent unnamed Drifts may be merged into one, by default
-		True. Pass False to leave the element list as written -- see
+		False (the element list is left exactly as written) -- see
 		:class:`MicroscopeSection` for why that matters.
 
 	Returns
@@ -3352,13 +3464,13 @@ def repair(section, combine_drifts:bool=True):
 	--------
 	>>> repair(section, combine_drifts=False)               # doctest: +SKIP
 	"""
-	# FIRST ELEMENT CHECK:
-	e = section.elements[0]
-	if 0 <  e.position < 1e-7:
-		pass
-	elif 0 < e.position:
-		section.elements.insert(0,Drift(position=0,length=e.position))
-
+	# FIRST ELEMENT CHECK: a first element placed past the section start needs
+	# a leading drift (the i == 0 skip below covers nothing else); without it
+	# the offset was silently dropped and everything downstream compressed by
+	# exactly the missing distance (the long-standing section-insertion failure).
+	e0 = section.elements[0]
+	if (e0.position or 0) > 1e-7:
+		section.elements.insert(0, Drift(length=e0.position, position=0))
 	# check all elements and their preceeding neighbor
 	for i,e in enumerate(section.elements):
 		if i==0:

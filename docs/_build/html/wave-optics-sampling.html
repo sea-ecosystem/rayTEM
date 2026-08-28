@@ -1,0 +1,630 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Why full-column electron wave propagation breaks fixed-grid sampling &mdash; rayTEM 0.0.1beta documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=e02f3e7d"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API Reference" href="api_reference.html" />
+    <link rel="prev" title="Into the SEA-weeds" href="dev_documentation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            rayTEM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="propagation_modes.html">Propagation Modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="operating_the_column.html">Operating the Column</a></li>
+<li class="toctree-l1"><a class="reference internal" href="terminology.html">Terminology</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Example Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">AI Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="ai_tools/install.html">AI Tools</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Into the SEA-weeds (For developers)</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="dev_documentation.html">Into the SEA-weeds</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Why full-column electron wave propagation breaks fixed-grid sampling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#context-what-propagate-wave-does">Context: what <code class="docutils literal notranslate"><span class="pre">propagate_wave</span></code> does</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-two-sampling-criteria">The two sampling criteria</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#why-this-is-fundamental-not-an-implementation-bug">Why this is fundamental, not an implementation bug</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#what-is-valid-in-raytem-s-wave-mode-today">What is valid in rayTEM’s wave mode today</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#scaled-fresnel-propagation-implemented-propagate-wave-mode-scaled-hybrid">Scaled Fresnel propagation (implemented): <code class="docutils literal notranslate"><span class="pre">propagate_wave(mode='scaled'|'hybrid')</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#both-conjugate-families-from-one-wave-run">Both conjugate families, from one wave run</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mid-element-frame-switching">Mid-element frame switching</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#other-remedies-roadmap">Other remedies (roadmap)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">rayTEM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Why full-column electron wave propagation breaks fixed-grid sampling</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/wave-optics-sampling.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="why-full-column-electron-wave-propagation-breaks-fixed-grid-sampling">
+<h1>Why full-column electron wave propagation breaks fixed-grid sampling<a class="headerlink" href="#why-full-column-electron-wave-propagation-breaks-fixed-grid-sampling" title="Link to this heading"></a></h1>
+<p><em>(rayTEM developer note — a candidate first page for the “Into the SEA-weeds”
+developer docs. Numbers below use the <code class="docutils literal notranslate"><span class="pre">basic_column</span></code> template: 200 kV,
+λ = 2.508 pm, beam entering the condenser with σₓ = 2.5 µm and σθ = 0.1 mrad.)</em></p>
+<section id="context-what-propagate-wave-does">
+<h2>Context: what <code class="docutils literal notranslate"><span class="pre">propagate_wave</span></code> does<a class="headerlink" href="#context-what-propagate-wave-does" title="Link to this heading"></a></h2>
+<p>rayTEM’s wave mode is a <strong>fixed-grid, split-step paraxial propagator</strong>: the
+wavefunction lives on an <code class="docutils literal notranslate"><span class="pre">N×N</span></code> grid of pitch <code class="docutils literal notranslate"><span class="pre">dx</span></code> (the <code class="docutils literal notranslate"><span class="pre">basic_column</span></code> default is
+<code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">=</span> <span class="pre">20</span> <span class="pre">µm</span></code>, <code class="docutils literal notranslate"><span class="pre">N</span> <span class="pre">=</span> <span class="pre">256</span></code>, so <code class="docutils literal notranslate"><span class="pre">dx</span> <span class="pre">=</span> <span class="pre">78</span> <span class="pre">nm</span></code>), lenses/deflectors act as <strong>thin phase
+screens</strong> derived from the same 6×6 transfer matrices as ray tracing, and drifts
+are <strong>angular-spectrum (Fresnel) FFT steps</strong>. The grid is fixed once at the
+source and reused at every plane.</p>
+<p>Any sampled representation of a wave has one hard rule: the local phase must
+not change by more than π between neighbouring samples — the grid Nyquist limit
+<code class="docutils literal notranslate"><span class="pre">|∂φ/∂x|</span> <span class="pre">&lt;</span> <span class="pre">π/dx</span></code>.</p>
+</section>
+<section id="the-two-sampling-criteria">
+<h2>The two sampling criteria<a class="headerlink" href="#the-two-sampling-criteria" title="Link to this heading"></a></h2>
+<p><strong>1. Drifts (angular spectrum) — cheap.</strong> The free-space transfer function
+<code class="docutils literal notranslate"><span class="pre">H</span> <span class="pre">=</span> <span class="pre">exp(−i</span> <span class="pre">k⊥²</span> <span class="pre">Δz</span> <span class="pre">/</span> <span class="pre">2k)</span></code> is adequately sampled while</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Δz  ≲  N·dx² / λ
+</pre></div>
+</div>
+<p>For the current grid that is <code class="docutils literal notranslate"><span class="pre">256</span> <span class="pre">×</span> <span class="pre">(78</span> <span class="pre">nm)²</span> <span class="pre">/</span> <span class="pre">2.5</span> <span class="pre">pm</span> <span class="pre">≈</span> <span class="pre">0.62</span> <span class="pre">m</span></code> — comfortably
+longer than any drift in the column. <strong>Free-space propagation is not the
+problem.</strong></p>
+<p><strong>2. Lenses (phase screens) — the killer.</strong> A lens of focal length <code class="docutils literal notranslate"><span class="pre">f</span></code> imprints
+<code class="docutils literal notranslate"><span class="pre">φ(x)</span> <span class="pre">=</span> <span class="pre">−k</span> <span class="pre">x²</span> <span class="pre">/</span> <span class="pre">2f</span></code>, whose gradient at the beam edge is <code class="docutils literal notranslate"><span class="pre">k·x_max/f</span></code>. Sampling it
+requires</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>dx  &lt;  π f / (k · x_max)        (equivalently  N &gt; W² k / (2π f) )
+</pre></div>
+</div>
+<p>With <code class="docutils literal notranslate"><span class="pre">k</span> <span class="pre">=</span> <span class="pre">2π/λ</span> <span class="pre">=</span> <span class="pre">2.5×10¹²</span> <span class="pre">rad/m</span></code> and <code class="docutils literal notranslate"><span class="pre">x_max</span> <span class="pre">=</span> <span class="pre">10</span> <span class="pre">µm</span></code>:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>lens</p></th>
+<th class="head"><p>f</p></th>
+<th class="head"><p>phase gradient <code class="docutils literal notranslate"><span class="pre">k·x_max/f</span></code></p></th>
+<th class="head"><p>grid Nyquist <code class="docutils literal notranslate"><span class="pre">π/dx</span></code></p></th>
+<th class="head"><p>required <code class="docutils literal notranslate"><span class="pre">dx</span></code></p></th>
+<th class="head"><p>required <code class="docutils literal notranslate"><span class="pre">N</span></code> (per side)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>C1</p></td>
+<td><p>45 mm</p></td>
+<td><p>5.6×10⁸ rad/m</p></td>
+<td><p>4.0×10⁷ rad/m</p></td>
+<td><p>&lt; 5.6 nm</p></td>
+<td><p>≥ 3 500</p></td>
+</tr>
+<tr class="row-odd"><td><p>OL1</p></td>
+<td><p>8 mm</p></td>
+<td><p>3.1×10⁹ rad/m</p></td>
+<td><p>4.0×10⁷ rad/m</p></td>
+<td><p>&lt; 1.0 nm</p></td>
+<td><p>≥ 20 000</p></td>
+</tr>
+</tbody>
+</table>
+<p>The current 256² grid undersamples the lens phase by <strong>14–78×</strong>. An undersampled
+phase screen does not degrade gracefully — it aliases, scattering intensity into
+spurious diffraction orders, so everything downstream of the first strong lens
+is unphysical.</p>
+</section>
+<section id="why-this-is-fundamental-not-an-implementation-bug">
+<h2>Why this is fundamental, not an implementation bug<a class="headerlink" href="#why-this-is-fundamental-not-an-implementation-bug" title="Link to this heading"></a></h2>
+<p>The grid size demanded by a wave calculation is the <strong>space–bandwidth product</strong>
+of the field it must carry:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>N  ≳  (spatial extent) × (angular extent) / λ      (per axis)
+</pre></div>
+</div>
+<p>Because λ at 200 kV is picometres while beams are micrometres wide and
+convergence angles are milliradians, this product is enormous for a real
+column:</p>
+<ul class="simple">
+<li><p>The <strong>source alone</strong> (±4σ: 20 µm × 0.8 mrad) needs ≈ 6×10³ resolvable cells
+per axis.</p></li>
+<li><p>After a strong lens the angular content grows to <code class="docutils literal notranslate"><span class="pre">x_max/f</span></code> (~1 mrad at OL1),
+and the focused spot shrinks toward <code class="docutils literal notranslate"><span class="pre">λf/W</span></code> (~nm) while the field envelope is
+still tens of µm — the same grid must then resolve nm structure over µm
+extents: <code class="docutils literal notranslate"><span class="pre">N</span> <span class="pre">~</span> <span class="pre">10⁴–10⁵</span></code> per side <em>per plane</em>, with the natural feature size
+zooming by ~10⁶ between a crossover and an image plane.</p></li>
+<li><p>The beam is also not one wave: with emittance <code class="docutils literal notranslate"><span class="pre">σₓσθ</span> <span class="pre">=</span> <span class="pre">2.5×10⁻¹⁰</span> <span class="pre">m·rad</span></code> it
+contains <code class="docutils literal notranslate"><span class="pre">σₓσθ</span> <span class="pre">/</span> <span class="pre">(λ/4π)</span> <span class="pre">≈</span> <span class="pre">1</span> <span class="pre">250</span></code> mutually incoherent transverse modes per
+axis. A single coherent field is the wrong object for the full beam in the
+first place — the covariance mode is the correct transport for that.</p></li>
+</ul>
+<p>This is why <strong>no electron-optics code propagates a sampled wavefunction through
+a whole column at true scale</strong>. Field practice splits the problem:</p>
+<ul class="simple">
+<li><p><strong>Column transport</strong> → matrices (rays / Gaussian moments), exactly what
+<code class="docutils literal notranslate"><span class="pre">propagate_ray</span></code> and <code class="docutils literal notranslate"><span class="pre">propagate_moments</span></code> do at any scale.</p></li>
+<li><p><strong>Wave physics</strong> → applied only where λ matters and the field of view is
+small: multislice through the specimen (nm FOV), the aberration function
+χ(q) applied in the <strong>pupil/diffraction plane</strong> (where the support is mrad,
+not µm), probe formation over 10–100 nm windows.</p></li>
+</ul>
+</section>
+<section id="what-is-valid-in-raytem-s-wave-mode-today">
+<h2>What is valid in rayTEM’s wave mode today<a class="headerlink" href="#what-is-valid-in-raytem-s-wave-mode-today" title="Link to this heading"></a></h2>
+<p>Use the wave mode when both criteria hold on your grid:</p>
+<ol class="arabic simple">
+<li><p>every drift satisfies <code class="docutils literal notranslate"><span class="pre">Δz</span> <span class="pre">≲</span> <span class="pre">N·dx²/λ</span></code>, and</p></li>
+<li><p>every phase screen satisfies <code class="docutils literal notranslate"><span class="pre">dx</span> <span class="pre">&lt;</span> <span class="pre">πf/(k·x_max)</span></code> (aperture edges: the mask
+is binary, so criterion 1 near the aperture governs).</p></li>
+</ol>
+<p>In practice: source-plane fields and their Fourier (qx–qy) planes are exact;
+short, weak-lens toy columns work end-to-end (the test suite verifies focusing
+at <code class="docutils literal notranslate"><span class="pre">z</span> <span class="pre">=</span> <span class="pre">f</span></code> and Fresnel Gaussian spreading); the realistic <code class="docutils literal notranslate"><span class="pre">basic_column</span></code>
+template is valid at the source plane but not through its cm-focal-length
+lenses.</p>
+</section>
+<section id="scaled-fresnel-propagation-implemented-propagate-wave-mode-scaled-hybrid">
+<h2>Scaled Fresnel propagation (implemented): <code class="docutils literal notranslate"><span class="pre">propagate_wave(mode='scaled'|'hybrid')</span></code><a class="headerlink" href="#scaled-fresnel-propagation-implemented-propagate-wave-mode-scaled-hybrid" title="Link to this heading"></a></h2>
+<p>The co-moving / scaled-coordinates remedy is now implemented inside the one
+wave method: <code class="docutils literal notranslate"><span class="pre">propagate_wave(...,</span> <span class="pre">mode='scaled')</span></code> for a single scaled frame and
+<code class="docutils literal notranslate"><span class="pre">mode='hybrid'</span></code> for automatic frame switching through crossovers (dispatcher
+kinds <code class="docutils literal notranslate"><span class="pre">&quot;wave-scaled&quot;</span></code> / <code class="docutils literal notranslate"><span class="pre">&quot;wave-hybrid&quot;</span></code>). The wave is factored as</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>ψ(x, y, z) = (1/s(z)) · U(ξ, η, τ) · exp[i k (x² + y²) / 2R(z)],
+ξ = x/s,  η = y/s,  1/R = s′/s,  τ = ∫ dz′/s²
+</pre></div>
+</div>
+<p>so the reduced field <code class="docutils literal notranslate"><span class="pre">U</span></code> obeys the ordinary paraxial equation in <code class="docutils literal notranslate"><span class="pre">(ξ,</span> <span class="pre">η,</span> <span class="pre">τ)</span></code>
+and is propagated by the <em>same</em> angular-spectrum kernel over <code class="docutils literal notranslate"><span class="pre">Δτ</span></code>
+(carrier-free). What this buys:</p>
+<ul>
+<li><p><strong>Lens phases never touch the grid.</strong> A round lens updates only the
+curvature state, <code class="docutils literal notranslate"><span class="pre">1/R⁺</span> <span class="pre">=</span> <span class="pre">1/R⁻</span> <span class="pre">−</span> <span class="pre">1/f</span></code> (<code class="docutils literal notranslate"><span class="pre">U⁺</span> <span class="pre">=</span> <span class="pre">U⁻</span></code>), so the lens-phase
+sampling criterion above disappears entirely — cm-focal-length electron
+lenses are exact.</p></li>
+<li><p><strong>The grid zooms with the beam.</strong> Through a free segment <code class="docutils literal notranslate"><span class="pre">s</span></code> evolves
+linearly, <code class="docutils literal notranslate"><span class="pre">s(z)</span> <span class="pre">=</span> <span class="pre">s₀[1</span> <span class="pre">+</span> <span class="pre">Δz/R₀]</span></code>, and the physical pixel is always
+<code class="docutils literal notranslate"><span class="pre">Δx</span> <span class="pre">=</span> <span class="pre">|s|·Δξ</span></code>, so a converging beam is followed at constant relative
+resolution. <code class="docutils literal notranslate"><span class="pre">Δτ</span> <span class="pre">=</span> <span class="pre">Δz</span> <span class="pre">/</span> <span class="pre">(s₀²[1</span> <span class="pre">+</span> <span class="pre">Δz/R₀])</span></code> in closed form (verified against
+the numerical integral in the test suite).</p></li>
+<li><p><strong>Thick elements are exact too, and cost U nothing.</strong> An element with a body
+and a finite strength is a <em>medium</em>, not a screen: in the scaled frame it is
+one <strong>segment</strong> whose scale law the frame follows exactly, taking no phase
+screen and no curvature kick. Thin elements (<code class="docutils literal notranslate"><span class="pre">length</span> <span class="pre">==</span> <span class="pre">0</span></code>) keep the
+curvature-kick route. This matters: treating a thick lens as <em>drift L/2 →
+kick → drift L/2</em> misplaced every crossover on <code class="docutils literal notranslate"><span class="pre">basic_column</span></code> by 422–4808 µm,
+and a thick quadrupole’s by 72–2315 µm; the exact segment puts both on the
+ray-traced diffraction planes to <strong>0.0 µm</strong>. A crossover landing <em>inside</em> a
+body makes this frame singular; the body switches frames there rather than
+refusing (see <strong>Mid-element frame switching</strong> below).</p>
+<p class="rubric" id="one-closed-form-for-every-segment-b-s0-s-l">One closed form for every segment: <code class="docutils literal notranslate"><span class="pre">Δτ</span> <span class="pre">=</span> <span class="pre">B</span> <span class="pre">/</span> <span class="pre">(s₀</span> <span class="pre">·</span> <span class="pre">s_L)</span></code></p>
+<p>Each segment obeys <code class="docutils literal notranslate"><span class="pre">u″</span> <span class="pre">+</span> <span class="pre">κu</span> <span class="pre">=</span> <span class="pre">0</span></code> for a signed curvature <code class="docutils literal notranslate"><span class="pre">κ</span></code> (1/m²), so the
+regime depends on its sign — and a <strong>quadrupole is both at once</strong>, focusing
+one transverse axis and defocusing the other:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p><code class="docutils literal notranslate"><span class="pre">κ</span></code></p></th>
+<th class="head"><p>regime</p></th>
+<th class="head"><p><code class="docutils literal notranslate"><span class="pre">(A,</span> <span class="pre">B)</span></code></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&gt;</span> <span class="pre">0</span></code></p></td>
+<td><p>focusing (harmonic)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(cos</span> <span class="pre">kL,</span> <span class="pre">sin(kL)/k)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">=</span> <span class="pre">0</span></code></p></td>
+<td><p>free space</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(1,</span> <span class="pre">L)</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;</span> <span class="pre">0</span></code></p></td>
+<td><p>defocusing (hyperbolic)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(cosh</span> <span class="pre">kL,</span> <span class="pre">sinh(kL)/k)</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p>The obvious implementation is three closed forms for <code class="docutils literal notranslate"><span class="pre">τ</span> <span class="pre">=</span> <span class="pre">∫dz/s²</span></code>, one per
+regime, plus their degenerate cases — and that is what the code originally
+had for the focusing case alone, carrying a phase angle <code class="docutils literal notranslate"><span class="pre">φ</span></code> and a
+<code class="docutils literal notranslate"><span class="pre">Δτ</span> <span class="pre">=</span> <span class="pre">[tan(kΔz</span> <span class="pre">−</span> <span class="pre">φ)</span> <span class="pre">+</span> <span class="pre">tan</span> <span class="pre">φ]/(k·C²)</span></code> with <code class="docutils literal notranslate"><span class="pre">C²</span> <span class="pre">=</span> <span class="pre">s₀²</span> <span class="pre">+</span> <span class="pre">(u₀/k)²</span></code>,
+<code class="docutils literal notranslate"><span class="pre">tan</span> <span class="pre">φ</span> <span class="pre">=</span> <span class="pre">u₀/(k</span> <span class="pre">s₀)</span></code>.</p>
+<p>None of that is necessary. For <strong>any</strong> segment whose transfer block has unit
+determinant,</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Δτ = B / (s₀ · s_L),     s_L = A·s₀ + B·u₀,     u₀ = s₀/R₀
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">(A,</span> <span class="pre">B)</span></code> is the segment’s own transfer row. The reason is the
+Wronskian: if <code class="docutils literal notranslate"><span class="pre">s₁</span></code> solves the equation, the second independent solution is
+<code class="docutils literal notranslate"><span class="pre">s₂</span> <span class="pre">=</span> <span class="pre">s₁∫dz/s₁²</span></code>, and <code class="docutils literal notranslate"><span class="pre">det</span> <span class="pre">M</span> <span class="pre">=</span> <span class="pre">1</span></code> fixes the constant, so the integral <em>is</em>
+an entry of the transfer matrix. Symplecticity is not a side condition here —
+it is what makes the formula exist.</p>
+<p>Three consequences worth stating plainly:</p>
+<ul class="simple">
+<li><p><strong>Free space, harmonic and hyperbolic are one formula, not three.</strong> The
+free-space form <code class="docutils literal notranslate"><span class="pre">Δτ</span> <span class="pre">=</span> <span class="pre">Δz/(s₀²[1</span> <span class="pre">+</span> <span class="pre">Δz/R₀])</span></code> is just <code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">=</span> <span class="pre">Δz</span></code>. Adding the
+hyperbolic axis for thick quadrupoles required no new derivation at all.</p></li>
+<li><p><strong>No branch handling and no <code class="docutils literal notranslate"><span class="pre">tan</span></code> blowups.</strong> The phase-angle form goes
+singular at <code class="docutils literal notranslate"><span class="pre">kΔz</span> <span class="pre">−</span> <span class="pre">φ</span> <span class="pre">=</span> <span class="pre">π/2</span></code> even when <code class="docutils literal notranslate"><span class="pre">s</span></code> never vanishes there; <code class="docutils literal notranslate"><span class="pre">B/(s₀s_L)</span></code>
+is finite wherever the physics is, and the only genuine singularity — <code class="docutils literal notranslate"><span class="pre">s</span></code>
+reaching zero — is a real beam crossover, detected separately and per-law
+by <code class="docutils literal notranslate"><span class="pre">waveoptics.segment_zero</span></code>.</p></li>
+<li><p><strong>The wave path consumes the ray path’s own declaration.</strong> <code class="docutils literal notranslate"><span class="pre">(A,</span> <span class="pre">B)</span></code> is the
+first row of the block the element already publishes as <code class="docutils literal notranslate"><span class="pre">transfer_block</span></code>
+for ray tracing, which is legitimate precisely because <em>the frame is a
+reference ray</em>: <code class="docutils literal notranslate"><span class="pre">(s,</span> <span class="pre">s/R)</span></code> transforms exactly as <code class="docutils literal notranslate"><span class="pre">(h,</span> <span class="pre">u)</span></code> does. The two
+propagation modes cannot drift apart, because there is only one statement
+of the element’s optics.</p></li>
+</ul>
+<p>Verified against numerical <code class="docutils literal notranslate"><span class="pre">∫dz/s²</span></code> to ~1e-16 in all three regimes
+(<code class="docutils literal notranslate"><span class="pre">test_segment_delta_tau_closed_form_all_regimes</span></code>).</p>
+<p>Because <code class="docutils literal notranslate"><span class="pre">κ</span></code> is declared <strong>per axis</strong>, one propagator
+(<code class="docutils literal notranslate"><span class="pre">waveoptics.propagate_quadratic_segment_scaled</span></code>) serves a thick round lens
+(equal positive curvature) and a thick quadrupole (<code class="docutils literal notranslate"><span class="pre">+κ</span></code>, <code class="docutils literal notranslate"><span class="pre">−κ</span></code>) alike: the two
+axes accumulate different <code class="docutils literal notranslate"><span class="pre">Δτ</span></code>, and the paraxial kernel is separable, so an
+anisotropic <code class="docutils literal notranslate"><span class="pre">(Δτ_x,</span> <span class="pre">Δτ_y)</span></code> still costs one transform pair. A defocusing axis
+has <strong>no crossover to find</strong> unless the beam enters converging hard enough to
+reach the axis before the defocusing takes over — <code class="docutils literal notranslate"><span class="pre">segment_zero</span></code> encodes
+exactly that condition (<code class="docutils literal notranslate"><span class="pre">|u₀/k|</span> <span class="pre">&gt;</span> <span class="pre">|s₀|</span></code>) rather than scanning for it.</p>
+</li>
+<li><p><strong>Larmor rotation is available</strong> (<code class="docutils literal notranslate"><span class="pre">propagate_wave(...,</span> <span class="pre">rotate=True)</span></code>): each
+thick lens rotates the field by <code class="docutils literal notranslate"><span class="pre">−K·L</span></code>, the same angle the ray path applies,
+via an exact unitary three-shear Fourier rotation. Off by default because it
+is analytically a no-op for rotationally symmetric fields, where it would
+only add resampling noise. The <strong>element declares the angle</strong> (part of its
+<code class="docutils literal notranslate"><span class="pre">_scaled_segment()</span></code> payload) rather than the propagator deriving it from the
+strength — a quadrupole has no axial field and so declares zero, and a
+rotation on an anisotropic segment is refused outright, since Larmor rotation
+mixes the transverse axes.</p></li>
+<li><p><strong>Non-quadratic phases still apply to U</strong> (dipole tilt, future aberrations —
+<em>not</em> the quadrupole saddle, which is purely quadratic per axis and is
+absorbed into <code class="docutils literal notranslate"><span class="pre">(R_x,</span> <span class="pre">R_y)</span></code> when thin or carried as a segment when thick),
+evaluated at physical coordinates <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=</span> <span class="pre">s·ξ</span></code> and
+protected by a per-pixel <code class="docutils literal notranslate"><span class="pre">|Δχ|</span> <span class="pre">&lt;</span> <span class="pre">π</span></code> sampling guard — stigmator-scale
+strengths pass; over-strong settings fail loudly instead of aliasing.</p></li>
+<li><p><strong>Plotting through the standard <code class="docutils literal notranslate"><span class="pre">show</span></code>.</strong>
+<code class="docutils literal notranslate"><span class="pre">scope.show(kind='wave-hybrid')</span></code> draws the |ψ(x, y=0, z)| cross-section —
+the wave analog of the ray diagram, with element and crossover overlays —
+and <code class="docutils literal notranslate"><span class="pre">show(kind='wave-hybrid',</span> <span class="pre">plane=...)</span></code> images one plane (a logged-plane
+index, a z in metres, a named position, or a <code class="docutils literal notranslate"><span class="pre">scope.crossovers[i]</span></code> focal
+plane) by delegating to the reconstructed wavefield Signal’s own <code class="docutils literal notranslate"><span class="pre">.show()</span></code>.
+A result’s z sampling is one plane per element exit plus the hybrid run’s
+frame events, so <code class="docutils literal notranslate"><span class="pre">show(...,</span> <span class="pre">zpts=5e-3)</span></code> (or <code class="docutils literal notranslate"><span class="pre">scope.subdivided(5e-3)</span></code>)
+propagates a temporary copy with finer drift steps when a smooth
+cross-section is wanted. Crossovers need no subdivision — see below.</p></li>
+<li><p><strong>Both families of conjugate planes.</strong> A column has two independent
+conjugate families: <strong>diffraction</strong> (back-focal) planes, where rays that
+entered parallel converge, and <strong>image</strong> planes, where rays from one on-axis
+point re-converge. The scaled frame follows exactly one — whichever its seed
+belongs to, which for the usual flat-wavefront seed (<code class="docutils literal notranslate"><span class="pre">s=1,</span> <span class="pre">R=∞</span></code>) is the
+diffraction family, so that is what <code class="docutils literal notranslate"><span class="pre">scope.crossovers</span></code> holds.
+<code class="docutils literal notranslate"><span class="pre">scope.conjugate_planes(axis)</span></code> returns <strong>both</strong> in metres (reusing the ray
+side’s <code class="docutils literal notranslate"><span class="pre">findPlanes</span></code> convention on a throwaway copy), the cross-section
+annotates the image planes alongside the crossovers, and
+<code class="docutils literal notranslate"><span class="pre">zpts=scope.conjugate_planes()['image']</span></code> logs the image planes exactly for
+reconstruction. Neither family follows from one lens’s <code class="docutils literal notranslate"><span class="pre">f</span></code> — the frame’s
+accumulated curvature carries the whole upstream system (verified: a
+collimated beam through f=45 mm then f=30 mm at 100 mm spacing puts the
+second diffraction plane at 176 mm, the image of the first crossover, not at
+<code class="docutils literal notranslate"><span class="pre">z_L2</span> <span class="pre">+</span> <span class="pre">f2</span></code> = 140 mm).</p></li>
+<li><p><strong>Reconstruction back to physical x, y</strong> at any logged plane:
+<code class="docutils literal notranslate"><span class="pre">Microscope.wavefield_at(z_or_name,</span> <span class="pre">target_dx=...,</span> <span class="pre">target_shape=...)</span></code>
+(crossover planes included — the back-focal wavefield of each lens)
+returns a standard calibrated wavefield Signal — on the native <code class="docutils literal notranslate"><span class="pre">|s|·Δξ</span></code>
+grid, or band-limited-resampled onto a prescribed grid for an external
+package (e.g. multislice) to consume.</p></li>
+</ul>
+<p>State lives in the sea_eco architecture: <code class="docutils literal notranslate"><span class="pre">Δξ/Δη</span></code> on the ξ/η <code class="docutils literal notranslate"><span class="pre">Dimension</span></code>
+calibration, the frame scalars <code class="docutils literal notranslate"><span class="pre">(s,</span> <span class="pre">R,</span> <span class="pre">τ)</span></code> in metadata (single plane) and as
+companion Signals in the <code class="docutils literal notranslate"><span class="pre">.wave_scaled</span></code> <code class="docutils literal notranslate"><span class="pre">SignalSet</span></code> (stacked result, sharing
+the plane-z axis with the U stack).</p>
+<p><strong>Crossovers — solved by frame switching (<code class="docutils literal notranslate"><span class="pre">mode='hybrid'</span></code>).</strong> A <em>frame</em> is a
+factorization choice (s, R, τ); a converging frame is singular where <code class="docutils literal notranslate"><span class="pre">s</span> <span class="pre">→</span> <span class="pre">0</span></code>
+(the beam crossover) — the reference wavefront collapses to a point while the
+diffracted wave stays finite. <code class="docutils literal notranslate"><span class="pre">propagate_wave(mode='hybrid')</span></code> switches frames
+automatically (<code class="docutils literal notranslate"><span class="pre">waveoptics.change_scaled_frame</span></code>, the general re-expression of
+the same physical wave in another frame): the converging frame <strong>flattens</strong>
+where its reference curvature first becomes representable on the shrinking
+grid (<code class="docutils literal notranslate"><span class="pre">|R_flat|</span> <span class="pre">=</span> <span class="pre">R²/(A·s²)</span></code>, a frame invariant with a closed-form split
+point), the wave crosses the real focus by ordinary carrier-free Fresnel
+propagation — the crossover (back-focal / diffraction) plane is logged and
+listed on <code class="docutils literal notranslate"><span class="pre">Microscope.crossovers</span></code> (the focus position is the closed-form
+<code class="docutils literal notranslate"><span class="pre">z_cross</span> <span class="pre">=</span> <span class="pre">z</span> <span class="pre">+</span> <span class="pre">|R|</span></code>, not a numerical search, so the engine splits its
+propagation exactly there and the focal plane is always logged exactly) — and
+re-factors onto a diverging frame at
+the mirror-image distance past it. One ξ/η calibration serves the entire
+column while <code class="docutils literal notranslate"><span class="pre">s(z)</span></code> dips and recovers at each focus; the <code class="docutils literal notranslate"><span class="pre">basic_column</span></code>
+template runs source → detector (five crossovers) with energy conserved at
+every plane and the physical pixel spanning sub-nm (foci) to µm (detector).
+<code class="docutils literal notranslate"><span class="pre">mode='scaled'</span></code> keeps the single-frame behavior (an actionable error before
+the crossover); <code class="docutils literal notranslate"><span class="pre">s_min</span></code> remains as a backstop guard. Switch planes and the
+frame-change sampling guard are measured at the <strong>beam’s support</strong> (the
+bounding half-width where |U| &gt; 10⁻⁶·max), not the grid edge — phase applied
+where the field is essentially zero is harmless, so a beam smaller than its
+grid flattens earlier (larger s, larger pixels) and padded grids cannot trip
+the backstop. A <code class="docutils literal notranslate"><span class="pre">crossover='jump'</span></code> policy is also available (direct
+converging → diverging mirror frame change, no flat window); measured on the
+electron-scale column it rides the converging frame twice as deep and loses
+the beam when the focal structure (Airy/s in ξ) outruns the field of view, so
+<code class="docutils literal notranslate"><span class="pre">'flat'</span></code> stays the default — use <code class="docutils literal notranslate"><span class="pre">'jump'</span></code> only for mild crossovers.</p>
+<p><strong>Apertures are sampled alias-free.</strong> The physical model stays the sharp disk
+Θ(a−r) (Fresnel edge diffraction is real and kept); the grid holds its
+<strong>band-limited projection</strong>, synthesized from the analytic J₁ spectrum
+(<code class="docutils literal notranslate"><span class="pre">waveoptics.bandlimited_disk</span></code>), so the edge’s above-Nyquist content no longer
+folds back and propagates as a spurious axis-aligned “gridding” texture.
+Mid-column <code class="docutils literal notranslate"><span class="pre">Aperture</span></code> masks use the 1-pixel area-coverage edge for the same
+reason (<code class="docutils literal notranslate"><span class="pre">antialias=False</span></code> restores binary masks). The second half of that
+texture was periodic-FFT wraparound of the edge halo: free segments now carry
+an <strong>absorbing boundary</strong> (<code class="docutils literal notranslate"><span class="pre">absorb=0.1</span></code> margin, raised-cosine window applied
+between τ sub-steps) — electrons that diffract out of the modeled field of
+view are removed, as they are physically lost from the beam, so total |U|²
+honestly decreases by what leaves. The window is <strong>radially symmetric</strong> (it
+ends at the inscribed circle): a square window clips the halo anisotropically
+— corners √2 farther out than edges — and the fourfold-modulated surviving
+halo interferes back into the beam as a pixel-axis-aligned fringe pattern at
+every downstream plane (fourfold harmonic c4 ≈ 1e-3 square vs ≈ 0 radial at
+the basic_column sample and detector; only the isotropic concentric Fresnel
+rings remain).</p>
+<p><strong>Anisotropic frames (s_x ≠ s_y).</strong> The frame generalizes per axis,
+<code class="docutils literal notranslate"><span class="pre">ψ</span> <span class="pre">=</span> <span class="pre">(s_x</span> <span class="pre">s_y)^{-1/2}·U(x/s_x,</span> <span class="pre">y/s_y)·exp[ik(x²/2R_x</span> <span class="pre">+</span> <span class="pre">y²/2R_y)]</span></code>, so a
+<strong>quadrupole absorbs its (P, −P) powers into (R_x, R_y)</strong> exactly like a
+round lens absorbs one power into R — no saddle phase screen, no sampling
+limit, arbitrarily strong stigmators run. Each axis flattens, crosses, and
+re-diverges at its own <strong>line focus</strong> (hybrid tags <code class="docutils literal notranslate"><span class="pre">flatten-x</span></code>,
+<code class="docutils literal notranslate"><span class="pre">crossover-y</span></code>, …; both listed on <code class="docutils literal notranslate"><span class="pre">Microscope.crossovers</span></code>), the seam stores
+per-axis metadata (<code class="docutils literal notranslate"><span class="pre">s_x</span></code>/<code class="docutils literal notranslate"><span class="pre">s_y</span></code>, <code class="docutils literal notranslate"><span class="pre">R_x_m</span></code>/<code class="docutils literal notranslate"><span class="pre">R_y_m</span></code>, <code class="docutils literal notranslate"><span class="pre">tau_x</span></code>/<code class="docutils literal notranslate"><span class="pre">tau_y</span></code>) and
+per-axis SignalSet companions only when the axes differ, and reconstruction
+uses rectangular native pixels (dx = |s_x|Δξ, dy = |s_y|Δη). Frame
+quantities travel as scalars wherever the axes agree, so round-lens columns
+keep their scalar state and outputs bit-for-bit.</p>
+<section id="both-conjugate-families-from-one-wave-run">
+<h3>Both conjugate families, from one wave run<a class="headerlink" href="#both-conjugate-families-from-one-wave-run" title="Link to this heading"></a></h3>
+<p>A scaled frame <strong>is</strong> a reference ray, <code class="docutils literal notranslate"><span class="pre">(h,</span> <span class="pre">u)</span> <span class="pre">=</span> <span class="pre">(s,</span> <span class="pre">s/R)</span></code>. That is what makes
+the frame’s <code class="docutils literal notranslate"><span class="pre">s</span> <span class="pre">→</span> <span class="pre">0</span></code> a physically meaningful plane — but it also means a run
+finds only the conjugate family its <strong>seed</strong> belongs to:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>seed</p></th>
+<th class="head"><p><code class="docutils literal notranslate"><span class="pre">s(z)</span> <span class="pre">∝</span></code></p></th>
+<th class="head"><p><code class="docutils literal notranslate"><span class="pre">s</span> <span class="pre">=</span> <span class="pre">0</span></code> is</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>flat (parallel illumination)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">A(z)</span></code></p></td>
+<td><p>a <strong>diffraction</strong> / back-focal plane</p></td>
+</tr>
+<tr class="row-odd"><td><p>point (divergent from a point)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">B(z)</span></code></p></td>
+<td><p>an <strong>image</strong> plane</p></td>
+</tr>
+</tbody>
+</table>
+<p>The usual source is flat, so a hybrid run logs back-focal planes and never
+crosses the image planes at all. The tempting fix is a second “shadow” frame
+tracked alongside the real one — but the missing family is just the other
+column of the same transfer matrix, which <code class="docutils literal notranslate"><span class="pre">_accumulate_blocks</span></code> already
+accumulates for <code class="docutils literal notranslate"><span class="pre">conjugate_planes</span></code>. Adding a shadow frame would be a second
+implementation of that walk, free to drift from the first. So instead the run
+asks <code class="docutils literal notranslate"><span class="pre">conjugate_planes</span></code> for both families and logs a wavefield at each plane it
+did not already produce, tagged <code class="docutils literal notranslate"><span class="pre">image-x</span></code> / <code class="docutils literal notranslate"><span class="pre">image-y</span></code>; <code class="docutils literal notranslate"><span class="pre">Microscope.image_planes</span></code>
+and <code class="docutils literal notranslate"><span class="pre">.diffraction_planes</span></code> carry both, per axis.</p>
+<p>Reaching a plane the run did not log is exact, not approximate.
+<code class="docutils literal notranslate"><span class="pre">Microscope._scaled_plane_at(z)</span></code> returns the logged plane when one is there and
+otherwise advances the nearest upstream plane through the intervening free
+space — closed form for a scaled free segment. It <strong>refuses</strong> when an element
+lies in between, naming it and pointing at <code class="docutils literal notranslate"><span class="pre">subdivided()</span></code>: carrying a field
+through an element means running that element’s optics, which is the engine’s
+job, not a query’s. Whether a stretch is free is asked of the optics rather
+than the type — an element is transparent exactly when its own transfer block
+equals <code class="docutils literal notranslate"><span class="pre">[[1,</span> <span class="pre">L],</span> <span class="pre">[0,</span> <span class="pre">1]]</span></code> on both axes, so drifts, fiducials and zero-strength
+lenses are all free without this layer knowing any element class.</p>
+<p>This also closed a silent trap: <code class="docutils literal notranslate"><span class="pre">wavefield_at(z)</span></code> previously snapped to the
+nearest logged plane, so asking for the field at an image plane returned a
+<em>different</em> plane with no warning.</p>
+<p><strong>Plane positions are analytical.</strong> They come from accumulating transfer
+blocks and solving <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">=</span> <span class="pre">0</span></code> / <code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">=</span> <span class="pre">0</span></code> — no grid, no propagation, no sampling
+parameters. Nothing in this section can move a plane; propagation only supplies
+the <em>field</em> at one.</p>
+<p>Verified: the diffraction family matches the frame’s own crossovers exactly;
+<code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">=</span> <span class="pre">-2.1e-17</span></code> at the logged image plane (<code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">=</span> <span class="pre">0</span></code> is the definition of one);
+and the advance reproduces an independent engine path — the same column cut at
+that z — to 8.7e-16.</p>
+<p>One caveat, about the reconstructed <strong>field</strong> and not about plane locations:
+with <code class="docutils literal notranslate"><span class="pre">absorb</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> those two routes differ by ~2.8e-3, because the absorber is
+inherently path dependent — one long sub-stepped segment windows the escaping
+halo differently than two short ones. That is the absorber modelling real loss,
+not an error in the advance, but it does mean <em>field</em> comparisons between
+differently-cut columns should run at <code class="docutils literal notranslate"><span class="pre">absorb</span> <span class="pre">=</span> <span class="pre">0</span></code>. Plane positions are
+unaffected either way.</p>
+</section>
+<section id="mid-element-frame-switching">
+<h3>Mid-element frame switching<a class="headerlink" href="#mid-element-frame-switching" title="Link to this heading"></a></h3>
+<p>A crossover can fall <strong>inside</strong> an element body. The scaled frame is singular
+there, and for a long time the engine only switched frames in free segments, so
+the exact traversal simply refused. What the free engine did instead was worse
+than refusing: it flattened <em>around</em> the body and recorded the crossover as
+<code class="docutils literal notranslate"><span class="pre">z</span> <span class="pre">+</span> <span class="pre">|R|</span></code>, which extrapolates straight through the element as though it were
+empty — reporting the plane in the wrong place, silently.</p>
+<p>A body now runs the same flatten → cross → rediverge policy using <strong>its own
+law</strong> (<code class="docutils literal notranslate"><span class="pre">propagate_quadratic_segment_hybrid</span></code>). Three things differ from free
+space, all because a focusing medium keeps bending the frame:</p>
+<ul class="simple">
+<li><p><strong>A flat frame does not stay flat.</strong> The medium re-converges it immediately,
+so the flatten criterion would re-fire every step and the axis would never
+cross. It is suppressed while that axis has a crossover pending.</p></li>
+<li><p><strong>The crossing is not at <code class="docutils literal notranslate"><span class="pre">z</span> <span class="pre">+</span> <span class="pre">|R|</span></code>.</strong> It is found with the body’s law while
+inside it and straight-line past it (<code class="docutils literal notranslate"><span class="pre">_crossing_from</span></code>).</p></li>
+<li><p><strong>The rediverge cannot require a flat frame, and cannot use <code class="docutils literal notranslate"><span class="pre">R</span> <span class="pre">=</span> <span class="pre">d</span></code>.</strong> By the
+time the frame reaches the crossing the medium has already re-curved it, and
+a ray that crossed at <code class="docutils literal notranslate"><span class="pre">z_c</span></code> has curvature <code class="docutils literal notranslate"><span class="pre">B(d)/D(d)</span></code> of the <em>medium</em> at
+distance <code class="docutils literal notranslate"><span class="pre">d</span></code> past it — which reduces to the familiar <code class="docutils literal notranslate"><span class="pre">d</span></code> only when <code class="docutils literal notranslate"><span class="pre">κ</span> <span class="pre">=</span> <span class="pre">0</span></code>.</p></li>
+</ul>
+<p>Restoring the ray matters as much as logging the plane: without the rediverge,
+every plane <em>downstream</em> of the in-body crossing is wrong too. On <code class="docutils literal notranslate"><span class="pre">basic_column</span></code>
+with a point object at −500 mm, whose second image plane (320.474 mm) sits
+inside C3’s body (0.320–0.340):</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>image plane</p></th>
+<th class="head"><p>before</p></th>
+<th class="head"><p>after</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>0.000 nm</p></td>
+<td><p>0.000 nm</p></td>
+</tr>
+<tr class="row-odd"><td><p>2 (inside C3)</p></td>
+<td><p><strong>99 mm</strong></p></td>
+<td><p>20 nm</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>594 µm</p></td>
+<td><p>0.058 nm</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>99 µm</p></td>
+<td><p>0.011 nm</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>234 µm</p></td>
+<td><p>0.026 nm</p></td>
+</tr>
+</tbody>
+</table>
+<p>The common case is untouched by construction: with no interior zero and no
+pending marker the traversal is a single exact call, bit-identical to before, so
+ordinary thick lenses and quadrupoles are unaffected — flat-seeded runs still
+put all five diffraction planes at 0.000 µm.</p>
+<p><strong>Remaining, and different in kind:</strong> the 20 nm on plane 2 is the <em>free</em> engine
+flattening at 0.314916, just before C3, and recording <code class="docutils literal notranslate"><span class="pre">z</span> <span class="pre">+</span> <span class="pre">|R|</span></code> — the same
+straight-through extrapolation, now on the other side of the boundary. Closing
+it needs the engine to know what optics lie downstream of the flatten, which it
+cannot see from inside a free segment. 20 nm in 320 mm is 6 parts in 10⁸, so it
+is documented rather than chased.</p>
+</section>
+</section>
+<section id="other-remedies-roadmap">
+<h2>Other remedies (roadmap)<a class="headerlink" href="#other-remedies-roadmap" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><strong>Collins / ABCD Gaussian-mode transport (grid-free, exact).</strong> Propagate the
+complex beam parameter <code class="docutils literal notranslate"><span class="pre">1/q</span> <span class="pre">=</span> <span class="pre">1/R</span> <span class="pre">−</span> <span class="pre">i</span> <span class="pre">λ/(π</span> <span class="pre">w²)</span></code> through the <em>same</em> transfer
+matrices via <code class="docutils literal notranslate"><span class="pre">q'</span> <span class="pre">=</span> <span class="pre">(A</span> <span class="pre">q</span> <span class="pre">+</span> <span class="pre">B)/(C</span> <span class="pre">q</span> <span class="pre">+</span> <span class="pre">D)</span></code>. No grid → no sampling limit; yields
+<code class="docutils literal notranslate"><span class="pre">w(z)</span></code>, wavefront curvature <code class="docutils literal notranslate"><span class="pre">R(z)</span></code>, Gouy phase, and the full complex Gaussian
+field analytically at any plane. Note what it adds over the existing modes:
+rays and covariance are λ-free (a covariance beam seeded at the diffraction
+limit <code class="docutils literal notranslate"><span class="pre">σₓσθ</span> <span class="pre">=</span> <span class="pre">λ/4π</span></code> reproduces the Gaussian <strong>widths</strong> exactly, but carries no
+phase); the q-parameter adds the wave content — curvature, Gouy phase,
+complex field — while remaining exact in any linear paraxial system.
+(Tracked as GitHub issue #1.)</p></li>
+<li><p><strong>Hybrid transport (the field-standard pattern).</strong> Use matrices for the
+column, and attach sampled-wave patches only at planes of interest — e.g.
+apply the aberration phase in the diffraction plane and a wave calculation
+across the specimen window.</p></li>
+</ol>
+</section>
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Collins, S. A., “Lens-System Diffraction Integral Written in Terms of Matrix
+Optics,” <em>J. Opt. Soc. Am.</em> <strong>60</strong>, 1168 (1970).</p></li>
+<li><p>Siegman, A. E., <em>Lasers</em>, ch. 20 (ABCD law for Gaussian beams).</p></li>
+<li><p>Goodman, J. W., <em>Introduction to Fourier Optics</em>, ch. 5 (sampling of
+quadratic phases and the space–bandwidth product).</p></li>
+<li><p>Matsushima, K. &amp; Shimobaba, T., “Band-limited angular spectrum method,”
+<em>Opt. Express</em> <strong>17</strong>, 19662 (2009) (the drift criterion).</p></li>
+<li><p>Sziklas, E. A. &amp; Siegman, A. E., “Mode calculations in unstable resonators
+with flowing saturable gain. 2: Fast Fourier transform method,”
+<em>Appl. Opt.</em> <strong>14</strong>, 1874 (1975) (the coordinate-scaling transform behind
+<code class="docutils literal notranslate"><span class="pre">propagate_wave(mode='scaled'|'hybrid')</span></code>).</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="dev_documentation.html" class="btn btn-neutral float-left" title="Into the SEA-weeds" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="api_reference.html" class="btn btn-neutral float-right" title="API Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, rayTEM contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

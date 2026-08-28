@@ -1,24 +1,27 @@
 {
     "kind": "setting",
     "name": "basic_column - high-convergent-image",
-    "version": 0.001,
-    "timestamp": "2026-08-27 14:42:46",
+    "version": 0.02,
+    "timestamp": "2026-08-28 02:36:26",
     "C1": {
-        "strength": 39.01491226
+        "strength": 707.01251411
     },
     "C2": {
-        "strength": 59.22294324
+        "strength": 595.90595007
     },
     "C3": {
-        "strength": 51.95613458
-    },
-    "OL1": {
-        "strength": 136.14028827
+        "strength": 444.16494492
     },
     "PL1": {
-        "strength": 46.78522294
+        "strength": 854.01724307
     },
     "PL2": {
-        "strength": 61.45961585
+        "strength": 999.73341154
+    },
+    "PL3": {
+        "strength": 999.73341154
+    },
+    "PL4": {
+        "strength": 790.29552825
     }
 }

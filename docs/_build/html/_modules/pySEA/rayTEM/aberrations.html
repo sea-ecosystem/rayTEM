@@ -1,0 +1,986 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pySEA.rayTEM.aberrations &mdash; rayTEM 0.0.1beta documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=e02f3e7d"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            rayTEM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../propagation_modes.html">Propagation Modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../operating_the_column.html">Operating the Column</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../terminology.html">Terminology</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Example Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">AI Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../ai_tools/install.html">AI Tools</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Into the SEA-weeds (For developers)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../dev_documentation.html">Into the SEA-weeds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../wave-optics-sampling.html">Why full-column electron wave propagation breaks fixed-grid sampling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_reference.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">rayTEM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">pySEA.rayTEM.aberrations</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for pySEA.rayTEM.aberrations</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Axial wave aberrations in Krivanek notation, and how to apply them.</span>
+
+<span class="sd">One class, :class:`Aberrations`, holds a set of coefficients and knows how to</span>
+<span class="sd">turn them into a phase (for wave optics) or a ray deflection (for geometric</span>
+<span class="sd">optics). Nothing else in rayTEM needs to know *which* aberration is present:</span>
+<span class="sd">propagation asks for the phase or its gradient and applies whatever is there.</span>
+
+<span class="sd">The storage convention is **Krivanek** ``C_{n,m}``, matching what sea-eco's</span>
+<span class="sd">swift reader already pulls out of a Nion file, so a measured instrument and a</span>
+<span class="sd">simulated one speak the same names.</span>
+<span class="sd">"""</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">SEASerializable</span>
+
+
+<div class="viewcode-block" id="krivanek_terms">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.aberrations.krivanek_terms">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">krivanek_terms</span><span class="p">(</span><span class="n">max_order</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""The Krivanek ``C_{n,m}`` term names up to a given order.</span>
+
+<span class="sd">	For an aberration of order ``n`` the wave phase goes as</span>
+<span class="sd">	:math:`\theta^{n+1}` and the transverse ray aberration as</span>
+<span class="sd">	:math:`\theta^{n}`. The azimuthal multiplicity ``m`` runs from ``n + 1``</span>
+<span class="sd">	down to 0 or 1 in steps of two, so a term is either rotationally symmetric</span>
+<span class="sd">	(``m = 0``) or has ``m``-fold symmetry.</span>
+
+<span class="sd">	=====  ====================================</span>
+<span class="sd">	order  terms</span>
+<span class="sd">	=====  ====================================</span>
+<span class="sd">	1      ``C10`` defocus, ``C12`` twofold</span>
+<span class="sd">	2      ``C21`` coma, ``C23`` threefold</span>
+<span class="sd">	3      ``C30`` spherical, ``C32``, ``C34``</span>
+<span class="sd">	4      ``C41``, ``C43``, ``C45``</span>
+<span class="sd">	5      ``C50``, ``C52``, ``C54``, ``C56``</span>
+<span class="sd">	=====  ====================================</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	max_order : int, optional</span>
+<span class="sd">		Highest order to include, by default 5.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	dict</span>
+<span class="sd">		``{name: (n, m)}`` in ascending order.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	ValueError</span>
+<span class="sd">		If ``max_order`` is less than 1.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	Aberrations : Holds coefficients keyed by these names.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	sea-eco's swift reader currently stops at order 4; fifth order is included</span>
+<span class="sd">	here so a simulation is not limited by what a file happens to carry.</span>
+
+<span class="sd">	Examples</span>
+<span class="sd">	--------</span>
+<span class="sd">	&gt;&gt;&gt; sorted(krivanek_terms(1))</span>
+<span class="sd">	['C10', 'C12']</span>
+<span class="sd">	"""</span>
+	<span class="k">if</span> <span class="n">max_order</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+		<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"max_order must be at least 1, got </span><span class="si">{</span><span class="n">max_order</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+	<span class="n">out</span> <span class="o">=</span> <span class="p">{}</span>
+	<span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">max_order</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+		<span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">):</span>
+			<span class="n">out</span><span class="p">[</span><span class="sa">f</span><span class="s2">"C</span><span class="si">{</span><span class="n">n</span><span class="si">}{</span><span class="n">m</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">out</span></div>
+
+
+
+<span class="c1">#: Krivanek ``C_{n,m}`` name -&gt; ``(order, multiplicity)``, orders 1 through 5.</span>
+<span class="n">KRIVANEK_TERMS</span> <span class="o">=</span> <span class="n">krivanek_terms</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+
+<span class="c1">#: The letter convention (Nion/CEOS style) mapped onto Krivanek names. These</span>
+<span class="c1">#: are *different notations for the same quantities*, which is why they get a</span>
+<span class="c1">#: conversion rather than a second storage format.</span>
+<span class="n">LETTER_TO_KRIVANEK</span> <span class="o">=</span> <span class="p">{</span>
+	<span class="s1">'C1'</span><span class="p">:</span> <span class="s1">'C10'</span><span class="p">,</span> <span class="s1">'A1'</span><span class="p">:</span> <span class="s1">'C12'</span><span class="p">,</span>
+	<span class="s1">'B2'</span><span class="p">:</span> <span class="s1">'C21'</span><span class="p">,</span> <span class="s1">'A2'</span><span class="p">:</span> <span class="s1">'C23'</span><span class="p">,</span>
+	<span class="s1">'C3'</span><span class="p">:</span> <span class="s1">'C30'</span><span class="p">,</span> <span class="s1">'S3'</span><span class="p">:</span> <span class="s1">'C32'</span><span class="p">,</span> <span class="s1">'A3'</span><span class="p">:</span> <span class="s1">'C34'</span><span class="p">,</span>
+	<span class="s1">'B4'</span><span class="p">:</span> <span class="s1">'C41'</span><span class="p">,</span> <span class="s1">'D4'</span><span class="p">:</span> <span class="s1">'C43'</span><span class="p">,</span> <span class="s1">'A4'</span><span class="p">:</span> <span class="s1">'C45'</span><span class="p">,</span>
+	<span class="s1">'C5'</span><span class="p">:</span> <span class="s1">'C50'</span><span class="p">,</span> <span class="s1">'S5'</span><span class="p">:</span> <span class="s1">'C52'</span><span class="p">,</span> <span class="s1">'R5'</span><span class="p">:</span> <span class="s1">'C54'</span><span class="p">,</span> <span class="s1">'A5'</span><span class="p">:</span> <span class="s1">'C56'</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="Aberrations">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.aberrations.Aberrations">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Aberrations</span><span class="p">(</span><span class="n">SEASerializable</span><span class="p">):</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""A set of axial aberration coefficients, and the phase they produce.</span>
+
+<span class="sd">	Coefficients are **complex**: for a term of multiplicity ``m`` the two</span>
+<span class="sd">	components fix both size and orientation, exactly as a Nion file's</span>
+<span class="sd">	``C12.a`` / ``C12.b`` pair does. The contribution to the phase is</span>
+
+<span class="sd">	.. math::</span>
+
+<span class="sd">		\frac{\theta^{n+1}}{n+1}\,\big(a\cos m\phi + b\sin m\phi\big),</span>
+<span class="sd">		\qquad C_{n,m} = a + ib</span>
+
+<span class="sd">	so ``a`` is the component aligned with the x axis and ``b`` the one at</span>
+<span class="sd">	:math:`45^\circ/m`. Rotationally symmetric terms (``m = 0``) are real; a</span>
+<span class="sd">	nonzero imaginary part on one is rejected rather than silently ignored.</span>
+
+<span class="sd">	Attributes</span>
+<span class="sd">	----------</span>
+<span class="sd">	convention : str</span>
+<span class="sd">		Which notation the stored names are in; ``'krivanek'``. Recorded so a</span>
+<span class="sd">		bare set of numbers is never ambiguous.</span>
+<span class="sd">	names : list of str</span>
+<span class="sd">		Term names, e.g. ``['C10', 'C30']``.</span>
+<span class="sd">	real, imag : list of float</span>
+<span class="sd">		The two components of each coefficient, in metres. Stored as parallel</span>
+<span class="sd">		lists rather than a dict or complex array because those are what a</span>
+<span class="sd">		``.sea`` file can carry.</span>
+
+<span class="sd">	Methods</span>
+<span class="sd">	-------</span>
+<span class="sd">	phase_at(X, Y, wavelength, power)</span>
+<span class="sd">		The wave aberration function ``chi`` at given coordinates.</span>
+<span class="sd">	deflection_at(X, Y, power)</span>
+<span class="sd">		The transverse ray aberration ``(1/k) grad chi``, which is what ray</span>
+<span class="sd">		optics needs; wavelength-free.</span>
+<span class="sd">	phase(shape, dx, dy, wavelength, power)</span>
+<span class="sd">		``phase_at`` on a sampled grid, for the wave path.</span>
+<span class="sd">	gradient(shape, dx, dy, wavelength, power)</span>
+<span class="sd">		``(d chi/dx, d chi/dy)`` on a sampled grid.</span>
+<span class="sd">	setdefault(name, value)</span>
+<span class="sd">		Set a coefficient only if it is not already nonzero.</span>
+<span class="sd">	from_metadata(metadata)</span>
+<span class="sd">		Read coefficients as sea-eco's swift reader stores them.</span>
+<span class="sd">	from_letters(coefficients)</span>
+<span class="sd">		Build from the ``C1``/``A1``/``B2`` letter notation.</span>
+<span class="sd">	to_letters()</span>
+<span class="sd">		Express the stored set in that notation.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	KeyError</span>
+<span class="sd">		On an unknown term name.</span>
+<span class="sd">	ValueError</span>
+<span class="sd">		On an orientation given for a rotationally symmetric term.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	KRIVANEK_TERMS : The names and their ``(order, multiplicity)``.</span>
+<span class="sd">	elements.Element.aberrations : Where one of these is attached.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	These are **axial** aberrations: functions of pupil position alone, with no</span>
+<span class="sd">	field dependence.</span>
+
+<span class="sd">	Examples</span>
+<span class="sd">	--------</span>
+<span class="sd">	&gt;&gt;&gt; ab = Aberrations({'C30': 1e-3})</span>
+<span class="sd">	&gt;&gt;&gt; ab['C30']</span>
+<span class="sd">	(0.001+0j)</span>
+<span class="sd">	"""</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coefficients</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convention</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'krivanek'</span><span class="p">):</span>
+<span class="w">		</span><span class="sd">"""Create a coefficient set.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		coefficients : dict, optional</span>
+<span class="sd">			``{name: value}`` where the value is a real number, a complex</span>
+<span class="sd">			number, or an ``(a, b)`` pair. ``None`` (default) is an empty set,</span>
+<span class="sd">			which is a perfect lens.</span>
+<span class="sd">		convention : str, optional</span>
+<span class="sd">			Notation of the names, by default ``'krivanek'``.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		KeyError</span>
+<span class="sd">			If a name is not a known Krivanek term.</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If a rotationally symmetric term is given a nonzero second</span>
+<span class="sd">			component.</span>
+<span class="sd">		"""</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">convention</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">convention</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">real</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">imag</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="n">coefficients</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+			<span class="bp">self</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+	<span class="c1"># ------------------------------------------------------------------ core</span>
+<div class="viewcode-block" id="Aberrations.order_and_multiplicity">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.aberrations.Aberrations.order_and_multiplicity">[docs]</a>
+	<span class="nd">@staticmethod</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">order_and_multiplicity</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Look up ``(n, m)`` for a term name.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		name : str</span>
+<span class="sd">			Krivanek term name, e.g. ``'C30'``.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		tuple of int</span>
+<span class="sd">			``(order, multiplicity)``.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		KeyError</span>
+<span class="sd">			If the name is not a known term.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		KRIVANEK_TERMS : The table consulted.</span>
+<span class="sd">		"""</span>
+		<span class="k">try</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">KRIVANEK_TERMS</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+		<span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> is not a Krivanek term this class knows; "</span>
+						   <span class="sa">f</span><span class="s2">"expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">KRIVANEK_TERMS</span><span class="p">)</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span></div>
+
+
+	<span class="k">def</span><span class="w"> </span><span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Set one coefficient.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		name : str</span>
+<span class="sd">			Krivanek term name.</span>
+<span class="sd">		value : float, complex, or Sequence[float]</span>
+<span class="sd">			Magnitude, complex coefficient, or ``(a, b)`` pair.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		KeyError</span>
+<span class="sd">			If the name is unknown.</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If a nonzero ``b`` is given for an ``m = 0`` term, or the value is</span>
+<span class="sd">			not a scalar or a pair.</span>
+<span class="sd">		"""</span>
+		<span class="n">n</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">order_and_multiplicity</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">ndim</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="nb">complex</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">real</span><span class="p">,</span> <span class="nb">complex</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">imag</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">value</span><span class="p">)</span>
+			<span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+				<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"coefficient </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> must be a number or an "</span>
+								 <span class="sa">f</span><span class="s2">"(a, b) pair, got </span><span class="si">{</span><span class="n">value</span><span class="si">!r}</span><span class="s2">."</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
+		<span class="k">if</span> <span class="n">m</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">b</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> is rotationally symmetric (m = 0), so it has "</span>
+							 <span class="sa">f</span><span class="s2">"no orientation; its second component must be 0, got </span><span class="si">{</span><span class="n">b</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+			<span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">imag</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">real</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">a</span><span class="p">))</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">imag</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">b</span><span class="p">))</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">complex</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Return one coefficient as a complex number.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		name : str</span>
+<span class="sd">			Krivanek term name.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		complex</span>
+<span class="sd">			``a + ib``; zero when the term is not set.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		KeyError</span>
+<span class="sd">			If the name is not a known term.</span>
+<span class="sd">		"""</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">order_and_multiplicity</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+			<span class="k">return</span> <span class="mi">0</span><span class="n">j</span>
+		<span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+		<span class="k">return</span> <span class="nb">complex</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">imag</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="fm">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Whether a term is set to a nonzero value.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		name : str</span>
+<span class="sd">			Krivanek term name.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		bool</span>
+<span class="sd">			True if present and nonzero.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+<span class="sd">		"""</span>
+		<span class="k">return</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="ow">and</span> <span class="bp">self</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="fm">__bool__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Whether any coefficient is nonzero.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		bool</span>
+<span class="sd">			False for a perfect lens, so ``if lens.aberrations:`` reads</span>
+<span class="sd">			naturally.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+<span class="sd">		"""</span>
+		<span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">a</span> <span class="ow">or</span> <span class="n">b</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">real</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">imag</span><span class="p">))</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Compact, readable summary.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		str</span>
+<span class="sd">			The nonzero terms and the convention.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+<span class="sd">		"""</span>
+		<span class="n">body</span> <span class="o">=</span> <span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="bp">self</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="k">if</span> <span class="bp">self</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+		<span class="k">return</span> <span class="sa">f</span><span class="s2">"Aberrations(</span><span class="si">{</span><span class="n">body</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">'ideal'</span><span class="si">}</span><span class="s2">, convention=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">convention</span><span class="si">!r}</span><span class="s2">)"</span>
+
+<div class="viewcode-block" id="Aberrations.items">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.aberrations.Aberrations.items">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">items</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">		</span><span class="sd">"""Iterate ``(name, complex)`` over the nonzero terms.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		list of tuple</span>
+<span class="sd">			``[(name, coefficient), ...]`` in insertion order.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		as_dict : The same content as a mapping.</span>
+<span class="sd">		"""</span>
+		<span class="k">return</span> <span class="p">[(</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="p">[</span><span class="n">n</span><span class="p">])</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="k">if</span> <span class="bp">self</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Aberrations.setdefault">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.aberrations.Aberrations.setdefault">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">setdefault</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">complex</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Set a coefficient only if it is not already nonzero.</span>
+
+<span class="sd">		Used where a default must not silently overwrite a term the caller</span>
+<span class="sd">		named — an explicitly given coefficient wins, because naming the term</span>
+<span class="sd">		is the more specific statement.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		name : str</span>
+<span class="sd">			Krivanek term name.</span>
+<span class="sd">		value : float, complex, or Sequence[float]</span>
+<span class="sd">			Value to use when the term is currently zero or unset.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		complex</span>
+<span class="sd">			The coefficient in force afterwards.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		KeyError</span>
+<span class="sd">			If the name is unknown.</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If a nonzero orientation is given for an ``m = 0`` term.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		__setitem__ : The unconditional form.</span>
+<span class="sd">		"""</span>
+		<span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+			<span class="bp">self</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="n">name</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Aberrations.as_dict">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.aberrations.Aberrations.as_dict">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""The nonzero coefficients as ``{name: complex}``.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		dict</span>
+<span class="sd">			Mapping of term name to complex coefficient.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		items : The same content as pairs.</span>
+<span class="sd">		"""</span>
+		<span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">())</span></div>
+
+
+	<span class="c1"># --------------------------------------------------------- conversions</span>
+<div class="viewcode-block" id="Aberrations.from_letters">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.aberrations.Aberrations.from_letters">[docs]</a>
+	<span class="nd">@classmethod</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">from_letters</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">coefficients</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">'Aberrations'</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Build from the letter notation (``C1``, ``A1``, ``B2``, ``S3``...).</span>
+
+<span class="sd">		The letters are a different naming of the same quantities, common in</span>
+<span class="sd">		corrector software. They are converted on the way in so there is only</span>
+<span class="sd">		ever one stored convention.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		coefficients : dict</span>
+<span class="sd">			``{letter_name: value}``; values as for :meth:`__setitem__`.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		Aberrations</span>
+<span class="sd">			The equivalent set in Krivanek names.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		KeyError</span>
+<span class="sd">			If a letter name is not recognised.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		to_letters : The inverse.</span>
+<span class="sd">		LETTER_TO_KRIVANEK : The mapping used.</span>
+<span class="sd">		"""</span>
+		<span class="n">out</span> <span class="o">=</span> <span class="p">{}</span>
+		<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="n">coefficients</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+			<span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">LETTER_TO_KRIVANEK</span><span class="p">:</span>
+				<span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> is not a letter-notation aberration; "</span>
+							   <span class="sa">f</span><span class="s2">"expected one of </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">LETTER_TO_KRIVANEK</span><span class="p">)</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+			<span class="n">out</span><span class="p">[</span><span class="n">LETTER_TO_KRIVANEK</span><span class="p">[</span><span class="n">name</span><span class="p">]]</span> <span class="o">=</span> <span class="n">value</span>
+		<span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">out</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Aberrations.to_letters">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.aberrations.Aberrations.to_letters">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">to_letters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Express the stored set in the letter notation.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		dict</span>
+<span class="sd">			``{letter_name: complex}`` for the nonzero terms.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		from_letters : The inverse.</span>
+<span class="sd">		"""</span>
+		<span class="n">inverse</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">LETTER_TO_KRIVANEK</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+		<span class="k">return</span> <span class="p">{</span><span class="n">inverse</span><span class="p">[</span><span class="n">n</span><span class="p">]:</span> <span class="n">c</span> <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">inverse</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="Aberrations.from_metadata">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.aberrations.Aberrations.from_metadata">[docs]</a>
+	<span class="nd">@classmethod</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">from_metadata</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">'Aberrations'</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""Read coefficients as sea-eco's swift reader stores them.</span>
+
+<span class="sd">		A Nion file carries each term's two components under separate keys,</span>
+<span class="sd">		``C12.a`` and ``C12.b``, with the rotationally symmetric ones (``C10``,</span>
+<span class="sd">		``C30``) as a single value. This performs the ``a``/``b`` → complex</span>
+<span class="sd">		step the reader itself leaves as a TODO.</span>
+
+<span class="sd">		Accepts a sea-eco ``Metadata`` tree or a plain mapping, and looks for</span>
+<span class="sd">		an ``Aberrations`` node anywhere within it, so either the whole</span>
+<span class="sd">		metadata or just the aberration sub-tree can be handed in.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		metadata : Metadata or Mapping</span>
+<span class="sd">			Metadata as loaded from an experimental file.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		Aberrations</span>
+<span class="sd">			The coefficients found; empty if there are none.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+<span class="sd">			Unknown keys are ignored rather than raising, because instrument</span>
+<span class="sd">			metadata legitimately carries entries this class does not model.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		sea_eco.io.swift_to_sea_metadata : Writes the structure read here.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; Aberrations.from_metadata({'C30': 1e-3, 'C12.a': 2e-9})  # doctest: +SKIP</span>
+<span class="sd">		"""</span>
+		<span class="n">flat</span> <span class="o">=</span> <span class="n">_flatten_metadata</span><span class="p">(</span><span class="n">metadata</span><span class="p">)</span>
+		<span class="n">found</span> <span class="o">=</span> <span class="p">{}</span>
+		<span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">flat</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+			<span class="n">stem</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">part</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s1">'.'</span><span class="p">)</span>
+			<span class="k">if</span> <span class="n">stem</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">KRIVANEK_TERMS</span> <span class="ow">or</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+				<span class="k">continue</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">value</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+			<span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+				<span class="k">continue</span>
+			<span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">found</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">stem</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+			<span class="k">if</span> <span class="n">part</span> <span class="o">==</span> <span class="s1">'b'</span><span class="p">:</span>
+				<span class="n">found</span><span class="p">[</span><span class="n">stem</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">found</span><span class="p">[</span><span class="n">stem</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+		<span class="k">return</span> <span class="bp">cls</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">found</span><span class="o">.</span><span class="n">items</span><span class="p">()})</span></div>
+
+
+	<span class="c1"># ------------------------------------------------------------- physics</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">_polar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">power</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""Pupil angle and azimuth at given transverse coordinates.</span>
+
+<span class="sd">		Shared by every evaluator so they cannot disagree about geometry.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		X, Y : np.ndarray or float</span>
+<span class="sd">			Transverse coordinates in the element plane (metres). Any shape:</span>
+<span class="sd">			a grid for a wavefield, a flat array for a ray table.</span>
+<span class="sd">		power : float</span>
+<span class="sd">			Focal power ``1/f``, converting ray height to pupil angle.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		tuple</span>
+<span class="sd">			``(theta, phi)``, same shape as the inputs.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If ``power`` is zero, leaving the pupil angle undefined.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		deflection_at, phase_at : The consumers.</span>
+<span class="sd">		"""</span>
+		<span class="k">if</span> <span class="n">power</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"an aberration needs a nonzero focal power: the pupil "</span>
+							 <span class="s2">"angle theta = r/f is undefined for a lens with no power."</span><span class="p">)</span>
+		<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+		<span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">hypot</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">)</span> <span class="o">*</span> <span class="nb">abs</span><span class="p">(</span><span class="n">power</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_grid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">dx</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Transverse coordinates of a sampled field.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		shape : tuple of int</span>
+<span class="sd">			Field shape ``(ny, nx)``.</span>
+<span class="sd">		dx, dy : float</span>
+<span class="sd">			Sample spacings (metres).</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		tuple of np.ndarray</span>
+<span class="sd">			``(X, Y)``, each shape ``(ny, nx)``.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		waveoptics.transverse_coordinates : The centring convention used.</span>
+<span class="sd">		"""</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.waveoptics</span><span class="w"> </span><span class="kn">import</span> <span class="n">transverse_coordinates</span>
+		<span class="k">return</span> <span class="n">transverse_coordinates</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Aberrations.phase_at">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.aberrations.Aberrations.phase_at">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">phase_at</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">power</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The wave aberration function :math:`\chi` at given coordinates.</span>
+
+<span class="sd">		.. math::</span>
+
+<span class="sd">			\chi = -k \sum_{n,m} \frac{\theta^{n+1}}{n+1}</span>
+<span class="sd">			       \big(a_{nm}\cos m\phi + b_{nm}\sin m\phi\big)</span>
+
+<span class="sd">		written on the element plane, where ray height is proportional to pupil</span>
+<span class="sd">		angle (:math:`\theta = r/f`).</span>
+
+<span class="sd">		The sign follows this package's convention, in which a converging lens</span>
+<span class="sd">		carries :math:`\chi = -k r^2/2f` and the field is multiplied by</span>
+<span class="sd">		:math:`e^{i\chi}` — the opposite sign to texts writing</span>
+<span class="sd">		:math:`e^{-i\chi}`. With it, a positive ``C30`` focuses marginal rays</span>
+<span class="sd">		short, as spherical aberration does.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		X, Y : np.ndarray or float</span>
+<span class="sd">			Transverse coordinates (metres).</span>
+<span class="sd">		wavelength : float</span>
+<span class="sd">			Wavelength (metres).</span>
+<span class="sd">		power : float</span>
+<span class="sd">			Focal power ``1/f`` (1/metres).</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		np.ndarray</span>
+<span class="sd">			Phase in radians, broadcast to the shape of ``X``; all zeros for an</span>
+<span class="sd">			ideal set.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If ``power`` is zero.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		phase : The same thing on a sampled grid.</span>
+<span class="sd">		deflection_at : The ray-side counterpart.</span>
+<span class="sd">		"""</span>
+		<span class="n">chi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">chi</span>
+		<span class="n">theta</span><span class="p">,</span> <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_polar</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">power</span><span class="p">)</span>
+		<span class="n">k</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">wavelength</span>
+		<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+			<span class="n">n</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="n">KRIVANEK_TERMS</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+			<span class="n">g</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">m</span> <span class="o">*</span> <span class="n">phi</span><span class="p">)</span> <span class="o">+</span> <span class="n">c</span><span class="o">.</span><span class="n">imag</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">m</span> <span class="o">*</span> <span class="n">phi</span><span class="p">)</span> <span class="k">if</span> <span class="n">m</span> <span class="k">else</span> <span class="n">c</span><span class="o">.</span><span class="n">real</span>
+			<span class="n">chi</span> <span class="o">=</span> <span class="n">chi</span> <span class="o">-</span> <span class="n">k</span> <span class="o">*</span> <span class="n">theta</span><span class="o">**</span><span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">g</span>
+		<span class="k">return</span> <span class="n">chi</span></div>
+
+
+<div class="viewcode-block" id="Aberrations.deflection_at">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.aberrations.Aberrations.deflection_at">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">deflection_at</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">power</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The transverse ray aberration at given coordinates, for every term.</span>
+
+<span class="sd">		This is what geometric optics needs, and it is the *same* function the</span>
+<span class="sd">		wave side uses: the extra angle a ray picks up is</span>
+
+<span class="sd">		.. math::</span>
+
+<span class="sd">			\Delta\theta = \frac{1}{k}\nabla\chi</span>
+
+<span class="sd">		exact in the eikonal limit at **every** order, so one expression covers</span>
+<span class="sd">		``C10`` through ``C56`` and no propagation code needs to know which</span>
+<span class="sd">		aberration it is applying. Because :math:`\chi \propto k`, the ratio is</span>
+<span class="sd">		wavelength-free — which is why this takes no wavelength and works on a</span>
+<span class="sd">		ray table that carries none.</span>
+
+<span class="sd">		With :math:`g(\phi) = a\cos m\phi + b\sin m\phi`:</span>
+
+<span class="sd">		.. math::</span>
+
+<span class="sd">			\Delta\theta_x = -P \theta^{n}</span>
+<span class="sd">			   \Big(g\cos\phi - \frac{g'\sin\phi}{n+1}\Big), \quad</span>
+<span class="sd">			\Delta\theta_y = -P \theta^{n}</span>
+<span class="sd">			   \Big(g\sin\phi + \frac{g'\cos\phi}{n+1}\Big)</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		X, Y : np.ndarray or float</span>
+<span class="sd">			Transverse coordinates (metres).</span>
+<span class="sd">		power : float</span>
+<span class="sd">			Focal power ``1/f`` (1/metres).</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		tuple of np.ndarray</span>
+<span class="sd">			``(delta_theta_x, delta_theta_y)`` in radians.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If ``power`` is zero.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		phase_at : The function differentiated here.</span>
+<span class="sd">		elements.Element.aberration_kick : The consumer on the ray path.</span>
+
+<span class="sd">		Notes</span>
+<span class="sd">		-----</span>
+<span class="sd">		Analytic rather than a finite difference, so it is exact and costs no</span>
+<span class="sd">		extra sampling. The expression is regular on axis: every term carries</span>
+<span class="sd">		:math:`\theta^{n}` with :math:`n \ge 1`.</span>
+<span class="sd">		"""</span>
+		<span class="n">zeros</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">zeros</span><span class="p">,</span> <span class="n">zeros</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+		<span class="n">theta</span><span class="p">,</span> <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_polar</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">power</span><span class="p">)</span>
+		<span class="n">P</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">power</span><span class="p">)</span>
+		<span class="n">gx</span><span class="p">,</span> <span class="n">gy</span> <span class="o">=</span> <span class="n">zeros</span><span class="p">,</span> <span class="n">zeros</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+		<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+			<span class="n">n</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="n">KRIVANEK_TERMS</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+			<span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+				<span class="n">g</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">m</span> <span class="o">*</span> <span class="n">phi</span><span class="p">)</span> <span class="o">+</span> <span class="n">c</span><span class="o">.</span><span class="n">imag</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">m</span> <span class="o">*</span> <span class="n">phi</span><span class="p">)</span>
+				<span class="n">dg</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="p">(</span><span class="o">-</span><span class="n">c</span><span class="o">.</span><span class="n">real</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">m</span> <span class="o">*</span> <span class="n">phi</span><span class="p">)</span> <span class="o">+</span> <span class="n">c</span><span class="o">.</span><span class="n">imag</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">m</span> <span class="o">*</span> <span class="n">phi</span><span class="p">))</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">g</span><span class="p">,</span> <span class="n">dg</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">real</span><span class="p">,</span> <span class="mf">0.0</span>
+			<span class="n">common</span> <span class="o">=</span> <span class="o">-</span><span class="n">P</span> <span class="o">*</span> <span class="n">theta</span><span class="o">**</span><span class="n">n</span>
+			<span class="n">gx</span> <span class="o">=</span> <span class="n">gx</span> <span class="o">+</span> <span class="n">common</span> <span class="o">*</span> <span class="p">(</span><span class="n">g</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span> <span class="o">-</span> <span class="n">dg</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+			<span class="n">gy</span> <span class="o">=</span> <span class="n">gy</span> <span class="o">+</span> <span class="n">common</span> <span class="o">*</span> <span class="p">(</span><span class="n">g</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span> <span class="o">+</span> <span class="n">dg</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+		<span class="k">return</span> <span class="n">gx</span><span class="p">,</span> <span class="n">gy</span></div>
+
+
+<div class="viewcode-block" id="Aberrations.phase">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.aberrations.Aberrations.phase">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">phase</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">dx</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+			  <span class="n">power</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The wave aberration function :math:`\chi` on a sampled grid.</span>
+
+<span class="sd">		A thin wrapper over :meth:`phase_at` for the wave path, which works with</span>
+<span class="sd">		a shape and a sampling rather than explicit coordinates.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		shape : tuple of int</span>
+<span class="sd">			Field shape ``(ny, nx)``.</span>
+<span class="sd">		dx, dy : float</span>
+<span class="sd">			Sample spacings (metres, or physical spacings ``s·Δξ`` on a scaled</span>
+<span class="sd">			grid).</span>
+<span class="sd">		wavelength : float</span>
+<span class="sd">			Wavelength (metres).</span>
+<span class="sd">		power : float</span>
+<span class="sd">			Focal power ``1/f`` (1/metres).</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		np.ndarray</span>
+<span class="sd">			Real phase array in radians, shape ``(ny, nx)``.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If ``power`` is zero.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		phase_at : The underlying evaluation.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; Aberrations({'C30': 1e-3}).phase((8, 8), 1e-6, 1e-6, 2.5e-12, 22.2)  # doctest: +SKIP</span>
+<span class="sd">		"""</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+		<span class="n">X</span><span class="p">,</span> <span class="n">Y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grid</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">)</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">phase_at</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">power</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Aberrations.gradient">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.aberrations.Aberrations.gradient">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">gradient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">dx</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+				 <span class="n">power</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""``(∂χ/∂x, ∂χ/∂y)`` on a sampled grid, in radians per metre.</span>
+
+<span class="sd">		The spatial gradient of :meth:`phase`, i.e. :math:`k` times</span>
+<span class="sd">		:meth:`deflection_at`. Provided for code that wants the phase slope</span>
+<span class="sd">		itself; ray propagation should use :meth:`deflection_at`, which needs no</span>
+<span class="sd">		wavelength.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		shape : tuple of int</span>
+<span class="sd">			Field shape ``(ny, nx)``.</span>
+<span class="sd">		dx, dy : float</span>
+<span class="sd">			Sample spacings (metres).</span>
+<span class="sd">		wavelength : float</span>
+<span class="sd">			Wavelength (metres).</span>
+<span class="sd">		power : float</span>
+<span class="sd">			Focal power ``1/f`` (1/metres).</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		tuple of np.ndarray</span>
+<span class="sd">			``(dchi_dx, dchi_dy)``.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If ``power`` is zero.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		deflection_at : The wavelength-free ray form.</span>
+<span class="sd">		"""</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="p">:</span>
+			<span class="n">zeros</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+			<span class="k">return</span> <span class="n">zeros</span><span class="p">,</span> <span class="n">zeros</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+		<span class="n">X</span><span class="p">,</span> <span class="n">Y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grid</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">)</span>
+		<span class="n">gx</span><span class="p">,</span> <span class="n">gy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deflection_at</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">power</span><span class="p">)</span>
+		<span class="n">k</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">wavelength</span>
+		<span class="k">return</span> <span class="n">k</span> <span class="o">*</span> <span class="n">gx</span><span class="p">,</span> <span class="n">k</span> <span class="o">*</span> <span class="n">gy</span></div>
+</div>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_flatten_metadata</span><span class="p">(</span><span class="n">metadata</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Flatten a metadata tree to ``{key: value}``, ignoring the hierarchy.</span>
+
+<span class="sd">	Instrument metadata nests aberrations under different paths depending on</span>
+<span class="sd">	the source (``Instrument/Condensers/Aberrations`` for one detector,</span>
+<span class="sd">	``Instrument/Aberrations`` for another), so :meth:`Aberrations.from_metadata`</span>
+<span class="sd">	searches by leaf name rather than by path.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	metadata : Metadata, Mapping, or object</span>
+<span class="sd">		Tree to flatten. Anything without children contributes nothing.</span>
+<span class="sd">	prefix : str, optional</span>
+<span class="sd">		Internal, used by the recursion; ignored by callers.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	dict</span>
+<span class="sd">		Leaf name to value. Later leaves with the same name win.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	Aberrations.from_metadata : The caller.</span>
+<span class="sd">	"""</span>
+	<span class="n">out</span> <span class="o">=</span> <span class="p">{}</span>
+	<span class="k">if</span> <span class="n">metadata</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">out</span>
+	<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">metadata</span><span class="p">,</span> <span class="s2">"items"</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">metadata</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">)):</span>
+		<span class="n">pairs</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+	<span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">metadata</span><span class="p">,</span> <span class="s2">"__dict__"</span><span class="p">):</span>
+		<span class="n">pairs</span> <span class="o">=</span> <span class="nb">vars</span><span class="p">(</span><span class="n">metadata</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">out</span>
+	<span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">pairs</span><span class="p">:</span>
+		<span class="n">key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)):</span>
+			<span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_flatten_metadata</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">key</span><span class="p">))</span>
+			<span class="n">out</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">out</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, rayTEM contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
