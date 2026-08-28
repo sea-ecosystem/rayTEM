@@ -2,6 +2,40 @@
 
 Newest entries at top.
 
+## 2026-08-27 — [Done] OL1 f = 3 mm; suite fully green; Gun; two old bugs down
+**Goal:** Eric's five calls: OL1 f matches the mid-gap sample (3 mm); keep
+pushing to the branch (no PR); combine_drifts default False; diagnose the
+insertion failure; add the small stuff.
+- [x] OL1 f = 3 mm -> 30.000 mrad at 43 nm (high) / 2 nm (low), condensers only
+- [x] `combine_drifts` defaults to **False** (three confirmed casualties of the
+  merging default; tidying is opt-in with True)
+- [x] **the long-standing `test_section_insertion_microscope` failure is FIXED**
+- [x] `Gun(Source)` class (kind='Gun', reloadable, round-trip test)
+- [x] `convergence_angle` = max total angle among LIVE rays
+- [x] predict_probe reads the aperture in the LAB frame
+- [x] wiki refreshed (MACSTEM stays, per Eric: "leave it")
+
+**Outcome:** **148/148 — the suite is fully green for the first time.**
+
+**The insertion bug**, as Eric suspected, was reconstruction robustness:
+`repair()` skips i == 0, so a FIRST element placed past the section start
+never got a leading drift — the offset was silently dropped and everything
+downstream compressed by exactly the missing distance. The old gap handling
+that covered this was commented out of `__init__` when `repair()` was
+introduced; the test's committed reference rays predate that and were right
+all along. repair() now inserts the leading drift.
+
+**A second subtle one:** predicted and traced probe angles disagreed ~9% in
+the low state because the aperture reads per-axis maxima in the LAB frame
+while the prediction took them in the rotating frame — the square ray fan
+arrives rotated by C1's Larmor angle (~5°), and a rotated square's per-axis
+max grows by cos+sin. Prediction now rotates first; predicted == measured ==
+30.000 mrad in both states and the predicted transmitted fraction matches
+the traced current.
+
+Still open: MACSTEM stays by Eric's decision (wiki now indexes it);
+aperture rescale-vs-mask model deferred ("not now").
+
 ## 2026-08-27 — [Done] 6 mm objective gap, sample at its middle
 **Goal:** Eric: OL1-OL2 gap 6 mm, sample halfway (3 mm past OL1's exit),
 replacing the back-focal-plane placement.
