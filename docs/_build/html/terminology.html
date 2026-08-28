@@ -1,0 +1,287 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Terminology &mdash; rayTEM 0.0.1beta documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=e02f3e7d"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Example Scripts" href="examples.html" />
+    <link rel="prev" title="Operating the Column" href="operating_the_column.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            rayTEM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="propagation_modes.html">Propagation Modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="operating_the_column.html">Operating the Column</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Terminology</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#strength-focal-length-focal-power">Strength, focal length, focal power</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#aberrations-as-power-changes">Aberrations as power changes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#effective-strength">Effective strength</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#transfer-matrix-transfer-block-body-block"><code class="docutils literal notranslate"><span class="pre">transfer_matrix</span></code>, <code class="docutils literal notranslate"><span class="pre">transfer_block</span></code>, <code class="docutils literal notranslate"><span class="pre">_body_block</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#moments">Moments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#body-and-screen">Body and screen</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#wave-kind"><code class="docutils literal notranslate"><span class="pre">wave_kind</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Example Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">AI Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="ai_tools/install.html">AI Tools</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Into the SEA-weeds (For developers)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="dev_documentation.html">Into the SEA-weeds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wave-optics-sampling.html">Why full-column electron wave propagation breaks fixed-grid sampling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">rayTEM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Terminology</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/terminology.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="terminology">
+<h1>Terminology<a class="headerlink" href="#terminology" title="Link to this heading"></a></h1>
+<p>The lens infrastructure uses several near-synonyms — <em>strength</em>, <em>focal
+length</em>, <em>focal power</em> — plus a handful of coined names (<em>transfer block</em>,
+<em>body</em>, <em>screen</em>, <em>moments</em>). This page defines each one, says why it exists
+instead of one of the others, and points at the literature. It exists to
+answer <a class="reference external" href="https://github.com/sea-ecosystem/rayTEM/issues/8">issue #8</a>.</p>
+<section id="strength-focal-length-focal-power">
+<h2>Strength, focal length, focal power<a class="headerlink" href="#strength-focal-length-focal-power" title="Link to this heading"></a></h2>
+<p>Three numbers describe the same lens; each is the natural variable of a
+different calculation, which is why all three survive.</p>
+<p><strong>Strength <code class="docutils literal notranslate"><span class="pre">K</span></code></strong> (1/m) is the <em>field</em> parameter from Brown’s matrix
+formalism [Brown 1983, pp. 105–106]: inside a magnetic round lens the
+paraxial equation of motion is harmonic, <code class="docutils literal notranslate"><span class="pre">u''</span> <span class="pre">+</span> <span class="pre">K²u</span> <span class="pre">=</span> <span class="pre">0</span></code>, and <code class="docutils literal notranslate"><span class="pre">K</span></code> is that
+oscillation rate. It is the quantity the transfer matrix is written in
+(<code class="docutils literal notranslate"><span class="pre">cos</span> <span class="pre">KL</span></code>, <code class="docutils literal notranslate"><span class="pre">sin</span> <span class="pre">KL</span></code> entries), the quantity a calibration maps a lens current
+onto, and the quantity a thick lens’s Larmor rotation is built from
+(<code class="docutils literal notranslate"><span class="pre">R</span> <span class="pre">=</span> <span class="pre">KL</span></code>). It is a property of the <em>field</em>, not of the imaging: two lenses
+with the same <code class="docutils literal notranslate"><span class="pre">K</span></code> but different lengths focus differently.</p>
+<p><strong>Focal length <code class="docutils literal notranslate"><span class="pre">f</span></code></strong> (m) is the classical light-optics quantity: the
+back-focal distance of the equivalent thin lens. It is what a microscopist
+quotes and what column geometry is designed around. For a thin element the
+two are tied by <code class="docutils literal notranslate"><span class="pre">1/f</span> <span class="pre">=</span> <span class="pre">sign(K)·K²</span></code>; for a thick body by Brown’s focusing
+relation</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>1/f = K · sin(K·L)
+</pre></div>
+</div>
+<p>(<code class="docutils literal notranslate"><span class="pre">Lens.focal_power</span></code> implements exactly this pair). Note the thick relation
+is not monotonic: past <code class="docutils literal notranslate"><span class="pre">KL</span> <span class="pre">=</span> <span class="pre">π/2</span></code> a stronger field gives a <em>longer</em> focal
+length, which is why <code class="docutils literal notranslate"><span class="pre">strength_for_focal_length</span></code> in
+<code class="docutils literal notranslate"><span class="pre">microscopes/basic_column.py</span></code> restricts itself to the first branch,
+<code class="docutils literal notranslate"><span class="pre">f</span> <span class="pre">≥</span> <span class="pre">2L/π</span></code>.</p>
+<p><strong>Focal power <code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">=</span> <span class="pre">1/f</span></code></strong> (1/m, the light-optics <em>dioptre</em>) is the
+reciprocal, and it is not a redundant synonym — it is the quantity that
+<strong>composes</strong>. Focal lengths of stacked thin elements do not add; powers do
+(<code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">=</span> <span class="pre">P₁</span> <span class="pre">+</span> <span class="pre">P₂</span></code> in contact, the thin-lens limit of Gullstrand’s equation).
+That additivity is why the framework’s derived quantities are expressed as
+powers:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Quadrapole.focal_powers</span></code> is a <strong>per-axis pair</strong> <code class="docutils literal notranslate"><span class="pre">(P_x,</span> <span class="pre">P_y)</span></code> with
+opposite signs — one number per axis where a single <code class="docutils literal notranslate"><span class="pre">f</span></code> cannot describe
+an astigmatic element at all.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Lens.aberration_powers</span></code> expresses low-order aberrations as <strong>changes of
+power</strong> (next section) — meaningful precisely because powers add.</p></li>
+</ul>
+<p>Rule of thumb: <code class="docutils literal notranslate"><span class="pre">strength</span></code> when talking to the field or the matrix, <code class="docutils literal notranslate"><span class="pre">focal</span> <span class="pre">length</span></code> when talking to the instrument, <code class="docutils literal notranslate"><span class="pre">focal</span> <span class="pre">power</span></code> whenever anything is
+being <em>summed per axis</em>.</p>
+<section id="aberrations-as-power-changes">
+<h3>Aberrations as power changes<a class="headerlink" href="#aberrations-as-power-changes" title="Link to this heading"></a></h3>
+<p>The first-order Krivanek terms are quadratic in the pupil coordinate — the
+same shape as the lens’s own focusing parabola — so they are not “extra
+phase” at all but a modification of the effective power:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">C10</span></code> (defocus) is isotropic: <code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">→</span> <span class="pre">P</span> <span class="pre">+</span> <span class="pre">C10·P²</span></code> on both axes.</p></li>
+<li><p>Aligned <code class="docutils literal notranslate"><span class="pre">C12</span></code> (twofold astigmatism) is the same size with opposite signs
+per axis: <code class="docutils literal notranslate"><span class="pre">P_x</span> <span class="pre">=</span> <span class="pre">P</span> <span class="pre">+</span> <span class="pre">C12·P²</span></code>, <code class="docutils literal notranslate"><span class="pre">P_y</span> <span class="pre">=</span> <span class="pre">P</span> <span class="pre">−</span> <span class="pre">C12·P²</span></code>, producing two <strong>line
+foci</strong> at <code class="docutils literal notranslate"><span class="pre">1/(P</span> <span class="pre">±</span> <span class="pre">C12·P²)</span></code> instead of one point focus.</p></li>
+</ul>
+<p>So “the effective focal length of an aberrated lens” is per-axis
+<code class="docutils literal notranslate"><span class="pre">f</span> <span class="pre">=</span> <span class="pre">1/(P</span> <span class="pre">+</span> <span class="pre">ΔP)</span></code> with <code class="docutils literal notranslate"><span class="pre">ΔP</span> <span class="pre">=</span> <span class="pre">C_1m·P²</span></code> — this is what <code class="docutils literal notranslate"><span class="pre">Lens.aberration_powers</span></code>
+returns, and the scaled-wave engine absorbs those terms into its quadratic
+reference frame rather than wasting a sampled screen on them. Everything of
+second order and above is genuinely non-quadratic and stays in the residual
+screen. See Krivanek’s aberration nomenclature [Krivanek 1999] for the
+<code class="docutils literal notranslate"><span class="pre">C_{n,m}</span></code> indexing.</p>
+</section>
+<section id="effective-strength">
+<h3>Effective strength<a class="headerlink" href="#effective-strength" title="Link to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">_effective_strength</span></code> is <code class="docutils literal notranslate"><span class="pre">strength</span></code> after the lens’s calibration mapping
+(the current-to-field conversion) is applied. It exists so the ray and wave
+paths read the <em>same</em> calibrated <code class="docutils literal notranslate"><span class="pre">K</span></code> from one place instead of each applying
+the calibration separately.</p>
+</section>
+</section>
+<section id="transfer-matrix-transfer-block-body-block">
+<h2><code class="docutils literal notranslate"><span class="pre">transfer_matrix</span></code>, <code class="docutils literal notranslate"><span class="pre">transfer_block</span></code>, <code class="docutils literal notranslate"><span class="pre">_body_block</span></code><a class="headerlink" href="#transfer-matrix-transfer-block-body-block" title="Link to this heading"></a></h2>
+<p>All three feed ray optics; they differ in frame and granularity.</p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">transfer_matrix()</span></code></strong> — the full <code class="docutils literal notranslate"><span class="pre">6×6</span></code> lab-frame matrix over the whole
+element, Larmor rotation included. The one method every element must
+provide for ray optics; <code class="docutils literal notranslate"><span class="pre">propagate_ray</span></code> consumes it.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">transfer_block(dz,</span> <span class="pre">axis)</span></code></strong> — the <code class="docutils literal notranslate"><span class="pre">2×2</span></code> <code class="docutils literal notranslate"><span class="pre">[[A,B],[C,D]]</span></code>
+position–angle sub-block for <strong>one transverse axis in the rotating
+frame</strong> (Larmor rotation divided out), accepting a <strong>partial</strong> length
+<code class="docutils literal notranslate"><span class="pre">dz</span></code> so a plane <em>inside</em> a body can be located exactly. This is the
+object conjugate-plane finding works with: accumulated from a reference
+plane, <code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">=</span> <span class="pre">0</span></code> marks an image plane and <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">=</span> <span class="pre">0</span></code> a diffraction
+(back-focal) plane [Brown 1983, §2].</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Quadrapole._body_block(dz,</span> <span class="pre">axis)</span></code></strong> — private: the exact in-body law
+of a quadrupole (harmonic on the focusing axis, hyperbolic on the
+defocusing one). <code class="docutils literal notranslate"><span class="pre">transfer_matrix</span></code>, <code class="docutils literal notranslate"><span class="pre">transfer_block</span></code> and <code class="docutils literal notranslate"><span class="pre">focal_powers</span></code>
+all read it so they cannot drift apart.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">Prism.focus_matrix</span></code> / <code class="docutils literal notranslate"><span class="pre">Prism.bending_matrix</span></code> follow the same pattern —
+named factors that compose into <code class="docutils literal notranslate"><span class="pre">transfer_matrix</span></code>.</p>
+</section>
+<section id="moments">
+<h2>Moments<a class="headerlink" href="#moments" title="Link to this heading"></a></h2>
+<p>“Moments” are the <strong>statistical moments of the ray distribution</strong>: the mean
+<code class="docutils literal notranslate"><span class="pre">μ</span></code> (first moment, the centroid ray) and the covariance matrix <code class="docutils literal notranslate"><span class="pre">Σ</span></code> (second
+central moment, the beam envelope and its correlations). <code class="docutils literal notranslate"><span class="pre">propagate_moments</span></code>
+transports them with the <em>same</em> transfer matrices as the rays,
+<code class="docutils literal notranslate"><span class="pre">μ'</span> <span class="pre">=</span> <span class="pre">Mμ</span></code>, <code class="docutils literal notranslate"><span class="pre">Σ'</span> <span class="pre">=</span> <span class="pre">MΣMᵀ</span></code> — the sigma-matrix formalism of accelerator physics
+[Brown 1983, §7]. It answers “how wide is the beam and where is its waist”
+without tracing individual rays, and it carries emittance physics (the waist
+sits displaced from the geometric image plane) that single-ray tracing
+cannot show.</p>
+</section>
+<section id="body-and-screen">
+<h2>Body and screen<a class="headerlink" href="#body-and-screen" title="Link to this heading"></a></h2>
+<p>The two idealizations every element reduces to:</p>
+<ul class="simple">
+<li><p>A <strong>body</strong> is a finite-length region where something acts <em>distributed
+along z</em> — a thick lens’s harmonic medium, a quadrupole’s
+harmonic/hyperbolic medium. Bodies have partial propagators
+(<code class="docutils literal notranslate"><span class="pre">transfer_block(dz)</span></code>), interior planes, and distributed aberration kicks.</p></li>
+<li><p>A <strong>screen</strong> is a zero-thickness plane that multiplies the wave:
+a real-valued screen is a phase <code class="docutils literal notranslate"><span class="pre">exp(iχ)</span></code>; a complex one is a transmission
+<code class="docutils literal notranslate"><span class="pre">T</span></code> (amplitude and phase — what a fabricated phase plate has). The ray
+path consumes the same <code class="docutils literal notranslate"><span class="pre">χ</span></code> as its gradient, <code class="docutils literal notranslate"><span class="pre">Δθ</span> <span class="pre">=</span> <span class="pre">(1/k)∇χ</span></code>.</p></li>
+</ul>
+<p>A thin element is “a screen between two nothings”; a thick element is “a
+body”. The wave path of a thick lens is kernel–screen–kernel: half the body,
+its screen at the mid-plane, the other half.</p>
+</section>
+<section id="wave-kind">
+<h2><code class="docutils literal notranslate"><span class="pre">wave_kind</span></code><a class="headerlink" href="#wave-kind" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">wave_kind</span></code> is a <strong>generation recipe on <code class="docutils literal notranslate"><span class="pre">Source</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">'plane'</span></code>,
+<code class="docutils literal notranslate"><span class="pre">'gaussian'</span></code>, <code class="docutils literal notranslate"><span class="pre">'point'</span></code>, <code class="docutils literal notranslate"><span class="pre">'aperture'</span></code>): it tells <code class="docutils literal notranslate"><span class="pre">Source.wave()</span></code> what initial
+field to synthesize, exactly as <code class="docutils literal notranslate"><span class="pre">size</span></code>/<code class="docutils literal notranslate"><span class="pre">angle</span></code> tell <code class="docutils literal notranslate"><span class="pre">Source.rays()</span></code> what fan
+to generate. It is <em>not</em> encoded in the propagated field and makes no claim
+about it — one element downstream, the field is whatever propagation made
+it, and <code class="docutils literal notranslate"><span class="pre">wave_kind</span></code> still reads whatever the source was told at
+construction. Treat it like <code class="docutils literal notranslate"><span class="pre">np_xy</span></code>: an input parameter, not a diagnostic.</p>
+</section>
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>K. L. Brown, “A First- and Second-Order Matrix Theory for the Design of
+Beam Transport Systems and Charged Particle Spectrometers,” SLAC Report 75
+(1983 reprint). Strength <code class="docutils literal notranslate"><span class="pre">K</span></code>, the thick-lens matrices (pp. 105–106), and
+the sigma-matrix formalism.</p></li>
+<li><p>O. L. Krivanek, N. Dellby, A. R. Lupini, “Towards sub-Å electron beams,”
+Ultramicroscopy 78 (1999) 1–11. The <code class="docutils literal notranslate"><span class="pre">C_{n,m}</span></code> aberration nomenclature.</p></li>
+<li><p>P. W. Hawkes, E. Kasper, <em>Principles of Electron Optics</em>, Academic Press.
+Larmor rotation and the rotating frame for round magnetic lenses.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="operating_the_column.html" class="btn btn-neutral float-left" title="Operating the Column" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="examples.html" class="btn btn-neutral float-right" title="Example Scripts" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, rayTEM contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

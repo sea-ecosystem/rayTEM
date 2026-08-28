@@ -44,6 +44,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../propagation_modes.html">Propagation Modes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../operating_the_column.html">Operating the Column</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../terminology.html">Terminology</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
 <ul>
@@ -968,7 +969,7 @@
 <div class="viewcode-block" id="safeReinstantiate">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.safeReinstantiate">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">safeReinstantiate</span><span class="p">(</span><span class="n">source</span><span class="p">,</span><span class="bp">cls</span><span class="p">):</span>
-	<span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Drift</span><span class="p">,</span><span class="n">Lens</span><span class="p">,</span><span class="n">Source</span><span class="p">,</span><span class="n">Gun</span><span class="p">,</span><span class="n">Dipole</span><span class="p">,</span><span class="n">Quadrapole</span><span class="p">,</span><span class="n">Aperture</span><span class="p">,</span><span class="n">Prism</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Drift</span><span class="p">,</span><span class="n">Lens</span><span class="p">,</span><span class="n">Source</span><span class="p">,</span><span class="n">Gun</span><span class="p">,</span><span class="n">Dipole</span><span class="p">,</span><span class="n">Quadrapole</span><span class="p">,</span><span class="n">Aperture</span><span class="p">,</span><span class="n">Prism</span><span class="p">,</span><span class="n">AberrationScreen</span>
 	<span class="kn">from</span><span class="w"> </span><span class="nn">.assemblies</span><span class="w"> </span><span class="kn">import</span> <span class="n">Microscope</span><span class="p">,</span><span class="n">MicroscopeSection</span>
 	<span class="c1"># Every `kind` an element can report has to appear here or the object cannot</span>
 	<span class="c1"># be reloaded at all. Aperture and Prism were missing, so any saved column</span>
@@ -978,7 +979,8 @@
 			 <span class="s2">"Microscope"</span><span class="p">:</span><span class="n">Microscope</span><span class="p">,</span> <span class="s2">"Section"</span><span class="p">:</span><span class="n">MicroscopeSection</span><span class="p">,</span>
 			 <span class="s2">"Dipole"</span><span class="p">:</span><span class="n">Dipole</span><span class="p">,</span> <span class="s2">"Thin dipole"</span><span class="p">:</span><span class="n">Dipole</span><span class="p">,</span>
 			 <span class="s2">"Quad"</span><span class="p">:</span><span class="n">Quadrapole</span><span class="p">,</span> <span class="s2">"Thin quad"</span><span class="p">:</span><span class="n">Quadrapole</span><span class="p">,</span>
-			 <span class="s2">"Aperture"</span><span class="p">:</span><span class="n">Aperture</span><span class="p">,</span> <span class="s2">"Prism"</span><span class="p">:</span><span class="n">Prism</span><span class="p">}</span>
+			 <span class="s2">"Aperture"</span><span class="p">:</span><span class="n">Aperture</span><span class="p">,</span> <span class="s2">"Prism"</span><span class="p">:</span><span class="n">Prism</span><span class="p">,</span>
+			 <span class="s2">"AberrationScreen"</span><span class="p">:</span><span class="n">AberrationScreen</span><span class="p">}</span>
 	<span class="k">if</span> <span class="bp">cls</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">known</span><span class="p">:</span>
 		<span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
 			<span class="sa">f</span><span class="s2">"cannot reinstantiate a stored object of kind </span><span class="si">{</span><span class="bp">cls</span><span class="si">!r}</span><span class="s2">: it is not in "</span>

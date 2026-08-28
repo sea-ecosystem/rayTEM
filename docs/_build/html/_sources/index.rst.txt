@@ -14,6 +14,7 @@ wave — and serializes through sea-eco's ``.sea`` format.
    getting_started
    propagation_modes
    operating_the_column
+   terminology
 
 .. toctree::
    :maxdepth: 2

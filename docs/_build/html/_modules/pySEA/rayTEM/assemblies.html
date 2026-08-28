@@ -44,6 +44,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../propagation_modes.html">Propagation Modes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../operating_the_column.html">Operating the Column</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../terminology.html">Terminology</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
 <ul>
@@ -97,7 +98,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span><span class="o">,</span><span class="nn">inspect</span><span class="o">,</span><span class="nn">os</span><span class="o">,</span><span class="nn">datetime</span><span class="o">,</span><span class="nn">shutil</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.postprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot2D</span><span class="p">,</span><span class="n">findPlanes</span><span class="p">,</span><span class="n">zFromFractional</span><span class="p">,</span><span class="n">measureAtZ</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span><span class="p">,</span><span class="n">Source</span><span class="p">,</span><span class="n">Drift</span><span class="p">,</span><span class="n">Lens</span><span class="p">,</span><span class="n">Dipole</span><span class="p">,</span><span class="n">Quadrapole</span><span class="p">,</span><span class="n">columnByName</span><span class="p">,</span><span class="n">Aperture</span><span class="p">,</span><span class="n">convention</span><span class="p">,</span><span class="n">_propagate_method_name</span><span class="p">,</span><span class="n">suspended_aberrations</span><span class="p">,</span><span class="n">SealedAttributes</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span><span class="p">,</span><span class="n">Source</span><span class="p">,</span><span class="n">Drift</span><span class="p">,</span><span class="n">Lens</span><span class="p">,</span><span class="n">Dipole</span><span class="p">,</span><span class="n">Quadrapole</span><span class="p">,</span><span class="n">columnByName</span><span class="p">,</span><span class="n">Aperture</span><span class="p">,</span><span class="n">convention</span><span class="p">,</span><span class="n">_propagate_method_name</span><span class="p">,</span><span class="n">suspended_aberrations</span><span class="p">,</span><span class="n">SealedAttributes</span><span class="p">,</span><span class="n">AberrationScreen</span><span class="p">,</span><span class="n">_as_aberrations</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">SEASerializable</span>
 
@@ -295,8 +296,14 @@
 	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span>
 				 <span class="n">elements</span><span class="p">:</span><span class="n">ArrayLike</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="c1"># list of Elements, or list of dicts</span>
 				 <span class="n">position</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">ignoreLensThickness</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-				 <span class="n">combine_drifts</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>
+				 <span class="n">combine_drifts</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+				 <span class="n">aberrations</span><span class="o">=</span><span class="kc">None</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+		<span class="c1"># Aberrations belonging to the SECTION as a whole (e.g. a measured</span>
+		<span class="c1"># objective-doublet aberration no single lens owns). Applied as a thin</span>
+		<span class="c1"># AberrationScreen at the section's exit, with the section's composite</span>
+		<span class="c1"># focal power as the pupil scale. None means ideal, and costs nothing.</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span> <span class="o">=</span> <span class="n">_as_aberrations</span><span class="p">(</span><span class="n">aberrations</span><span class="p">)</span>
 		<span class="c1">#if isinstance(elements[0],dict):</span>
 		<span class="c1">#	self.elements = []</span>
 		<span class="c1">#else:</span>
@@ -618,6 +625,69 @@
 		<span class="k">return</span> <span class="n">positions</span>
 
 	<span class="c1"># returns nthElement,nthRay,xythetaetc</span>
+	<span class="nd">@property</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">focal_power</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""The section's composite focusing power ``1/f`` (1/metres).</span>
+
+<span class="sd">		The ``-C`` entry of the section's accumulated rotating-frame transfer</span>
+<span class="sd">		block: the power of the single thin lens that would produce the same</span>
+<span class="sd">		angular response at the exit. It is the pupil scale the section-level</span>
+<span class="sd">		:attr:`aberrations` are defined against.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		float</span>
+<span class="sd">			Composite power; 0 for a section of pure drifts.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		NotImplementedError</span>
+<span class="sd">			If an element cannot provide a per-axis block (e.g. a skewed</span>
+<span class="sd">			quadrupole).</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		elements.Lens.focal_power : The single-element equivalent.</span>
+<span class="sd">		aberrations : The consumer of this pupil scale.</span>
+<span class="sd">		"""</span>
+		<span class="n">M</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">ele</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="ow">or</span> <span class="p">()):</span>
+			<span class="n">M</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">ele</span><span class="o">.</span><span class="n">transfer_block</span><span class="p">(),</span> <span class="n">M</span><span class="p">)</span>
+		<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="o">-</span><span class="n">M</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_propagation_elements</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""The element list every propagation loop walks, screens included.</span>
+
+<span class="sd">		The stored :attr:`elements` plus, when the section carries</span>
+<span class="sd">		:attr:`aberrations`, a transient zero-length</span>
+<span class="sd">		:class:`elements.AberrationScreen` at the exit whose pupil scale is</span>
+<span class="sd">		the section's composite :attr:`focal_power`. The screen is</span>
+<span class="sd">		synthesized per call and never stored, so serialization sees only</span>
+<span class="sd">		the declared geometry plus the section's own ``aberrations``.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		list of Element</span>
+<span class="sd">			The propagation order.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		elements.AberrationScreen : The synthesized carrier.</span>
+<span class="sd">		elements.suspended_aberrations : Detaching ``self.aberrations``</span>
+<span class="sd">			makes this return the bare list, so ``apply_aberrations=False``</span>
+<span class="sd">			reaches the section level too.</span>
+<span class="sd">		"""</span>
+		<span class="n">els</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="ow">or</span> <span class="p">())</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span><span class="p">:</span>
+			<span class="n">els</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">AberrationScreen</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'section'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">' aberrations'</span><span class="p">,</span>
+										<span class="n">aberrations</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span><span class="p">,</span>
+										<span class="n">pupil_power</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">focal_power</span><span class="p">))</span>
+		<span class="k">return</span> <span class="n">els</span>
+
 <div class="viewcode-block" id="MicroscopeSection.propagate_ray">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.propagate_ray">[docs]</a>
 	<span class="k">def</span><span class="w"> </span><span class="nf">propagate_ray</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -664,7 +734,7 @@
 <span class="sd">			If ``r0`` is ``None`` and the first element is not a ``Source``.</span>
 <span class="sd">		"""</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="n">apply_aberrations</span><span class="p">:</span>
-			<span class="k">with</span> <span class="n">suspended_aberrations</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">):</span>
+			<span class="k">with</span> <span class="n">suspended_aberrations</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="ow">or</span> <span class="p">())</span> <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="p">]):</span>
 				<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">(</span><span class="n">r0</span><span class="p">,</span> <span class="n">I0</span><span class="p">,</span> <span class="n">R0</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
 		<span class="c1">#print("Section r0",r0)</span>
 		<span class="k">if</span> <span class="n">r0</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -683,7 +753,7 @@
 		<span class="k">if</span> <span class="n">R0</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 			<span class="n">R0</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_rays</span><span class="p">)</span>
 		<span class="n">ri</span><span class="o">=</span><span class="p">[</span><span class="n">r0</span><span class="p">]</span> <span class="p">;</span> <span class="n">Ii</span><span class="o">=</span><span class="p">[</span><span class="n">I0</span><span class="p">]</span> <span class="p">;</span> <span class="n">Ri</span><span class="o">=</span><span class="p">[</span><span class="n">R0</span><span class="p">]</span>
-		<span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">ele</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">):</span>
+		<span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">ele</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_propagation_elements</span><span class="p">()):</span>
 			<span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
 				<span class="nb">print</span><span class="p">(</span><span class="s2">"propate:"</span><span class="p">,</span><span class="n">ele</span><span class="o">.</span><span class="n">name</span><span class="p">,</span><span class="s2">"@"</span><span class="p">,</span><span class="n">ele</span><span class="o">.</span><span class="n">position</span><span class="p">,</span><span class="s2">"x,y"</span><span class="p">,</span><span class="n">xp</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">ri</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)]),</span><span class="n">xp</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">ri</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)]))</span> <span class="c1">#,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))</span>
 			<span class="c1"># intensity/rotation are evaluated relative to the incoming rays; rotation</span>
@@ -748,7 +818,7 @@
 <span class="sd">			If moments are not provided and the first element is not a ``Source``.</span>
 <span class="sd">		"""</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="n">apply_aberrations</span><span class="p">:</span>
-			<span class="k">with</span> <span class="n">suspended_aberrations</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">):</span>
+			<span class="k">with</span> <span class="n">suspended_aberrations</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="ow">or</span> <span class="p">())</span> <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="p">]):</span>
 				<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate_moments</span><span class="p">(</span><span class="n">mu0</span><span class="p">,</span> <span class="n">Sigma0</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">mu0</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">Sigma0</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 			<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">Source</span><span class="p">):</span>
@@ -756,7 +826,7 @@
 			<span class="k">else</span><span class="p">:</span>
 				<span class="k">raise</span> <span class="ne">UserWarning</span><span class="p">(</span><span class="s2">"First element is not a Source, and no (mu0, Sigma0) provided to propagate_moments. Please provide initial moments or ensure first element is a Source."</span><span class="p">)</span>
 		<span class="n">mui</span><span class="o">=</span><span class="p">[</span><span class="n">mu0</span><span class="p">]</span> <span class="p">;</span> <span class="n">Si</span><span class="o">=</span><span class="p">[</span><span class="n">Sigma0</span><span class="p">]</span>
-		<span class="k">for</span> <span class="n">ele</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">:</span>
+		<span class="k">for</span> <span class="n">ele</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_propagation_elements</span><span class="p">():</span>
 			<span class="n">mu</span><span class="p">,</span> <span class="n">S</span> <span class="o">=</span> <span class="n">ele</span><span class="o">.</span><span class="n">propagate_moments</span><span class="p">(</span><span class="n">mui</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">Si</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
 			<span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">ele</span><span class="p">,</span><span class="s2">"length"</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">ele</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s2">"Aperture"</span><span class="p">:</span>
 				<span class="n">mui</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mu</span><span class="p">)</span> <span class="p">;</span> <span class="n">Si</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
@@ -828,7 +898,7 @@
 <span class="sd">			crossover (use ``mode='hybrid'`` to switch frames through it).</span>
 <span class="sd">		"""</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="n">apply_aberrations</span><span class="p">:</span>
-			<span class="k">with</span> <span class="n">suspended_aberrations</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">):</span>
+			<span class="k">with</span> <span class="n">suspended_aberrations</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="ow">or</span> <span class="p">())</span> <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="p">]):</span>
 				<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate_wave</span><span class="p">(</span><span class="n">wave0</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span> <span class="n">s_min</span><span class="o">=</span><span class="n">s_min</span><span class="p">,</span> <span class="n">absorb</span><span class="o">=</span><span class="n">absorb</span><span class="p">,</span>
 										   <span class="n">crossover</span><span class="o">=</span><span class="n">crossover</span><span class="p">,</span> <span class="n">rotate</span><span class="o">=</span><span class="n">rotate</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">wave0</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -837,7 +907,7 @@
 			<span class="k">else</span><span class="p">:</span>
 				<span class="k">raise</span> <span class="ne">UserWarning</span><span class="p">(</span><span class="s2">"First element is not a Source, and no wave0 provided to propagate_wave. Please provide an initial wavefield or ensure first element is a Source."</span><span class="p">)</span>
 		<span class="n">fi</span><span class="o">=</span><span class="p">[</span><span class="n">wave0</span><span class="p">]</span>
-		<span class="k">for</span> <span class="n">ele</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">:</span>
+		<span class="k">for</span> <span class="n">ele</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_propagation_elements</span><span class="p">():</span>
 			<span class="n">interior</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">'hybrid'</span> <span class="k">else</span> <span class="kc">None</span>
 			<span class="n">f</span> <span class="o">=</span> <span class="n">ele</span><span class="o">.</span><span class="n">propagate_wave</span><span class="p">(</span><span class="n">fi</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span> <span class="n">s_min</span><span class="o">=</span><span class="n">s_min</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="n">interior</span><span class="p">,</span> <span class="n">absorb</span><span class="o">=</span><span class="n">absorb</span><span class="p">,</span> <span class="n">crossover</span><span class="o">=</span><span class="n">crossover</span><span class="p">,</span> <span class="n">rotate</span><span class="o">=</span><span class="n">rotate</span><span class="p">)</span>
 			<span class="k">if</span> <span class="n">interior</span><span class="p">:</span>
@@ -1600,20 +1670,49 @@
     <span class="c1"># endregion</span>
     <span class="c1">#####################################</span>
 
-	<span class="c1"># given a string for an element name, return the index of that element</span>
 <div class="viewcode-block" id="Microscope.index">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.Microscope.index">[docs]</a>
 	<span class="k">def</span><span class="w"> </span><span class="nf">index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">item</span><span class="p">):</span>
+<span class="w">		</span><span class="sd">"""Locate a section or element by name.</span>
+
+<span class="sd">		Sections are searched first; if ``item`` names a section, its integer</span>
+<span class="sd">		index in ``self.sections`` is returned. Otherwise every section's</span>
+<span class="sd">		elements are searched and a ``(section_index, element_index)`` tuple is</span>
+<span class="sd">		returned for the first match.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		item : str</span>
+<span class="sd">			Name of a section or of an element inside any section.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		int or tuple of int</span>
+<span class="sd">			The section index, or ``(section_index, element_index)`` for an</span>
+<span class="sd">			element.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		KeyError</span>
+<span class="sd">			If no section or element carries the name. (Previously this</span>
+<span class="sd">			printed ``ERROR:`` and returned ``None``, which made callers such</span>
+<span class="sd">			as ``adjust_element_length`` fail later with an opaque unpacking</span>
+<span class="sd">			error.)</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		MicroscopeSection.index : The per-section equivalent.</span>
+<span class="sd">		get_element_position : Position lookup built on the same names.</span>
+<span class="sd">		"""</span>
 		<span class="n">names</span> <span class="o">=</span> <span class="p">[</span> <span class="n">s</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sections</span> <span class="p">]</span>
 		<span class="k">if</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
 			<span class="k">return</span> <span class="n">names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
 		<span class="n">subnames</span> <span class="o">=</span> <span class="p">[</span> <span class="p">[</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">e</span><span class="p">,</span><span class="s2">"name"</span><span class="p">,</span><span class="s2">""</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">elements</span> <span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sections</span> <span class="p">]</span>
-		<span class="k">if</span> <span class="n">item</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">sum</span><span class="p">(</span><span class="n">subnames</span><span class="p">,[]):</span>
-			<span class="nb">print</span><span class="p">(</span><span class="s2">"ERROR: name"</span><span class="p">,</span><span class="n">item</span><span class="p">,</span><span class="s2">"not found in Microscope or Microscope's sections' elements"</span><span class="p">)</span>
-			<span class="k">return</span> <span class="kc">None</span>
 		<span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">names</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">subnames</span><span class="p">):</span>
 			<span class="k">if</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
-				<span class="k">return</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">item</span><span class="p">))</span></div>
+				<span class="k">return</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">item</span><span class="p">))</span>
+		<span class="n">available</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">({</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">sum</span><span class="p">(</span><span class="n">subnames</span><span class="p">,[])</span> <span class="k">if</span> <span class="n">n</span><span class="p">}</span> <span class="o">|</span> <span class="p">{</span><span class="n">s</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sections</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">})</span>
+		<span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"name </span><span class="si">{</span><span class="n">item</span><span class="si">!r}</span><span class="s2"> not found among this Microscope's sections or their elements; available names: </span><span class="si">{</span><span class="n">available</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
 
 
 	<span class="c1"># TWP 2026-03-05 allow element insertion by coordinate ("add a lens midway through this drift section at z=etc"</span>
@@ -2579,13 +2678,14 @@
 
 <span class="sd">		Used where an operation applies to the whole column rather than to one</span>
 <span class="sd">		section — currently only suspending aberrations, which must reach every</span>
-<span class="sd">		element the propagation will touch.</span>
+<span class="sd">		element the propagation will touch. Sections are included too, since a</span>
+<span class="sd">		section may carry :attr:`MicroscopeSection.aberrations` of its own.</span>
 
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
-<span class="sd">		list of Element</span>
-<span class="sd">			The elements, in column order. Empty when the microscope has no</span>
-<span class="sd">			sections yet.</span>
+<span class="sd">		list</span>
+<span class="sd">			The elements in column order, followed by the sections. Empty</span>
+<span class="sd">			when the microscope has no sections yet.</span>
 
 <span class="sd">		Raises</span>
 <span class="sd">		------</span>
@@ -2595,7 +2695,8 @@
 <span class="sd">		-------</span>
 <span class="sd">		elements.suspended_aberrations : The consumer.</span>
 <span class="sd">		"""</span>
-		<span class="k">return</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">sec</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sections</span> <span class="ow">or</span> <span class="p">())</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="p">(</span><span class="n">sec</span><span class="o">.</span><span class="n">elements</span> <span class="ow">or</span> <span class="p">())]</span>
+		<span class="k">return</span> <span class="p">([</span><span class="n">e</span> <span class="k">for</span> <span class="n">sec</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sections</span> <span class="ow">or</span> <span class="p">())</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="p">(</span><span class="n">sec</span><span class="o">.</span><span class="n">elements</span> <span class="ow">or</span> <span class="p">())]</span>
+				<span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sections</span> <span class="ow">or</span> <span class="p">()))</span>
 
 <div class="viewcode-block" id="Microscope.propagate_ray">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.Microscope.propagate_ray">[docs]</a>
