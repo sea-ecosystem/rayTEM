@@ -1,8 +1,8 @@
 {
     "kind": "setting",
     "name": "basic_column - high-parallel-image",
-    "version": 0.011,
-    "timestamp": "2026-08-28 01:07:17",
+    "version": 0.013,
+    "timestamp": "2026-08-28 01:19:11",
     "C1": {
         "strength": 707.01251411
     },
@@ -13,7 +13,7 @@
         "strength": 638.07208304
     },
     "PL1": {
-        "strength": 975.37862876
+        "strength": 854.01724307
     },
     "PL2": {
         "strength": 999.73341154

@@ -172,7 +172,7 @@ def build_basic_column(voltage: float = 200.0) -> Microscope:
 	Every lens is a thin 0.08 mm bore; focal lengths are C1 = 45 mm,
 	C2 = 30 mm, C3 = 90 mm, OL1 = 2 mm, OL2 = 10 mm, PL1–PL4 = 25/40/60/80 mm.
 	Layout (drifts in mm): gun — 50 — C1 — 50 — CA — 10 — 50 — C2 — 50 — C3 —
-	250 — OL1 — 20 (sample at OL1's back focal plane inside it) — OL2 — 50 —
+	250 — OL1 — 6 (sample halfway across the gap) — OL2 — 50 —
 	PL1 — 50 — PL2 — 50 — PL3 — 50 — PL4 — 100 — detector. Each lens keeps its
 	dipole pair before and after; the condenser and objective stigmator pairs
 	(CQ, OQ) sit after C3 and OL2 respectively.
@@ -239,25 +239,19 @@ def build_basic_column(voltage: float = 200.0) -> Microscope:
 	c_elements += [Drift(length=0.25)]
 	condenser = MicroscopeSection(name="C", elements=c_elements)
 
-	# 3) O — objective: OL1 and OL2 around a 20 mm gap, with the SAMPLE AT
-	#    OL1'S BACK FOCAL PLANE inside it. That placement is what makes a
-	#    fixed-excitation objective work the way a real STEM's does: the
-	#    condensers deliver a wide, nearly parallel beam, and OL1 alone
-	#    converts radius into angle (alpha = r/f) while demagnifying the
-	#    source hard. The working distance is computed from the lens's own
-	#    thick block (a parallel ray (h, 0) exits the body as (A*h, C*h) and
-	#    crosses the axis wd = -A/C later), so it tracks any change to f or
-	#    the bore instead of silently rotting.
+	# 3) O — objective: OL1 and OL2 around a 6 mm gap, with the sample
+	#    HALFWAY across it (3 mm past OL1's exit) — a plain mid-gap specimen
+	#    position. OL1 stays the short, strong probe-forming lens (f = 2 mm;
+	#    f >= 2L/pi bounds the bore).
 	ol1 = round_lens("OL1", f=0.002, length=L_LENS)
-	body = ol1.transfer_block(axis="x")
-	wd = -float(body[0][0]) / float(body[1][0])
+	wd = 0.003
 	o_elements = dipole_pair("O_Dpre")
 	# the gap remainder after the sample marker is NAMED because repair()
 	# merges a named drift with an unnamed follower -- an anonymous gap here
 	# would be absorbed into the zero-length "sample" marker, silently moving
 	# the measured sample plane off the back focal plane
 	o_elements += [ol1, Drift(length=wd), Drift(name="sample", length=0.0),
-				   Drift(name="sample_gap", length=0.020 - wd),
+				   Drift(name="sample_gap", length=0.006 - wd),
 				   round_lens("OL2", f=0.010, length=L_LENS)]
 	o_elements += dipole_pair("O_Dpost")
 	o_elements += [Quadrapole(name="OQ", strength=0.0), Drift(length=0.05)]
