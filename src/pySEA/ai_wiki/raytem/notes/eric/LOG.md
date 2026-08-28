@@ -2,6 +2,18 @@
 
 Newest entries at top.
 
+## 2026-08-28 — [Under Construction] Terminology page + audit items 1–4
+**Goal:** Answer issue #8 with a docs terminology page, and clear the four
+queued items: section-level Aberrations, skew quadrupole, example 06
+cleanups, `Microscope.index` raising instead of print-and-None.
+**Why:** Thomas is confused by the lens naming (issue #8), and the four
+items have been flagged repeatedly across sessions without being started.
+- [ ] terminology page + docs rebuild
+- [ ] section-level `Aberrations`
+- [ ] skew quadrupole
+- [ ] example 06 cleanups
+- [ ] `Microscope.index` raises
+
 ## 2026-08-27 — [Done] Sphinx docs paralleling sea-eco
 **Goal:** Eric: the docs structure paralleling sea-eco was missing — build it,
 keeping the existing `wave-optics-sampling.md` untouched (he may simplify it
