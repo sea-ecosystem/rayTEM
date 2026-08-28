@@ -193,16 +193,17 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			if set to True, all lenses are set to zero thickness??
 		combine_drifts : bool, optional
 			Whether :func:`repair` may merge adjacent unnamed Drifts into one,
-			by default True. Set False to keep the element list exactly as
-			written: propagation logs one plane per element, so a run of short
-			drifts is how a caller asks for dense z sampling, and merging them
-			throws that sampling away (see :meth:`Microscope.subdivided`).
+			by default False: the element list is kept exactly as written.
+			Propagation logs one plane per element, so a run of short drifts
+			is how a caller asks for dense z sampling, and merging silently
+			threw that away — it also let zero-length named markers absorb
+			their neighboring gaps. Pass True for the old tidying behavior.
 		"""
 
 	def __init__(self, name:str='',
 				 elements:ArrayLike=None, # list of Elements, or list of dicts
 				 position:float=0., ignoreLensThickness=False,
-				 combine_drifts:bool=True ) -> SEASerializable:
+				 combine_drifts:bool=False ) -> SEASerializable:
 		self.name = name
 		#if isinstance(elements[0],dict):
 		#	self.elements = []
@@ -1280,11 +1281,22 @@ class Microscope(SealedAttributes, SEASerializable):
 		"""
 		if self.rays is None:
 			self.propagate_ray()
-		# live_only: a masked ray keeps flying geometrically with I = 0, and an
-		# aperture is precisely the thing that DEFINES this angle -- measuring
-		# the dead rays too would report the uncut cone.
-		x, y, xt, yt, R, I = measureAtZ(float(z), section=self, live_only=True)
-		return float(xp.hypot(xt, yt))
+		# the MAX total angle among rays still carrying intensity -- not the
+		# angle of the outermost-by-position ray, which at a crossover is
+		# picked by residuals and under-reads the cone. A masked ray keeps
+		# flying geometrically with I = 0, and an aperture is precisely the
+		# thing that DEFINES this angle, so dead rays do not count.
+		rays = xp.asarray(self.rays)
+		zs = rays[:, 0, columnByName('z')]
+		i = int(xp.where(zs <= float(z))[0][-1])		# plane entering z
+		live = xp.asarray(self.I)[i] > 0
+		if not live.any():
+			raise ValueError(f"no ray carries intensity at z={z}: an upstream "
+							 "aperture blocked the whole fan, so there is no "
+							 "live beam whose convergence could be measured.")
+		xt = rays[i, live, columnByName('xt')]
+		yt = rays[i, live, columnByName('yt')]
+		return float(xp.hypot(xt, yt).max())
 
 	@property
 	def convergence_angle(self) -> float:
@@ -3317,7 +3329,7 @@ def check_lengths(section):
 	assert xp.sum( xp.absolute( dz-ls[:-1] ) ) < .00001
 
 # look for gaps and overlaps, adjust positions and lengths of Drifts only, and combine unnamed Drifts. (we're using this instead of fixing gaps/overlaps while building inside of MicroscopeSection > __init__)
-def repair(section, combine_drifts:bool=True):
+def repair(section, combine_drifts:bool=False):
 	"""Close gaps and overlaps in a section's element list, in place.
 
 	Walks the elements, adjusts the position and length of Drifts only so that
@@ -3331,7 +3343,7 @@ def repair(section, combine_drifts:bool=True):
 		The section to repair. Modified in place.
 	combine_drifts : bool, optional
 		Whether adjacent unnamed Drifts may be merged into one, by default
-		True. Pass False to leave the element list as written -- see
+		False (the element list is left exactly as written) -- see
 		:class:`MicroscopeSection` for why that matters.
 
 	Returns
@@ -3352,13 +3364,14 @@ def repair(section, combine_drifts:bool=True):
 	--------
 	>>> repair(section, combine_drifts=False)               # doctest: +SKIP
 	"""
-	# FIRST ELEMENT CHECK:
-	e = section.elements[0]
-	if 0 <  e.position < 1e-7:
-		pass
-	elif 0 < e.position:
-		section.elements.insert(0,Drift(position=0,length=e.position))
-
+	# a FIRST element placed past the section start needs a leading drift:
+	# the i == 0 skip below means nothing else will cover that gap, and
+	# without this the offset was silently dropped -- the element propagated
+	# from the section start and everything downstream compressed by exactly
+	# the missing distance (the long-standing section-insertion failure).
+	e0 = section.elements[0]
+	if (e0.position or 0) > 1e-7:
+		section.elements.insert(0, Drift(length=e0.position, position=0))
 	# check all elements and their preceeding neighbor
 	for i,e in enumerate(section.elements):
 		if i==0:
