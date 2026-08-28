@@ -2,6 +2,31 @@
 
 Newest entries at top.
 
+## 2026-08-27 — [Done] Sphinx docs paralleling sea-eco
+**Goal:** Eric: the docs structure paralleling sea-eco was missing — build it,
+keeping the existing `wave-optics-sampling.md` untouched (he may simplify it
+on a private branch).
+- [x] conf.py / index.rst / requirements mirroring sea-eco's five sections
+- [x] Guides: getting_started, propagation_modes, operating_the_column
+- [x] Example Scripts page; AI Tools page (wiki slice + recorded omissions)
+- [x] "Into the SEA-weeds" landing page (mental model, invariants, seams,
+  Schema omission on record, Provenance and verification, Building the docs)
+- [x] `wave-optics-sampling.md` slotted in AS-IS
+- [x] build verified; 4 real docstring defects fixed at the source
+
+**Outcome:** `sphinx-build docs docs/_build/html` exits clean with nine known
+duplicate-object warnings (cross-module re-exports) and nothing else. The
+big win was one conf line — `napoleon_custom_sections = [("Related", "see
+also")]` — our house "Related" section was tripping ~650 field-list warnings.
+Real defects found by the build and fixed in code: two literal tables
+narrower than their widest cells (`focus_error`, `segment_block`), a
+`:math:\theta` in a non-raw docstring (rendered a TAB), bare `|psi|` pipes
+parsing as RST substitution references, and an unreferenced footnote.
+
+Note for whoever simplifies `wave-optics-sampling.md`: only `index.rst`
+references it (one toctree line), so renaming/splitting it touches nothing
+else.
+
 ## 2026-08-27 — [Done] OL1 f = 3 mm; suite fully green; Gun; two old bugs down
 **Goal:** Eric's five calls: OL1 f matches the mid-gap sample (3 mm); keep
 pushing to the branch (no PR); combine_drifts default False; diagnose the
