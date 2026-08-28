@@ -2902,7 +2902,7 @@ def test_focus_error_finds_the_first_crossover_after_the_condenser():
 					  rtol=1e-9)
 
 	# both failure modes say what is wrong instead of raising from deep inside
-	with pytest.raises(KeyError, match="no element named 'CL3'"):
+	with pytest.raises(KeyError, match="'CL3' not found"):
 		mic.focus_error(after="CL3")
 	with pytest.raises(ValueError, match="no crossover found downstream"):
 		mic.focus_error(after="detector")

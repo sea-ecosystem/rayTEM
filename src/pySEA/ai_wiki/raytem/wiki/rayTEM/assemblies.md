@@ -7,34 +7,34 @@
 |   `load_microscope(filename)` | 57 |
 | MicroscopeSection | 63 |
 |   `MicroscopeSection.__init__(self, name, elements, position, ignoreLensThickness)` | 67 |
-|   `MicroscopeSection.index(self, item)` | 76 |
-|   `MicroscopeSection.__getitem__ / __setitem__ / __delitem__` | 80 |
-|   `MicroscopeSection.insert(self, index, element)` | 84 |
-|   `MicroscopeSection.append(self, element)` | 90 |
-|   `MicroscopeSection.wobble(self, r0, elementIndex, func, kwargName, valRange, numSteps)` | 94 |
-|   `MicroscopeSection.named_positions` | 98 |
-|   `MicroscopeSection.propagate_ray(self, r0, z, verbose)` | 102 |
-|   `MicroscopeSection.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 108 |
-|   `MicroscopeSection.propagate(self, *args, kind='ray', **kwargs)` | 127 |
-|   `MicroscopeSection.show(self, filename, title, ylims, zlims, regenerate)` | 132 |
-|   `MicroscopeSection.save(self, filename)` | 136 |
-| Microscope | 142 |
-|   `Microscope.__init__(self, name, sections)` | 146 |
-|   `Microscope.index(self, item)` | 150 |
-|   `Microscope.__getitem__` | 154 |
-|   `Microscope.insert(self, index, elementOrSection)` | 160 |
-|   `Microscope.adjust_element_length(self, element, newlength)` | 164 |
-|   `Microscope.named_positions` | 168 |
-|   `Microscope.propagate_ray(self, r0, z, verbose)` | 172 |
-|   `Microscope.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 176 |
-|   `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)` | 187 |
-|   `Element.transfer_block(dz=None, axis='x')` — the shared seam | 189 |
-|   `Microscope.conjugate_planes(axis='x', method='frame', reference=None, x0=1e-6, theta0=1e-6)` | 211 |
-|   `Microscope.beam_waists(axis='x', sigma0=None)` | 242 |
-|   `Microscope.subdivided(zpts)` | 271 |
-|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 315 |
-|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 320 |
-|   `Microscope.save(self, filename)` | 324 |
+|   `MicroscopeSection.index(self, item)` | 88 |
+|   `MicroscopeSection.__getitem__ / __setitem__ / __delitem__` | 92 |
+|   `MicroscopeSection.insert(self, index, element)` | 96 |
+|   `MicroscopeSection.append(self, element)` | 102 |
+|   `MicroscopeSection.wobble(self, r0, elementIndex, func, kwargName, valRange, numSteps)` | 106 |
+|   `MicroscopeSection.named_positions` | 110 |
+|   `MicroscopeSection.propagate_ray(self, r0, z, verbose)` | 114 |
+|   `MicroscopeSection.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 120 |
+|   `MicroscopeSection.propagate(self, *args, kind='ray', **kwargs)` | 139 |
+|   `MicroscopeSection.show(self, filename, title, ylims, zlims, regenerate)` | 144 |
+|   `MicroscopeSection.save(self, filename)` | 148 |
+| Microscope | 154 |
+|   `Microscope.__init__(self, name, sections)` | 158 |
+|   `Microscope.index(self, item)` | 162 |
+|   `Microscope.__getitem__` | 166 |
+|   `Microscope.insert(self, index, elementOrSection)` | 172 |
+|   `Microscope.adjust_element_length(self, element, newlength)` | 176 |
+|   `Microscope.named_positions` | 180 |
+|   `Microscope.propagate_ray(self, r0, z, verbose)` | 184 |
+|   `Microscope.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 188 |
+|   `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)` | 199 |
+|   `Element.transfer_block(dz=None, axis='x')` — the shared seam | 201 |
+|   `Microscope.conjugate_planes(axis='x', method='frame', reference=None, x0=1e-6, theta0=1e-6)` | 223 |
+|   `Microscope.beam_waists(axis='x', sigma0=None)` | 254 |
+|   `Microscope.subdivided(zpts)` | 283 |
+|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 327 |
+|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 332 |
+|   `Microscope.save(self, filename)` | 336 |
 <!-- END AUTO-GENERATED TOC -->
 
 # assemblies.py
@@ -72,6 +72,18 @@ Iterates through the provided `elements` list and fills gaps:
 - `ignoreLensThickness=True` treats all lenses as thin (zero thickness), useful for quick checks.
 
 After construction, `self.elements` is the gap-filled list and `self.length` is the total section length.
+
+`aberrations` (optional) declares aberrations belonging to the **section as a
+whole** — e.g. a measured objective-doublet aberration no single lens owns.
+Stored on `self.aberrations` (serialized), applied by every propagation loop
+as a transient zero-length `AberrationScreen` synthesized at the section's
+exit by `_propagation_elements()`, with the section's composite
+`focal_power` property (the −C entry of the accumulated rotating-frame
+transfer block) as the pupil scale. `apply_aberrations=False` reaches it too:
+the suspension context now includes the section object itself (and
+`Microscope._all_elements()` appends the sections for the column-level
+paths). The screen is never stored, so serialization sees only the declared
+geometry plus the section's own coefficients.
 
 ### `MicroscopeSection.index(self, item)`
 
@@ -149,7 +161,7 @@ Checks each pair of consecutive sections: if the end of section N is before the 
 
 ### `Microscope.index(self, item)`
 
-Searches for `item` by name: first among section names (returns integer index), then among element names within sections (returns `(section_index, element_index)` tuple). Used by `__getitem__` for string-based access.
+Searches for `item` by name: first among section names (returns integer index), then among element names within sections (returns `(section_index, element_index)` tuple). Used by `__getitem__` for string-based access. An unknown name **raises `KeyError`** listing the available names — it used to print `ERROR:` and return `None`, which surfaced in callers as an opaque unpacking `TypeError`.
 
 ### `Microscope.__getitem__`
 

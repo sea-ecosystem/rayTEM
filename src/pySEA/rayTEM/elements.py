@@ -576,6 +576,63 @@ def _as_aberrations(value) -> Aberrations:
 					f"mapping, or None; got {type(value).__name__}.")
 
 
+def _split_quadratic_aberrations(aberrations, pupil_power:float,
+								 base_x:float=0.0, base_y:float=0.0) -> tuple:
+	r"""Split an aberration function into per-axis power changes and a residual.
+
+	The first-order Krivanek terms are quadratic in the pupil coordinate, so
+	they are not "extra phase" but changes of effective focal power:
+	``C10`` (defocus) adds :math:`\Delta P = C_{10}P^2` isotropically, and an
+	**aligned** ``C12`` (twofold astigmatism, zero imaginary part) adds
+	:math:`\pm C_{12}P^2` per axis. Everything of second order and above, and
+	any *skew* ``C12``, is genuinely non-quadratic per axis and stays in the
+	residual. Shared by :meth:`Lens.aberration_powers` (base = the lens's own
+	power) and :class:`AberrationScreen` (base = 0), so the split cannot
+	drift between the two.
+
+	Parameters
+	----------
+	aberrations : Aberrations or None
+		The aberration function to split. ``None`` or empty splits to the
+		bases and an empty residual.
+	pupil_power : float
+		The pupil scale ``P`` (1/metres) the ``C_{n,m}`` are defined against.
+	base_x, base_y : float, optional
+		Per-axis powers to add the quadratic terms onto, by default 0.
+
+	Returns
+	-------
+	tuple
+		``(power_x, power_y, residual)`` — the per-axis powers and an
+		:class:`aberrations.Aberrations` of the terms left unsplit.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	Lens.aberration_powers : The lens-side caller, with the rationale.
+	AberrationScreen.phase_shift : The plate-side caller.
+	"""
+	P = float(pupil_power)
+	residual = Aberrations()
+	P_x, P_y = float(base_x), float(base_y)
+	if not aberrations:
+		return P_x, P_y, residual
+	for name, c in aberrations.items():
+		if name == 'C10':						# isotropic quadratic: pure power
+			P_x += c.real * P**2
+			P_y += c.real * P**2
+			continue
+		if name == 'C12' and c.imag == 0.0:		# aligned: +-a on the two axes
+			P_x += c.real * P**2
+			P_y -= c.real * P**2
+			continue
+		residual[name] = c
+	return P_x, P_y, residual
+
+
 class Element(SealedAttributes, SEASerializable):
 	#: Optional affine offsets an element may carry, read by :meth:`propagate_ray`
 	#: as ``getattr(self, ..., 0)``. Declared here rather than left implicit
@@ -888,6 +945,11 @@ class Element(SealedAttributes, SEASerializable):
 		step = L if dz is None else float(dz)
 		power = 0.0
 		if isinstance(self, Quadrapole):
+			if getattr(self, 'skew', 0.0):
+				raise NotImplementedError(
+					f"Quadrapole {self.name or ''!r} has skew={self.skew}, which couples x and y: "
+					"no independent per-axis 2x2 block exists. Locate planes with skew "
+					"temporarily set to 0, or work in the element's principal frame.")
 			power = self.focal_powers[0 if axis == 'x' else 1]
 		elif hasattr(self, "focal_power"):
 			power = self.focal_power
@@ -2724,10 +2786,198 @@ class Drift(Element):
 			return 0.0, self._scaled_screen(None, (ny, nx), dx, dy, s, self.name or "drift")
 		return self._phase_program(dimensions, wavelength, None, "drift")
 
+class AberrationScreen(Element):
+	r"""A zero-thickness pure aberration plate.
+
+	Carries an aberration function and *nothing else*: identity transfer
+	matrix, no focusing power of its own, zero length. It exists for
+	aberrations that belong to no single lens — a whole section's measured
+	aberrations (see :attr:`assemblies.MicroscopeSection.aberrations`, which
+	synthesizes one of these at its exit), or a stand-alone corrector /
+	phase-plate model.
+
+	Because the plate has no focal power, the Krivanek coefficients need an
+	externally supplied ``pupil_power`` to convert positions at the plate
+	into the pupil angles the :math:`C_{n,m}` are defined against
+	(:math:`\alpha = P\,r`). With ``pupil_power = 0`` the plate is
+	transparent.
+
+	Parameters
+	----------
+	name : str, optional
+		Element name, by default ``''``.
+	position : float, optional
+		Position along z within the section, by default ``None`` (stacked).
+	aberrations : Aberrations or dict, optional
+		The aberration function, Krivanek ``C_{n,m}`` notation, by default
+		``None`` (transparent).
+	pupil_power : float, optional
+		Focal power ``1/f`` (1/metres) of the optic this plate's pupil
+		belongs to, by default 0. Sets the position-to-angle scale only —
+		it adds **no** focusing.
+
+	Attributes
+	----------
+	aberrations : Aberrations or None
+		The stored aberration function.
+	pupil_power : float
+		The pupil scale (see above).
+
+	Methods
+	-------
+	aberration_kick(r0)
+		The ray path's kick, thin and impulsive (exact).
+	phase_shift(dimensions, wavelength, scaled, s)
+		The wave path's screen; quadratic terms become frame powers on the
+		scaled path.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	Element.aberration_kick : The generic thick/thin machinery this bypasses.
+	Lens.aberration_powers : The same quadratic/residual split, on a lens.
+	assemblies.MicroscopeSection.aberrations : The section-level consumer.
+
+	Notes
+	-----
+	Deliberately **not** implemented by giving the plate a fake
+	``focal_power``: everything that reads ``focal_power`` treats it as real
+	focusing (transfer blocks, conjugate planes), and a plate must never
+	focus.
+	"""
+
+	def __init__(self, name:str='', position:float=None,
+				 aberrations=None, pupil_power:float=0.0) -> SEASerializable:
+		"""Build the plate.
+
+		Parameters
+		----------
+		name : str, optional
+			Element name, by default ``''``.
+		position : float, optional
+			Position along z, by default ``None``.
+		aberrations : Aberrations or dict, optional
+			Aberration function, by default ``None``.
+		pupil_power : float, optional
+			Pupil scale ``1/f`` (1/metres), by default 0.
+
+		Raises
+		------
+		TypeError
+			If ``aberrations`` is neither an ``Aberrations``, a mapping, nor
+			``None`` (from :func:`_as_aberrations`).
+		"""
+		super().__init__(name=name, kind='AberrationScreen', aberrations=aberrations)
+		self._position = position
+		self.pupil_power = float(pupil_power)
+
+	def aberration_kick(self, r0:xp.ndarray):
+		r"""The plate's ray kick: one impulsive thin kick, exact.
+
+		Overrides :meth:`Element.aberration_kick`, which keys the pupil scale
+		off ``focal_power`` — a plate has none, so the scale comes from
+		:attr:`pupil_power` instead. Zero length means no thick-body
+		integral: the eikonal kick :math:`\Delta\theta = k^{-1}\nabla\chi`
+		acts at the plane, position offsets are zero.
+
+		Parameters
+		----------
+		r0 : xp.ndarray
+			Rays entering the plate, shape ``(n_rays, len(convention))``.
+
+		Returns
+		-------
+		tuple of xp.ndarray or None
+			``(dx, dy, dxt, dyt)`` with zero position offsets, or ``None``
+			when transparent (no aberrations or zero pupil power).
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		aberrations.Aberrations.deflection_at : The physics.
+		"""
+		ab = self.aberrations
+		P = self.pupil_power
+		if not ab or P == 0:
+			return None
+		x = r0[:, columnByName("x")]
+		y = r0[:, columnByName("y")]
+		dxt, dyt = ab.deflection_at(x, y, P)
+		z = xp.zeros_like(x)
+		return z, z.copy(), dxt, dyt
+
+	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
+		r"""The plate's wave screen: :math:`\exp(i\chi)` and nothing else.
+
+		Extends :meth:`Element.phase_shift`. On the fixed path the whole
+		aberration function is one real screen. On the scaled path the
+		quadratic terms (``C10``, aligned ``C12``) are absorbed into the
+		frame's curvature as per-axis powers — exactly as
+		:meth:`Lens.aberration_powers` does, but around a base power of
+		zero — and only the genuinely non-quadratic residual is sampled.
+
+		Parameters
+		----------
+		dimensions : Dimensions or tuple
+			Transverse grid (see :meth:`Element.phase_shift`).
+		wavelength : float
+			Wavelength (metres).
+		scaled : bool, optional
+			See :meth:`Element.phase_shift`, by default False.
+		s : float, optional
+			Frame scale for ``scaled=True``: the screen is evaluated at
+			physical coordinates ``x = s·ξ``, by default 1.
+
+		Returns
+		-------
+		list or tuple
+			``scaled=False``: ``[screen(χ)]`` (empty when transparent).
+			``scaled=True``: ``(powers, screen)`` with ``powers`` the
+			absorbed quadratic terms (scalar, or an ``(x, y)`` pair when an
+			aligned ``C12`` splits the axes) and ``screen`` the residual.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		aberrations.Aberrations.phase : Builds χ.
+		aberration_kick : The ray-side gradient of the same χ.
+		"""
+		from .waveoptics import axis_components
+		from .seashells import grid_of
+		ab = self.aberrations
+		P = self.pupil_power
+		ny, nx, dy, dx = grid_of(dimensions)
+		if scaled:
+			if not ab or P == 0:
+				return 0.0, self._scaled_screen(None, (ny, nx), dx, dy, s,
+												self.name or "aberration screen")
+			P_x, P_y, residual = _split_quadratic_aberrations(ab, P)
+			powers = float(P_x) if P_x == P_y else (float(P_x), float(P_y))
+			chi = None
+			if residual:
+				s_x, s_y = axis_components(s)
+				chi = residual.phase((ny, nx), s_x * dx, s_y * dy, wavelength, P)
+			return powers, self._scaled_screen(chi, (ny, nx), dx, dy, s,
+											   self.name or "aberration screen")
+		chi = ab.phase((ny, nx), dx, dy, wavelength, P) if (ab and P != 0) else None
+		return self._phase_program(dimensions, wavelength, chi,
+								   self.name or "aberration screen")
+
+
 class Quadrapole(Element):
-	def __init__(self, name:str='', 
+	def __init__(self, name:str='',
 				 position:float=None, length:float=0.,
-				 strength:float=0, calibration:float=None) -> SEASerializable:
+				 strength:float=0, calibration:float=None,
+				 skew:float=0.0) -> SEASerializable:
 
 		"""Quadripole.
 
@@ -2744,12 +2994,21 @@ class Quadrapole(Element):
 			see equations in brown1983), by default 0
 		calibration : float, optional
 			Currnet calibration of the lens in units of ???/A, by default None
+		skew : float, optional
+			Roll of the focusing axis about z, in **radians** from lab +x
+			toward +y, by default 0. A nonzero skew couples the transverse
+			planes: ``skew=pi/4`` is the classic 45° (skew) stigmator, whose
+			thin kick is ``Δθ_x = -P·y``, ``Δθ_y = -P·x``. The ray path
+			supports any skew (the 4×4 matrix is conjugated by the roll);
+			per-lab-axis machinery (``transfer_block``, the scaled-wave
+			curvature) raises for a skewed quadrupole, because a coupled
+			plane has no independent per-axis description.
 		label : bool, optional
 			If the element should be labeled when plotted, by default False
 		print_fancy : bool, optional
 			If a fancy table should be used when printed, by default True
 		"""
-		
+
 		if length == 0: kind = 'Thin quad'
 		else:		   kind = 'Quad'
 
@@ -2758,6 +3017,7 @@ class Quadrapole(Element):
 		self.length = length
 		self.strength = strength
 		self.calibration = calibration
+		self.skew = skew
 
 	@property
 	def _effective_strength(self) -> float:
@@ -2914,11 +3174,22 @@ class Quadrapole(Element):
 		transfer_matrix : The full 6x6 matrix this mirrors.
 		focal_powers : The thin-element powers.
 
+		Raises
+		------
+		NotImplementedError
+			If ``skew != 0``: a rolled quadrupole couples x and y, so no
+			independent per-axis block exists.
+
 		Notes
 		-----
 		Delegates to :meth:`_body_block`, the same helper :meth:`transfer_matrix`
 		uses, so plane finding and ray tracing cannot disagree.
 		"""
+		if getattr(self, 'skew', 0.0):
+			raise NotImplementedError(
+				f"Quadrapole {self.name or ''!r} has skew={self.skew}, which couples x and y: "
+				"no independent per-axis 2x2 block exists. Locate planes with skew "
+				"temporarily set to 0, or work in the element's principal frame.")
 		L = self.length or 0.0
 		step = L if dz is None else float(dz)
 		if L <= 0 or self._effective_strength == 0:
@@ -2956,6 +3227,11 @@ class Quadrapole(Element):
 		"""
 		K = self._effective_strength
 		if self.length > 0 and K != 0:
+			if self.skew:
+				raise NotImplementedError(
+					f"Quadrapole {self.name or ''!r} has skew={self.skew}: the scaled frame's "
+					"per-axis curvature (R_x, R_y) cannot represent a coupled saddle. "
+					"Use mode='fixed' near this element, or skew=0.")
 			kappa = float(K**2)
 			pair = (kappa, -kappa) if self._axis_focuses('x') else (-kappa, kappa)
 			return ('quadratic', pair, 0.0)
@@ -2981,6 +3257,10 @@ class Quadrapole(Element):
 		-------
 		tuple of float
 			``(power_x, power_y)`` in 1/metres; ``(0, 0)`` at zero strength.
+			These are powers along the quadrupole's **principal axes** — for a
+			skewed quadrupole (``skew != 0``) they are the element-frame
+			values, not lab-frame ones (no independent lab-frame pair exists
+			once the planes couple).
 
 		Related
 		-------
@@ -3032,8 +3312,14 @@ class Quadrapole(Element):
 		giving ``det = cos(2|KL|)`` — 0.75 over a 30 mm body, so a quarter of
 		the phase-space area vanished and the block's halves did not compose.
 
-		A **skew** (rotated) quadrupole is not supported: that couples x and y,
-		so it cannot be written as two independent 2×2 blocks.
+		A **skew** (rolled) quadrupole is supported here by conjugation: the
+		element's own matrix (two independent 2×2 blocks in its principal
+		frame) is rotated into the lab frame, ``M_lab = G(-skew)·M·G(skew)``,
+		which fills the coupling entries. Per-axis views
+		(:meth:`transfer_block`, :meth:`focal_powers` read in the lab frame,
+		the scaled-wave curvature) remain undefined for ``skew != 0`` and
+		raise, because a coupled plane has no independent per-axis
+		description.
 
 		References
 		----------
@@ -3064,6 +3350,17 @@ class Quadrapole(Element):
 
 		m=xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
 		#print("QUAD",m,self.strength,K,self.calibration,self.length)
+		if self.skew:
+			# roll the principal frame into the lab frame: lab -> element is
+			# G(skew) on (x, xt, y, yt), so M_lab = G(-skew) @ M_elem @ G(skew)
+			c = float(xp.cos(self.skew)) ; s_ = float(xp.sin(self.skew))
+			G  = fix_mat_dims(xp.asarray([[ c,0, s_,0],[0, c,0, s_],
+										  [-s_,0, c,0],[0,-s_,0, c]]),
+							  ["x","xt","y","yt"])
+			Gi = fix_mat_dims(xp.asarray([[ c,0,-s_,0],[0, c,0,-s_],
+										  [ s_,0, c,0],[0, s_,0, c]]),
+							  ["x","xt","y","yt"])
+			m = xp.matmul(Gi, xp.matmul(m, G))
 		return m
 
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
@@ -3096,18 +3393,41 @@ class Quadrapole(Element):
 			(``1/R_a⁺ = 1/R_a⁻ − P_a`` per axis), so the saddle never touches
 			the sampled field U and arbitrarily strong quadrupoles carry no
 			sampling limit. ``(0.0, None)`` at zero strength.
+
+		Raises
+		------
+		NotImplementedError
+			``scaled=True`` with ``skew != 0``: the per-axis curvature state
+			cannot represent a coupled saddle. The fixed path instead
+			evaluates χ on the rolled coordinates, so a skewed quadrupole is
+			usable there.
 		"""
-		from .waveoptics import quadratic_phase
+		from .waveoptics import quadratic_phase, transverse_coordinates
 		from .seashells import grid_of
 		P_x, P_y = self.focal_powers
 		ny, nx, dy, dx = grid_of(dimensions)
 		if scaled:
+			if self.skew and (P_x or P_y):
+				raise NotImplementedError(
+					f"Quadrapole {self.name or ''!r} has skew={self.skew}: the scaled frame's "
+					"per-axis curvature (R_x, R_y) cannot represent a coupled saddle. "
+					"Use mode='fixed' near this element, or skew=0.")
 			screen = self._scaled_screen(None, (ny, nx), dx, dy, s,
 										 self.name or "quadrupole")
 			if P_x == 0 and P_y == 0:
 				return 0.0, screen
 			return (float(P_x), float(P_y)), screen
-		chi = quadratic_phase((ny, nx), dx, dy, wavelength, P_x, P_y) if (P_x or P_y) else None
+		if self.skew and (P_x or P_y):
+			# the saddle is separable only in the element's principal frame:
+			# evaluate chi on the rolled coordinates instead of raising, since a
+			# fixed-grid screen has no per-axis constraint
+			X, Y = transverse_coordinates((ny, nx), dx, dy)
+			c = float(xp.cos(self.skew)) ; s_ = float(xp.sin(self.skew))
+			Xe = c * X + s_ * Y ; Ye = -s_ * X + c * Y
+			k = 2 * xp.pi / wavelength
+			chi = -k * (P_x * Xe**2 + P_y * Ye**2) / 2
+		else:
+			chi = quadratic_phase((ny, nx), dx, dy, wavelength, P_x, P_y) if (P_x or P_y) else None
 		return self._phase_program(dimensions, wavelength, chi, self.name or "quadrupole")
 
 
@@ -3774,21 +4094,7 @@ class Lens(Element):
 		a skew quadrupole.
 		"""
 		P = float(self.focal_power)
-		residual = Aberrations()
-		P_x = P_y = P
-		if not self.aberrations:
-			return P_x, P_y, residual
-		for name, c in self.aberrations.items():
-			if name == 'C10':						# isotropic quadratic: pure power
-				P_x += c.real * P**2
-				P_y += c.real * P**2
-				continue
-			if name == 'C12' and c.imag == 0.0:		# aligned: +-a on the two axes
-				P_x += c.real * P**2
-				P_y -= c.real * P**2
-				continue
-			residual[name] = c
-		return P_x, P_y, residual
+		return _split_quadratic_aberrations(self.aberrations, P, P, P)
 
 	def calibration_from_f_and_I(self,f,I,rotationPerAmp=None):
 		print("for lens",self.name,"seeking a calibration factor C, which focuses strength",I,"to focal length",f,"and rotationPerAmp",rotationPerAmp)

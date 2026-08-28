@@ -825,7 +825,7 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None
 
 #SEASerializable.from_sea will create a purely-SEASerializable object. rayTEM objects (Element, MicroscopeSection, Microscope, etc) will have inherited from SEASerializable, so we may need to reinstantiate rayTEM objects to ensure they have the rayTEM-specific functionality (e.g. "scope=Microscope(); scope.from_sea" will find scope.sections is a list of purely-SEASerializable objects without functions like "propagate_ray").
 def safeReinstantiate(source,cls):
-	from .elements import Drift,Lens,Source,Gun,Dipole,Quadrapole,Aperture,Prism
+	from .elements import Drift,Lens,Source,Gun,Dipole,Quadrapole,Aperture,Prism,AberrationScreen
 	from .assemblies import Microscope,MicroscopeSection
 	# Every `kind` an element can report has to appear here or the object cannot
 	# be reloaded at all. Aperture and Prism were missing, so any saved column
@@ -835,7 +835,8 @@ def safeReinstantiate(source,cls):
 			 "Microscope":Microscope, "Section":MicroscopeSection,
 			 "Dipole":Dipole, "Thin dipole":Dipole,
 			 "Quad":Quadrapole, "Thin quad":Quadrapole,
-			 "Aperture":Aperture, "Prism":Prism}
+			 "Aperture":Aperture, "Prism":Prism,
+			 "AberrationScreen":AberrationScreen}
 	if cls not in known:
 		raise KeyError(
 			f"cannot reinstantiate a stored object of kind {cls!r}: it is not in "
