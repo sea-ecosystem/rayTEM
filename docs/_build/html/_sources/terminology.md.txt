@@ -74,7 +74,7 @@ screen. See Krivanek's aberration nomenclature [Krivanek 1999] for the
 
 ### Effective strength
 
-`_effective_strength` is `strength` after the lens's calibration mapping
+`calibrated_strength` is `strength` after the lens's calibration mapping
 (the current-to-field conversion) is applied. It exists so the ray and wave
 paths read the *same* calibrated `K` from one place instead of each applying
 the calibration separately.
