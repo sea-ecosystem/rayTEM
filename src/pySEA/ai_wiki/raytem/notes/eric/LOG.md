@@ -2,6 +2,41 @@
 
 Newest entries at top.
 
+## 2026-08-27 — [Done] Compact thin-lens column, and a real hybrid-engine bug
+**Goal:** rebuild `basic_column` to Eric's spec — every lens a 0.08 mm bore;
+gun–50–C1–50–CA–10–50–C2–50–C3–250–OL1–20 (sample at BFP inside)–OL2–50–PL1–
+50–PL2–50–PL3–50–PL4–100–detector; dipoles/stigmators kept.
+- [x] new layout (790.7 mm total; focal lengths kept — 0.08 mm is the only
+  bore all of them can legally share, f >= 2L/pi)
+- [x] solver reworked: physical focal-range scans, overfocused-C1 low state,
+  verified bisection, four-lens projector relay
+- [x] hybrid-engine bug found and fixed (below)
+- [x] all examples green; settings + figures regenerated
+
+**Outcome:** 147 tests (146 pass + pre-existing insertion failure). All 8
+states: 30.000 mrad probes in both current states (1.000 / 0.079 nA), image
+4.5x or 25 mm-camera diffraction at the detector, objective untouched.
+
+**The bug (waveoptics):** when a lens body ends between a wave crossover and
+its rediverge, the pending marker was handed to the free-space engine —
+whose converging-frame flatten knew nothing about pending markers and
+OVERWROTE it with the frame's own crossing (z+|R|), a different ray family.
+Every crossover logged downstream was then mislabeled (55 mm off in the
+fixture; the wave itself stays exact — the labels lied). Fixed twice over:
+the free engine now guards its flatten and rediverges onto the original ray,
+and the body walker hands off the marker projected to the exit ray's
+straight-line zero (z_end − B/D, slope-independent), which closes the last
+23 µm to exact. Found only because the mid-element-crossover test had to be
+rebuilt around its own thick fixture once the column went thin — the old
+column had been hiding the handoff case.
+
+**Solver changes worth knowing:** with 50 mm drifts a weak C1 no longer
+overfills CA, so the low state OVERFOCUSES C1 (crossover 20% of the way to
+CA — 7.9% transmitted); and PL1/PL2 alone cannot land a conjugate on the
+detector past frozen PL3/PL4, so the projector is now a four-lens relay —
+all four are projection lenses and Eric's rule assigns projection to them
+collectively. OL1/OL2 remain the only frozen lenses (invariant tested).
+
 ## 2026-08-27 — [Done] 30 mrad for real: OL1 becomes a probe-forming objective
 **Goal:** Eric: "Shorten OL1's focal length so we can actually reach 30 mrad"
 — with the objective still frozen and the condensers doing the focusing.
