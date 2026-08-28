@@ -677,9 +677,11 @@ def test_full_column_hybrid_source_to_detector():
 	zs = [read_scaled_wavefield(p)[7] for p in planes]
 	# the column ends 1 cm past the detector marker (a tail so plane
 	# searches keep the detector interior); the run ends at the column end
-	assert np.isclose(max(zs), 1.274, atol=1e-6)
+	z_end = sum(sec.length for sec in scope.sections)
+	assert np.isclose(max(zs), z_end, atol=1e-6)
 	assert len(scope.crossovers) >= 4		# C1, condenser chain, objective, projectors
-	assert np.isclose(scope.crossovers[0], 0.175, atol=1e-3)		# C1 focus
+	# the first crossover is C1's focus, upstream of CA
+	assert scope.crossovers[0] < scope.named_positions["CA"]
 
 	# frame switches are balanced and s stays finite everywhere
 	tags = [scaled_frame_tag(p) for p in planes]
@@ -700,7 +702,8 @@ def test_full_column_hybrid_source_to_detector():
 	# physical reconstruction at the named detector plane and at the C1 focus
 	det = scope.wavefield_at("detector")
 	data, dx, dy, lam, z_out = read_wavefield(det)
-	assert np.isclose(z_out, 1.264, atol=1e-6) and np.isfinite(data).all()
+	assert np.isclose(z_out, scope.named_positions["detector"], atol=1e-6)
+	assert np.isfinite(data).all()
 	foc = scope.wavefield_at(scope.crossovers[0])
 	fdata, fdx, *_ = read_wavefield(foc)
 	assert np.isfinite(fdata).all() and fdx < 1e-8		# focal-plane pixel is nm-scale
@@ -781,7 +784,7 @@ def test_full_column_aperture_interior_is_clean():
 	# adds weak concentric ringlets: ~0.012 at the sample, ~0.023 at the
 	# detector; no fourfold — that is what c4 below enforces)
 	for z, mod_max, flat_min in ((scope.named_positions["sample"], 0.015, 0.9),
-								 (1.264, 0.03, 0.85)):
+								 (scope.named_positions["detector"], 0.03, 0.85)):
 		data, dx, *_ = read_wavefield(scope.wavefield_at(z))
 		I = np.abs(data)**2
 		n = I.shape[0]
@@ -840,7 +843,7 @@ def test_padded_grid_hybrid_completes():
 	zs = [read_scaled_wavefield(p)[7] for p in scope._wave_scaled_planes]
 	# the column ends 1 cm past the detector marker (a tail so plane
 	# searches keep the detector interior); the run ends at the column end
-	assert np.isclose(max(zs), 1.274, atol=1e-6)
+	assert np.isclose(max(zs), sum(sec.length for sec in scope.sections), atol=1e-6)
 	assert len(scope.crossovers) >= 4
 
 
@@ -1457,16 +1460,17 @@ def test_conjugate_planes_frame_ray_and_wave_agree():
 	scope.propagate_wave(mode="hybrid")
 	for zc in scope.crossovers:							# the wave rides this family
 		assert min(abs(frame["diff"] - zc)) < 1e-9
-	# the image family exists for the wave too, and differs from the diffraction one
-	assert len(frame["image"]) == len(frame["diff"])
+	# the image family exists for the wave too, and differs from the
+	# diffraction one (the counts need not match: how often each family
+	# crosses depends on the strengths, not on each other)
+	assert len(frame["image"]) and len(frame["diff"])
 	assert min(abs(frame["image"][:, None] - frame["diff"][None, :]).min(axis=1)) > 1e-6
-	# with the short f = 2 mm OL1 every conjugate plane falls in free space,
-	# so the ray method's straight-line interpolation is exact here too (the
-	# old fat objective used to put one plane inside its body, where the two
-	# methods legitimately differed by ~188 um)
-	inside = [z for z in frame["image"] if 0.490 < z < 0.500]
-	assert len(inside) == 1
-	assert min(abs(ray["image"] - inside[0])) < 1e-3
+	# with thin 0.08 mm bores every conjugate plane falls in free space, so
+	# the ray method's straight-line interpolation matches the frame walk on
+	# the image family too (a fat lens body used to hold one plane where the
+	# two methods legitimately differed by ~188 um)
+	for z in frame["image"]:
+		assert min(abs(ray["image"] - z)) < 1e-6
 
 
 def test_conjugate_planes_reference_plane():
@@ -1807,22 +1811,42 @@ def test_mid_element_hybrid_leaves_the_common_case_alone():
 
 @pytest.mark.skipif(not sea_available, reason="basic_column.sea requires sea_eco")
 def test_mid_element_crossover_lands_on_the_analytic_plane():
-	# the column case that motivated this: a point object at -500 mm has an
-	# image plane at 320.474 mm, INSIDE C3's body (0.320-0.340). The free engine
-	# used to flatten around C3 and record the plane 99 mm away.
-	import os
-	from pySEA.rayTEM.assemblies import load_microscope
+	# the case that motivated this: a point object whose image plane lands
+	# INSIDE a thick lens body. The free engine used to flatten around the
+	# body and record the plane ~99 mm away. The standard column's lenses are
+	# thin now, so the fixture builds its own thick pair: L1 converges the
+	# point's beam so it images inside TL's 0.320-0.340 body, and L2 relays
+	# that image downstream, so the "ray restored past the body" claim has a
+	# free-space plane to check too.
+	from pySEA.rayTEM.assemblies import Microscope, MicroscopeSection
+	from pySEA.rayTEM.elements import Source, Drift, Lens
+	from pySEA.rayTEM.microscopes.basic_column import strength_for_focal_length
 	from pySEA.rayTEM.seashells import make_scaled_wavefield_signal
-	here = os.path.dirname(os.path.abspath(__file__))
-	path = os.path.join(here, "..", "microscopes", "basic_column.sea")
+
+	def thick_fixture():
+		return Microscope(sections=[MicroscopeSection(elements=[
+			Source(voltage=200, wave_shape=(64, 64), wave_extent=20e-6,
+				   wave_kind="gaussian"),
+			Drift(length=0.05),
+			Lens(name="L1", strength=strength_for_focal_length(0.185, 0.02),
+				 length=0.02),
+			Drift(length=0.25),
+			Lens(name="TL", strength=strength_for_focal_length(0.09, 0.02),
+				 length=0.02),
+			Drift(length=0.08),
+			Lens(name="L2", strength=strength_for_focal_length(0.05, 0.02),
+				 length=0.02),
+			Drift(length=0.12)])])
+
 	R0 = 0.5											# virtual point at z = -R0
-	scope = load_microscope(path)
+	scope = thick_fixture()
 	predicted = scope.conjugate_planes(axis="x", method="frame",
 									   reference=-R0)["image"]
 	z_in_body = [float(z) for z in predicted if 0.320 < z < 0.340]
-	assert len(z_in_body) == 1, "fixture no longer has a plane inside C3"
+	assert len(z_in_body) == 1, "fixture no longer has a plane inside the body"
+	assert any(z > 0.36 for z in predicted), "no downstream plane to check"
 
-	run = load_microscope(path)
+	run = thick_fixture()
 	U, dxi, deta, lam, *_ = read_scaled_wavefield(
 		run.sections[0].elements[0].wave(mode="scaled"))
 	seed = make_scaled_wavefield_signal(U, dxi, deta, lam, s=1.0, R=R0,
@@ -2904,15 +2928,16 @@ def test_convergence_angle_is_a_semi_angle_and_a_total_deflection():
 	assert np.isclose(ang.max(), 30e-3, rtol=1e-9)
 	assert np.isclose(mic.convergence_angle, ang.max(), rtol=1e-9)
 
-	# TOTAL deflection, not the x component: OL1 is thick, so it rotates the ray
-	# by its Larmor angle while focusing it, and xt alone under-reports by
+	# TOTAL deflection, not the x component: a lens body rotates the ray by
+	# its Larmor angle while focusing it, and xt alone under-reports by
 	# exactly cos(K L) -- computed from the lens itself so the bound follows
-	# any change to OL1's strength or bore
+	# any change to OL1's strength or bore. (With the current thin 0.08 mm
+	# bores the rotation is small, so the factor sits near 1; the equality is
+	# the physics being pinned, not the size of the effect.)
 	ol1 = mic["OL1"]
 	larmor = np.cos(ol1.strength * ol1.length)
 	xt_only = np.abs(r[i, :, 1]).max()
 	assert np.isclose(xt_only, larmor * mic.convergence_angle, rtol=1e-6)
-	assert xt_only < 0.5 * mic.convergence_angle	# i.e. the rotation is substantial
 
 	# and it must not depend on landing a floating-point epsilon past the
 	# sample's entrance face, which is where measureAtZ flips between the state
