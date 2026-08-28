@@ -287,8 +287,17 @@ def predict_probe(scope: Microscope) -> dict:
 	Ms = block_between(scope, 0.0, sample_plane(scope))
 	Mca = block_between(scope, 0.0, Z["CA"])
 	x0, t0, y0, ty0 = _source_grid(scope).T
-	x_ca = Mca[0, 0] * x0 + Mca[0, 1] * t0
-	y_ca = Mca[0, 0] * y0 + Mca[0, 1] * ty0
+	x_rot = Mca[0, 0] * x0 + Mca[0, 1] * t0
+	y_rot = Mca[0, 0] * y0 + Mca[0, 1] * ty0
+	# the aperture reads per-axis maxima in the LAB frame, and the fan is a
+	# square grid: rotated by the Larmor angle accumulated upstream, its
+	# corner grows the per-axis maximum by up to cos+sin (~8% at C1's 5 deg
+	# in the overfocused low state) -- taking the rotating-frame max instead
+	# made the predicted cut, and with it the solved angle, ~9% optimistic
+	phi = sum(l.strength * l.length for n, l in _lens_map(scope).items()
+			  if Z[n] < Z["CA"])
+	x_ca = np.cos(phi) * x_rot - np.sin(phi) * y_rot
+	y_ca = np.sin(phi) * x_rot + np.cos(phi) * y_rot
 	sx = min(1.0, ca_r / float(np.max(x_ca)))	# amax of the SIGNED positions,
 	sy = min(1.0, ca_r / float(np.max(y_ca)))	# mirroring Aperture._aperture_scales
 	alpha = np.hypot(sx * (Ms[1, 0] * x0 + Ms[1, 1] * t0),
