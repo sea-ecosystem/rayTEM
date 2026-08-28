@@ -1,0 +1,211 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getting Started &mdash; rayTEM 0.0.1beta documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=e02f3e7d"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Propagation Modes" href="propagation_modes.html" />
+    <link rel="prev" title="rayTEM Documentation" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            rayTEM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#the-minimal-column">The minimal column</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-standard-column">The standard column</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#saving-and-loading">Saving and loading</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#where-to-go-next">Where to go next</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="propagation_modes.html">Propagation Modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="operating_the_column.html">Operating the Column</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Example Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">AI Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="ai_tools/install.html">AI Tools</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Into the SEA-weeds (For developers)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="dev_documentation.html">Into the SEA-weeds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wave-optics-sampling.html">Why full-column electron wave propagation breaks fixed-grid sampling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">rayTEM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Getting Started</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/getting_started.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="getting-started">
+<h1>Getting Started<a class="headerlink" href="#getting-started" title="Link to this heading"></a></h1>
+<p>rayTEM simulates a TEM column as a list of optical elements. You describe the
+instrument once — sources, lenses, apertures, deflectors, drifts — and
+propagate a beam through it as geometric rays, as a beam-envelope covariance,
+or as a coherent wave, all from the same geometry.</p>
+<p>Install in editable mode while developing:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+<p>Optional extras: <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">.[dev]</span></code> for the test suite, and
+<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">&quot;.[dev,ai-wiki]&quot;</span></code> to add the shared <code class="docutils literal notranslate"><span class="pre">sea-ecosystem</span></code> wiki
+tooling (<code class="docutils literal notranslate"><span class="pre">pysea-refresh-wiki</span></code>).</p>
+<section id="the-minimal-column">
+<h2>The minimal column<a class="headerlink" href="#the-minimal-column" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.rayTEM.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Gun</span><span class="p">,</span> <span class="n">Drift</span><span class="p">,</span> <span class="n">Lens</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.rayTEM.assemblies</span><span class="w"> </span><span class="kn">import</span> <span class="n">Microscope</span><span class="p">,</span> <span class="n">MicroscopeSection</span>
+
+<span class="n">column</span> <span class="o">=</span> <span class="n">Microscope</span><span class="p">(</span><span class="n">sections</span><span class="o">=</span><span class="p">[</span><span class="n">MicroscopeSection</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"col"</span><span class="p">,</span> <span class="n">elements</span><span class="o">=</span><span class="p">[</span>
+    <span class="n">Gun</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"G"</span><span class="p">,</span> <span class="n">voltage</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">beam_current</span><span class="o">=</span><span class="mf">1e-9</span><span class="p">,</span>          <span class="c1"># 200 kV, 1 nA</span>
+        <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mf">2.5e-6</span><span class="p">,</span> <span class="mf">2.5e-6</span><span class="p">),</span> <span class="n">np_xy</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span>               <span class="c1"># 5x5 ray grid</span>
+        <span class="n">angle</span><span class="o">=</span><span class="p">(</span><span class="mf">1e-4</span><span class="p">,</span> <span class="mf">1e-4</span><span class="p">),</span> <span class="n">na_xy</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)),</span>                 <span class="c1"># 3x3 angle fan</span>
+    <span class="n">Drift</span><span class="p">(</span><span class="n">length</span><span class="o">=</span><span class="mf">0.05</span><span class="p">),</span>
+    <span class="n">Lens</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"L1"</span><span class="p">,</span> <span class="n">strength</span><span class="o">=</span><span class="mf">700.0</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mf">8e-5</span><span class="p">),</span>
+    <span class="n">Drift</span><span class="p">(</span><span class="n">length</span><span class="o">=</span><span class="mf">0.10</span><span class="p">),</span>
+<span class="p">])])</span>
+
+<span class="n">rays</span> <span class="o">=</span> <span class="n">column</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">()</span>        <span class="c1"># (n_planes, n_rays, 6) geometric rays</span>
+<span class="n">column</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>                        <span class="c1"># the ray diagram</span>
+</pre></div>
+</div>
+<p>Elements stack sequentially, or by explicit <code class="docutils literal notranslate"><span class="pre">position</span></code> within their section —
+gaps are filled with drifts automatically. <code class="docutils literal notranslate"><span class="pre">Gun</span></code> is a <code class="docutils literal notranslate"><span class="pre">Source</span></code> under the
+microscope’s name for it; either works.</p>
+</section>
+<section id="the-standard-column">
+<h2>The standard column<a class="headerlink" href="#the-standard-column" title="Link to this heading"></a></h2>
+<p>A complete, realistic 200 kV template ships with the package: a gun with a
+stated 1 nA current, three condensers, the condenser aperture CA, an
+objective pair around a mid-gap sample plane, four projector lenses, and a
+named detector plane.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.rayTEM.assemblies</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_microscope</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">importlib.resources</span><span class="w"> </span><span class="kn">import</span> <span class="n">files</span>
+
+<span class="n">path</span> <span class="o">=</span> <span class="n">files</span><span class="p">(</span><span class="s2">"pySEA"</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"rayTEM"</span> <span class="o">/</span> <span class="s2">"microscopes"</span> <span class="o">/</span> <span class="s2">"basic_column.sea"</span>
+<span class="n">scope</span> <span class="o">=</span> <span class="n">load_microscope</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+
+<span class="n">scope</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">scope</span><span class="o">.</span><span class="n">beam_current</span><span class="p">)</span>            <span class="c1"># what survives to the detector, in amps</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">scope</span><span class="o">.</span><span class="n">convergence_angle</span><span class="p">)</span>       <span class="c1"># semi-angle at the sample plane, radians</span>
+</pre></div>
+</div>
+</section>
+<section id="saving-and-loading">
+<h2>Saving and loading<a class="headerlink" href="#saving-and-loading" title="Link to this heading"></a></h2>
+<p>Columns round-trip through sea-eco’s <code class="docutils literal notranslate"><span class="pre">.sea</span></code> format — geometry, strengths, the
+stated current, and any propagation results already on the object:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">scope</span><span class="o">.</span><span class="n">to_sea</span><span class="p">(</span><span class="s2">"my_column.sea"</span><span class="p">)</span>
+<span class="n">back</span> <span class="o">=</span> <span class="n">load_microscope</span><span class="p">(</span><span class="s2">"my_column.sea"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Lens <em>settings</em> (a named set of strengths, not a new file) go through the
+settings mechanism:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">scope</span><span class="o">.</span><span class="n">save_as_setting</span><span class="p">(</span><span class="s2">"my-state"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"C1"</span><span class="p">:</span> <span class="s2">"strength"</span><span class="p">,</span> <span class="s2">"C2"</span><span class="p">:</span> <span class="s2">"strength"</span><span class="p">})</span>
+<span class="n">fresh</span> <span class="o">=</span> <span class="n">load_microscope</span><span class="p">(</span><span class="s2">"my_column.sea"</span><span class="p">)</span>
+<span class="n">fresh</span><span class="o">.</span><span class="n">load_setting</span><span class="p">(</span><span class="s2">"my-state"</span><span class="p">)</span>       <span class="c1"># reads settings/my-state.json</span>
+</pre></div>
+</div>
+</section>
+<section id="where-to-go-next">
+<h2>Where to go next<a class="headerlink" href="#where-to-go-next" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="propagation_modes.html"><span class="std std-doc">Propagation modes</span></a> — the four ways one column
+propagates, and when to use each.</p></li>
+<li><p><a class="reference internal" href="operating_the_column.html"><span class="std std-doc">Operating the column</span></a> — currents, probes,
+conjugate planes, and the eight canonical operating states.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">examples/</span></code> — runnable scripts, smallest first.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="rayTEM Documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="propagation_modes.html" class="btn btn-neutral float-right" title="Propagation Modes" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, rayTEM contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

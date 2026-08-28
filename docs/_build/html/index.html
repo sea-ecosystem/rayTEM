@@ -1,0 +1,316 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>rayTEM Documentation &mdash; rayTEM 0.0.1beta documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=e02f3e7d"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Getting Started" href="getting_started.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            rayTEM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="propagation_modes.html">Propagation Modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="operating_the_column.html">Operating the Column</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Example Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">AI Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="ai_tools/install.html">AI Tools</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Into the SEA-weeds (For developers)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="dev_documentation.html">Into the SEA-weeds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wave-optics-sampling.html">Why full-column electron wave propagation breaks fixed-grid sampling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">rayTEM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">rayTEM Documentation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="raytem-documentation">
+<h1>rayTEM Documentation<a class="headerlink" href="#raytem-documentation" title="Link to this heading"></a></h1>
+<p>rayTEM is a ray-tracing electron optics simulator for TEM instruments, living
+inside the <code class="docutils literal notranslate"><span class="pre">pySEA</span></code> (Python Simulation Experiment Analysis) namespace package.
+One column description drives four propagation modes — geometric rays,
+beam-envelope covariance, a fixed-grid paraxial wave, and a scaled-Fresnel
+wave — and serializes through sea-eco’s <code class="docutils literal notranslate"><span class="pre">.sea</span></code> format.</p>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#the-minimal-column">The minimal column</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#the-standard-column">The standard column</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#saving-and-loading">Saving and loading</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#where-to-go-next">Where to go next</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="propagation_modes.html">Propagation Modes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="propagation_modes.html#rays">Rays</a></li>
+<li class="toctree-l2"><a class="reference internal" href="propagation_modes.html#moments">Moments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="propagation_modes.html#fixed-grid-wave">Fixed-grid wave</a></li>
+<li class="toctree-l2"><a class="reference internal" href="propagation_modes.html#scaled-fresnel-wave-mode-hybrid">Scaled-Fresnel wave (<code class="docutils literal notranslate"><span class="pre">mode=&quot;hybrid&quot;</span></code>)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="propagation_modes.html#they-answer-for-each-other">They answer for each other</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="operating_the_column.html">Operating the Column</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="operating_the_column.html#measurements">Measurements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="operating_the_column.html#the-eight-canonical-states">The eight canonical states</a></li>
+<li class="toctree-l2"><a class="reference internal" href="operating_the_column.html#common-recovery-paths">Common recovery paths</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Example Scripts</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">AI Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="ai_tools/install.html">AI Tools</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ai_tools/install.html#the-ai-wiki-slice">The AI wiki slice</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ai_tools/install.html#justified-omissions">Justified omissions</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Into the SEA-weeds (For developers)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="dev_documentation.html">Into the SEA-weeds</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#the-mental-model">The mental model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#invariants">Invariants</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#the-scaled-wave-engine">The scaled-wave engine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#aberrations">Aberrations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#high-risk-seams">High-risk seams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#schema">Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#provenance-and-verification">Provenance and verification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#building-the-docs">Building the docs</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="wave-optics-sampling.html">Why full-column electron wave propagation breaks fixed-grid sampling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="wave-optics-sampling.html#context-what-propagate-wave-does">Context: what <code class="docutils literal notranslate"><span class="pre">propagate_wave</span></code> does</a></li>
+<li class="toctree-l2"><a class="reference internal" href="wave-optics-sampling.html#the-two-sampling-criteria">The two sampling criteria</a></li>
+<li class="toctree-l2"><a class="reference internal" href="wave-optics-sampling.html#why-this-is-fundamental-not-an-implementation-bug">Why this is fundamental, not an implementation bug</a></li>
+<li class="toctree-l2"><a class="reference internal" href="wave-optics-sampling.html#what-is-valid-in-raytem-s-wave-mode-today">What is valid in rayTEM’s wave mode today</a></li>
+<li class="toctree-l2"><a class="reference internal" href="wave-optics-sampling.html#scaled-fresnel-propagation-implemented-propagate-wave-mode-scaled-hybrid">Scaled Fresnel propagation (implemented): <code class="docutils literal notranslate"><span class="pre">propagate_wave(mode='scaled'|'hybrid')</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="wave-optics-sampling.html#other-remedies-roadmap">Other remedies (roadmap)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="wave-optics-sampling.html#references">References</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.Aperture"><code class="docutils literal notranslate"><span class="pre">Aperture</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.Dipole"><code class="docutils literal notranslate"><span class="pre">Dipole</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.Drift"><code class="docutils literal notranslate"><span class="pre">Drift</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.Element"><code class="docutils literal notranslate"><span class="pre">Element</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.Gun"><code class="docutils literal notranslate"><span class="pre">Gun</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.Lens"><code class="docutils literal notranslate"><span class="pre">Lens</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.MEDIUM_SLICES"><code class="docutils literal notranslate"><span class="pre">MEDIUM_SLICES</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.Prism"><code class="docutils literal notranslate"><span class="pre">Prism</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.Quadrapole"><code class="docutils literal notranslate"><span class="pre">Quadrapole</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.SealedAttributes"><code class="docutils literal notranslate"><span class="pre">SealedAttributes</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.Source"><code class="docutils literal notranslate"><span class="pre">Source</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.columnByName"><code class="docutils literal notranslate"><span class="pre">columnByName()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.fix_mat_dims"><code class="docutils literal notranslate"><span class="pre">fix_mat_dims()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.fix_ray_dims"><code class="docutils literal notranslate"><span class="pre">fix_ray_dims()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.elements.suspended_aberrations"><code class="docutils literal notranslate"><span class="pre">suspended_aberrations</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.assemblies.Microscope"><code class="docutils literal notranslate"><span class="pre">Microscope</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.assemblies.check_lengths"><code class="docutils literal notranslate"><span class="pre">check_lengths()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.assemblies.load_microscope"><code class="docutils literal notranslate"><span class="pre">load_microscope()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.assemblies.load_section"><code class="docutils literal notranslate"><span class="pre">load_section()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.assemblies.repair"><code class="docutils literal notranslate"><span class="pre">repair()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.assemblies.roundjson"><code class="docutils literal notranslate"><span class="pre">roundjson()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations"><code class="docutils literal notranslate"><span class="pre">Aberrations</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.aberrations.KRIVANEK_TERMS"><code class="docutils literal notranslate"><span class="pre">KRIVANEK_TERMS</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.aberrations.LETTER_TO_KRIVANEK"><code class="docutils literal notranslate"><span class="pre">LETTER_TO_KRIVANEK</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.aberrations.krivanek_terms"><code class="docutils literal notranslate"><span class="pre">krivanek_terms()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.angular_spectrum_propagate"><code class="docutils literal notranslate"><span class="pre">angular_spectrum_propagate()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.aperture_mask"><code class="docutils literal notranslate"><span class="pre">aperture_mask()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.aperture_transmission"><code class="docutils literal notranslate"><span class="pre">aperture_transmission()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.apply_phase"><code class="docutils literal notranslate"><span class="pre">apply_phase()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.apply_thin_lens_scaled"><code class="docutils literal notranslate"><span class="pre">apply_thin_lens_scaled()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.axis_components"><code class="docutils literal notranslate"><span class="pre">axis_components()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.bandlimited_disk"><code class="docutils literal notranslate"><span class="pre">bandlimited_disk()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.beam_support_extents"><code class="docutils literal notranslate"><span class="pre">beam_support_extents()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.beam_support_radius"><code class="docutils literal notranslate"><span class="pre">beam_support_radius()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.boundary_window"><code class="docutils literal notranslate"><span class="pre">boundary_window()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.change_scaled_frame"><code class="docutils literal notranslate"><span class="pre">change_scaled_frame()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.factor_wave"><code class="docutils literal notranslate"><span class="pre">factor_wave()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.focal_phase"><code class="docutils literal notranslate"><span class="pre">focal_phase()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.fourier_resample"><code class="docutils literal notranslate"><span class="pre">fourier_resample()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.gaussian_field"><code class="docutils literal notranslate"><span class="pre">gaussian_field()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.join_axes"><code class="docutils literal notranslate"><span class="pre">join_axes()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.kernel_phase"><code class="docutils literal notranslate"><span class="pre">kernel_phase()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.linear_phase"><code class="docutils literal notranslate"><span class="pre">linear_phase()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.min_representable_curvature"><code class="docutils literal notranslate"><span class="pre">min_representable_curvature()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.plane_wave"><code class="docutils literal notranslate"><span class="pre">plane_wave()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.point_source"><code class="docutils literal notranslate"><span class="pre">point_source()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.propagate_free_scaled"><code class="docutils literal notranslate"><span class="pre">propagate_free_scaled()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.propagate_free_scaled_hybrid"><code class="docutils literal notranslate"><span class="pre">propagate_free_scaled_hybrid()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.propagate_quadratic_segment_hybrid"><code class="docutils literal notranslate"><span class="pre">propagate_quadratic_segment_hybrid()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.propagate_quadratic_segment_scaled"><code class="docutils literal notranslate"><span class="pre">propagate_quadratic_segment_scaled()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.quadratic_phase"><code class="docutils literal notranslate"><span class="pre">quadratic_phase()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.reconstruct_physical_wave"><code class="docutils literal notranslate"><span class="pre">reconstruct_physical_wave()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.resample_screen"><code class="docutils literal notranslate"><span class="pre">resample_screen()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.rotate_field"><code class="docutils literal notranslate"><span class="pre">rotate_field()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.scaled_delta_tau"><code class="docutils literal notranslate"><span class="pre">scaled_delta_tau()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.scaled_delta_tau_quadratic"><code class="docutils literal notranslate"><span class="pre">scaled_delta_tau_quadratic()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.segment_block"><code class="docutils literal notranslate"><span class="pre">segment_block()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.segment_zero"><code class="docutils literal notranslate"><span class="pre">segment_zero()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.tilt_phase"><code class="docutils literal notranslate"><span class="pre">tilt_phase()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.waveoptics.transverse_coordinates"><code class="docutils literal notranslate"><span class="pre">transverse_coordinates()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.beam_widths"><code class="docutils literal notranslate"><span class="pre">beam_widths()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.closest_plane"><code class="docutils literal notranslate"><span class="pre">closest_plane()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.convert_to_rotating_reference_frame"><code class="docutils literal notranslate"><span class="pre">convert_to_rotating_reference_frame()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.dz_focus_to"><code class="docutils literal notranslate"><span class="pre">dz_focus_to()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.emittance"><code class="docutils literal notranslate"><span class="pre">emittance()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.error_angles"><code class="docutils literal notranslate"><span class="pre">error_angles()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.error_at_plane"><code class="docutils literal notranslate"><span class="pre">error_at_plane()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.error_at_position"><code class="docutils literal notranslate"><span class="pre">error_at_position()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.error_diameter"><code class="docutils literal notranslate"><span class="pre">error_diameter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.error_dz"><code class="docutils literal notranslate"><span class="pre">error_dz()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.findPlanes"><code class="docutils literal notranslate"><span class="pre">findPlanes()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.findPlanes1"><code class="docutils literal notranslate"><span class="pre">findPlanes1()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.findPlanes2"><code class="docutils literal notranslate"><span class="pre">findPlanes2()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.findPlanes4"><code class="docutils literal notranslate"><span class="pre">findPlanes4()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.fitForCrossover"><code class="docutils literal notranslate"><span class="pre">fitForCrossover()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.helper_focus_to"><code class="docutils literal notranslate"><span class="pre">helper_focus_to()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.load_guesses"><code class="docutils literal notranslate"><span class="pre">load_guesses()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.measureAtZ"><code class="docutils literal notranslate"><span class="pre">measureAtZ()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.plot2D"><code class="docutils literal notranslate"><span class="pre">plot2D()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.plot3D"><code class="docutils literal notranslate"><span class="pre">plot3D()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.plotSliceSeries"><code class="docutils literal notranslate"><span class="pre">plotSliceSeries()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.setkeys_to_settables_dict"><code class="docutils literal notranslate"><span class="pre">setkeys_to_settables_dict()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.postprocessing.zFromFractional"><code class="docutils literal notranslate"><span class="pre">zFromFractional()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.SEASerializable"><code class="docutils literal notranslate"><span class="pre">SEASerializable</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.as_ndarray"><code class="docutils literal notranslate"><span class="pre">as_ndarray()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.grid_of"><code class="docutils literal notranslate"><span class="pre">grid_of()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_covariance_signal"><code class="docutils literal notranslate"><span class="pre">make_covariance_signal()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_kernel_phase_signal"><code class="docutils literal notranslate"><span class="pre">make_kernel_phase_signal()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_rays_signalset"><code class="docutils literal notranslate"><span class="pre">make_rays_signalset()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_scaled_wave_signalset"><code class="docutils literal notranslate"><span class="pre">make_scaled_wave_signalset()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_scaled_wavefield_signal"><code class="docutils literal notranslate"><span class="pre">make_scaled_wavefield_signal()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_screen_phase_signal"><code class="docutils literal notranslate"><span class="pre">make_screen_phase_signal()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_wavefield_signal"><code class="docutils literal notranslate"><span class="pre">make_wavefield_signal()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.phase_space_of"><code class="docutils literal notranslate"><span class="pre">phase_space_of()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.read_scaled_wavefield"><code class="docutils literal notranslate"><span class="pre">read_scaled_wavefield()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.read_wavefield"><code class="docutils literal notranslate"><span class="pre">read_wavefield()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.safeReinstantiate"><code class="docutils literal notranslate"><span class="pre">safeReinstantiate()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.scaled_frame_crossover"><code class="docutils literal notranslate"><span class="pre">scaled_frame_crossover()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.scaled_frame_tag"><code class="docutils literal notranslate"><span class="pre">scaled_frame_tag()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div>
+<section id="notes-on-the-pysea-namespace">
+<h2>Notes on the <code class="docutils literal notranslate"><span class="pre">pySEA</span></code> namespace<a class="headerlink" href="#notes-on-the-pysea-namespace" title="Link to this heading"></a></h2>
+<p>The distribution package is <code class="docutils literal notranslate"><span class="pre">raytem</span></code>; it installs the import package
+<code class="docutils literal notranslate"><span class="pre">pySEA.rayTEM</span></code> into the shared <code class="docutils literal notranslate"><span class="pre">pySEA</span></code> namespace, alongside siblings such
+as <code class="docutils literal notranslate"><span class="pre">pySEA.sea_eco</span></code> (the data model this repo serializes through) and
+<code class="docutils literal notranslate"><span class="pre">pySEA.sea_sand</span></code> (identifiers). The generated catalog of installed wiki
+slices lives at <code class="docutils literal notranslate"><span class="pre">pySEA/ai_wiki/ecosystem/index.md</span></code> in any environment with
+the <code class="docutils literal notranslate"><span class="pre">sea-ecosystem</span></code> dev tooling installed.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="getting_started.html" class="btn btn-neutral float-right" title="Getting Started" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, rayTEM contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
