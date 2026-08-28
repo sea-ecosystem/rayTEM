@@ -1,0 +1,255 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Into the SEA-weeds &mdash; rayTEM 0.0.1beta documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=e02f3e7d"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Why full-column electron wave propagation breaks fixed-grid sampling" href="wave-optics-sampling.html" />
+    <link rel="prev" title="AI Tools" href="ai_tools/install.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            rayTEM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="propagation_modes.html">Propagation Modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="operating_the_column.html">Operating the Column</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Example Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">AI Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="ai_tools/install.html">AI Tools</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Into the SEA-weeds (For developers)</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Into the SEA-weeds</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#the-mental-model">The mental model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#invariants">Invariants</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-scaled-wave-engine">The scaled-wave engine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#aberrations">Aberrations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#high-risk-seams">High-risk seams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#schema">Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#provenance-and-verification">Provenance and verification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#building-the-docs">Building the docs</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="wave-optics-sampling.html">Why full-column electron wave propagation breaks fixed-grid sampling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">rayTEM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Into the SEA-weeds</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/dev_documentation.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="into-the-sea-weeds">
+<h1>Into the SEA-weeds<a class="headerlink" href="#into-the-sea-weeds" title="Link to this heading"></a></h1>
+<p>What exists in rayTEM, why it exists, and the invariants that protect it.
+User-facing workflows live in the Guides; this section is for people changing
+the framework.</p>
+<section id="the-mental-model">
+<h2>The mental model<a class="headerlink" href="#the-mental-model" title="Link to this heading"></a></h2>
+<p>An <code class="docutils literal notranslate"><span class="pre">Element</span></code> declares linear optics (a 6×6 <code class="docutils literal notranslate"><span class="pre">transfer_matrix</span></code>), optional
+nonlinear physics (<code class="docutils literal notranslate"><span class="pre">aberrations</span></code>, applied generically — no per-aberration
+code), and optional wave physics (<code class="docutils literal notranslate"><span class="pre">phase_shift</span></code>, screens). A
+<code class="docutils literal notranslate"><span class="pre">MicroscopeSection</span></code> stacks elements; a <code class="docutils literal notranslate"><span class="pre">Microscope</span></code> stacks sections. All four
+propagation modes walk the same hierarchy bottom-up — the Microscope never
+reaches inside an Element, and a Section never reaches inside a Microscope.</p>
+</section>
+<section id="invariants">
+<h2>Invariants<a class="headerlink" href="#invariants" title="Link to this heading"></a></h2>
+<p>These are the load-bearing walls (the repository <code class="docutils literal notranslate"><span class="pre">CLAUDE.md</span></code> carries the same
+list for agents):</p>
+<ul class="simple">
+<li><p><strong>Ray columns are geometric</strong>: <code class="docutils literal notranslate"><span class="pre">convention</span> <span class="pre">=</span> <span class="pre">[&quot;x&quot;,&quot;xt&quot;,&quot;y&quot;,&quot;yt&quot;,&quot;z&quot;,&quot;E&quot;]</span></code>.
+Intensity and Larmor rotation are <em>not</em> ray columns — they travel as
+parallel <code class="docutils literal notranslate"><span class="pre">(n_planes,</span> <span class="pre">n_rays)</span></code> arrays (<code class="docutils literal notranslate"><span class="pre">.I</span></code>, <code class="docutils literal notranslate"><span class="pre">.R</span></code>).</p></li>
+<li><p><strong>Transfer matrices are 6×6</strong>, produced by <code class="docutils literal notranslate"><span class="pre">fix_mat_dims()</span></code>.</p></li>
+<li><p><strong>One plane per element</strong>: propagation logs at element exits, so the
+element list <em>is</em> the z sampling. <code class="docutils literal notranslate"><span class="pre">repair()</span></code> therefore keeps the element
+list exactly as written by default (<code class="docutils literal notranslate"><span class="pre">combine_drifts=False</span></code>) and inserts a
+leading drift when a section’s first element sits past the section start —
+both learned the hard way (a merged drift pair silently removed sampling;
+a dropped leading offset compressed everything downstream).</p></li>
+<li><p><strong>Currents are amps, stated once</strong>: the <code class="docutils literal notranslate"><span class="pre">Source</span></code>/<code class="docutils literal notranslate"><span class="pre">Gun</span></code> states
+<code class="docutils literal notranslate"><span class="pre">beam_current</span></code>; every other element derives what arrives at it, and the
+derived values are recorded state — they survive a <code class="docutils literal notranslate"><span class="pre">.sea</span></code> round trip.</p></li>
+<li><p><strong>seashells is the sea-eco seam</strong>: all serialization and wavefield-Signal
+construction go through it, and it degrades gracefully without sea-eco.
+On reload, <code class="docutils literal notranslate"><span class="pre">safeReinstantiate</span></code> restores the recorded <code class="docutils literal notranslate"><span class="pre">__dict__</span></code> verbatim —
+the constructor only supplies the class.</p></li>
+<li><p><strong>Wavelength</strong>: <code class="docutils literal notranslate"><span class="pre">Source(voltage=&lt;kV&gt;)</span></code> sets it; <code class="docutils literal notranslate"><span class="pre">voltage=None</span></code> keeps
+ray-only behavior bit-for-bit.</p></li>
+</ul>
+</section>
+<section id="the-scaled-wave-engine">
+<h2>The scaled-wave engine<a class="headerlink" href="#the-scaled-wave-engine" title="Link to this heading"></a></h2>
+<p>The full-column wave mode factorizes the field against a geometric reference
+frame and switches frames analytically at crossovers. The subtle parts —
+where the frame may flatten, how a crossing inside a lens body is recorded,
+and how a body that ends mid-restoration hands its marker to the free-space
+engine — are documented at the code (<code class="docutils literal notranslate"><span class="pre">waveoptics.py</span></code>) and pinned by tests;
+the companion page <a class="reference internal" href="wave-optics-sampling.html"><span class="std std-doc">Why full-column electron wave propagation breaks
+fixed-grid sampling</span></a> derives why the fixed-grid mode
+cannot do this job and what the scaled factorization buys.</p>
+</section>
+<section id="aberrations">
+<h2>Aberrations<a class="headerlink" href="#aberrations" title="Link to this heading"></a></h2>
+<p>Axial wave aberrations are Krivanek <code class="docutils literal notranslate"><span class="pre">C_{n,m}</span></code> coefficients on any element
+(<code class="docutils literal notranslate"><span class="pre">aberrations.py</span></code>). One declaration drives both paths: the ray side applies
+the eikonal kick <code class="docutils literal notranslate"><span class="pre">(1/k)∇χ</span></code> and the wave side the phase <code class="docutils literal notranslate"><span class="pre">exp(iχ)</span></code> — exact to
+all orders and wavelength-free by construction, so no element carries
+per-aberration code. Screens generalize this: a real-valued screen is a phase
+χ; a complex one is a transmission <code class="docutils literal notranslate"><span class="pre">T</span></code> (amplitude and phase, what a
+fabricated plate has). A <em>supplied</em> screen is stored (nothing can recompute
+it); a derivable one is recomputed on demand.</p>
+</section>
+<section id="high-risk-seams">
+<h2>High-risk seams<a class="headerlink" href="#high-risk-seams" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">elements.py</span></code> — <code class="docutils literal notranslate"><span class="pre">columnByName()</span></code> and <code class="docutils literal notranslate"><span class="pre">fix_mat_dims()</span></code> are referenced
+everywhere.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">seashells.py</span></code> — the conditional sea-eco import and the reload path.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">waveoptics.py</span></code> — grid centering and the frame-switch engine; focus and
+aperture positions drift if these lose consistency.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">AS2.py</span></code> — talks to a live instrument.</p></li>
+</ul>
+</section>
+<section id="schema">
+<h2>Schema<a class="headerlink" href="#schema" title="Link to this heading"></a></h2>
+<p>rayTEM does not currently own a schema, nor does it formally implement
+sea-eco’s <code class="docutils literal notranslate"><span class="pre">pipeline-editor</span></code> or <code class="docutils literal notranslate"><span class="pre">nd-plotting</span></code> schemas — its plotting goes
+through matplotlib directly and its sea-eco integration is data-level
+(Signals in, Signals out) rather than a backend implementation. This section
+exists so that omission is a recorded decision; if a rayTEM surface grows a
+second implementation, the contract starts in the owning package’s schema
+first.</p>
+</section>
+<section id="provenance-and-verification">
+<h2>Provenance and verification<a class="headerlink" href="#provenance-and-verification" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Implementation entry points</strong>: <code class="docutils literal notranslate"><span class="pre">elements.py</span></code> (elements, screens,
+aberration application), <code class="docutils literal notranslate"><span class="pre">assemblies.py</span></code> (sections, columns, propagation
+drivers, conjugate planes), <code class="docutils literal notranslate"><span class="pre">waveoptics.py</span></code> (paraxial and scaled-Fresnel
+primitives), <code class="docutils literal notranslate"><span class="pre">aberrations.py</span></code> (the Krivanek model), <code class="docutils literal notranslate"><span class="pre">seashells.py</span></code>
+(serialization seam).</p></li>
+<li><p><strong>Focused tests</strong>: <code class="docutils literal notranslate"><span class="pre">src/pySEA/rayTEM/tests/</span></code> — <code class="docutils literal notranslate"><span class="pre">test_scaled_fresnel.py</span></code>
+(wave engine, screens, aberrations, currents),
+<code class="docutils literal notranslate"><span class="pre">test_eight_configurations.py</span></code> (the operating states as executable
+claims), <code class="docutils literal notranslate"><span class="pre">test_wave_and_envelope.py</span></code>, <code class="docutils literal notranslate"><span class="pre">test_elements_sections_microscopes.py</span></code>.</p></li>
+<li><p><strong>User guides</strong>: Getting Started, Propagation Modes, Operating the Column.</p></li>
+<li><p><strong>Executable examples</strong>: <code class="docutils literal notranslate"><span class="pre">examples/01</span></code>–<code class="docutils literal notranslate"><span class="pre">07</span></code>, all headless-runnable; 05 and
+07 are cross-method verification scripts.</p></li>
+<li><p><strong>AI-tool artifacts</strong>: the <code class="docutils literal notranslate"><span class="pre">ai_wiki/raytem</span></code> slice (index, layer map,
+method index), refreshed by <code class="docutils literal notranslate"><span class="pre">pysea-refresh-wiki</span></code>.</p></li>
+<li><p><strong>API coverage</strong>: generated from the NumPy-style docstrings that every
+callable in this repository is required to carry (see API Reference).</p></li>
+</ul>
+</section>
+<section id="building-the-docs">
+<h2>Building the docs<a class="headerlink" href="#building-the-docs" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>docs/requirements.txt
+sphinx-build<span class="w"> </span>docs<span class="w"> </span>docs/_build/html
+</pre></div>
+</div>
+<p>The API Reference is generated from docstrings at build time — there is no
+separate regeneration step. A clean build currently emits nine known
+“duplicate object description” warnings, all from classes re-exported across
+modules; anything beyond those is a regression. The built HTML is
+<strong>committed</strong> under <code class="docutils literal notranslate"><span class="pre">docs/_build/html/</span></code> so the rendered site travels with
+the branch — rebuild and commit it alongside any docs or docstring change.
+There are no notebooks to execute; the example scripts run headless via
+<code class="docutils literal notranslate"><span class="pre">MPLBACKEND=Agg</span></code> and are exercised by the test suite.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="ai_tools/install.html" class="btn btn-neutral float-left" title="AI Tools" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="wave-optics-sampling.html" class="btn btn-neutral float-right" title="Why full-column electron wave propagation breaks fixed-grid sampling" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, rayTEM contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -12,4 +12,4 @@ plane_comparison.png
 elements_sections_microscopes_*
 examples/figs/*
 examples/settings/old/*
-docs/_build/
+docs/_build/doctrees/
