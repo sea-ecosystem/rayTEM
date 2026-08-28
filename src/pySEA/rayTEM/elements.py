@@ -2439,6 +2439,59 @@ class Source(Element):
 		raise NotImplementedError("Source originates waves (wave/wave_scaled); "
 								  "it has no phase_shift.")
 
+
+class Gun(Source):
+	"""A Source by its microscope name.
+
+	The emitter at the top of a real column is called the gun, and columns are
+	described that way ("the gun's crossover", "gun current"), so the class
+	exists under that name too. It IS a :class:`Source` — same construction,
+	same stated beam_current, same ray/moments/wave seeding — and reports
+	kind='Gun' so a reloaded column gets a Gun back.
+
+	Parameters
+	----------
+	*args, **kwargs
+		Exactly :class:`Source`'s.
+
+	Attributes
+	----------
+	kind : str
+		'Gun'.
+
+	Methods
+	-------
+	All inherited from :class:`Source` unchanged.
+
+	Related
+	-------
+	Source : The implementation; this class only renames it.
+
+	Examples
+	--------
+	>>> Gun(voltage=200, beam_current=1e-9).beam_current
+	1e-09
+	"""
+
+	def __init__(self, *args, **kwargs):
+		"""Build a Source and relabel its kind.
+
+		Parameters
+		----------
+		*args, **kwargs
+			Forwarded to :meth:`Source.__init__` unchanged.
+
+		Returns
+		-------
+		None
+
+		Raises
+		------
+		None
+		"""
+		super().__init__(*args, **kwargs)
+		self.kind = 'Gun'
+
 class Aperture(Element):
 	"""Aperture element class. An aperture serves to crop the beam, and the total beam intensity is reduced dependent on the area of the beam and the area of aperture.
 
