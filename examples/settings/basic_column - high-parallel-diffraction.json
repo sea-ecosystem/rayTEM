@@ -1,21 +1,27 @@
 {
     "kind": "setting",
     "name": "basic_column - high-parallel-diffraction",
-    "version": 0.006,
-    "timestamp": "2026-08-27 23:50:11",
+    "version": 0.009,
+    "timestamp": "2026-08-28 01:07:27",
     "C1": {
-        "strength": 39.01491226
+        "strength": 707.01251411
     },
     "C2": {
-        "strength": 49.13352223
+        "strength": 1020.46640361
     },
     "C3": {
-        "strength": 37.6924245
+        "strength": 638.07208304
     },
     "PL1": {
-        "strength": 20.0
+        "strength": 900.98810933
     },
     "PL2": {
-        "strength": 28.28646424
+        "strength": 999.73341154
+    },
+    "PL3": {
+        "strength": 999.73341154
+    },
+    "PL4": {
+        "strength": 790.29552825
     }
 }

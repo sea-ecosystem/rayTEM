@@ -1,21 +1,27 @@
 {
     "kind": "setting",
     "name": "basic_column - high-convergent-diffraction",
-    "version": 0.006,
-    "timestamp": "2026-08-27 23:49:43",
+    "version": 0.009,
+    "timestamp": "2026-08-28 01:07:06",
     "C1": {
-        "strength": 39.01491226
+        "strength": 707.01251411
     },
     "C2": {
-        "strength": 14.51404572
+        "strength": 717.82175963
     },
     "C3": {
-        "strength": 17.96813364
+        "strength": 1157.96186314
     },
     "PL1": {
-        "strength": 20.0
+        "strength": 900.98810933
     },
     "PL2": {
-        "strength": 28.28646424
+        "strength": 999.73341154
+    },
+    "PL3": {
+        "strength": 999.73341154
+    },
+    "PL4": {
+        "strength": 790.29552825
     }
 }
