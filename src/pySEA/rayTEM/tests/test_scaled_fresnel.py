@@ -3086,6 +3086,24 @@ def test_the_wave_carries_current_too():
 		nowave.wave_current
 
 
+def test_gun_is_a_source_and_survives_a_round_trip(tmp_path):
+	# a Gun IS a Source under the microscope's name for it; it must construct
+	# identically, state a current, and come back from a .sea as a Gun
+	from pySEA.rayTEM.elements import Gun
+	from pySEA.rayTEM.assemblies import load_microscope
+	gun = Gun(name="G", voltage=200, beam_current=2e-9,
+			  size=(1e-5, 1e-5), np_xy=(3, 3), angle=(1e-4, 1e-4), na_xy=(3, 3))
+	assert isinstance(gun, Source) and gun.kind == "Gun"
+	mic = Microscope(sections=[MicroscopeSection(elements=[gun, Drift(length=0.1)])])
+	mic.propagate_ray()
+	assert np.isclose(mic.beam_current, 2e-9, rtol=1e-9)
+	path = str(tmp_path / "gun.sea")
+	mic.to_sea(path)
+	back = load_microscope(path).sections[0].elements[0]
+	assert type(back).__name__ == "Gun" and back.kind == "Gun"
+	assert back.beam_current == 2e-9
+
+
 def test_element_beam_current_is_derived_from_the_source():
 	# A current is stated in exactly one place -- the Source -- and read
 	# everywhere else. Each element reports what ARRIVES at it, so an aperture
