@@ -2,6 +2,10 @@ import os,json
 import numpy as np
 from scipy.optimize import minimize,brute
 
+trapezoid = getattr(np, "trapezoid", None)
+if trapezoid is None:
+	trapezoid = np.trapz
+
 # Physical constants (CODATA 2018), SI units
 _PLANCK = 6.62607015e-34        # J s
 _ELECTRON_MASS = 9.1093837015e-31   # kg

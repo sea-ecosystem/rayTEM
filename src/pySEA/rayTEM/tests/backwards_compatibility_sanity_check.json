@@ -1,0 +1,240 @@
+{
+    "Microscope name": "generic",
+    "Sections": [
+        {
+            "Section name": "condenser",
+            "position": 0.0,
+            "length": 450.0,
+            "Elements": [
+                {
+                    "Element name": null,
+                    "kind": "Source",
+                    "position": 0,
+                    "size": [
+                        0.002,
+                        0.002
+                    ],
+                    "np_xy": [
+                        2,
+                        2
+                    ],
+                    "angle": [
+                        0.001,
+                        0.001
+                    ],
+                    "na_xy": [
+                        0,
+                        0
+                    ],
+                    "length": 0,
+                    "strength": 0,
+                    "calibration": null
+                },
+                {
+                    "Element name": "",
+                    "kind": "Drift",
+                    "position": 0,
+                    "length": 50,
+                    "calibration": null
+                },
+                {
+                    "Element name": "GL",
+                    "kind": "QLens",
+                    "position": 50,
+                    "length": 0.1,
+                    "strength": 0,
+                    "calibration": null
+                },
+                {
+                    "Element name": "",
+                    "kind": "Drift",
+                    "position": 50.1,
+                    "length": 29.9,
+                    "calibration": null
+                },
+                {
+                    "Element name": "C1",
+                    "kind": "QLens",
+                    "position": 80,
+                    "length": 0.1,
+                    "strength": 0.3,
+                    "calibration": null
+                },
+                {
+                    "Element name": "",
+                    "kind": "Drift",
+                    "position": 80.1,
+                    "length": 39.9,
+                    "calibration": null
+                },
+                {
+                    "Element name": "VOA",
+                    "kind": "Aperture",
+                    "position": 120,
+                    "radius": 0.1,
+                    "calibration": null
+                },
+                {
+                    "Element name": "",
+                    "kind": "Drift",
+                    "position": 120,
+                    "length": 30,
+                    "calibration": null
+                },
+                {
+                    "Element name": "C2",
+                    "kind": "QLens",
+                    "position": 150,
+                    "length": 0.1,
+                    "strength": 0.5,
+                    "calibration": null
+                },
+                {
+                    "Element name": "",
+                    "kind": "Drift",
+                    "position": 150.1,
+                    "length": 39.9,
+                    "calibration": null
+                },
+                {
+                    "Element name": "C3",
+                    "kind": "QLens",
+                    "position": 190,
+                    "length": 0.1,
+                    "strength": 0.5,
+                    "calibration": null
+                },
+                {
+                    "Element name": "",
+                    "kind": "Drift",
+                    "position": 190.1,
+                    "length": 259.9,
+                    "calibration": null
+                }
+            ],
+            "ignoreLensThickness": false
+        },
+        {
+            "Section name": "objective",
+            "position": 450,
+            "length": 50.0,
+            "Elements": [
+                {
+                    "Element name": "O1",
+                    "kind": "QLens",
+                    "position": 0,
+                    "length": 0.1,
+                    "strength": 0.1,
+                    "calibration": null
+                },
+                {
+                    "Element name": "",
+                    "kind": "Drift",
+                    "position": 0.1,
+                    "length": 14.9,
+                    "calibration": null
+                },
+                {
+                    "Element name": "sample",
+                    "kind": "Drift",
+                    "position": 15,
+                    "length": 15.0,
+                    "calibration": null
+                },
+                {
+                    "Element name": "O2",
+                    "kind": "QLens",
+                    "position": 30,
+                    "length": 0.1,
+                    "strength": 0.1,
+                    "calibration": null
+                },
+                {
+                    "Element name": "",
+                    "kind": "Drift",
+                    "position": 30.1,
+                    "length": 19.9,
+                    "calibration": null
+                }
+            ],
+            "ignoreLensThickness": false
+        },
+        {
+            "Section name": "projector",
+            "position": 500,
+            "length": 450.0,
+            "Elements": [
+                {
+                    "Element name": "P1",
+                    "kind": "QLens",
+                    "position": 0,
+                    "length": 0.1,
+                    "strength": 0.1,
+                    "calibration": null
+                },
+                {
+                    "Element name": "",
+                    "kind": "Drift",
+                    "position": 0.1,
+                    "length": 69.9,
+                    "calibration": null
+                },
+                {
+                    "Element name": "P2",
+                    "kind": "QLens",
+                    "position": 70,
+                    "length": 0.1,
+                    "strength": 0.1,
+                    "calibration": null
+                },
+                {
+                    "Element name": "",
+                    "kind": "Drift",
+                    "position": 70.1,
+                    "length": 39.9,
+                    "calibration": null
+                },
+                {
+                    "Element name": "P3",
+                    "kind": "QLens",
+                    "position": 110,
+                    "length": 0.1,
+                    "strength": 0.1,
+                    "calibration": null
+                },
+                {
+                    "Element name": "",
+                    "kind": "Drift",
+                    "position": 110.1,
+                    "length": 49.9,
+                    "calibration": null
+                },
+                {
+                    "Element name": "P4",
+                    "kind": "QLens",
+                    "position": 160,
+                    "length": 0.1,
+                    "strength": 0.1,
+                    "calibration": null
+                },
+                {
+                    "Element name": "",
+                    "kind": "Drift",
+                    "position": 160.1,
+                    "length": 189.9,
+                    "calibration": null
+                },
+                {
+                    "Element name": "CCD",
+                    "kind": "Drift",
+                    "position": 350,
+                    "length": 100,
+                    "calibration": null
+                }
+            ],
+            "ignoreLensThickness": false
+        }
+    ],
+    "name": "generic",
+    "_planes": null
+}

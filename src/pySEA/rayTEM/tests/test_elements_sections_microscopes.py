@@ -13,7 +13,7 @@ import sys,os,pytest
 sys.path.insert(1,"../../../")
 from pySEA.rayTEM import Source,Lens,Drift,Aperture,Dipole,Quadrapole
 from pySEA.rayTEM import MicroscopeSection,Microscope,check_lengths
-from pySEA.rayTEM import fix_ray_dims,plot2D,findPlanes,columnByName,load_microscope,load_section,convert_to_rotating_reference_frame
+from pySEA.rayTEM import fix_ray_dims,plot2D,plot3D,findPlanes,columnByName,load_microscope,load_section,convert_to_rotating_reference_frame
 import numpy as np
 
 # basic Drift/Lens/Drift/Lens/Drift configuration. Manually-defined input rays (one pair of axial and one pair of field rays)
@@ -25,14 +25,14 @@ def test_basic_section_r0():
 	r0=np.asarray( [[1,0,0,0],[.5,0,0,0],[0,0,1,0],[0,0,.5,0]] )
 	r0=fix_ray_dims(r0,["x","y","xt","yt"])
 	r1 = section.propagate_ray(r0)
-	rr = convert_to_rotating_reference_frame(r1,section.R) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	rr = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	#plot2D(r1,section.R)
 	filename = "elements_sections_microscopes_basic_section_r0_rays.npy"
 	if not os.path.exists(filename):
 		np.save(filename,rr)
 	rr_old = np.load(filename)
 	assert np.sqrt(np.sum((rr-rr_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
-	ret = findPlanes(r1,section.R,axis="x")
+	ret = findPlanes(r1,axis="x")
 	Zd=ret['x']['diff']['z'][0] ; Md=ret['x']['diff']['M'][0]
 	Zi=ret['x']['image']['z'][0] ; Mi=ret['x']['image']['M'][0]
 	planes = np.asarray([Zd,Md,Zi,Mi]) ; print(planes)
@@ -49,7 +49,7 @@ def test_basic_section_wsource():
 	section = MicroscopeSection(elements=elements)
 	section.to_sea("elements_sections_microscopes_basic_section_wsource.sea")
 	r1 = section.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1,section.R) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	#plot2D(r1,section.R)
 	filename = "elements_sections_microscopes_basic_section_wsource_rays.npy"
 	if not os.path.exists(filename):
@@ -58,6 +58,22 @@ def test_basic_section_wsource():
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 #test_basic_section_wsource()
 
+def test_various_lenses():
+	elements = [ Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)),
+					Lens(position=1,strength=3,length=.1),
+					Lens(position=2,focal_length=3,length=0),
+					Drift(position=2,length=1)
+			 ]
+	section = MicroscopeSection(elements=elements)
+	#section.show()
+	r1 = section.propagate_ray()
+	filename = "elements_sections_microscopes_test_various_lenses.npy"
+	if not os.path.exists(filename):
+		np.save(filename,r1)
+	r1_old = np.load(filename)[:,:,:6]
+	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
+#test_various_lenses()
+
 # basic stack including Source, Drift, Lens, Aperture (TODO add additional elements as support is added)
 # test: resulting rays should always be identical (compare to numpy saved rays), plotting should work
 def test_every_element():
@@ -65,6 +81,8 @@ def test_every_element():
 	section = MicroscopeSection(elements=elements)
 	section.show(filename="elements_sections_microscopes_every_element.png")
 	r1 = section.propagate_ray()
+	print(repr(section))
+	plot3D(r1,filename="elements_sections_microscopes_every_element2.png")
 	filename = "elements_sections_microscopes_every_element.npy"
 	if not os.path.exists(filename):
 		np.save(filename,r1)
@@ -97,13 +115,13 @@ def test_basic_microscope_defined_by_lengths():
 	microscope = Microscope(sections = [ section1,section2 ])
 	#microscope.show()
 	r1 = microscope.propagate_ray()
-	rr = convert_to_rotating_reference_frame(r1,microscope.R) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	rr = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths_rays.npy"
 	if not os.path.exists(filename):
 		np.save(filename,rr)
 	rr_old = np.load(filename)
 	assert np.sqrt(np.sum((rr-rr_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
-	ret = findPlanes(r1,microscope.R,axis="x")
+	ret = findPlanes(r1,axis="x")
 	Zd=ret['x']['diff']['z'] ; Md=ret['x']['diff']['M']
 	Zi=ret['x']['image']['z'] ; Mi=ret['x']['image']['M']
 	#print(Zd,Md,Zi,Mi)
@@ -131,7 +149,7 @@ def test_basic_microscope_defined_by_positions():
 	microscope = Microscope(sections = [ section1,section2 ])
 	#microscope.show()
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1,microscope.R) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths_rays.npy"
 	if not os.path.exists(filename):
 		print("ERROR: test_basic_microscope_defined_by_positions requires test_basic_microscope_defined_by_lengths to run first")
@@ -146,7 +164,7 @@ def test_basic_microscope_reload_json():
 	microscope = load_microscope("elements_sections_microscopes_basic_microscope_defined_by_lengths.json")
 	#microscope.show()
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1,microscope.R) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths_rays.npy"
 	if not os.path.exists(filename):
 		print("ERROR: test_basic_microscope_reload_json requires test_basic_microscope_defined_by_lengths to run first")
@@ -161,7 +179,7 @@ def test_basic_microscope_reload_sea():
 	microscope = load_microscope("elements_sections_microscopes_basic_microscope_defined_by_lengths.sea")
 	#microscope.show()
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1,microscope.R) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths_rays.npy"
 	if not os.path.exists(filename):
 		print("ERROR: test_basic_microscope_reload_sea requires test_basic_microscope_defined_by_lengths to run first")
@@ -181,7 +199,7 @@ def test_element_insertion_microscope():
 	microscope.insert(1.25,Lens(name="inserted by position at 1.25",strength=0))
 	#lengths_1 = [ s.length for s in microscope.sections ]
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1,microscope.R)[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = convert_to_rotating_reference_frame(r1)[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths_rays.npy"
 	if not os.path.exists(filename):
 		print("ERROR: test_insertion_microscope requires test_basic_microscope_defined_by_lengths to run first")
@@ -192,17 +210,17 @@ def test_element_insertion_microscope():
 	# insertion at zero should NOT go before the zero-length source! it should only go into the first Drift.
 	microscope.insert(0.,Drift(name="inserted by position at 0.0",length=1.))
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1,microscope.R)[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = convert_to_rotating_reference_frame(r1)[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001
 	# breaking up a drift, with zero left-over at the end...
 	microscope.insert(.5,Drift(name="inserted by position at 0.5",length=.5))
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1,microscope.R)[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = convert_to_rotating_reference_frame(r1)[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001
 	# drift *replacement* by inserting one of the same-position same-length
 	microscope.insert(.5,Drift(name="new inserted by position at 0.5",length=.5))
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1,microscope.R)[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = convert_to_rotating_reference_frame(r1)[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001
 	#print(repr(microscope))
 	#lengths_2 = [ s.length for s in microscope.sections ]
@@ -217,9 +235,9 @@ def test_section_insertion_microscope():
 	sec2 = MicroscopeSection( elements = ele2, position=4, name="sec2" )
 	microscope = Microscope(sections = [ sec1, sec2 ])
 	#microscope.show()
-	print("OLD") ; print(microscope)
+	print("OLD") ; print(repr(microscope))
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1,microscope.R) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	filename = "elements_sections_microscopes_section_insertion_microscope_rays.npy"
 	if not os.path.exists(filename):
 		np.save(filename,r1)
@@ -231,10 +249,10 @@ def test_section_insertion_microscope():
 	sec3 = MicroscopeSection( elements = ele3, name="newsec" )
 	microscope.insert(2.0,sec3)
 
-	print("NEW") ; print(microscope)
+	print("NEW") ; print(microscope.tabulate(columns=["name","length","position"]))
 	#microscope.show()
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1,microscope.R) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 
 	r1_old = np.load(filename)
 
@@ -253,13 +271,13 @@ def test_cropping_section():
 				Drift(name="D3",length=1)  ]
 	section = MicroscopeSection(elements=elements)
 	r1 = section.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1,section.R) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	#section.show()
 	# CROP BY INDEX, REPLACE SOURCE
 	section = section[1:]
 	section.insert(0, Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)) )
 	r2 = section.propagate_ray()
-	r2 = convert_to_rotating_reference_frame(r2,section.R) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r2 = convert_to_rotating_reference_frame(r2) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	# RAYS MUST MATCH
 	assert np.sqrt(np.sum((r1[-1]-r2[-1])**2)) < .0001
 
@@ -378,6 +396,10 @@ def test_element_move():
 	check_lengths(section)
 	assert section.length == sum([e.length for e in section.elements])
 
+def test_old_json_compatibility():
+	# resolve the fixture beside this file so the test passes from any cwd
+	load_microscope(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+								 "backwards_compatibility_sanity_check"))
 
 #test_element_move()
 #test_element_insertion_microscope()

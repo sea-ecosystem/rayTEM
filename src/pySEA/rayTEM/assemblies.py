@@ -7,7 +7,7 @@ import pickle
 import sys,inspect,os,datetime,shutil
 
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
-from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes,AberrationScreen,_as_aberrations
+from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,Rays,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes,AberrationScreen,_as_aberrations
 from typing import Literal
 from .seashells import SEASerializable
 
@@ -373,11 +373,15 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			item = names.index(item)
 		self.elements[item] = value
 
-	def __repr__(self) -> str:
+	def __repr__(self):
+		return self.tabulate()
+
+	def tabulate(self,columns=None) -> str:
+		if columns is None:
+			columns = ['name', 'kind', 'position', 'length', 'strength', 'calibration']
 		if self.elements is None:
 			return ''
 		else:
-			columns=['name', 'kind', 'position', 'length', 'strength', 'calibration']
 			reps = []
 			for e in self.elements:
 				reps.append([])
@@ -632,6 +636,10 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 				r0 = self.elements[0].rays()
 			else:
 				raise UserWarning("First element is not a Source, and no r0 provided to propagate_ray. Please provide initial rays or ensure first element is a Source.")
+		if isinstance(r0,Rays):
+			I0 = r0.I if I0 is None else I0
+			R0 = r0.R if R0 is None else R0
+			r0 = xp.asarray(r0)
 		n_rays = len(r0)
 		if I0 is None:
 			# Seed in AMPS, shared over the rays, so I.sum() is the current at
@@ -661,9 +669,9 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 				ri.append(ele_ri[:,:]) ; Ii.append(ele_I) ; Ri.append(ele_R)
 			else:
 				ri[-1]=ele_ri[:,:] ; Ii[-1]=ele_I ; Ri[-1]=ele_R
-		self.rays = xp.asarray(ri) # xp.swapaxes(xp.asarray(ri),0,1)
-		self.I = xp.asarray(Ii)
-		self.R = xp.asarray(Ri)
+		self.rays = Rays(xp.asarray(ri),R=xp.asarray(Ri),I=xp.asarray(Ii))
+		self.I = self.rays.I
+		self.R = self.rays.R
 		return self.rays
 
 	def propagate_moments(self, mu0:xp.ndarray=None, Sigma0:xp.ndarray=None,
@@ -883,7 +891,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True):
 		if self.rays is None or regenerate:
 			r1 = self.propagate_ray()
-		plot2D(self.rays,self.R,zpts = self.named_positions, filename=filename ,title=title, ylims=ylims,xlims=zlims)
+		plot2D(self.rays,zpts = self.named_positions, filename=filename ,title=title, ylims=ylims,xlims=zlims)
 
 	#def save(self,filename):
 	#	with open(filename+".pkl",'wb') as f:
@@ -1072,15 +1080,17 @@ class Microscope(SealedAttributes, SEASerializable):
 		new.length = new.sections[-1].position+new.sections[-1].length
 		return new
 
-	def __repr__(self) -> str:
+	def __repr__(self):
+		return self.tabulate()
 
+	def tabulate(self,columns=None) -> str:
 		strings = []
 		for s in self.sections:
 			header = "Section: "+s.name+" @ "+str(s.position)+" , length="+str(s.length)
 			#if self.print_fancy:
 			#	print(header)
 			strings.append( header )
-			strings.append( s.__repr__() )
+			strings.append( s.tabulate(columns=columns) )
 		#if self.print_fancy:
 		#	return ''
 		return "\n".join(strings)
@@ -1493,9 +1503,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		if regenerate or self.rays is None:
 			self.propagate_ray()
 		z_after = self.get_element_position(after)
-		# findPlanes takes the rotation array explicitly; passing the axis in
-		# its place silently handed a string to the frame conversion
-		planes = findPlanes(self.rays, self.R, "x")	# [axis]['diff'|'image']['z'|'M'|'R'|'p']
+		planes = findPlanes(self.rays,"x")	# [axis]['diff'|'image']['z'|'M'|'R'|'p']
 		zp = planes['x']['diff']['z']	# fractional coordinates: 1.4 is 40% through element 1
 		zp = xp.asarray([zFromFractional(self.rays[:, 0, columnByName('z')], z)
 						 for z in zp])
@@ -1920,7 +1928,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		"""
 		if L <= 0:
 			return []
-		K = ele._effective_strength if isinstance(ele, Lens) else 0
+		K = ele.calibrated_strength if isinstance(ele, Lens) else 0
 		if isinstance(ele, Lens) and (K or 0) != 0 and L > 0:
 			if P0 == 0 and Q0 == 0:
 				return []
@@ -1978,7 +1986,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		"""
 		if L <= 0:
 			return []
-		K = ele._effective_strength if isinstance(ele, Lens) else 0
+		K = ele.calibrated_strength if isinstance(ele, Lens) else 0
 		if isinstance(ele, Lens) and (K or 0) != 0:
 			denom = S[1, 1] - K**2 * S[0, 0]
 			if denom == 0 and S[0, 1] == 0:
@@ -2105,7 +2113,7 @@ class Microscope(SealedAttributes, SEASerializable):
 			r0[2, ti] = theta0 ; r0[3, ti] = -theta0	# image pair: on-axis point
 			scope.propagate_ray(r0=r0)
 			zs = scope.rays[:, 0, columnByName('z')]
-			found = findPlanes(scope.rays, scope.R, axis=axis)[axis]
+			found = findPlanes(scope.rays,axis=axis)[axis]
 			out = {}
 			for family in ('diff', 'image'):
 				idx = [min(float(f), len(zs) - 1 - 1e-9) for f in found[family]['z']]
@@ -2565,12 +2573,12 @@ class Microscope(SealedAttributes, SEASerializable):
 			#print(r1.shape)
 			for k in range(len(r1)):
 				#r[:,columnByName('z')]#+=s.position
-				rs.append(r1[k]) ; Is.append(s.I[k]) ; Rs.append(s.R[k])
+				rs.append(xp.asarray(r1[k])) ; Is.append(r1.I[k]) ; Rs.append(r1.R[k])
 			#print(r1[-1,0,:])
-			r=r1[-1,:,:] ; I=s.I[-1] ; R=s.R[-1] # rays/intensity/rotation fed into subsequent section are those exiting this section
-		self.rays = xp.asarray(rs) # if you want the non-flattened nthSection,nthElement,nthRay,xyzthetaetc, you should access microscope.section.rays which contain the individual nthElement,nthRay,xyzthetaetc
-		self.I = xp.asarray(Is)
-		self.R = xp.asarray(Rs)
+			r=xp.asarray(r1[-1]) ; I=r1.I[-1] ; R=r1.R[-1] # rays/intensity/rotation fed into subsequent section are those exiting this section
+		self.rays = Rays(xp.asarray(rs),R=xp.asarray(Rs),I=xp.asarray(Is))
+		self.I = self.rays.I
+		self.R = self.rays.R
 		#print(self.rays.shape)
 		self._planes = None
 		return self.rays
@@ -3016,7 +3024,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		if self._planes is None:
 			if self.rays is None:
 				self.propagate_ray()
-			self._planes = findPlanes(self.rays,self.R,"x")
+			self._planes = findPlanes(self.rays,"x")
 		return self._planes
 
 	# TODO self.rays should be a property, self._rays should hold the previously-calculated rays. self.rays should do a hash on the microscope (use repr?) to check if the microscope has changed. if so, re-call propagate_ray, else, return self._rays.
@@ -3115,7 +3123,7 @@ class Microscope(SealedAttributes, SEASerializable):
 			if zlims is None:
 				zs = self.rays[:,0,columnByName("z")]
 				zlims = [ xp.amin(zs),xp.amax(zs) ]
-			plot2D(self.rays, self.R, zpts=self.named_positions, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims,plt_ax=plt_ax)
+			plot2D(self.rays, zpts=self.named_positions, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims,plt_ax=plt_ax)
 			return
 		# --- delegate to the result Signal's own .show() (sea_eco renders <=2D) ---
 		import matplotlib.pyplot as plt
@@ -3200,11 +3208,9 @@ class Microscope(SealedAttributes, SEASerializable):
 	def save(self, filename:str) -> None:
 		"""Write this microscope to ``<filename>.json``.
 
-		Uses :meth:`SEASerializable.to_json`, which already knows how to walk a
-		nested object tree, skip what cannot be represented, and handle
-		reference cycles. This used to be a hand-rolled ``json.dump`` of each
-		object's ``__dict__`` with its own exclusion list — a duplicate of
-		machinery that already existed, and a less capable one.
+		Uses the flat rayTEM microscope layout shared with TWP20260820:
+		``Microscope -> Sections -> Elements``. Runtime results and null values
+		are omitted.
 
 		Propagation **results** are excluded (:attr:`_JSON_EXCLUDE_RESULTS`): they are
 		large arrays regenerated by re-propagating, and the file describes an
@@ -3231,13 +3237,38 @@ class Microscope(SealedAttributes, SEASerializable):
 
 		Notes
 		-----
-		The layout changed with this method. Files written by the previous
-		hand-rolled writer are still readable — :func:`load_microscope` detects
-		them and routes to :func:`_load_legacy_microscope_json` with a
-		``DeprecationWarning``.
+		SEA-envelope JSON written by earlier versions of this branch remains
+		readable by :func:`load_microscope`.
 		"""
+		import json
+		skip = set(self._JSON_EXCLUDE_RESULTS) | {"_arriving_current","format","sea_type","payload"}
+		def clean(v):
+			if isinstance(v,dict):
+				return {k:clean(x) for k,x in v.items() if k not in skip and x is not None}
+			if isinstance(v,(list,tuple)):
+				return [clean(x) for x in v if x is not None]
+			if isinstance(v,xp.ndarray):
+				return clean(v.tolist())
+			return v.item() if isinstance(v,xp.generic) else v
+		jdict = {"Microscope name":self.name,"Sections":[]} | self.__dict__
+		for k in ("sections",):
+			jdict.pop(k,None)
+		for section in self.sections:
+			sdict = {"Section name":section.name,"position":section.position,
+					 "length":section.length,"Elements":[]} | section.__dict__
+			for k in ("elements","name"):
+				sdict.pop(k,None)
+			for element in section.elements:
+				edict = {"Element name":element.name,"kind":element.kind,
+						 "position":element.position} | element.__dict__
+				if "_beam_current" in edict:
+					edict["beam_current"] = edict.pop("_beam_current")
+				for k in ("name","_position","rotation"):
+					edict.pop(k,None)
+				sdict["Elements"].append(edict)
+			jdict["Sections"].append(sdict)
 		with open(filename + '.json', 'w') as f:
-			f.write(self.to_json(exclude_keys=self._JSON_EXCLUDE_RESULTS))
+			json.dump(clean(jdict),f,indent=4)
 
 	def copy(self):
 		return deepcopy(self)
@@ -3326,15 +3357,11 @@ def load_section(filename):
 	return obj 
 
 def _load_legacy_microscope_json(jdict:dict) -> "Microscope":
-	"""Rebuild a Microscope from the **pre-2026-08 hand-rolled** JSON layout.
+	"""Rebuild a Microscope from the shared flat rayTEM JSON layout.
 
 	That layout nested ``"Microscope name"`` / ``"Sections"`` / ``"Elements"``
-	and mapped each element by a ``kind`` string. It is superseded by
-	:meth:`SEASerializable.to_json`, and this exists only so existing files keep
-	opening.
-
-	Deliberately kept as one self-contained function, called from exactly one
-	place, so it can be deleted in a single edit once no such files remain.
+	and maps each element by a ``kind`` string. Both current rayTEM and
+	TWP20260820 write this interoperable representation.
 
 	Parameters
 	----------
@@ -3357,6 +3384,7 @@ def _load_legacy_microscope_json(jdict:dict) -> "Microscope":
 	Microscope.save : Writes the current layout instead.
 	"""
 	import inspect
+	# Older microscope JSON may contain null attributes; recursively remove them here if loader normalization is desired in the future.
 	mapping = { "Drift":Drift, "QLens":Lens, "Thin lens":Lens, "Source":Source, "Dipole":Dipole, "Thin dipole":Dipole, "Quad":Quadrapole, "Thin quad":Quadrapole, "Aperture":Aperture } # TODO Eventually need to support all Element types from elements.py. and is there a way to map these automatically instead of explicitly?
 
 	sections = []
@@ -3436,11 +3464,10 @@ def repair(section, combine_drifts:bool=False):
 	--------
 	>>> repair(section, combine_drifts=False)               # doctest: +SKIP
 	"""
-	# a FIRST element placed past the section start needs a leading drift:
-	# the i == 0 skip below means nothing else will cover that gap, and
-	# without this the offset was silently dropped -- the element propagated
-	# from the section start and everything downstream compressed by exactly
-	# the missing distance (the long-standing section-insertion failure).
+	# FIRST ELEMENT CHECK: a first element placed past the section start needs
+	# a leading drift (the i == 0 skip below covers nothing else); without it
+	# the offset was silently dropped and everything downstream compressed by
+	# exactly the missing distance (the long-standing section-insertion failure).
 	e0 = section.elements[0]
 	if (e0.position or 0) > 1e-7:
 		section.elements.insert(0, Drift(length=e0.position, position=0))
@@ -3465,13 +3492,14 @@ def repair(section, combine_drifts:bool=False):
 		elif dz < -1e-7: # THIS AND PREVIOUS ARE BOTH IMMOVABLE/UNLENGTHENABLE, AND OUT OF TOLERANCE. NO SOLUTION, RAISE ERROR
 			print("WARNING",section,"HAS ELEMENTS",em,"AND",e,"WHICH OVERLAP AT INDEX",i)
 		#: # GAP, BUT NAMED DRIFT OR OTHER ELEMENT TYPE. INSERT DRIFT
-	# special case: section.length vs last Drift's position and length:
+
+	# SPECIAL CASE: LAST ELEMENT VS SECTION.LENGTH:
 	el = section.elements[-1]
 	dz = section.length - ( el.position + getattr(el,"length",0) )
-	# GAP, LAST SECTION IS DRIFT, LENGTHEN
+	# GAP, last section is drift, lengthen
 	if 0 < dz and el.kind == "Drift":
 		el.length += dz
-	# OVERLAP: LENGTHEN SECTION
+	# OVERLAP: lengthen section
 	if dz < 0:
 		section.length -= dz
 	# crawl the list backwards, look for pairs of Drifts (second one must be unnamed).
@@ -3512,26 +3540,19 @@ def load_microscope(filename:str) -> "Microscope":
 
 	Notes
 	-----
-	Two JSON layouts are accepted. The current one comes from
-	:meth:`SEASerializable.to_json` and is recognised by its ``sea_type`` /
-	``format`` keys. The **legacy** hand-rolled layout is recognised by its
-	``"Sections"`` key and is read with a ``DeprecationWarning`` — re-save to
-	migrate.
+	Two JSON layouts are accepted. The interoperable rayTEM layout is recognised
+	by its ``"Sections"`` key. SEA-envelope files previously written by this
+	branch remain readable through :meth:`SEASerializable.from_json`.
 	"""
 	if ".sea" in filename:
 		loaded = Microscope()				# dummy of the right type for from_sea
 		loaded.from_sea(filename)
 		return loaded
 
-	import json, warnings
+	import json
 	with open(filename + ".json") as f:
 		jdict = json.load(f)
 
 	if "Sections" in jdict or "Microscope name" in jdict:
-		warnings.warn(
-			f"{filename}.json uses the legacy hand-rolled rayTEM JSON layout. It "
-			"still loads, but that reader is deprecated and will be removed; "
-			"re-save the microscope to migrate it to the SEASerializable "
-			"format.", DeprecationWarning, stacklevel=2)
 		return _load_legacy_microscope_json(jdict)
 	return Microscope.from_json(jdict)

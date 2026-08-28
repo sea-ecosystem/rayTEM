@@ -105,8 +105,9 @@
 <span class="c1"># For now, plot2D assumes it is given unrotated-reference-frame rays, and should likely call convert_to_rotating_reference_frame.</span>
 <div class="viewcode-block" id="plot2D">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.postprocessing.plot2D">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">plot2D</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span><span class="n">R</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="s2">"x"</span><span class="p">,</span><span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">zpts</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span><span class="n">sections</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">xlims</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">ylims</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">plt_ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-	<span class="n">r1</span> <span class="o">=</span> <span class="n">convert_to_rotating_reference_frame</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span><span class="n">R</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">plot2D</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="s2">"x"</span><span class="p">,</span><span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">zpts</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span><span class="n">sections</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">xlims</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">ylims</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">plt_ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+	<span class="n">planes</span> <span class="o">=</span> <span class="n">findPlanes</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
+	<span class="n">r1</span> <span class="o">=</span> <span class="n">convert_to_rotating_reference_frame</span><span class="p">(</span><span class="n">r1</span><span class="p">)</span>
 	<span class="k">if</span> <span class="n">plt_ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 		<span class="n">fig</span><span class="p">,</span><span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
 	<span class="k">else</span><span class="p">:</span>
@@ -120,7 +121,7 @@
 		<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span><span class="n">ys</span><span class="p">,</span><span class="n">linestyle</span><span class="o">=</span><span class="s2">"-"</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="n">c</span><span class="p">,</span><span class="n">marker</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
 	<span class="c1"># add all image/diffraction planes</span>
-	<span class="n">planes</span><span class="o">=</span><span class="n">findPlanes</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span><span class="n">R</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span> <span class="p">;</span> <span class="n">ct</span><span class="o">=</span><span class="mi">0</span> <span class="p">;</span> <span class="n">zs</span><span class="o">=</span><span class="n">r1</span><span class="p">[:,</span><span class="mi">0</span><span class="p">,</span><span class="n">j</span><span class="p">]</span>
+	<span class="n">ct</span><span class="o">=</span><span class="mi">0</span> <span class="p">;</span> <span class="n">zs</span><span class="o">=</span><span class="n">r1</span><span class="p">[:,</span><span class="mi">0</span><span class="p">,</span><span class="n">j</span><span class="p">]</span>
 	<span class="c1">#print(planes)</span>
 	<span class="n">nplanes</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">planes</span><span class="p">[</span><span class="n">axis</span><span class="p">][</span><span class="s2">"diff"</span><span class="p">][</span><span class="s2">"z"</span><span class="p">])</span><span class="o">+</span><span class="nb">len</span><span class="p">(</span><span class="n">planes</span><span class="p">[</span><span class="n">axis</span><span class="p">][</span><span class="s2">"image"</span><span class="p">][</span><span class="s2">"z"</span><span class="p">])</span><span class="o">+</span><span class="nb">len</span><span class="p">(</span><span class="n">zpts</span><span class="p">)</span>
 	<span class="k">if</span> <span class="n">ylims</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -198,13 +199,13 @@
 <span class="c1"># Basic 3D plotting, rays in 3D</span>
 <div class="viewcode-block" id="plot3D">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.postprocessing.plot3D">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">plot3D</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span><span class="n">R</span><span class="p">,</span><span class="n">filename</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span><span class="n">elev</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">azi</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">roll</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">plot3D</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span><span class="n">filename</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span><span class="n">elev</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">azi</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">roll</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 	<span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
 	<span class="n">fig</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
 	<span class="c1"># add rays to plot, with a range of colors</span>
 	<span class="n">linecolors</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span> <span class="n">cmap</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">r1</span><span class="p">[</span><span class="mi">0</span><span class="p">])))</span> <span class="p">)</span>
 
-	<span class="n">planes</span><span class="o">=</span><span class="n">findPlanes</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span><span class="n">R</span><span class="p">)</span>
+	<span class="n">planes</span><span class="o">=</span><span class="n">findPlanes</span><span class="p">(</span><span class="n">r1</span><span class="p">)</span>
 	<span class="n">nPlanes</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">planes</span><span class="p">[</span><span class="s2">"x"</span><span class="p">][</span><span class="s2">"image"</span><span class="p">][</span><span class="s2">"z"</span><span class="p">])</span><span class="o">+</span><span class="nb">len</span><span class="p">(</span><span class="n">planes</span><span class="p">[</span><span class="s2">"x"</span><span class="p">][</span><span class="s2">"diff"</span><span class="p">][</span><span class="s2">"z"</span><span class="p">])</span>
 
 	<span class="n">grid</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">nPlanes</span><span class="o">+</span><span class="mi">1</span><span class="p">)))</span>
@@ -450,21 +451,18 @@
 <span class="c1"># This function provides easy return to the rotated reference frame</span>
 <div class="viewcode-block" id="convert_to_rotating_reference_frame">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.postprocessing.convert_to_rotating_reference_frame">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">convert_to_rotating_reference_frame</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span><span class="n">R</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">convert_to_rotating_reference_frame</span><span class="p">(</span><span class="n">rays</span><span class="p">):</span>
 <span class="w">	</span><span class="sd">"""Rotate rays into the beam's rotating (Larmor) reference frame.</span>
 
-<span class="sd">	Cumulative rotation ``R`` is tracked as a separate array (no longer a ray</span>
-<span class="sd">	coordinate), so it must be supplied explicitly. Each ray at each plane is</span>
+<span class="sd">	Cumulative rotation ``R`` is read from the supplied :class:`Rays` object.</span>
+<span class="sd">	Each ray at each plane is</span>
 <span class="sd">	rotated by its accumulated angle so that image/diffraction-plane detection can</span>
 <span class="sd">	operate in the unrotated frame.</span>
 
 <span class="sd">	Parameters</span>
 <span class="sd">	----------</span>
-<span class="sd">	rays : np.ndarray</span>
+<span class="sd">	rays : Rays</span>
 <span class="sd">		Geometric rays, shape ``(n_planes, n_rays, len(convention))``.</span>
-<span class="sd">	R : np.ndarray</span>
-<span class="sd">		Per-plane, per-ray cumulative rotation in radians, shape</span>
-<span class="sd">		``(n_planes, n_rays)``.</span>
 
 <span class="sd">	Returns</span>
 <span class="sd">	-------</span>
@@ -476,6 +474,7 @@
 <span class="sd">	findPlanes : Calls this before detecting planes.</span>
 <span class="sd">	Lens.transfer_matrix : Source of the accumulated rotation.</span>
 <span class="sd">	"""</span>
+	<span class="n">R</span> <span class="o">=</span> <span class="n">rays</span><span class="o">.</span><span class="n">R</span>
 	<span class="n">nl</span><span class="p">,</span><span class="n">nr</span><span class="p">,</span><span class="n">nc</span> <span class="o">=</span> <span class="n">rays</span><span class="o">.</span><span class="n">shape</span>
 	<span class="n">converted</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">rays</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 	<span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nl</span><span class="p">):</span>
@@ -497,17 +496,16 @@
 <span class="c1"># For now, findPlanes assumes it is given unrotated-reference-frame rays, must call convert_to_rotating_reference_frame.</span>
 <div class="viewcode-block" id="findPlanes">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.postprocessing.findPlanes">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">findPlanes</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span><span class="n">R</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="s2">"xy"</span><span class="p">):</span>
-	<span class="n">rays</span> <span class="o">=</span> <span class="n">convert_to_rotating_reference_frame</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span><span class="n">R</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">findPlanes</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="s2">"xy"</span><span class="p">):</span>
+	<span class="k">if</span> <span class="n">axis</span><span class="o">==</span><span class="s2">"xy"</span> <span class="ow">or</span> <span class="n">axis</span><span class="o">==</span><span class="s2">"yx"</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">findPlanes</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="s1">'x'</span><span class="p">)</span> <span class="o">|</span> <span class="n">findPlanes</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="s1">'y'</span><span class="p">)</span>
+	<span class="n">R</span> <span class="o">=</span> <span class="n">rays</span><span class="o">.</span><span class="n">R</span>
+	<span class="n">rays</span> <span class="o">=</span> <span class="n">convert_to_rotating_reference_frame</span><span class="p">(</span><span class="n">rays</span><span class="p">)</span>
 	<span class="k">global</span> <span class="n">warned</span>
 	<span class="c1"># Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays</span>
 	<span class="n">diffRays</span><span class="o">=</span><span class="p">[]</span> <span class="p">;</span> <span class="n">imageRays</span><span class="o">=</span><span class="p">[]</span>
 	<span class="n">x</span><span class="o">=</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)</span> <span class="p">;</span> <span class="n">y</span><span class="o">=</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)</span>
 	<span class="n">xt</span><span class="o">=</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"xt"</span><span class="p">)</span> <span class="p">;</span> <span class="n">yt</span><span class="o">=</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"yt"</span><span class="p">)</span>
-
-	<span class="c1"># if user requests both axes, then recurse</span>
-	<span class="k">if</span> <span class="n">axis</span><span class="o">==</span><span class="s2">"xy"</span> <span class="ow">or</span> <span class="n">axis</span><span class="o">==</span><span class="s2">"yx"</span><span class="p">:</span>
-		<span class="k">return</span> <span class="n">findPlanes</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span><span class="n">R</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="s1">'x'</span><span class="p">)</span> <span class="o">|</span> <span class="n">findPlanes</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span><span class="n">R</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="s1">'y'</span><span class="p">)</span>
 
 	<span class="c1"># looking for y axis? simply swap the indices, so we can operate on 'x' and 'xt' consistently</span>
 	<span class="k">if</span> <span class="n">axis</span><span class="o">==</span><span class="s2">"y"</span><span class="p">:</span>
@@ -992,7 +990,7 @@
 	<span class="c1">#microscope.show()</span>
 	<span class="c1"># PROPAGATE, DETECT PLANES</span>
 	<span class="n">r1</span><span class="o">=</span><span class="n">microscope</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">()</span>
-	<span class="n">planes</span> <span class="o">=</span> <span class="n">findPlanes</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span><span class="n">microscope</span><span class="o">.</span><span class="n">R</span><span class="p">,</span><span class="s2">"x"</span><span class="p">)</span>
+	<span class="n">planes</span> <span class="o">=</span> <span class="n">findPlanes</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span><span class="s2">"x"</span><span class="p">)</span>
 	<span class="c1"># FOR EACH TARGET PLANE, FIND CLOSEST OF SAME TYPE, ERROR IS DELTA IN POSITION</span>
 	<span class="n">deltas</span> <span class="o">=</span> <span class="p">[]</span>
 	<span class="k">for</span> <span class="n">plane_type</span><span class="p">,</span><span class="n">z</span> <span class="ow">in</span> <span class="n">targets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -1075,7 +1073,7 @@
 	<span class="n">r1</span><span class="o">=</span><span class="n">microscope</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">()</span>
 	<span class="n">deltas</span> <span class="o">=</span> <span class="p">[]</span>
 	<span class="k">for</span> <span class="n">z</span><span class="p">,</span><span class="n">kv</span> <span class="ow">in</span> <span class="n">targets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-		<span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">xt</span><span class="p">,</span><span class="n">yt</span><span class="p">,</span><span class="n">R</span><span class="p">,</span><span class="n">I</span> <span class="o">=</span> <span class="n">measureAtZ</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">rays</span><span class="o">=</span><span class="n">r1</span><span class="p">,</span><span class="n">I</span><span class="o">=</span><span class="n">microscope</span><span class="o">.</span><span class="n">I</span><span class="p">,</span><span class="n">R</span><span class="o">=</span><span class="n">microscope</span><span class="o">.</span><span class="n">R</span><span class="p">)</span>
+		<span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">xt</span><span class="p">,</span><span class="n">yt</span><span class="p">,</span><span class="n">R</span><span class="p">,</span><span class="n">I</span> <span class="o">=</span> <span class="n">measureAtZ</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">rays</span><span class="o">=</span><span class="n">r1</span><span class="p">)</span>
 		<span class="n">dic</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"x"</span><span class="p">:</span><span class="n">x</span><span class="p">,</span><span class="s2">"y"</span><span class="p">:</span><span class="n">y</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">:</span><span class="n">xt</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">:</span><span class="n">yt</span><span class="p">,</span><span class="s2">"R"</span><span class="p">:</span><span class="n">R</span><span class="p">,</span><span class="s2">"I"</span><span class="p">:</span><span class="n">I</span><span class="p">}</span>
 		<span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">kv</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
 			<span class="k">if</span> <span class="n">absolute</span><span class="p">:</span>
@@ -1100,7 +1098,7 @@
 	<span class="n">r1</span><span class="o">=</span><span class="n">microscope</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">()</span>
 	<span class="n">diameters</span> <span class="o">=</span> <span class="p">[]</span>
 	<span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="n">targets</span><span class="p">:</span>
-		<span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">xt</span><span class="p">,</span><span class="n">yt</span><span class="p">,</span><span class="n">R</span><span class="p">,</span><span class="n">I</span> <span class="o">=</span> <span class="n">measureAtZ</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">rays</span><span class="o">=</span><span class="n">r1</span><span class="p">,</span><span class="n">I</span><span class="o">=</span><span class="n">microscope</span><span class="o">.</span><span class="n">I</span><span class="p">,</span><span class="n">R</span><span class="o">=</span><span class="n">microscope</span><span class="o">.</span><span class="n">R</span><span class="p">)</span>
+		<span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">xt</span><span class="p">,</span><span class="n">yt</span><span class="p">,</span><span class="n">R</span><span class="p">,</span><span class="n">I</span> <span class="o">=</span> <span class="n">measureAtZ</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">rays</span><span class="o">=</span><span class="n">r1</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">absolute</span><span class="p">:</span>
 			<span class="n">x</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">absolute</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
 		<span class="n">diameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
@@ -1117,7 +1115,7 @@
 	<span class="n">r1</span><span class="o">=</span><span class="n">microscope</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">()</span>
 	<span class="n">angles</span> <span class="o">=</span> <span class="p">[]</span>
 	<span class="k">for</span> <span class="n">z</span><span class="p">,</span><span class="n">t</span> <span class="ow">in</span> <span class="n">targets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-		<span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">xt</span><span class="p">,</span><span class="n">yt</span><span class="p">,</span><span class="n">R</span><span class="p">,</span><span class="n">I</span> <span class="o">=</span> <span class="n">measureAtZ</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">rays</span><span class="o">=</span><span class="n">r1</span><span class="p">,</span><span class="n">I</span><span class="o">=</span><span class="n">microscope</span><span class="o">.</span><span class="n">I</span><span class="p">,</span><span class="n">R</span><span class="o">=</span><span class="n">microscope</span><span class="o">.</span><span class="n">R</span><span class="p">)</span>
+		<span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">xt</span><span class="p">,</span><span class="n">yt</span><span class="p">,</span><span class="n">R</span><span class="p">,</span><span class="n">I</span> <span class="o">=</span> <span class="n">measureAtZ</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">rays</span><span class="o">=</span><span class="n">r1</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">absolute</span><span class="p">:</span>
 			<span class="n">xt</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">absolute</span><span class="p">(</span><span class="n">xt</span><span class="p">)</span> <span class="p">;</span> <span class="n">t</span><span class="o">=</span><span class="nb">abs</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
 		<span class="n">angles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">xt</span><span class="o">-</span><span class="n">t</span><span class="p">)</span>
@@ -1167,7 +1165,7 @@
 		<span class="c1">#plot2D( r1 , filename = "tmp/"+str(ct_propagateAndCheck[0])+".png")</span>
 
 		<span class="c1"># inspect the output: find all image and diffraction planes</span>
-		<span class="n">planes</span> <span class="o">=</span> <span class="n">findPlanes</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span><span class="n">section</span><span class="o">.</span><span class="n">R</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
+		<span class="n">planes</span> <span class="o">=</span> <span class="n">findPlanes</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
 		<span class="n">zs</span><span class="o">=</span><span class="n">r1</span><span class="p">[:,</span><span class="mi">0</span><span class="p">,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"z"</span><span class="p">)]</span> <span class="c1"># all positions of 0th ray</span>
 
 		<span class="c1"># our "error" defined by each metric in each target (e.g. checking if position z is off, or magnification is off)</span>
@@ -1360,6 +1358,9 @@
 		<span class="k">if</span> <span class="n">section</span><span class="o">.</span><span class="n">rays</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 			<span class="n">section</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">()</span>
 		<span class="n">rays</span> <span class="o">=</span> <span class="n">section</span><span class="o">.</span><span class="n">rays</span>
+	<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span><span class="s2">"I"</span><span class="p">):</span>
+		<span class="n">I</span> <span class="o">=</span> <span class="n">rays</span><span class="o">.</span><span class="n">I</span> <span class="k">if</span> <span class="n">I</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">I</span>
+		<span class="n">R</span> <span class="o">=</span> <span class="n">rays</span><span class="o">.</span><span class="n">R</span> <span class="k">if</span> <span class="n">R</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">R</span>
 	<span class="k">if</span> <span class="n">section</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 		<span class="k">if</span> <span class="n">I</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 			<span class="n">I</span> <span class="o">=</span> <span class="n">section</span><span class="o">.</span><span class="n">I</span>

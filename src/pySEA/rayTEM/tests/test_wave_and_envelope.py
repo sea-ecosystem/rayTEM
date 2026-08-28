@@ -125,7 +125,7 @@ def test_envelope_waist_matches_ray_optics_focus():
 
 	# ray optics: diffraction plane (parallel rays crossing)
 	r1 = section.propagate_ray()
-	planes = findPlanes(r1, section.R, axis="x")
+	planes = findPlanes(r1,axis="x")
 	zs_ray = r1[:,0,columnByName("z")]
 	z_diff = zFromFractional(zs_ray, planes["x"]["diff"]["z"][0])
 

@@ -126,7 +126,7 @@ def fit_VOA(file_in,mode="fit"):
 		for C1 in C1s:
 			microscope["C1"].strength = C1
 			r1 = microscope.propagate_ray()
-			I = r1[-1,-1,columnByName("I")]
+			I = r1.I[-1,-1]
 			Is.append(I)
 		Is = np.asarray(Is)/np.amax(Is)
 		return Is
@@ -272,5 +272,4 @@ microscope.save_as_calibration("projectors", {"P1":["calibration","length"], "P2
 #microscope.save("microscope")
 #fit_CLs("CLs_critical.csv",mode="loaded")
 #fit_PLs("PLs_critical.csv",mode="loaded")
-
 

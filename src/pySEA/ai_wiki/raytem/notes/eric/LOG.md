@@ -2,6 +2,28 @@
 
 Newest entries at top.
 
+## 2026-08-28 — [Done] Merge main into Signal_and_propagation_additions_new (PR #9)
+**Goal:** Land Thomas's post-#7 fixes from main here, resolve the conflicts,
+keep our new functionality and docs, and merge PR #9.
+**Why:** Thomas fixed his #7 merge directly on main (Rays class, measured
+focal_length, calibrated_strength rename, JSON compatibility, MACSTEM
+history), which made PR #9 un-mergeable.
+**Outcome:** 6 conflict hunks resolved (mostly docstring overlaps; kept
+Thomas's do-not-remove quad sanity comment AND our skew block; kept our
+None-safe first-element repair fix, same semantics as his). Kept our full
+`test_eight_configurations.py` over main's empty `dont_test_` rename — it
+passes here. Post-merge fixes: made Thomas's `test_old_json_compatibility`
+cwd-independent; re-scaled the thick-body aberration test's C30 (1e-3 →
+5e-6) because the measured `focal_length` changes a thick lens's
+`focal_power` from K·sin(KL) to K·tan(KL) (125 → 464/m on that fixture) and
+the perturbation scales as P⁴ — this is the "actual failure" Thomas noted;
+repaired RST that the docstring de-backticking broke (Lens.phase_shift
+indentation, four bare `|K|`-style tokens). Suite 154/154; docs rebuild
+clean (same 11 known duplicates); example 06 runs (Strehl now 0.094 — the
+focal-power semantics shift moved delivered aberration; header narrative
+still stale, flagged earlier). NOTE: the K·tan(KL) thick-lens power now
+feeds every aberration pupil scale — physics choice worth a look.
+
 ## 2026-08-28 — [Done] Terminology page + audit items 1–4
 **Goal:** Answer issue #8 with a docs terminology page, and clear the four
 queued items: section-level Aberrations, skew quadrupole, example 06
