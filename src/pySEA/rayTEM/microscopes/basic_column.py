@@ -162,12 +162,20 @@ def quadrupole_pair(name: str, strength: float = 0.0) -> list:
 
 
 def build_basic_column(voltage: float = 200.0) -> Microscope:
-	"""Assemble the default generic TEM column at realistic scales.
+	"""Assemble the default generic TEM column.
 
 	The source seeds all three representations consistently: a 5×5 grid of rays
 	over ±2.5 µm with ±0.1 mrad fans, a diagonal covariance with the same RMS
 	size/divergence, and a coherent 200 kV Gaussian wavefunction of the same
 	transverse size on a 20 µm / 256² grid.
+
+	Every lens is a thin 0.08 mm bore; focal lengths are C1 = 45 mm,
+	C2 = 30 mm, C3 = 90 mm, OL1 = 2 mm, OL2 = 10 mm, PL1–PL4 = 25/40/60/80 mm.
+	Layout (drifts in mm): gun — 50 — C1 — 50 — CA — 10 — 50 — C2 — 50 — C3 —
+	250 — OL1 — 20 (sample at OL1's back focal plane inside it) — OL2 — 50 —
+	PL1 — 50 — PL2 — 50 — PL3 — 50 — PL4 — 100 — detector. Each lens keeps its
+	dipole pair before and after; the condenser and objective stigmator pairs
+	(CQ, OQ) sit after C3 and OL2 respectively.
 
 	Parameters
 	----------
@@ -177,13 +185,14 @@ def build_basic_column(voltage: float = 200.0) -> Microscope:
 	Returns
 	-------
 	Microscope
-		The assembled ``basic column`` (G, C, O, P sections, ``detector`` plane
-		at ≈1.3 m).
+		The assembled ``basic column`` (G, C, O, P sections, ``detector``
+		plane near the end).
 	"""
 	beam_size = 2.5e-6		# RMS transverse size entering the condenser (m)
 	beam_angle = 1e-4		# RMS divergence (rad)
+	L_LENS = 0.08e-3		# every lens: a thin 0.08 mm bore
 
-	# 1) G — gun: the source, plus the accelerator drift into the condenser.
+	# 1) G — gun: the source, plus 50 mm of drift into the condenser.
 	#    The stated emission current: 1 nA. Everything downstream derives from it.
 	gun = MicroscopeSection(name="G", elements=[
 		Source(name="G", voltage=voltage, beam_current=1e-9,
@@ -191,76 +200,76 @@ def build_basic_column(voltage: float = 200.0) -> Microscope:
 			   angle=(beam_angle, beam_angle), na_xy=(3, 3),
 			   wave_shape=(256, 256), wave_extent=8 * beam_size,
 			   wave_kind="gaussian"),
-		Drift(length=0.12),
+		Drift(length=0.05),
 	])
 
-	# OL1 and its working distance are computed FIRST because the condenser
-	# section's trailing drift compensates for them (see below).
-	# OL1: a short, strong probe-forming objective (f = 2 mm, 2 mm bore --
-	# f >= 2L/pi bounds the bore), with the SAMPLE AT ITS BACK FOCAL PLANE.
-	# That placement is what makes a fixed-excitation objective work the way
-	# a real STEM's does: the condensers deliver a wide, nearly parallel
-	# beam, and OL1 alone converts radius into angle (alpha = r/f) while
-	# demagnifying the source hard -- measured, this geometry reaches
-	# ~56 mrad at a ~12 nm probe, smoothly, so a 30 mrad probe is solved by
-	# the condensers with the objective untouched. The working distance is
-	# computed from the lens's own thick block (a parallel ray (h, 0) exits
-	# the body as (A*h, C*h) and crosses the axis wd = -A/C later), so it
-	# tracks any change to f or the bore instead of silently rotting.
-	ol1 = round_lens("OL1", f=0.002, length=0.002)
-	body = ol1.transfer_block(axis="x")
-	wd = -float(body[0][0]) / float(body[1][0])
+	def lens_with_dipoles(name: str, f: float) -> list:
+		"""One lens with its dipole pair before and after.
 
-	# 2) C — condenser: C1/C2/C3, each with a dipole pair before and after,
-	#    plus a quadrupole pair at the end
+		Parameters
+		----------
+		name : str
+			Lens name; the dipoles are ``<name>_Dpre``/``_Dpost`` a/b.
+		f : float
+			Focal length in metres.
+
+		Returns
+		-------
+		list
+			``[Dpre a/b, lens, Dpost a/b]``.
+
+		Raises
+		------
+		ValueError
+			If ``f`` is unreachable on the first branch (``f < 2 L / π``).
+		"""
+		return (dipole_pair(f"{name}_Dpre")
+				+ [round_lens(name, f=f, length=L_LENS)]
+				+ dipole_pair(f"{name}_Dpost"))
+
+	# 2) C — condenser: C1, the aperture CA, C2, C3, stigmator pair CQ
 	c_elements = []
-	for name, f, gap in [("C1", 0.045, 0.07), ("C2", 0.030, 0.09), ("C3", 0.090, 0.10)]:
-		c_elements += dipole_pair(f"{name}_Dpre")
-		c_elements += [round_lens(name, f=f, length=0.02)]
-		c_elements += dipole_pair(f"{name}_Dpost")
-		if name == "C1":
-			# the condenser aperture: the beam-defining hole after C1. With the
-			# gun crossover imaged onto it the whole current passes; defocused,
-			# it cuts current (and with it the phase space downstream states
-			# can spend). 10 µm: smaller than the ~21 µm unfocused beam here.
-			c_elements += [Drift(length=0.04), Aperture(name="CA", radius=10e-6),
-						   Drift(length=gap - 0.04)]
-		else:
-			c_elements += [Drift(length=gap)]
+	c_elements += lens_with_dipoles("C1", 0.045)
+	c_elements += [Drift(length=0.05), Aperture(name="CA", radius=10e-6),
+				   Drift(length=0.01), Drift(length=0.05)]
+	c_elements += lens_with_dipoles("C2", 0.030)
+	c_elements += [Drift(length=0.05)]
+	c_elements += lens_with_dipoles("C3", 0.090)
 	c_elements += quadrupole_pair("CQ")
-	# not the historical 0.05: OL1's bore shrank and a working distance was
-	# inserted before the sample (below); this drift absorbs the difference so
-	# the sample, OL2, and detector keep their exact z positions
-	c_elements += [Drift(length=0.06 - ol1.length - wd)]
+	c_elements += [Drift(length=0.25)]
 	condenser = MicroscopeSection(name="C", elements=c_elements)
 
-	# 3) O — objective: OL1/OL2 twin around a 4 mm sample gap, dipole pair
-	#    before OL1 and after OL2, quadrupole at the very end
-	o_elements = []
-	o_elements += dipole_pair("O_Dpre")
-	# the gap after the sample marker is NAMED because repair() merges a
-	# named drift with an unnamed drift that follows it -- an anonymous gap
-	# here would be absorbed into the zero-length "sample" marker, silently
-	# moving the measured sample plane 2 mm off the back focal plane
-	o_elements += [ol1,		# built above, sample at its back focal plane
-				   Drift(length=wd), Drift(name="sample", length=0.0),
-				   Drift(name="sample_gap", length=0.004),
-				   round_lens("OL2", f=0.010, length=0.01)]
+	# 3) O — objective: OL1 and OL2 around a 20 mm gap, with the SAMPLE AT
+	#    OL1'S BACK FOCAL PLANE inside it. That placement is what makes a
+	#    fixed-excitation objective work the way a real STEM's does: the
+	#    condensers deliver a wide, nearly parallel beam, and OL1 alone
+	#    converts radius into angle (alpha = r/f) while demagnifying the
+	#    source hard. The working distance is computed from the lens's own
+	#    thick block (a parallel ray (h, 0) exits the body as (A*h, C*h) and
+	#    crosses the axis wd = -A/C later), so it tracks any change to f or
+	#    the bore instead of silently rotting.
+	ol1 = round_lens("OL1", f=0.002, length=L_LENS)
+	body = ol1.transfer_block(axis="x")
+	wd = -float(body[0][0]) / float(body[1][0])
+	o_elements = dipole_pair("O_Dpre")
+	# the gap remainder after the sample marker is NAMED because repair()
+	# merges a named drift with an unnamed follower -- an anonymous gap here
+	# would be absorbed into the zero-length "sample" marker, silently moving
+	# the measured sample plane off the back focal plane
+	o_elements += [ol1, Drift(length=wd), Drift(name="sample", length=0.0),
+				   Drift(name="sample_gap", length=0.020 - wd),
+				   round_lens("OL2", f=0.010, length=L_LENS)]
 	o_elements += dipole_pair("O_Dpost")
-	o_elements += [Drift(length=0.06), Quadrapole(name="OQ", strength=0.0), Drift(length=0.12)]
+	o_elements += [Quadrapole(name="OQ", strength=0.0), Drift(length=0.05)]
 	objective = MicroscopeSection(name="O", elements=o_elements)
 
-	# 4) P — projector: PL1–PL4, each with pre and post dipole pairs, then the
-	#    camera drift and the detector plane
+	# 4) P — projector: PL1–PL4 at 50 mm spacing, 100 mm to the detector
 	p_elements = []
-	for name, f, gap in [("PL1", 0.025, 0.05), ("PL2", 0.040, 0.07),
-						 ("PL3", 0.060, 0.09), ("PL4", 0.080, 0.0)]:
-		p_elements += dipole_pair(f"{name}_Dpre")
-		p_elements += [round_lens(name, f=f, length=0.015)]
-		p_elements += dipole_pair(f"{name}_Dpost")
-		if gap:
-			p_elements += [Drift(length=gap)]
-	p_elements += [Drift(length=0.30)]			# camera length to the detector
+	for name, f in [("PL1", 0.025), ("PL2", 0.040), ("PL3", 0.060), ("PL4", 0.080)]:
+		p_elements += lens_with_dipoles(name, f)
+		if name != "PL4":
+			p_elements += [Drift(length=0.05)]
+	p_elements += [Drift(length=0.10)]
 	# 5) detector plane (zero-length named marker), plus a short tail: a
 	#    conjugate plane landing EXACTLY on the column's last z has no
 	#    interval around it, so plane searches would silently skip the
