@@ -102,7 +102,7 @@ first.
 
 ```bash
 pip install -r docs/requirements.txt
-sphinx-build docs docs/_build/html
+sphinx-build -d docs/_build/doctrees docs docs/_build/html
 ```
 
 The API Reference is generated from docstrings at build time — there is no

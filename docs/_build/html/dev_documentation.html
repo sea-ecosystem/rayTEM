@@ -207,7 +207,7 @@ callable in this repository is required to carry (see API Reference).</p></li>
 <section id="building-the-docs">
 <h2>Building the docs<a class="headerlink" href="#building-the-docs" title="Link to this heading"></a></h2>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>docs/requirements.txt
-sphinx-build<span class="w"> </span>docs<span class="w"> </span>docs/_build/html
+sphinx-build<span class="w"> </span>-d<span class="w"> </span>docs/_build/doctrees<span class="w"> </span>docs<span class="w"> </span>docs/_build/html
 </pre></div>
 </div>
 <p>The API Reference is generated from docstrings at build time — there is no
