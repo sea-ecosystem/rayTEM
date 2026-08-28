@@ -1206,6 +1206,21 @@ def propagate_quadratic_segment_hybrid(U: np.ndarray, dxi: float, deta: float,
 				# d = z - z_cross. It is cleared there.
 	if rotate:
 		U = rotate_field(U, rotate)
+	# handing off MID-RESTORATION (the body ended between a crossing and its
+	# rediverge): downstream engines restore against the marker assuming the
+	# original ray flew STRAIGHT from it, but this ray crossed inside a body
+	# and was bent by its remainder. Project the exit ray back to its
+	# straight-line zero -- z_end - B(d)/D(d), independent of the (unknown)
+	# crossing slope -- so a free-space rediverge lands on exactly the right
+	# curvature. The crossover was already logged at the TRUE plane above;
+	# the marker's only remaining job is the restoration.
+	for a in range(2):
+		if zc[a] is not None and z >= zc[a] - tol:
+			d = z - zc[a]
+			_B, = (segment_block(d, kk[a])[1],)
+			_D = _segment_slope(d, 0.0, 1.0, kk[a])
+			if _D != 0:
+				zc[a] = z - _B / _D
 	s_j, R_j, t_j, z_j = snapshot()
 	return U, s_j, R_j, t_j, z, z_j, logged
 
@@ -1959,9 +1974,51 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 		# switch criterion at the beam's support (1.2x margin for spreading
 		# within the leg; the frame-change guard re-checks the exact support)
 		A = k * 1.2 * beam_support_radius(U, dxi, deta) * abs(dxi) / (safety * np.pi)
+		if z_cross is not None and z >= z_cross - tol and \
+				(np.isinf(R) or R < 0):
+			# MID-RESTORATION HANDOFF: the family ray already crossed at
+			# z_cross (typically inside an upstream body that ended before the
+			# rediverge became representable), and the frame arrived here flat
+			# or even re-converged by that body. The one thing that must NOT
+			# happen is the converging-flatten below firing and overwriting
+			# the pending marker with the FRAME's own crossing (z + |R|) --
+			# that is a different ray family, and every crossover logged after
+			# it would be mislabeled. Rediverge onto the original ray as soon
+			# as it is representable; until then, step carefully (short of the
+			# frame's own singularity when it is converging).
+			d = z - z_cross
+			d_min = A * s**2
+			if d >= d_min - tol:
+				U, dxi, deta = change_scaled_frame(U, dxi, deta, wavelength, s, R, d,
+												   safety=safety)
+				R = d
+				z_cross = None
+				logged.append(("rediverge", U, s, R, dtau_total, z, z_cross))
+				continue
+			step = min(remaining, d_min - d)
+			if not np.isinf(R) and R < 0:
+				step = min(step, abs(R) * 0.5)
+			step = max(step, tol)
+			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=0.0, absorb=absorb)
+			dtau_total += dt ; z += step ; remaining -= step
+			continue
+		if not np.isinf(R) and R < 0 and z_cross is not None and z < z_cross - tol:
+			# converging frame with the family crossing still AHEAD (a body
+			# handoff): split at the crossover so it is logged on the marker's
+			# plane, staying short of the frame's own singularity; the
+			# rediverge branch above takes over past it
+			step = min(remaining, z_cross - z, abs(R) * 0.5)
+			step = max(step, tol)
+			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=0.0, absorb=absorb)
+			dtau_total += dt ; z += step ; remaining -= step
+			if z >= z_cross - tol:
+				logged.append(("crossover", U, s, R, dtau_total, z, z_cross))
+			continue
 		if not np.isinf(R) and R < 0:
 			# converging frame: switch where the moved reference phase first
-			# becomes representable (frame-invariant thresholds)
+			# becomes representable (frame-invariant thresholds). Reached only
+			# with no crossing pending, so setting z_cross below cannot
+			# clobber a mid-restoration marker (the branches above own those).
 			R_flat = R**2 / (A * s**2)
 			R_switch = R_flat if crossover == 'flat' else R_flat / 2
 			if abs(R) <= R_switch + tol:
