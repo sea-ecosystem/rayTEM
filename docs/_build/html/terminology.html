@@ -49,7 +49,10 @@
 <li class="toctree-l1"><a class="reference internal" href="operating_the_column.html">Operating the Column</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Terminology</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#strength-focal-length-focal-power">Strength, focal length, focal power</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#efl-vs-bfd-two-focal-lengths-per-thick-lens">EFL vs BFD: two focal lengths per thick lens</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#efl-vs-bfd-two-focal-lengths-per-thick-lens">EFL vs BFD: two focal lengths per thick lens</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#the-matrix-view-both-numbers-come-from-one-matrix">The matrix view: both numbers come from one matrix</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#aberrations-as-power-changes">Aberrations as power changes</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#effective-strength">Effective strength</a></li>
 </ul>
@@ -188,6 +191,62 @@ matters once lenses have bodies. Consequently <strong><code class="docutils lite
 every aberration: a <code class="docutils literal notranslate"><span class="pre">C30</span></code> interpreted against the BFD power means a pupil
 angle <code class="docutils literal notranslate"><span class="pre">1/cos(KL)</span></code> larger than the beam actually has, and the ray-side kick
 coefficient scales as <code class="docutils literal notranslate"><span class="pre">P⁴</span></code>.</p>
+<section id="the-matrix-view-both-numbers-come-from-one-matrix">
+<h4>The matrix view: both numbers come from one matrix<a class="headerlink" href="#the-matrix-view-both-numbers-come-from-one-matrix" title="Link to this heading"></a></h4>
+<p>There is only one thick-lens matrix — the two focal quantities are two
+<em>readings</em> of it. In the rotating (Larmor) frame, each transverse axis is
+the harmonic body block (with <code class="docutils literal notranslate"><span class="pre">c</span> <span class="pre">=</span> <span class="pre">cos</span> <span class="pre">KL</span></code>, <code class="docutils literal notranslate"><span class="pre">s</span> <span class="pre">=</span> <span class="pre">sin</span> <span class="pre">KL</span></code>; the full 6×6 in
+<code class="docutils literal notranslate"><span class="pre">Lens.transfer_matrix</span></code> is this block on each axis multiplied by the Larmor
+rotation <code class="docutils literal notranslate"><span class="pre">R(−KL)</span></code>, which mixes x↔y but never changes the magnitudes read
+below):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>        ⎡ A  B ⎤   ⎡   c      s/K ⎤            ⎡x ⎤   position
+  M  =  ⎢      ⎥ = ⎢              ⎥   acts on  ⎢  ⎥
+        ⎣ C  D ⎦   ⎣ −K·s      c  ⎦            ⎣x′⎦   angle
+</pre></div>
+</div>
+<p>Trace one parallel ray <code class="docutils literal notranslate"><span class="pre">(h,</span> <span class="pre">0)ᵀ</span></code> through it: <code class="docutils literal notranslate"><span class="pre">M·(h,0)ᵀ</span> <span class="pre">=</span> <span class="pre">(c·h,</span> <span class="pre">−K·s·h)ᵀ</span></code>,
+i.e. exit <strong>height</strong> <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=</span> <span class="pre">cos(KL)·h</span></code> (the <code class="docutils literal notranslate"><span class="pre">A</span></code> entry) and exit <strong>angle</strong>
+<code class="docutils literal notranslate"><span class="pre">θ</span> <span class="pre">=</span> <span class="pre">K·sin(KL)·h</span></code> (the <code class="docutils literal notranslate"><span class="pre">−C</span></code> entry). Then:</p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">focal_power</span> <span class="pre">=</span> <span class="pre">−C</span></code></strong> — angle out per height in, <code class="docutils literal notranslate"><span class="pre">K·sin(KL)</span></code>.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">focal_length</span> <span class="pre">=</span> <span class="pre">A/(−C)</span></code></strong> — exit height over exit angle, the distance
+the ray still needs to reach the axis: <code class="docutils literal notranslate"><span class="pre">1/(K·tan</span> <span class="pre">KL)</span></code>.</p></li>
+</ul>
+<p>Same matrix, one ray: one reading takes the angle row, the other the ratio.
+The <code class="docutils literal notranslate"><span class="pre">cos(KL)</span></code> connecting them is literally the <code class="docutils literal notranslate"><span class="pre">A</span></code> entry — how far inward
+the body has already pulled the ray by the exit face.</p>
+<p><strong>Why the EFL is the unique thin-equivalent power.</strong> Purely as
+pencil-and-paper algebra about <code class="docutils literal notranslate"><span class="pre">M</span></code> — the lens stays a single object with a
+single matrix in the code; no drifts exist inside it — the face-to-face
+block factors uniquely as drift · thin lens · drift:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  ⎡  c    s/K ⎤     ⎡ 1  d ⎤ ⎡  1   0 ⎤ ⎡ 1  d ⎤               1 − cos KL
+  ⎢           ⎥  =  ⎢      ⎥ ⎢        ⎥ ⎢      ⎥ ,   with  d = ───────────
+  ⎣ −K·s   c  ⎦     ⎣ 0  1 ⎦ ⎣ −P   1 ⎦ ⎣ 0  1 ⎦                K·sin KL
+</pre></div>
+</div>
+<p>Matching the <code class="docutils literal notranslate"><span class="pre">C</span></code> entry forces <code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">=</span> <span class="pre">K·sin(KL)</span></code> with no freedom, and the two
+(fictitious, equal) drifts locate the <strong>principal planes</strong>, a symmetric
+distance <code class="docutils literal notranslate"><span class="pre">(1−cos</span> <span class="pre">KL)/(K·sin</span> <span class="pre">KL)</span></code> inside each face. The bookkeeping closes
+exactly: <code class="docutils literal notranslate"><span class="pre">EFL</span> <span class="pre">−</span> <span class="pre">BFD</span> <span class="pre">=</span> <span class="pre">(1−c)/(K·s)</span> <span class="pre">=</span> <span class="pre">d</span></code>, so the EFL (from the principal
+plane) and the BFD (from the exit face) describe the <em>same</em> crossover point
+— the difference is precisely the principal plane sitting <code class="docutils literal notranslate"><span class="pre">d</span></code> inside the
+body. (Sanity check on the <code class="docutils literal notranslate"><span class="pre">B</span></code> entry: <code class="docutils literal notranslate"><span class="pre">2d</span> <span class="pre">−</span> <span class="pre">d²P</span> <span class="pre">=</span> <span class="pre">(1−c²)/(K·s)</span> <span class="pre">=</span> <span class="pre">s/K</span></code>.)</p>
+<p>The factorization is exact only for the face-to-face matrix; it is <strong>not</strong>
+a license to model the body as a kick between drifts. Interior physics
+still needs the body’s own law at partial length — planes inside the body
+come from <code class="docutils literal notranslate"><span class="pre">transfer_block(dz)</span></code> (the base class deliberately refuses to fake
+that with a kick), and distributed aberrations integrate along the body
+rather than acting at the equivalent thin plane. Thin limit: <code class="docutils literal notranslate"><span class="pre">L</span> <span class="pre">→</span> <span class="pre">0</span></code> ⇒
+<code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">→</span> <span class="pre">1</span></code>, the principal plane migrates to the lens plane, and the two
+numbers collapse into one — which is why the distinction never shows on
+thin lenses.</p>
+<p><strong>Orthogonal to the aberration-power story.</strong> The EFL/BFD split exists for
+a perfectly <em>ideal</em> thick lens (<code class="docutils literal notranslate"><span class="pre">ΔP</span> <span class="pre">=</span> <span class="pre">0</span></code>): it is a choice of reference
+plane, pure geometry. Aberrations then change the <em>power</em> itself,
+<code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">→</span> <span class="pre">P</span> <span class="pre">+</span> <span class="pre">ΔP</span></code> per axis (previous section); the resulting focal distance can
+be quoted from either plane. No value of <code class="docutils literal notranslate"><span class="pre">ΔP</span></code> turns one reference plane
+into the other.</p>
+</section>
 </section>
 <section id="aberrations-as-power-changes">
 <h3>Aberrations as power changes<a class="headerlink" href="#aberrations-as-power-changes" title="Link to this heading"></a></h3>

@@ -73,6 +73,69 @@ every aberration: a `C30` interpreted against the BFD power means a pupil
 angle `1/cos(KL)` larger than the beam actually has, and the ray-side kick
 coefficient scales as `P⁴`.
 
+#### The matrix view: both numbers come from one matrix
+
+There is only one thick-lens matrix — the two focal quantities are two
+*readings* of it. In the rotating (Larmor) frame, each transverse axis is
+the harmonic body block (with `c = cos KL`, `s = sin KL`; the full 6×6 in
+`Lens.transfer_matrix` is this block on each axis multiplied by the Larmor
+rotation `R(−KL)`, which mixes x↔y but never changes the magnitudes read
+below):
+
+```
+        ⎡ A  B ⎤   ⎡   c      s/K ⎤            ⎡x ⎤   position
+  M  =  ⎢      ⎥ = ⎢              ⎥   acts on  ⎢  ⎥
+        ⎣ C  D ⎦   ⎣ −K·s      c  ⎦            ⎣x′⎦   angle
+```
+
+Trace one parallel ray `(h, 0)ᵀ` through it: `M·(h,0)ᵀ = (c·h, −K·s·h)ᵀ`,
+i.e. exit **height** `x = cos(KL)·h` (the `A` entry) and exit **angle**
+`θ = K·sin(KL)·h` (the `−C` entry). Then:
+
+- **`focal_power = −C`** — angle out per height in, `K·sin(KL)`.
+- **`focal_length = A/(−C)`** — exit height over exit angle, the distance
+  the ray still needs to reach the axis: `1/(K·tan KL)`.
+
+Same matrix, one ray: one reading takes the angle row, the other the ratio.
+The `cos(KL)` connecting them is literally the `A` entry — how far inward
+the body has already pulled the ray by the exit face.
+
+**Why the EFL is the unique thin-equivalent power.** Purely as
+pencil-and-paper algebra about `M` — the lens stays a single object with a
+single matrix in the code; no drifts exist inside it — the face-to-face
+block factors uniquely as drift · thin lens · drift:
+
+```
+  ⎡  c    s/K ⎤     ⎡ 1  d ⎤ ⎡  1   0 ⎤ ⎡ 1  d ⎤               1 − cos KL
+  ⎢           ⎥  =  ⎢      ⎥ ⎢        ⎥ ⎢      ⎥ ,   with  d = ───────────
+  ⎣ −K·s   c  ⎦     ⎣ 0  1 ⎦ ⎣ −P   1 ⎦ ⎣ 0  1 ⎦                K·sin KL
+```
+
+Matching the `C` entry forces `P = K·sin(KL)` with no freedom, and the two
+(fictitious, equal) drifts locate the **principal planes**, a symmetric
+distance `(1−cos KL)/(K·sin KL)` inside each face. The bookkeeping closes
+exactly: `EFL − BFD = (1−c)/(K·s) = d`, so the EFL (from the principal
+plane) and the BFD (from the exit face) describe the *same* crossover point
+— the difference is precisely the principal plane sitting `d` inside the
+body. (Sanity check on the `B` entry: `2d − d²P = (1−c²)/(K·s) = s/K`.)
+
+The factorization is exact only for the face-to-face matrix; it is **not**
+a license to model the body as a kick between drifts. Interior physics
+still needs the body's own law at partial length — planes inside the body
+come from `transfer_block(dz)` (the base class deliberately refuses to fake
+that with a kick), and distributed aberrations integrate along the body
+rather than acting at the equivalent thin plane. Thin limit: `L → 0` ⇒
+`A → 1`, the principal plane migrates to the lens plane, and the two
+numbers collapse into one — which is why the distinction never shows on
+thin lenses.
+
+**Orthogonal to the aberration-power story.** The EFL/BFD split exists for
+a perfectly *ideal* thick lens (`ΔP = 0`): it is a choice of reference
+plane, pure geometry. Aberrations then change the *power* itself,
+`P → P + ΔP` per axis (previous section); the resulting focal distance can
+be quoted from either plane. No value of `ΔP` turns one reference plane
+into the other.
+
 ### Aberrations as power changes
 
 The first-order Krivanek terms are quadratic in the pupil coordinate — the
