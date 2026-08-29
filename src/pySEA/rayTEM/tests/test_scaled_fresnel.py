@@ -1977,12 +1977,7 @@ def test_thick_body_aberration_matches_the_perturbed_ray_equation():
 	# integration of x'' = -K^2 x - c x r^2 through the body -- an independent
 	# route that uses none of the transfer-block machinery.
 	from scipy.integrate import solve_ivp
-	# Cs was 1e-3 when focal_power meant the EFL power K*sin(KL); the measured
-	# focal_length on main makes a thick lens's power K*tan(KL) instead (464/m
-	# here, was 125/m), and the test's perturbation coefficient scales as P^4,
-	# so the same Cs left the first-order regime this comparison lives in.
-	# 5e-6 restores the old perturbation strength; the check is unchanged.
-	K, L, Cs = 129.80, 0.010, 5e-6			# OL1's real K and L
+	K, L, Cs = 129.80, 0.010, 1e-3			# OL1's real parameters
 	lens = Lens(strength=K, length=L, aberrations={'C30': Cs})
 	c = Cs * lens.focal_power**4 / L
 	A, B = np.cos(K * L), np.sin(K * L) / K

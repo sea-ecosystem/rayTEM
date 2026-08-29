@@ -23,7 +23,7 @@ def createFreshSection():
 #r0=fix_ray_dims(np.asarray(r0),["x","y","xt","yt"])
 
 section = createFreshSection()
-plot2D( section.propagate_ray(), section.R )
+plot2D( section.propagate_ray() )
 
 fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":3}],modifiable={2:"strength",4:"strength"})#,filename="figs/02_basicFitting_01")
 

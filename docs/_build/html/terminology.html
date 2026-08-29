@@ -49,6 +49,7 @@
 <li class="toctree-l1"><a class="reference internal" href="operating_the_column.html">Operating the Column</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Terminology</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#strength-focal-length-focal-power">Strength, focal length, focal power</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#efl-vs-bfd-two-focal-lengths-per-thick-lens">EFL vs BFD: two focal lengths per thick lens</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#aberrations-as-power-changes">Aberrations as power changes</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#effective-strength">Effective strength</a></li>
 </ul>
@@ -150,6 +151,44 @@ power</strong> (next section) — meaningful precisely because powers add.</p></
 </ul>
 <p>Rule of thumb: <code class="docutils literal notranslate"><span class="pre">strength</span></code> when talking to the field or the matrix, <code class="docutils literal notranslate"><span class="pre">focal</span> <span class="pre">length</span></code> when talking to the instrument, <code class="docutils literal notranslate"><span class="pre">focal</span> <span class="pre">power</span></code> whenever anything is
 being <em>summed per axis</em>.</p>
+<section id="efl-vs-bfd-two-focal-lengths-per-thick-lens">
+<h3>EFL vs BFD: two focal lengths per thick lens<a class="headerlink" href="#efl-vs-bfd-two-focal-lengths-per-thick-lens" title="Link to this heading"></a></h3>
+<p>For a <strong>thick</strong> lens there are two different “f”s, and rayTEM deliberately
+carries both. Send a parallel ray in at height <code class="docutils literal notranslate"><span class="pre">h</span></code>: inside the body it
+curves, and at the exit face it emerges with angle <code class="docutils literal notranslate"><span class="pre">θ</span> <span class="pre">=</span> <span class="pre">K·sin(KL)·h</span></code> at
+height <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=</span> <span class="pre">cos(KL)·h</span></code>.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Quantity</p></th>
+<th class="head"><p>Definition</p></th>
+<th class="head"><p>Value</p></th>
+<th class="head"><p>rayTEM property</p></th>
+<th class="head"><p>Job</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>EFL</strong> (effective focal length)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">h/θ</span></code> — height in vs. angle out, referenced to the principal plane</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">1/(K·sin</span> <span class="pre">KL)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Lens.focal_power</span></code> = <code class="docutils literal notranslate"><span class="pre">K·sin(KL)</span></code></p></td>
+<td><p>The <strong>angle</strong> number: the pupil scale for aberrations (<code class="docutils literal notranslate"><span class="pre">α</span> <span class="pre">=</span> <span class="pre">P·h</span></code> is the angle the ray <em>actually crosses the focus at</em>), the wave-path χ, and the power that composes additively</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>BFD</strong> (back focal distance)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">x/θ</span></code> — exit face to the crossover</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">1/(K·tan</span> <span class="pre">KL)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Lens.focal_length</span></code> (traced through the full matrix)</p></td>
+<td><p>The <strong>geometry</strong> number: where the focus physically sits — placing a sample or detector, bench comparison</p></td>
+</tr>
+</tbody>
+</table>
+<p>They differ by exactly <code class="docutils literal notranslate"><span class="pre">cos(KL)</span></code> (3.7× for an OL1-class lens with
+<code class="docutils literal notranslate"><span class="pre">KL</span> <span class="pre">≈</span> <span class="pre">1.3</span></code>) and coincide for a thin lens, which is why the distinction only
+matters once lenses have bodies. Consequently <strong><code class="docutils literal notranslate"><span class="pre">focal_power</span></code> is not
+<code class="docutils literal notranslate"><span class="pre">1/focal_length</span></code> for a thick lens</strong> — wiring them together silently rescales
+every aberration: a <code class="docutils literal notranslate"><span class="pre">C30</span></code> interpreted against the BFD power means a pupil
+angle <code class="docutils literal notranslate"><span class="pre">1/cos(KL)</span></code> larger than the beam actually has, and the ray-side kick
+coefficient scales as <code class="docutils literal notranslate"><span class="pre">P⁴</span></code>.</p>
+</section>
 <section id="aberrations-as-power-changes">
 <h3>Aberrations as power changes<a class="headerlink" href="#aberrations-as-power-changes" title="Link to this heading"></a></h3>
 <p>The first-order Krivanek terms are quadratic in the pupil coordinate — the

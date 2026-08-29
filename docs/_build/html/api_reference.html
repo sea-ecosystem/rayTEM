@@ -1672,12 +1672,86 @@ a skew quadrupole.</p>
 <dl class="py property">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.focal_length">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">focal_length</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.focal_length" title="Link to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>The <strong>measured back-focal distance</strong> (metres).</p>
+<p>Traced, not assumed: a parallel unit ray goes through the full
+transfer matrix and the crossover distance <code class="docutils literal notranslate"><span class="pre">x/theta</span></code> at the exit
+face is returned (magnitudes across both axes, so the thick lens’s
+Larmor rotation cancels). For a thin lens this is the stored
+definition <code class="docutils literal notranslate"><span class="pre">_focal_length</span></code>; for a thick body it works out to
+<code class="docutils literal notranslate"><span class="pre">cos(K*L)/(K*sin(K*L))</span> <span class="pre">=</span> <span class="pre">1/(K*tan(K*L))</span></code> — the distance from the
+<strong>exit face</strong> to where a parallel beam actually focuses. That is the
+bench/geometry number: use it to place a sample or detector.</p>
+<p><strong>Not the reciprocal of</strong> <a class="reference internal" href="#pySEA.rayTEM.elements.Lens.focal_power" title="pySEA.rayTEM.elements.Lens.focal_power"><code class="xref py py-attr docutils literal notranslate"><span class="pre">focal_power</span></code></a> for a thick lens:
+<code class="docutils literal notranslate"><span class="pre">focal_power</span></code> is the EFL power <code class="docutils literal notranslate"><span class="pre">K*sin(K*L)</span></code> (referenced to the
+principal plane), the number that gives the physical crossing angle
+<code class="docutils literal notranslate"><span class="pre">theta</span> <span class="pre">=</span> <span class="pre">P*h</span></code> and scales aberrations. The two differ by
+<code class="docutils literal notranslate"><span class="pre">cos(K*L)</span></code>; see the Terminology docs page.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Back-focal distance in metres; <code class="docutils literal notranslate"><span class="pre">inf</span></code> at zero strength. Thin
+lenses return the signed stored value when <code class="docutils literal notranslate"><span class="pre">allow_diverging</span></code>,
+else its magnitude.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>float</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.focal_power" title="pySEA.rayTEM.elements.Lens.focal_power"><code class="xref py py-obj docutils literal notranslate"><span class="pre">focal_power</span></code></a></dt><dd><p>The EFL power (the angle/aberration number).</p>
+</dd>
+<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.transfer_matrix" title="pySEA.rayTEM.elements.Lens.transfer_matrix"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transfer_matrix</span></code></a></dt><dd><p>What the measuring ray is traced through.</p>
+</dd>
+</dl>
+</div>
+</dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.focal_power">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">focal_power</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.focal_power" title="Link to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>The lens’s <strong>EFL</strong> focusing power <code class="docutils literal notranslate"><span class="pre">1/f_EFL</span></code> (1/metres).</p>
+<p>This is the effective-focal-length power — the <code class="docutils literal notranslate"><span class="pre">-C</span></code> entry of the
+transfer block: a parallel ray at height <code class="docutils literal notranslate"><span class="pre">h</span></code> leaves the lens (and
+crosses the axis) at angle <code class="docutils literal notranslate"><span class="pre">theta</span> <span class="pre">=</span> <span class="pre">P*h</span></code>. Thin lens:
+<code class="docutils literal notranslate"><span class="pre">1/focal_length</span></code>. Thick lens: Brown’s focusing relation
+<code class="docutils literal notranslate"><span class="pre">K*sin(K*L)</span></code>.</p>
+<p><strong>This is deliberately NOT ``1/focal_length`` for a thick lens.</strong>
+<a class="reference internal" href="#pySEA.rayTEM.elements.Lens.focal_length" title="pySEA.rayTEM.elements.Lens.focal_length"><code class="xref py py-attr docutils literal notranslate"><span class="pre">focal_length</span></code></a> is the <em>measured back-focal distance</em> (exit face
+to crossover, <code class="docutils literal notranslate"><span class="pre">1/(K*tan(K*L))</span></code> for a thick body) — the geometry
+number, for placing a sample or detector. <code class="docutils literal notranslate"><span class="pre">focal_power</span></code> is the
+<em>angle</em> number: it converts ray height to the physical pupil angle,
+which is what the aberration machinery (<code class="xref py py-meth docutils literal notranslate"><span class="pre">aberration_kick()</span></code>,
+<a class="reference internal" href="#pySEA.rayTEM.elements.Lens.phase_shift" title="pySEA.rayTEM.elements.Lens.phase_shift"><code class="xref py py-meth docutils literal notranslate"><span class="pre">phase_shift()</span></code></a>, <a class="reference internal" href="#pySEA.rayTEM.elements.Lens.aberration_powers" title="pySEA.rayTEM.elements.Lens.aberration_powers"><code class="xref py py-meth docutils literal notranslate"><span class="pre">aberration_powers()</span></code></a>) must scale against,
+and it is the quantity that composes additively. The two coincide for
+a thin lens and differ by <code class="docutils literal notranslate"><span class="pre">cos(K*L)</span></code> for a thick one. See the
+Terminology page of the docs for the full derivation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>EFL power <code class="docutils literal notranslate"><span class="pre">1/f</span></code> (1/metres); 0 for a zero-strength lens.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>float</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.focal_length" title="pySEA.rayTEM.elements.Lens.focal_length"><code class="xref py py-obj docutils literal notranslate"><span class="pre">focal_length</span></code></a></dt><dd><p>The measured back-focal distance (the geometry number).</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">aberration_kick</span></code></dt><dd><p>Consumes this as the pupil scale on the ray path.</p>
+</dd>
+<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.phase_shift" title="pySEA.rayTEM.elements.Lens.phase_shift"><code class="xref py py-obj docutils literal notranslate"><span class="pre">phase_shift</span></code></a></dt><dd><p>Consumes this on the wave path.</p>
+</dd>
+</dl>
+</div>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.get_C_L_from_rotation_at_I">
@@ -1688,8 +1762,12 @@ a skew quadrupole.</p>
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.phase_shift">
 <span class="sig-name descname"><span class="pre">phase_shift</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dimensions</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wavelength</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scaled</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Lens.phase_shift"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.phase_shift" title="Link to this definition"></a></dt>
 <dd><p>Round-lens phase: :math:chi = -k(x^2+y^2)/(2f) (handoff Eq 12).</p>
-<p>Extends :meth:Element.phase_shift. The focal power is the reciprocal of
-:meth:focal_length, so ray and wave paths use the same focus definition.</p>
+<p>Extends :meth:Element.phase_shift. The focal power comes from
+:meth:focal_power — the EFL power (thin: 1/focal_length; thick:
+K*sin(K*L), Brown 1983) — so the ray and wave paths scale their
+aberrations against the same physical pupil angle. Note this is NOT
+1/:attr:focal_length for a thick lens (that is the measured
+back-focal distance); see the Terminology docs page.</p>
 <p>Any :attr:aberrations are added as the wave aberration function
 :math:chi, whatever terms they happen to contain - the same
 :math:chi the ray path differentiates, so the two representations
@@ -6452,16 +6530,18 @@ All objects we then expect to integrate with sea_eco then inherit the SEASeriali
 <dl class="py class">
 <dt class="sig sig-object py" id="pySEA.rayTEM.seashells.SEASerializable">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.seashells.</span></span><span class="sig-name descname"><span class="pre">SEASerializable</span></span><a class="reference internal" href="_modules/pySEA/rayTEM/seashells.html#SEASerializable"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.seashells.SEASerializable" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">SEASerializable</span></code></p>
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.seashells.SEASerializable.from_sea">
 <span class="sig-name descname"><span class="pre">from_sea</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/seashells.html#SEASerializable.from_sea"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.seashells.SEASerializable.from_sea" title="Link to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Load object data from an HDF5 file.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.seashells.SEASerializable.to_sea">
 <span class="sig-name descname"><span class="pre">to_sea</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/seashells.html#SEASerializable.to_sea"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.seashells.SEASerializable.to_sea" title="Link to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Save object to SEA formated HDF5.</p>
+</dd></dl>
 
 </dd></dl>
 

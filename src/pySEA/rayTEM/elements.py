@@ -3762,8 +3762,45 @@ class Lens(Element):
 
 	@property
 	def focal_power(self) -> float:
-		f = self.focal_length
-		return 0.0 if xp.isinf(f) else float(1 / f)
+		r"""The lens's **EFL** focusing power ``1/f_EFL`` (1/metres).
+
+		This is the effective-focal-length power — the ``-C`` entry of the
+		transfer block: a parallel ray at height ``h`` leaves the lens (and
+		crosses the axis) at angle ``theta = P*h``. Thin lens:
+		``1/focal_length``. Thick lens: Brown's focusing relation
+		``K*sin(K*L)``.
+
+		**This is deliberately NOT ``1/focal_length`` for a thick lens.**
+		:attr:`focal_length` is the *measured back-focal distance* (exit face
+		to crossover, ``1/(K*tan(K*L))`` for a thick body) — the geometry
+		number, for placing a sample or detector. ``focal_power`` is the
+		*angle* number: it converts ray height to the physical pupil angle,
+		which is what the aberration machinery (:meth:`aberration_kick`,
+		:meth:`phase_shift`, :meth:`aberration_powers`) must scale against,
+		and it is the quantity that composes additively. The two coincide for
+		a thin lens and differ by ``cos(K*L)`` for a thick one. See the
+		Terminology page of the docs for the full derivation.
+
+		Returns
+		-------
+		float
+			EFL power ``1/f`` (1/metres); 0 for a zero-strength lens.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		focal_length : The measured back-focal distance (the geometry number).
+		aberration_kick : Consumes this as the pupil scale on the ray path.
+		phase_shift : Consumes this on the wave path.
+		"""
+		if self.length == 0:
+			f = self.focal_length
+			return 0.0 if xp.isinf(f) else float(1 / f)
+		K = self.calibrated_strength
+		return 0.0 if K == 0 else float(K * xp.sin(K * self.length))
 
 	def transfer_matrix(self) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
@@ -3822,6 +3859,39 @@ class Lens(Element):
 
 	@property
 	def focal_length(self):
+		r"""The **measured back-focal distance** (metres).
+
+		Traced, not assumed: a parallel unit ray goes through the full
+		transfer matrix and the crossover distance ``x/theta`` at the exit
+		face is returned (magnitudes across both axes, so the thick lens's
+		Larmor rotation cancels). For a thin lens this is the stored
+		definition ``_focal_length``; for a thick body it works out to
+		``cos(K*L)/(K*sin(K*L)) = 1/(K*tan(K*L))`` — the distance from the
+		**exit face** to where a parallel beam actually focuses. That is the
+		bench/geometry number: use it to place a sample or detector.
+
+		**Not the reciprocal of** :attr:`focal_power` for a thick lens:
+		``focal_power`` is the EFL power ``K*sin(K*L)`` (referenced to the
+		principal plane), the number that gives the physical crossing angle
+		``theta = P*h`` and scales aberrations. The two differ by
+		``cos(K*L)``; see the Terminology docs page.
+
+		Returns
+		-------
+		float
+			Back-focal distance in metres; ``inf`` at zero strength. Thin
+			lenses return the signed stored value when ``allow_diverging``,
+			else its magnitude.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		focal_power : The EFL power (the angle/aberration number).
+		transfer_matrix : What the measuring ray is traced through.
+		"""
 		if self.length == 0:
 			return self._focal_length if self.allow_diverging else abs(self._focal_length)
 		if self.calibrated_strength == 0:
@@ -3933,8 +4003,12 @@ class Lens(Element):
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
 		r"""Round-lens phase: :math:\chi = -k(x^2+y^2)/(2f) (handoff Eq 12).
 
-		Extends :meth:Element.phase_shift. The focal power is the reciprocal of
-		:meth:focal_length, so ray and wave paths use the same focus definition.
+		Extends :meth:Element.phase_shift. The focal power comes from
+		:meth:focal_power — the EFL power (thin: 1/focal_length; thick:
+		K*sin(K*L), Brown 1983) — so the ray and wave paths scale their
+		aberrations against the same physical pupil angle. Note this is NOT
+		1/:attr:focal_length for a thick lens (that is the measured
+		back-focal distance); see the Terminology docs page.
 
 		Any :attr:aberrations are added as the wave aberration function
 		:math:\chi, whatever terms they happen to contain - the same

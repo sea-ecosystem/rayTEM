@@ -4017,8 +4017,45 @@
 
 	<span class="nd">@property</span>
 	<span class="k">def</span><span class="w"> </span><span class="nf">focal_power</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-		<span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">focal_length</span>
-		<span class="k">return</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="n">xp</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">f</span><span class="p">)</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The lens's **EFL** focusing power ``1/f_EFL`` (1/metres).</span>
+
+<span class="sd">		This is the effective-focal-length power — the ``-C`` entry of the</span>
+<span class="sd">		transfer block: a parallel ray at height ``h`` leaves the lens (and</span>
+<span class="sd">		crosses the axis) at angle ``theta = P*h``. Thin lens:</span>
+<span class="sd">		``1/focal_length``. Thick lens: Brown's focusing relation</span>
+<span class="sd">		``K*sin(K*L)``.</span>
+
+<span class="sd">		**This is deliberately NOT ``1/focal_length`` for a thick lens.**</span>
+<span class="sd">		:attr:`focal_length` is the *measured back-focal distance* (exit face</span>
+<span class="sd">		to crossover, ``1/(K*tan(K*L))`` for a thick body) — the geometry</span>
+<span class="sd">		number, for placing a sample or detector. ``focal_power`` is the</span>
+<span class="sd">		*angle* number: it converts ray height to the physical pupil angle,</span>
+<span class="sd">		which is what the aberration machinery (:meth:`aberration_kick`,</span>
+<span class="sd">		:meth:`phase_shift`, :meth:`aberration_powers`) must scale against,</span>
+<span class="sd">		and it is the quantity that composes additively. The two coincide for</span>
+<span class="sd">		a thin lens and differ by ``cos(K*L)`` for a thick one. See the</span>
+<span class="sd">		Terminology page of the docs for the full derivation.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		float</span>
+<span class="sd">			EFL power ``1/f`` (1/metres); 0 for a zero-strength lens.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		focal_length : The measured back-focal distance (the geometry number).</span>
+<span class="sd">		aberration_kick : Consumes this as the pupil scale on the ray path.</span>
+<span class="sd">		phase_shift : Consumes this on the wave path.</span>
+<span class="sd">		"""</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">focal_length</span>
+			<span class="k">return</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="n">xp</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">f</span><span class="p">)</span>
+		<span class="n">K</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calibrated_strength</span>
+		<span class="k">return</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="n">K</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="n">xp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">))</span>
 
 <div class="viewcode-block" id="Lens.transfer_matrix">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Lens.transfer_matrix">[docs]</a>
@@ -4080,6 +4117,39 @@
 
 	<span class="nd">@property</span>
 	<span class="k">def</span><span class="w"> </span><span class="nf">focal_length</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The **measured back-focal distance** (metres).</span>
+
+<span class="sd">		Traced, not assumed: a parallel unit ray goes through the full</span>
+<span class="sd">		transfer matrix and the crossover distance ``x/theta`` at the exit</span>
+<span class="sd">		face is returned (magnitudes across both axes, so the thick lens's</span>
+<span class="sd">		Larmor rotation cancels). For a thin lens this is the stored</span>
+<span class="sd">		definition ``_focal_length``; for a thick body it works out to</span>
+<span class="sd">		``cos(K*L)/(K*sin(K*L)) = 1/(K*tan(K*L))`` — the distance from the</span>
+<span class="sd">		**exit face** to where a parallel beam actually focuses. That is the</span>
+<span class="sd">		bench/geometry number: use it to place a sample or detector.</span>
+
+<span class="sd">		**Not the reciprocal of** :attr:`focal_power` for a thick lens:</span>
+<span class="sd">		``focal_power`` is the EFL power ``K*sin(K*L)`` (referenced to the</span>
+<span class="sd">		principal plane), the number that gives the physical crossing angle</span>
+<span class="sd">		``theta = P*h`` and scales aberrations. The two differ by</span>
+<span class="sd">		``cos(K*L)``; see the Terminology docs page.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		float</span>
+<span class="sd">			Back-focal distance in metres; ``inf`` at zero strength. Thin</span>
+<span class="sd">			lenses return the signed stored value when ``allow_diverging``,</span>
+<span class="sd">			else its magnitude.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		focal_power : The EFL power (the angle/aberration number).</span>
+<span class="sd">		transfer_matrix : What the measuring ray is traced through.</span>
+<span class="sd">		"""</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
 			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_focal_length</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">allow_diverging</span> <span class="k">else</span> <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_focal_length</span><span class="p">)</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">calibrated_strength</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -4199,8 +4269,12 @@
 	<span class="k">def</span><span class="w"> </span><span class="nf">phase_shift</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dimensions</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">scaled</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
 <span class="w">		</span><span class="sa">r</span><span class="sd">"""Round-lens phase: :math:\chi = -k(x^2+y^2)/(2f) (handoff Eq 12).</span>
 
-<span class="sd">		Extends :meth:Element.phase_shift. The focal power is the reciprocal of</span>
-<span class="sd">		:meth:focal_length, so ray and wave paths use the same focus definition.</span>
+<span class="sd">		Extends :meth:Element.phase_shift. The focal power comes from</span>
+<span class="sd">		:meth:focal_power — the EFL power (thin: 1/focal_length; thick:</span>
+<span class="sd">		K*sin(K*L), Brown 1983) — so the ray and wave paths scale their</span>
+<span class="sd">		aberrations against the same physical pupil angle. Note this is NOT</span>
+<span class="sd">		1/:attr:focal_length for a thick lens (that is the measured</span>
+<span class="sd">		back-focal distance); see the Terminology docs page.</span>
 
 <span class="sd">		Any :attr:aberrations are added as the wave aberration function</span>
 <span class="sd">		:math:\chi, whatever terms they happen to contain - the same</span>

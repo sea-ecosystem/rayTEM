@@ -165,13 +165,13 @@ def _(Lens, Quadrapole, np):
 		"""
 		L = getattr(ele, "length", 0) or 0.0
 		if isinstance(ele, Lens) and L > 0:
-			K = ele._effective_strength
+			K = ele.calibrated_strength
 			if K != 0:
 				c, s = np.cos(K * dz), np.sin(K * dz)
 				return c, s / K, -K * s, c
 		P = 0.0
 		if isinstance(ele, Lens) and L == 0:
-			P = ele.focal_power()
+			P = ele.focal_power
 		elif isinstance(ele, Quadrapole):
 			P = ele.focal_powers[0]				# x axis
 		return 1 - dz * P, dz, -P, 1.0
@@ -196,7 +196,7 @@ def _(Lens, Quadrapole, np):
 		"""
 		if L <= 0:
 			return []
-		K = ele._effective_strength if isinstance(ele, Lens) else 0
+		K = ele.calibrated_strength if isinstance(ele, Lens) else 0
 		if isinstance(ele, Lens) and (K or 0) != 0:
 			if P0 == 0 and Q0 == 0:
 				return []
@@ -280,8 +280,8 @@ def _(Lens, flat_elements, np, partial_xblock, scope):
 							  dtype=float)
 			m00, m01, m10, m11 = partial_xblock(ele, L)
 			mine = np.array([[m00, m01], [m10, m11]])
-			if isinstance(ele, Lens) and L > 0 and (ele._effective_strength or 0):
-				mine = mine * np.cos(ele._effective_strength * L)	# rotation factor
+			if isinstance(ele, Lens) and L > 0 and (ele.calibrated_strength or 0):
+				mine = mine * np.cos(ele.calibrated_strength * L)	# rotation factor
 			rows.append((ele.name or ele.kind, ele.kind,
 						 float(np.abs(stored - mine).max())))
 		return rows
@@ -344,7 +344,7 @@ def _(AIM_AT, APERTURE_RADIUS, DZ_DENSE, columnByName,
 		r0[0, xi] = APERTURE_RADIUS ; r0[1, xi] = -APERTURE_RADIUS
 		r0[2, ti] = theta_aim ; r0[3, ti] = -theta_aim
 		dense.propagate_ray(r0=r0)
-		rot = convert_to_rotating_reference_frame(dense.rays, dense.R)
+		rot = convert_to_rotating_reference_frame(dense.rays)
 		return dense.rays[:, 0, columnByName("z")], rot[:, :, xi], theta_aim
 
 	def wave_cross_section(scope, z_max):
@@ -569,7 +569,7 @@ def _(Lens, flat_elements, np, scope):
 	print("-" * 72)
 	for _z0, _ele, _L in flat_elements(scope):
 		if isinstance(_ele, Lens) and _L > 0:
-			_K = _ele._effective_strength
+			_K = _ele.calibrated_strength
 			_kL = _K * _L
 			_P = _K * np.sin(_kL)						# == focal_power()
 			_d_exact = np.cos(_kL) / (_K * np.sin(_kL))

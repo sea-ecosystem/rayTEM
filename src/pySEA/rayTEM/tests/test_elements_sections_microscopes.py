@@ -495,3 +495,31 @@ def test_microscope_index_raises():
 	assert m.index("L1") == (0, 2)
 	with pytest.raises(KeyError):
 		m.index("definitely-not-here")
+
+
+def test_thick_lens_efl_vs_bfd_split():
+	"""focal_power is the EFL power (the pupil angle); focal_length the BFD.
+
+	A parallel ray at height h crosses the axis at angle K*sin(KL)*h -- that
+	angle is what aberrations scale against, so focal_power must be the EFL
+	power. focal_length is the measured exit-face-to-crossover distance,
+	1/(K*tan(KL)). The two are deliberately NOT reciprocals for a thick lens
+	(they differ by cos(KL)); for a thin lens they coincide.
+	"""
+	K, L = 129.80, 0.010
+	lens = Lens(strength=K, length=L)
+	assert lens.focal_power == pytest.approx(K * np.sin(K * L))
+	assert lens.focal_length == pytest.approx(1 / (K * np.tan(K * L)))
+	assert lens.focal_power * lens.focal_length == pytest.approx(np.cos(K * L))
+	# the traced crossing angle IS focal_power * h (Larmor-safe via hypot)
+	sec = MicroscopeSection(name="S", elements=[
+		Lens(name="OL", strength=K, length=L), Drift(length=0.02)])
+	m = Microscope(sections=[sec])
+	h = 5e-5
+	r0 = np.zeros((1, 6)); r0[0, 0] = h
+	rays = np.asarray(m.propagate_ray(r0))
+	alpha = np.hypot(rays[-1, 0, 1], rays[-1, 0, 3])
+	assert alpha == pytest.approx(lens.focal_power * h, rel=1e-9)
+	# thin lens: one number, both ways
+	thin = Lens(strength=np.sqrt(1 / 0.02))
+	assert thin.focal_power == pytest.approx(1 / thin.focal_length)

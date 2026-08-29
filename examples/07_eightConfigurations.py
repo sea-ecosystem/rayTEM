@@ -727,7 +727,7 @@ def ray_over_wave_figure(scope: Microscope, title: str, filename: str) -> list:
 	dense.propagate(kind="wave-hybrid")
 	r0 = wave_matched_rays(scope)
 	rays = dense.propagate_ray(r0=r0)
-	rot = convert_to_rotating_reference_frame(rays, dense.R)
+	rot = convert_to_rotating_reference_frame(rays)
 	fig, ax = plt.subplots(figsize=(13, 5))
 	_scaled_wave_cross_section(dense._wave_scaled_planes, ax,
 							   named_positions=dense.named_positions,

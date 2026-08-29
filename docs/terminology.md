@@ -53,6 +53,26 @@ Rule of thumb: `strength` when talking to the field or the matrix, `focal
 length` when talking to the instrument, `focal power` whenever anything is
 being *summed per axis*.
 
+### EFL vs BFD: two focal lengths per thick lens
+
+For a **thick** lens there are two different "f"s, and rayTEM deliberately
+carries both. Send a parallel ray in at height `h`: inside the body it
+curves, and at the exit face it emerges with angle `θ = K·sin(KL)·h` at
+height `x = cos(KL)·h`.
+
+| Quantity | Definition | Value | rayTEM property | Job |
+|---|---|---|---|---|
+| **EFL** (effective focal length) | `h/θ` — height in vs. angle out, referenced to the principal plane | `1/(K·sin KL)` | `Lens.focal_power` = `K·sin(KL)` | The **angle** number: the pupil scale for aberrations (`α = P·h` is the angle the ray *actually crosses the focus at*), the wave-path χ, and the power that composes additively |
+| **BFD** (back focal distance) | `x/θ` — exit face to the crossover | `1/(K·tan KL)` | `Lens.focal_length` (traced through the full matrix) | The **geometry** number: where the focus physically sits — placing a sample or detector, bench comparison |
+
+They differ by exactly `cos(KL)` (3.7× for an OL1-class lens with
+`KL ≈ 1.3`) and coincide for a thin lens, which is why the distinction only
+matters once lenses have bodies. Consequently **`focal_power` is not
+`1/focal_length` for a thick lens** — wiring them together silently rescales
+every aberration: a `C30` interpreted against the BFD power means a pupil
+angle `1/cos(KL)` larger than the beam actually has, and the ray-side kick
+coefficient scales as `P⁴`.
+
 ### Aberrations as power changes
 
 The first-order Krivanek terms are quadratic in the pupil coordinate — the

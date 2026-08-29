@@ -1,10 +1,10 @@
 """Spherical aberration on the objective, in rays and in the wave.
 
-Uses ``microscopes/objective_section.sea`` — basic_column's own objective (OL1,
-f = 8 mm, 10 mm thick) behind a source — rather than the whole column, because
-an aberration is a nanometre-scale effect and over a metre of column it is
-~1e-4 of the beam width: invisible in any plot of the whole thing, and
-expensive to propagate a wave through.
+Uses ``microscopes/objective_section.sea`` — basic_column's own objective
+(OL1, f = 3 mm EFL, 0.08 mm bore) behind a source — rather than the whole
+column, because an aberration is a nanometre-scale effect and over a metre of
+column it is ~1e-4 of the beam width: invisible in any plot of the whole
+thing, and expensive to propagate a wave through.
 
 Six panels, three rows of two. Left column ideal, right column aberrated, so
 each row is one comparison:
@@ -13,26 +13,28 @@ A, B  the RAY caustic through focus.
 C, D  the WAVE, |psi(x, z)| over the same window — the same caustic, built by
       a completely different calculation.
 E     the focal surface: the ISOLATED thin lens follows the closed form
-      -C30 alpha^2 exactly, which validates the implementation; OL1 does not,
-      and should not — it is 10 mm thick, so its aberration is distributed
-      along the body rather than applied at one plane.
+      -C30 alpha^2 exactly, which validates the implementation. OL1's bore is
+      0.08 mm (KL = 0.16, nearly thin), so its distributed aberration lands
+      within a few percent of the same closed form — the panel measures the
+      delivered fraction rather than assuming it.
 F     the focus itself, as a Strehl loss.
 
 ALPHA is the convergence semi-angle AT THE SAMPLE, and it is the ray's total
-deflection: OL1 is thick, so it rotates the ray by its Larmor angle too, and
-only 8.08 of the 30 mrad is in x.
+deflection: OL1's body rotates the ray by its (small) Larmor angle, so the
+x-component alone under-reports.
 
-Why C30 = 10 um. Everything scales as C30*alpha^4, so at 30 mrad the choice is
-narrow. A corrected instrument (C30 < 300 nm) is 0.15 rad of peak phase --
-diffraction-limited, which is the POINT of correction and shows nothing. At the
-other end, 100 um is 50.7 rad and simply destroys the focus, which shows
-nothing either. 10 um lands at Strehl 0.62: a focus that is visibly degraded
-and still recognisable, which is the regime where the number means something.
+Why C30 = 4.5 um. Everything scales as C30*alpha^4, so at 30 mrad the choice
+is narrow. A corrected instrument (C30 < 300 nm) is well under a radian of
+peak phase — diffraction-limited, which is the POINT of correction and shows
+nothing. At the other end, tens of um simply destroy the focus (10 um is
+already Strehl 0.10), which shows nothing either. 4.5 um lands near Strehl
+0.6: a focus that is visibly degraded and still recognisable, which is the
+regime where the number means something.
 
-Note the aberration OL1 DELIVERS is ~0.12x the nominal C30, because it is 10 mm
-thick and its aberration is distributed along the body. The Rayleigh quarter-
-wave limit at 30 mrad therefore lands at C30 ~ 25 um for this lens, not the
-3.1 um a thin one would need.
+The delivered aberration is measured in panel E as the ratio of OL1's fitted
+focal-surface curvature to the closed form; with the near-thin bore it is
+~0.97, so the Rayleigh quarter-wave limit at 30 mrad sits essentially at the
+thin-lens value.
 
 Run: python examples/06_aberratedObjective.py   (writes figures/)
 """
@@ -47,7 +49,7 @@ from pySEA.rayTEM.microscopes.objective_section import build_objective_section
 from pySEA.rayTEM.seashells import read_scaled_wavefield
 from pySEA.rayTEM import waveoptics as wo
 
-ALPHA, C30, F_OL = 30e-3, 1e-5, 2e-3	# F_OL follows basic_column's OL1
+ALPHA, C30, F_OL = 30e-3, 4.5e-6, 3e-3	# F_OL follows basic_column's OL1 (f = 3 mm EFL)
 N_WAVE, N_PLANES = 256, 80
 LAM = 2.5078e-12
 
@@ -168,10 +170,9 @@ Z_PAR = float(ideal.conjugate_planes(axis="x")["diff"][0])
 # proportion -- which is the honest picture at Strehl 0.6: a fraction of the
 # depth of focus, not a catastrophe.
 #
-# For reference, what OL1 actually delivers is ~0.12x the thin-lens closed form,
-# because it is 10 mm thick and its aberration is distributed along the body
-# (panel E measures this).
-THICK = 0.122
+# The fraction of the nominal C30 that OL1 actually delivers is MEASURED in
+# panel E (fitted focal-surface curvature / closed form) and used in panel F's
+# annotations; with the 0.08 mm bore it comes out ~0.97 — nearly thin.
 DOF = LAM / ALPHA ** 2						# depth of focus
 AIRY = 0.61 * LAM / ALPHA					# Airy radius
 DZ = 2.5 * DOF
@@ -249,10 +250,14 @@ axE.set_title("E   the plane becomes a surface")
 axE.legend(fontsize=8, loc="lower left", bbox_to_anchor=(0.02, 0.20),
 			framealpha=0.92)
 axE.grid(alpha=0.3)
+# the DELIVERED fraction: OL1's fitted curvature over the closed form. The
+# bore is 0.08 mm (KL = 0.16, nearly thin), so this should be close to 1 --
+# measured here rather than assumed, and reused by panel F's annotations.
+DELIVERED = float(sc["fit"]["c20"] / (-C30 * ALPHA**2))
 axE.text(0.03, 0.04,
-	"the red curve is NOT expected to follow the closed form:\n"
-	"OL1 is 10 mm THICK, so its aberration is distributed\n"
-	"along the body, not applied at one plane",
+	"OL1's bore is 0.08 mm (KL = 0.16, nearly thin), so its\n"
+	"distributed aberration lands close to the closed form:\n"
+	f"delivered fraction = {DELIVERED:.3f}",
 	transform=axE.transAxes, fontsize=7.6, color="tab:red")
 
 # ---- F: the focus, as a Strehl loss -------------------------------------
@@ -277,10 +282,10 @@ axF.text(0.03, 0.62,
 	f"Strehl = {strehl:.3f}\n"
 	r"peak quartic phase $kC_{30}\alpha^4/4$ = "
 	f"{2*np.pi/LAM*C30*ALPHA**4/4:.2f} rad nominal\n"
-	f"{2*np.pi/LAM*THICK*C30*ALPHA**4/4:.2f} rad delivered "
-	f"(x{THICK:.3f}, OL1 is thick)\n"
+	f"{2*np.pi/LAM*DELIVERED*C30*ALPHA**4/4:.2f} rad delivered "
+	f"(x{DELIVERED:.3f}, measured in panel E)\n"
 	r"Rayleigh $\pi/2$ limit at this $\alpha$: "
-	f"{1.5708*4*LAM/(2*np.pi*ALPHA**4)/THICK*1e6:.0f} " + r"$\mu$m",
+	f"{1.5708*4*LAM/(2*np.pi*ALPHA**4)/DELIVERED*1e6:.1f} " + r"$\mu$m",
 	transform=axF.transAxes, fontsize=7.6)
 
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures",
