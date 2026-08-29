@@ -2,6 +2,18 @@
 
 Newest entries at top.
 
+## 2026-08-29 — [Under Construction] Finishing propagation additions
+**Goal:** New workflow (branch `finishing_propagation_additions`, merged to
+`dev` every commit) and the two items gated on the thick-lens focal-power
+question: settle K·sin(KL) vs K·tan(KL) for the aberration pupil scale, then
+re-derive example 06's narrative.
+**Why:** main's measured `focal_length` redefined `focal_power` for thick
+lenses, silently rescaling every aberration pupil; example 06's header has
+been stale since the column rebuild.
+- [x] branch + CI scoped to dev/main
+- [ ] focal-power decision + implementation
+- [ ] example 06 narrative re-derived
+
 ## 2026-08-28 — [Done] Merge main into Signal_and_propagation_additions_new (PR #9)
 **Goal:** Land Thomas's post-#7 fixes from main here, resolve the conflicts,
 keep our new functionality and docs, and merge PR #9.

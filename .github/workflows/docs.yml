@@ -10,6 +10,12 @@ name: docs
 
 on:
   push:
+    # dev and main only: work branches merge into dev on every commit, so a
+    # rebuild there covers them — and the bot pushing rebuild commits to both
+    # a work branch and dev would make the two diverge on every push.
+    branches:
+      - main
+      - dev
     paths:
       - "docs/**"
       - "src/**/*.py"
