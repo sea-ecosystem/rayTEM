@@ -2,7 +2,7 @@
 
 Newest entries at top.
 
-## 2026-08-29 — [Under Construction] Finishing propagation additions
+## 2026-08-29 — [Done] Finishing propagation additions (power split + ex06)
 **Goal:** New workflow (branch `finishing_propagation_additions`, merged to
 `dev` every commit) and the two items gated on the thick-lens focal-power
 question: settle K·sin(KL) vs K·tan(KL) for the aberration pupil scale, then
@@ -11,8 +11,15 @@ re-derive example 06's narrative.
 lenses, silently rescaling every aberration pupil; example 06's header has
 been stale since the column rebuild.
 - [x] branch + CI scoped to dev/main
-- [ ] focal-power decision + implementation
-- [ ] example 06 narrative re-derived
+- [x] focal-power decision + implementation
+- [x] example 06 narrative re-derived
+**Outcome:** Eric's call: focal_power = EFL power K·sin(KL) (the pupil-angle
+number, restored); focal_length = Thomas's measured BFD (kept). Regression
+test pins the split; thick-body test back at C30=1e-3; terminology page +
+wiki explain EFL vs BFD. Example 06 re-derived (F_OL 2→3 mm, C30 4.5 µm →
+Strehl 0.632, delivered 0.969 measured in panel E). Merge fallout fixed in
+examples 01/02/03/05. Issue #11 opened for Thomas with the full write-up.
+155/155.
 
 ## 2026-08-28 — [Done] Merge main into Signal_and_propagation_additions_new (PR #9)
 **Goal:** Land Thomas's post-#7 fixes from main here, resolve the conflicts,
