@@ -4324,48 +4324,7 @@ class Lens(Element):
 				K = sum([self.calibration[0]] + [v * K**(1 / (i + 1)) for i, v in enumerate(self.calibration[1:])])
 		return K
 
-	@property
-	def focal_power(self) -> float:
-		r"""The equivalent paraxial focal power ``P = -C`` (1/metres).
-
-		The lens's matrix maps the entrance face to the exit face; for an
-		on-axis parallel ray at height ``h``, the exit angle is
-		``x' = C*h = -P*h``. So ``P`` converts entrance pupil height into
-		the converging exit angle — the angle the ray actually crosses the
-		focus at — which is why it is the scale used by the ray- and
-		wave-path aberration expressions, and the quantity that composes
-		additively when lenses stack. Thin lens: ``1/focal_length``. Thick
-		lens: Brown's focusing relation ``K*sin(K*L)``.
-
-		This is reciprocal to :attr:`focal_length` (the EFL), but generally
-		**not** reciprocal to :attr:`back_focal_distance` for a thick lens
-		(the two differ by ``cos(K*L)``). See the Terminology page of the
-		docs for the full derivation.
-
-		Returns
-		-------
-		float
-			Equivalent power ``P = -C`` (1/metres); 0 for a zero-strength
-			lens.
-
-		Raises
-		------
-		None
-
-		Related
-		-------
-		focal_length : The EFL, ``1/focal_power``.
-		back_focal_distance : The exit-face-to-BFP geometry number.
-		aberration_kick : Consumes this as the pupil scale on the ray path.
-		phase_shift : Consumes this on the wave path.
-		"""
-		if self.length == 0:
-			f = self._focal_length
-			return 0.0 if xp.isinf(f) else float(1 / f)
-		K = self.calibrated_strength
-		return 0.0 if K == 0 else float(K * xp.sin(K * self.length))
-
-	def transfer_matrix(self) -> xp.ndarray:
+	def transfer_matrix(self,rotation=True) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		"""
 
@@ -4415,10 +4374,29 @@ class Lens(Element):
 		#	XY*=zeroer
 		#print("lens",self.name,"adds rotation",kL)
 		# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
-		XY = xp.matmul(R,XY)
 		self.larmor_rotation = -kL
-		M = fix_mat_dims(XY,["x","xt","y","yt"])
-		return M
+		M = fix_mat_dims(xp.matmul(R,XY),["x","xt","y","yt"])
+		if rotation:
+			return M
+		return XY
+
+	# 1-axis transfer matrix, used for calculating various named lens properties
+	def ABCD(self):
+		columns = [columnByName(k) for k in ["x", "xt"]]
+		return self.transfer_matrix(rotation=False)[columns, :][:, columns]
+
+	# Terminology
+	#  zL    zP zE    zF	self.position: zL, position of the lens entrance plane
+	# __|____|  |     |		self.length: lens length, exit plane is zL, zL = self.position+self.length
+	#   |'-. '. |     |		"back focal distance": distance from lens exit (zE) to focal point (zF): zF-zE
+	#   |    '-'.     |		"principal_distance": position of principal plane (zP) relative to entrance (zL): zP-zL
+	#   |    |  |'.   |		"focal length": distance from principal plane (zP) to focal point (zF): zF-zP
+	#   |    |  |  '. |
+	# __|____|__|____'.
+	@property
+	def principal_distance(self):
+		A,B,C,D = self.ABCD().flat
+		return self.length-(D-1)/C
 
 	@property
 	def focal_length(self):
@@ -4451,19 +4429,25 @@ class Lens(Element):
 		focal_power : Its reciprocal, ``P = -C``.
 		back_focal_distance : The exit-face-to-BFP geometry number.
 		"""
-		columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]
-		M = self.transfer_matrix()[columns, :][:, columns]
-		r1 = xp.matmul(M, [1, 0, 1, 0])		# parallel entering rays, finite x_1,y_1, zero xt_1,yt_1
-		x = xp.sqrt(r1[0]**2 + r1[2]**2)
-		xt = xp.sqrt(r1[1]**2 + r1[3]**2)
-		return self.length + x / xt						# focuses to: ratio of x_2/xt_2
 
-		if self.length == 0:
-			return self._focal_length if self.allow_diverging else abs(self._focal_length)
-		K = self.calibrated_strength
-		if K == 0:
-			return xp.inf
-		return float(1.0 / (K * xp.sin(K * self.length)))
+		A,B,C,D = self.ABCD().flat
+		return -1/C
+
+		# TWP CODE: DO NOT DELETE: this is referenced to the entrance plane
+		#columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]
+		#M = self.transfer_matrix()[columns, :][:, columns]
+		#r1 = xp.matmul(M, [1, 0, 1, 0])		# parallel entering rays, finite x_1,y_1, zero xt_1,yt_1
+		#x = xp.sqrt(r1[0]**2 + r1[2]**2)
+		#xt = xp.sqrt(r1[1]**2 + r1[3]**2)
+		#return self.length + x / xt						# focuses to: ratio of x_2/xt_2
+
+		# OLD ERIC CLODE: DO NOT DELETE: should match -C, this is referenced to self.principal_plane
+		#if self.length == 0:
+		#	return self._focal_length if self.allow_diverging else abs(self._focal_length)
+		#K = self.calibrated_strength
+		#if K == 0:
+		#	return xp.inf
+		#return float(1.0 / (K * xp.sin(K * self.length)))
 
 	@property
 	def back_focal_distance(self):
@@ -4506,20 +4490,65 @@ class Lens(Element):
 		transfer_block : Locates physical planes inside the body.
 		"""
 
-		columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]
-		M = self.transfer_matrix()[columns, :][:, columns]
-		r1 = xp.matmul(M, [1, 0, 1, 0])		# parallel entering rays, finite x_1,y_1, zero xt_1,yt_1
-		x = xp.sqrt(r1[0]**2 + r1[2]**2)
-		xt = xp.sqrt(r1[1]**2 + r1[3]**2)
-		return x / xt						# focuses to: ratio of x_2/xt_2
+		A,B,C,D = self.ABCD().flat
+		return -A/C
 
+		# TWP CODE: DO NOT DELETE: use this to prove to yourself you get the same result.
+		#columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]
+		#M = self.transfer_matrix()[columns, :][:, columns]
+		#r1 = xp.matmul(M, [1, 0, 1, 0])		# parallel entering rays, finite x_1,y_1, zero xt_1,yt_1
+		#x = xp.sqrt(r1[0]**2 + r1[2]**2)
+		#xt = xp.sqrt(r1[1]**2 + r1[3]**2)
+		#return x / xt						# focuses to: ratio of x_2/xt_2
+
+		# OLD ERIC CLODE: DO NOT DELETE: should match -A/C
+		#if self.length == 0:
+		#	return self.focal_length
+		#K = self.calibrated_strength
+		#if K == 0:
+		#	return xp.inf
+		#return float(xp.cos(K * self.length) / (K * xp.sin(K * self.length)))
+
+	@property
+	def focal_power(self) -> float:
+		r"""The equivalent paraxial focal power ``P = -C`` (1/metres).
+
+		The lens's matrix maps the entrance face to the exit face; for an
+		on-axis parallel ray at height ``h``, the exit angle is
+		``x' = C*h = -P*h``. So ``P`` converts entrance pupil height into
+		the converging exit angle — the angle the ray actually crosses the
+		focus at — which is why it is the scale used by the ray- and
+		wave-path aberration expressions, and the quantity that composes
+		additively when lenses stack. Thin lens: ``1/focal_length``. Thick
+		lens: Brown's focusing relation ``K*sin(K*L)``.
+
+		This is reciprocal to :attr:`focal_length` (the EFL), but generally
+		**not** reciprocal to :attr:`back_focal_distance` for a thick lens
+		(the two differ by ``cos(K*L)``). See the Terminology page of the
+		docs for the full derivation.
+
+		Returns
+		-------
+		float
+			Equivalent power ``P = -C`` (1/metres); 0 for a zero-strength
+			lens.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		focal_length : The EFL, ``1/focal_power``.
+		back_focal_distance : The exit-face-to-BFP geometry number.
+		aberration_kick : Consumes this as the pupil scale on the ray path.
+		phase_shift : Consumes this on the wave path.
+		"""
 		if self.length == 0:
-			return self.focal_length
+			f = self._focal_length
+			return 0.0 if xp.isinf(f) else float(1 / f)
 		K = self.calibrated_strength
-		if K == 0:
-			return xp.inf
-		return float(xp.cos(K * self.length) / (K * xp.sin(K * self.length)))
-
+		return 0.0 if K == 0 else float(K * xp.sin(K * self.length))
 
 	# unlike below(?), here we'll *measure* focal length at the current K=I*C and L, then adjust C and L to preserve focal length and set beam rotation (K*L) to match R in radians at this current I.
 	def get_C_L_from_rotation_at_I(self,I,R):

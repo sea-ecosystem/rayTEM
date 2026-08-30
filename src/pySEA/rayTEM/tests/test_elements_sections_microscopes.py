@@ -509,12 +509,12 @@ def test_thick_lens_efl_vs_bfd_split():
 
 	lens = Lens(strength=.1, length=10,name="L1")
 	section = MicroscopeSection(elements=[Source(angle=(0,0),na_xy=(2,2)),Drift(length=100),lens,Drift(length=100)])
-	section.show(title="f @ "+str(section["L1"].position+section["L1"].focal_length))
+	#section.show(title="f @ "+str(section["L1"].position+section["L1"].principal_distance+section["L1"].focal_length))
 
 	K, L = 129.80, 0.010
 	lens = Lens(strength=K, length=L,name="L1")
 	section = MicroscopeSection(elements=[Source(angle=(0,0),na_xy=(2,2)),Drift(length=1),lens,Drift(length=1)])
-	section.show(title="f @ "+str(section["L1"].position+section["L1"].focal_length))
+	#section.show(title="f @ "+str(section["L1"].position+section["L1"].focal_length))
 	# 1. matrix definitions
 	assert lens.focal_power == pytest.approx(K * np.sin(K * L))
 	assert lens.focal_length == pytest.approx(1 / lens.focal_power)
