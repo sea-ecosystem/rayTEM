@@ -4662,13 +4662,15 @@
 
 
 	<span class="c1"># Terminology</span>
-	<span class="c1">#  zL    zP zE    zF	self.position: zL, position of the lens entrance plane</span>
-	<span class="c1"># __|____|  |     |		self.length: lens length, exit plane is zL, zL = self.position+self.length</span>
-	<span class="c1">#   |'-. '. |     |		"back focal distance": distance from lens exit (zE) to focal point (zF): zF-zE</span>
-	<span class="c1">#   |    '-'.     |		"principal_distance": position of principal plane (zP) relative to entrance (zL): zP-zL</span>
-	<span class="c1">#   |    |  |'.   |		"focal length": distance from principal plane (zP) to focal point (zF): zF-zP</span>
-	<span class="c1">#   |    |  |  '. |</span>
-	<span class="c1"># __|____|__|____'.</span>
+	<span class="c1">#  zL      zP   zE    zF		self.position: zL, position of the lens entrance plane</span>
+	<span class="c1"># __|______|     |     |		self.length: lens length, exit plane is zL, zL = self.position+self.length</span>
+	<span class="c1">#   |'-.    '.   |     |		"back focal distance": distance from lens exit (zE) to focal point (zF): zF-zE</span>
+	<span class="c1">#   |    '-.  '. |     |		"principal_distance": position of principal plane (zP) relative to entrance (zL): zP-zL</span>
+	<span class="c1">#   |      | '-.'.     |		"focal length": distance from principal plane (zP) to focal point (zF): zF-zP</span>
+	<span class="c1">#   |      |     |'.   |</span>
+	<span class="c1">#   |      |     |  '. |</span>
+	<span class="c1"># __|______|_____|____'.</span>
+	<span class="c1">#</span>
 	<span class="nd">@property</span>
 	<span class="k">def</span><span class="w"> </span><span class="nf">principal_distance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 		<span class="n">A</span><span class="p">,</span><span class="n">B</span><span class="p">,</span><span class="n">C</span><span class="p">,</span><span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ABCD</span><span class="p">()</span><span class="o">.</span><span class="n">flat</span>
