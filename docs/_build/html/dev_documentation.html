@@ -214,14 +214,37 @@ by <code class="docutils literal notranslate"><span class="pre">&lt;δ(r)&gt;</s
 aberration’s contributions explicitly, so the shift is reported rather than
 absorbed into the width.</p></li>
 </ul>
-<p><strong>Chromatic</strong> attaches here as the one non-geometric term:
-<code class="docutils literal notranslate"><span class="pre">Element.chromatic_aberration</span></code> (<code class="docutils literal notranslate"><span class="pre">C_c</span></code>) with <code class="docutils literal notranslate"><span class="pre">Source.energy_spread</span></code> seeding
-<code class="docutils literal notranslate"><span class="pre">Σ[E,E]</span></code>. It is kept out of <code class="docutils literal notranslate"><span class="pre">aberrations</span></code> on purpose — the Krivanek set is a
-function of pupil coordinate alone, whereas chromatic couples the pupil to the
-energy column, making the kick bilinear and so not matrix-expressible even
-though it is a power change. Its covariance term is exact rather than closed,
-because the only fourth moment it needs factorizes under the physical
-assumption that energy spread is independent of transverse position.</p>
+<p><strong>Chromatic</strong> attaches here as the one non-geometric term, as the <code class="docutils literal notranslate"><span class="pre">'Cc'</span></code>
+entry of an element’s <code class="docutils literal notranslate"><span class="pre">Aberrations</span></code> set, paired with <code class="docutils literal notranslate"><span class="pre">Source.energy_spread</span></code>
+seeding <code class="docutils literal notranslate"><span class="pre">Σ[E,E]</span></code>. Putting it <em>in</em> the set is what makes it impossible to
+forget: it serializes, suspends and copies with the Krivanek terms. Keeping it
+out of <code class="docutils literal notranslate"><span class="pre">names</span></code>/<code class="docutils literal notranslate"><span class="pre">items()</span></code> is what keeps the Krivanek machinery from ever seeing
+a term it cannot interpret — those are functions of pupil coordinate alone,
+whereas chromatic couples the pupil to the energy column, making the kick
+bilinear and so not matrix-expressible even though it is a power change. Its
+covariance term is exact rather than closed, because the only fourth moment it
+needs factorizes under the physical assumption that energy spread is
+independent of transverse position. And because it needs no round pupil, it is
+applied per axis, which makes it exact on a quadrupole too.</p>
+<p><strong>Pupil scale.</strong> Everything that turns a ray height into a pupil angle goes
+through <code class="docutils literal notranslate"><span class="pre">Element._pupil_scale()</span></code>: an explicit <code class="docutils literal notranslate"><span class="pre">pupil_power</span></code>, else the scalar
+<code class="docutils literal notranslate"><span class="pre">focal_power</span></code>, else the geometric mean of a per-axis <code class="docutils literal notranslate"><span class="pre">focal_powers</span></code> pair. That
+last case is what lets an astigmatic element carry aberrations at all — a
+quadrupole states <code class="docutils literal notranslate"><span class="pre">focal_powers</span></code> and so used to resolve zero, which silently
+disabled its aberrations on <em>every</em> path. The mean is a stated reference scale,
+not a derived truth, because the Krivanek expansion assumes a round pupil;
+<code class="docutils literal notranslate"><span class="pre">Quadrapole(pupil_power=...)</span></code> states it explicitly when the coefficients were
+measured against a particular one.</p>
+<p><strong>Serialization.</strong> <code class="docutils literal notranslate"><span class="pre">Aberrations</span></code>, <code class="docutils literal notranslate"><span class="pre">MomentClosure</span></code> and <code class="docutils literal notranslate"><span class="pre">CovarianceBeam</span></code> are all
+<code class="docutils literal notranslate"><span class="pre">SEASerializable</span></code>. Two things this forced: a SEA object is rebuilt by calling
+its class with <em>no</em> arguments before its state is assigned, so no constructor
+may have a required parameter; and <code class="docutils literal notranslate"><span class="pre">Microscope.save</span></code> is a hand-rolled JSON
+writer, so it needed an explicit case for a nested SEA object carrying complex
+coefficients (<code class="docutils literal notranslate"><span class="pre">Aberrations.to_metadata()</span></code>, inverted by <code class="docutils literal notranslate"><span class="pre">from_metadata</span></code>) — before
+which an aberrated column could not be written to <code class="docutils literal notranslate"><span class="pre">.json</span></code> at all. A trap worth
+knowing: sea-eco’s reader routes a stored public <code class="docutils literal notranslate"><span class="pre">x</span></code> into <code class="docutils literal notranslate"><span class="pre">_x</span></code> whenever the
+object has that name, so a private method spelled <code class="docutils literal notranslate"><span class="pre">_&lt;public</span> <span class="pre">attribute&gt;</span></code> is
+silently replaced by a float on reload.</p>
 <p>The honest limit is stated where it is measured rather than buried: a cubic
 kick leaves excess kurtosis <code class="docutils literal notranslate"><span class="pre">γ₂</span> <span class="pre">=</span> <span class="pre">27f²</span></code>, with <code class="docutils literal notranslate"><span class="pre">f</span></code> the aberration’s share of the
 angular variance, so there is no regime in which the aberration matters to Σ

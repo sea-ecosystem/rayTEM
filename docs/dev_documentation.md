@@ -114,14 +114,39 @@ closure lacked:
   aberration's contributions explicitly, so the shift is reported rather than
   absorbed into the width.
 
-**Chromatic** attaches here as the one non-geometric term:
-`Element.chromatic_aberration` (`C_c`) with `Source.energy_spread` seeding
-`Σ[E,E]`. It is kept out of `aberrations` on purpose — the Krivanek set is a
-function of pupil coordinate alone, whereas chromatic couples the pupil to the
-energy column, making the kick bilinear and so not matrix-expressible even
-though it is a power change. Its covariance term is exact rather than closed,
-because the only fourth moment it needs factorizes under the physical
-assumption that energy spread is independent of transverse position.
+**Chromatic** attaches here as the one non-geometric term, as the `'Cc'`
+entry of an element's `Aberrations` set, paired with `Source.energy_spread`
+seeding `Σ[E,E]`. Putting it *in* the set is what makes it impossible to
+forget: it serializes, suspends and copies with the Krivanek terms. Keeping it
+out of `names`/`items()` is what keeps the Krivanek machinery from ever seeing
+a term it cannot interpret — those are functions of pupil coordinate alone,
+whereas chromatic couples the pupil to the energy column, making the kick
+bilinear and so not matrix-expressible even though it is a power change. Its
+covariance term is exact rather than closed, because the only fourth moment it
+needs factorizes under the physical assumption that energy spread is
+independent of transverse position. And because it needs no round pupil, it is
+applied per axis, which makes it exact on a quadrupole too.
+
+**Pupil scale.** Everything that turns a ray height into a pupil angle goes
+through `Element._pupil_scale()`: an explicit `pupil_power`, else the scalar
+`focal_power`, else the geometric mean of a per-axis `focal_powers` pair. That
+last case is what lets an astigmatic element carry aberrations at all — a
+quadrupole states `focal_powers` and so used to resolve zero, which silently
+disabled its aberrations on *every* path. The mean is a stated reference scale,
+not a derived truth, because the Krivanek expansion assumes a round pupil;
+`Quadrapole(pupil_power=...)` states it explicitly when the coefficients were
+measured against a particular one.
+
+**Serialization.** `Aberrations`, `MomentClosure` and `CovarianceBeam` are all
+`SEASerializable`. Two things this forced: a SEA object is rebuilt by calling
+its class with *no* arguments before its state is assigned, so no constructor
+may have a required parameter; and `Microscope.save` is a hand-rolled JSON
+writer, so it needed an explicit case for a nested SEA object carrying complex
+coefficients (`Aberrations.to_metadata()`, inverted by `from_metadata`) — before
+which an aberrated column could not be written to `.json` at all. A trap worth
+knowing: sea-eco's reader routes a stored public `x` into `_x` whenever the
+object has that name, so a private method spelled `_<public attribute>` is
+silently replaced by a float on reload.
 
 The honest limit is stated where it is measured rather than buried: a cubic
 kick leaves excess kurtosis `γ₂ = 27f²`, with `f` the aberration's share of the

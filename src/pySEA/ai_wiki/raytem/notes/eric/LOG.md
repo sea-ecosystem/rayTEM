@@ -32,8 +32,20 @@ size on a coupled beam; and `apply_aberrations=False` left chromatic running.
 1.26x, both 9.76x — additive to +0.45%, and that residual IS the OL1-OL2
 coupling. The aberration is a 1e-4 share of the angular variance yet 10x in
 emittance, because emittance is a determinant. Decision point: Gaussian
-closure is sufficient here (excess kurtosis discarded = 1.6e-6). 194/194;
-docs + wiki synced; site rebuilt.
+closure is sufficient here. 204/204; docs + wiki synced; site rebuilt.
+**Follow-up (Eric's review):** chromatic moved into `Aberrations` as `'Cc'`
+(one declaration, serialized and suspended with the Krivanek terms); the
+`.json` writer taught to encode a nested SEA object, so an aberrated column
+can be saved at all; `Element._pupil_scale()` unified, fixing quadrupoles
+which resolved a zero pupil and had their aberrations silently ignored on
+every path; chromatic applied per axis, exact for astigmatic elements;
+internals underscored; `CovarianceBeam`/`MomentClosure` made SEASerializable,
+carrying the driver's covariance `Signal`; stale OL1/column docstrings
+corrected; and example 08 re-based on a cold FEG at a 30 mrad nominal
+convergence with a corrected `Cs` and an uncorrected `Cc`, where OL1 gives
+3.32x the detector emittance, OL2 gives 0.88x (negative -- a determinant
+responds to anticorrelation), and chromatic is a live term. Held on
+`covariance_propagation`; not merged.
 
 ## 2026-08-30 — [Done] Analytic aberrations: zone-ABCD + covariance
 **Goal:** Aberrations enter the two remaining analytic representations: the

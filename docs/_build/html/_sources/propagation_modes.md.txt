@@ -70,9 +70,19 @@ Krivanek `C_{n,m}` are functions of pupil coordinate alone; chromatic couples
 the pupil to the **energy column the state vector already carries**, so the
 kick is bilinear — `δθ = C_c P² δ x` with `δ = (E − E₀)/E₀` — and cannot be a
 matrix entry, even though it is "just a power change", because the power
-change differs per electron. Set `Element.chromatic_aberration` (a `Lens`
-constructor argument) and `Source.energy_spread`; either alone leaves the
-column achromatic.
+change differs per electron.
+
+It is declared *inside* the aberration set, as the `'Cc'` term:
+`Lens(aberrations={'C30': 4.5e-6, 'Cc': 1.2e-3})`. One declaration then carries
+everything the element does beyond its matrix — it serializes with the
+aberrations, is detached with them by `apply_aberrations=False`, and cannot be
+left behind when they are cleared. `Element.chromatic_aberration` is a
+convenience view onto it. Pair it with `Source.energy_spread`; either alone
+leaves the column achromatic.
+
+Unlike the Krivanek terms it needs no round-pupil assumption, so it is applied
+**per axis** and is exact on an astigmatic element: a quadrupole's two powers
+have opposite signs and each gets its own `ΔP_u = −C_c P_u² δ`.
 
 Its covariance contribution `ΔΣ_θθ = κ²σ_δ²σ_x²` needs only a fourth moment
 that factorizes when the energy spread is independent of position, so unlike

@@ -101,7 +101,7 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">SEASerializable</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.aberrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">Aberrations</span><span class="p">,</span> <span class="n">KRIVANEK_TERMS</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.moments</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMomentClosure</span><span class="p">,</span> <span class="n">center_monomials</span><span class="p">,</span> <span class="n">kick_moments</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.moments</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMomentClosure</span><span class="p">,</span> <span class="n">_center_monomials</span><span class="p">,</span> <span class="n">_kick_moments</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">wraps</span>
@@ -374,9 +374,9 @@
 <span class="sd">	suspend : bool</span>
 <span class="sd">		Whether this context detaches anything.</span>
 <span class="sd">	_saved : list of tuple</span>
-<span class="sd">		``(element, aberrations, chromatic_aberration)`` per managed element</span>
-<span class="sd">		while the context is open, the last being ``None`` for anything that</span>
-<span class="sd">		has no chromatic coefficient (a section); empty otherwise.</span>
+<span class="sd">		``(element, aberrations)`` per managed element while the context is</span>
+<span class="sd">		open; empty otherwise. Detaching the set detaches the chromatic</span>
+<span class="sd">		coefficient with it, since that lives inside the set.</span>
 
 <span class="sd">	Methods</span>
 <span class="sd">	-------</span>
@@ -393,7 +393,8 @@
 <span class="sd">	-------</span>
 <span class="sd">	assemblies.Microscope.propagate_ray : One of the callers.</span>
 <span class="sd">	Element.aberration_kick : What goes quiet while suspended.</span>
-<span class="sd">	Element.chromatic_kick : Silenced with it, since an "ideal" column has to</span>
+<span class="sd">	Element.chromatic_kick : Silenced with it, since the chromatic coefficient</span>
+<span class="sd">		lives inside the set that gets detached -- an "ideal" column has to</span>
 <span class="sd">		mean an achromatic one as well.</span>
 
 <span class="sd">	Notes</span>
@@ -443,13 +444,8 @@
 		<span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">suspend</span><span class="p">:</span>
 			<span class="k">return</span> <span class="bp">self</span>
 		<span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">:</span>
-			<span class="c1"># a section carries aberrations but no chromatic coefficient, so the</span>
-			<span class="c1"># chromatic half is recorded as None and skipped for those</span>
-			<span class="n">chromatic</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="s2">"chromatic_aberration"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-			<span class="bp">self</span><span class="o">.</span><span class="n">_saved</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">e</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="s2">"aberrations"</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="n">chromatic</span><span class="p">))</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_saved</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">e</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="s2">"aberrations"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)))</span>
 			<span class="n">e</span><span class="o">.</span><span class="n">aberrations</span> <span class="o">=</span> <span class="kc">None</span>
-			<span class="k">if</span> <span class="n">chromatic</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-				<span class="n">e</span><span class="o">.</span><span class="n">chromatic_aberration</span> <span class="o">=</span> <span class="mf">0.0</span>	<span class="c1"># "ideal" has to mean achromatic too</span>
 		<span class="k">return</span> <span class="bp">self</span></div>
 
 
@@ -472,10 +468,8 @@
 <span class="sd">		------</span>
 <span class="sd">		None</span>
 <span class="sd">		"""</span>
-		<span class="k">for</span> <span class="n">e</span><span class="p">,</span> <span class="n">ab</span><span class="p">,</span> <span class="n">cc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_saved</span><span class="p">:</span>
+		<span class="k">for</span> <span class="n">e</span><span class="p">,</span> <span class="n">ab</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_saved</span><span class="p">:</span>
 			<span class="n">e</span><span class="o">.</span><span class="n">aberrations</span> <span class="o">=</span> <span class="n">ab</span>
-			<span class="k">if</span> <span class="n">cc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-				<span class="n">e</span><span class="o">.</span><span class="n">chromatic_aberration</span> <span class="o">=</span> <span class="n">cc</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">_saved</span> <span class="o">=</span> <span class="p">[]</span>
 		<span class="k">return</span> <span class="kc">False</span></div>
 </div>
@@ -829,24 +823,84 @@
 	<span class="c1">#: rotationally symmetric (currently Quadrapole); a round lens is</span>
 	<span class="c1">#: invariant and ignores it. Distinct from larmor_rotation above.</span>
 	<span class="n">rotation</span> <span class="o">=</span> <span class="mf">0.0</span>
-	<span class="c1">#: Chromatic aberration coefficient C_c (metres). A SETTING, and</span>
-	<span class="c1">#: deliberately NOT one of :attr:`aberrations`: the Krivanek C_{n,m} are</span>
-	<span class="c1">#: functions of pupil coordinate alone, whereas chromatic couples the</span>
-	<span class="c1">#: pupil to the beam's *energy* column, which makes it a different kind</span>
-	<span class="c1">#: of term (bilinear, so it cannot live in the transfer matrix). 0 means</span>
-	<span class="c1">#: achromatic, which is every element until someone says otherwise.</span>
-	<span class="c1">#: For a round magnetic lens C_c is of order f and always positive -</span>
-	<span class="c1">#: there is no round-lens achromat. Two caveats on the *value*: it is</span>
-	<span class="c1">#: referenced to the NON-relativistic fractional deviation (E - E0)/E0</span>
-	<span class="c1">#: that the E column carries directly, and a coefficient quoted against</span>
-	<span class="c1">#: the relativistically corrected potential is larger by about 10% at</span>
-	<span class="c1">#: 200 kV; and only the beam's own energy spread reaches it, so lens-</span>
-	<span class="c1">#: current ripple and high-tension instability - the other two terms of</span>
-	<span class="c1">#: the usual chromatic budget - have to be folded into</span>
-	<span class="c1">#: :attr:`Source.energy_spread` by hand if they are wanted.</span>
-	<span class="c1">#: Read by elements resolving a scalar ``focal_power``; a Quadrapole</span>
-	<span class="c1">#: states ``focal_powers`` per axis and is not chromatic yet.</span>
-	<span class="n">chromatic_aberration</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+	<span class="nd">@property</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">chromatic_aberration</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""Chromatic aberration coefficient :math:`C_c` (metres).</span>
+
+<span class="sd">		A convenience view onto ``self.aberrations.chromatic``: chromatic lives</span>
+<span class="sd">		*inside* the element's :class:`aberrations.Aberrations` set rather than</span>
+<span class="sd">		as a separate attribute, so one declaration carries everything the</span>
+<span class="sd">		element does beyond its transfer matrix. It therefore serializes with</span>
+<span class="sd">		the aberrations, is detached by :class:`suspended_aberrations` with</span>
+<span class="sd">		them, and cannot be set on an element whose aberrations were meant to</span>
+<span class="sd">		be cleared.</span>
+
+<span class="sd">		It is nonetheless not a Krivanek term and is kept out of</span>
+<span class="sd">		``Aberrations.items()``: every :math:`C_{n,m}` is a function of pupil</span>
+<span class="sd">		coordinate alone, whereas chromatic multiplies the pupil coordinate by</span>
+<span class="sd">		the beam's energy deviation. That product of two state components is</span>
+<span class="sd">		bilinear, which is why it cannot be folded into the transfer matrix the</span>
+<span class="sd">		way ``C10`` defocus can -- the power change differs per electron.</span>
+
+<span class="sd">		For a round magnetic lens :math:`C_c` is of order ``f`` and always</span>
+<span class="sd">		positive; there is no round-lens achromat. Two caveats on the *value*:</span>
+<span class="sd">		it is referenced to the NON-relativistic fractional deviation</span>
+<span class="sd">		:math:`(E - E_0)/E_0` that the ``E`` column carries directly, and a</span>
+<span class="sd">		coefficient quoted against the relativistically corrected potential is</span>
+<span class="sd">		about 10% larger at 200 kV; and only the beam's own energy spread</span>
+<span class="sd">		reaches it, so lens-current ripple and high-tension instability -- the</span>
+<span class="sd">		other two terms of the usual chromatic budget -- have to be folded into</span>
+<span class="sd">		:attr:`Source.energy_spread` by hand if they are wanted.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		float</span>
+<span class="sd">			The coefficient, 0 for an achromatic (or ideal) element.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		aberrations.CHROMATIC_TERM : Its name inside the set.</span>
+<span class="sd">		chromatic_kick : The per-ray deflection it produces.</span>
+<span class="sd">		__chromatic_monomials : The same kick, for the covariance path.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; lens = Lens(focal_length=0.003, aberrations={'Cc': 1.2e-3})</span>
+<span class="sd">		&gt;&gt;&gt; lens.chromatic_aberration</span>
+<span class="sd">		0.0012</span>
+<span class="sd">		"""</span>
+		<span class="n">ab</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"aberrations"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+		<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">ab</span><span class="o">.</span><span class="n">chromatic</span><span class="p">)</span> <span class="k">if</span> <span class="n">ab</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.0</span>
+
+	<span class="nd">@chromatic_aberration</span><span class="o">.</span><span class="n">setter</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">chromatic_aberration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Set the coefficient, creating an aberration set if there is none.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		value : float</span>
+<span class="sd">			The coefficient in metres.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		chromatic_aberration : The getter, and the rationale.</span>
+<span class="sd">		"""</span>
+		<span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"aberrations"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span> <span class="o">=</span> <span class="n">Aberrations</span><span class="p">()</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span><span class="o">.</span><span class="n">chromatic</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
 	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
 				 <span class="n">aberrations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">screen</span><span class="o">=</span><span class="kc">None</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>
@@ -1600,6 +1654,90 @@
 		<span class="n">current</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_arriving_current</span>
 		<span class="k">return</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">current</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
 
+	<span class="k">def</span><span class="w"> </span><span class="nf">_pupil_scale</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The scalar pupil scale this element's aberrations are defined against.</span>
+
+<span class="sd">		The single resolution rule, in one place, for every path that needs to</span>
+<span class="sd">		turn a ray height into a pupil angle (:math:`\theta = P r`): an</span>
+<span class="sd">		explicit :attr:`pupil_power` if the element states one, otherwise its</span>
+<span class="sd">		scalar ``focal_power``, otherwise the geometric mean of a per-axis</span>
+<span class="sd">		``focal_powers`` pair.</span>
+
+<span class="sd">		That last case is what lets an **astigmatic** element carry</span>
+<span class="sd">		aberrations at all. A quadrupole has no single focal power -- one axis</span>
+<span class="sd">		focuses while the other diverges -- so before this it resolved to zero</span>
+<span class="sd">		and its aberrations were silently ignored on every path, ray and</span>
+<span class="sd">		covariance alike. The Krivanek expansion assumes a *round* pupil, so</span>
+<span class="sd">		the geometric mean is a stated reference scale rather than a derived</span>
+<span class="sd">		truth: set :attr:`pupil_power` explicitly when the coefficients were</span>
+<span class="sd">		measured against a particular one.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		float</span>
+<span class="sd">			The pupil power in 1/metres; 0 when the element defines no pupil,</span>
+<span class="sd">			which is how a Drift stays exactly linear.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		_pupil_scales : The per-axis pair, for physics needing no round pupil.</span>
+
+<span class="sd">		Notes</span>
+<span class="sd">		-----</span>
+<span class="sd">		Named ``_pupil_scale`` and not ``_pupil_power`` on purpose: sea-eco's</span>
+<span class="sd">		JSON reader routes a stored public ``pupil_power`` into ``_pupil_power``</span>
+<span class="sd">		whenever the object has that name (``_json_attribute_name``, the</span>
+<span class="sd">		getter-only-property convention), so a private method spelled</span>
+<span class="sd">		``_&lt;public attribute&gt;`` is silently overwritten by a float on reload.</span>
+<span class="sd">		aberrations.Aberrations.deflection_at : The consumer.</span>
+<span class="sd">		AberrationScreen.pupil_power : An element that states one explicitly.</span>
+<span class="sd">		"""</span>
+		<span class="n">explicit</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"pupil_power"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">explicit</span><span class="p">:</span>
+			<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">explicit</span><span class="p">)</span>
+		<span class="n">scalar</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_power"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span>
+		<span class="k">if</span> <span class="n">scalar</span><span class="p">:</span>
+			<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">scalar</span><span class="p">)</span>
+		<span class="n">pair</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_powers"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">pair</span><span class="p">:</span>
+			<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">pair</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]))))</span>
+		<span class="k">return</span> <span class="mf">0.0</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_pupil_scales</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The per-axis pupil powers, without assuming a round pupil.</span>
+
+<span class="sd">		Chromatic aberration does not need the round-pupil assumption the</span>
+<span class="sd">		Krivanek expansion does: an off-energy electron simply sees each axis's</span>
+<span class="sd">		own power scaled, :math:`\Delta P_u = -C_c P_u^2 \delta`. So for an</span>
+<span class="sd">		astigmatic element the chromatic kick is *exact* per axis, where a</span>
+<span class="sd">		geometric aberration has to be referenced to a single stated scale.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		tuple of float</span>
+<span class="sd">			``(P_x, P_y)`` in 1/metres. Equal for a round element, opposite in</span>
+<span class="sd">			sign for a quadrupole, ``(0, 0)`` for an element with no pupil.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		_pupil_scale : The round-pupil scalar the Krivanek terms use.</span>
+<span class="sd">		chromatic_kick, __chromatic_monomials : The consumers.</span>
+<span class="sd">		"""</span>
+		<span class="n">pair</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_powers"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">pair</span><span class="p">:</span>
+			<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">pair</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+		<span class="n">P</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pupil_scale</span><span class="p">()</span>
+		<span class="k">return</span> <span class="n">P</span><span class="p">,</span> <span class="n">P</span>
+
+
 <div class="viewcode-block" id="Element.aberration_kick">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Element.aberration_kick">[docs]</a>
 	<span class="k">def</span><span class="w"> </span><span class="nf">aberration_kick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
@@ -1670,13 +1808,18 @@
 <span class="sd">		:math:L \to 0 limit is the thin kick. The integral is Simpson over 64</span>
 <span class="sd">		intervals.</span>
 
-<span class="sd">		This matters on a real objective. OL1 in basic_column is 10 mm thick</span>
-<span class="sd">		with :math:KL = 1.30, and putting the whole aberration at its entrance</span>
-<span class="sd">		face over-estimates the exit angle by **3.3x**: :math:r(z) falls as the</span>
-<span class="sd">		body focuses, and the kick from each slice is then itself focused by the</span>
-<span class="sd">		rest of the body. Both effects reduce it, and the weight</span>
-<span class="sd">		:math:D(L-z) = \cos K(L-z) is what makes the factor 0.31 rather than</span>
-<span class="sd">		the 0.51 that :math:\int\cos^3 alone would suggest.</span>
+<span class="sd">		How much this matters is set by :math:KL, and by nothing else.</span>
+<span class="sd">		basic_column's OL1 has an 80 um bore, so :math:KL = 0.164 and the</span>
+<span class="sd">		distributed kick differs from one applied entirely at the entrance</span>
+<span class="sd">		face by only 0.4% -- the body is nearly thin, and the integral is</span>
+<span class="sd">		bookkeeping. The mechanism is not: :math:r(z) falls as the body</span>
+<span class="sd">		focuses, the kick from each slice is then itself focused by the rest</span>
+<span class="sd">		of the body, and the weight :math:D(L-z) = \cos K(L-z) carries what</span>
+<span class="sd">		is left to the exit. Lengthen the same lens to a 4 mm bore</span>
+<span class="sd">		(:math:KL = 1.36) and the two answers differ by 30%, in the *other*</span>
+<span class="sd">		direction, because past :math:KL = \pi/2 the weight changes sign.</span>
+<span class="sd">		Any figure quoted for a particular column is a statement about that</span>
+<span class="sd">		column's :math:KL, not about thick lenses in general.</span>
 
 <span class="sd">		The paraxial planes from</span>
 <span class="sd">		:meth:assemblies.Microscope.conjugate_planes are unaffected by this by</span>
@@ -1685,7 +1828,7 @@
 <span class="sd">		of the matrix rather than linearized into it.</span>
 <span class="sd">		"""</span>
 		<span class="n">ab</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"aberrations"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-		<span class="n">P</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_power"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span>
+		<span class="n">P</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pupil_scale</span><span class="p">()</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="n">ab</span> <span class="ow">or</span> <span class="n">P</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
 			<span class="k">return</span> <span class="kc">None</span>
 		<span class="n">x</span> <span class="o">=</span> <span class="n">r0</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)]</span>
@@ -1989,8 +2132,8 @@
 <span class="sd">		**analytically**. Terms linear in the ray vector (``C10``, aligned</span>
 <span class="sd">		``C12``) fold into the matrix exactly. What is left is a genuinely</span>
 <span class="sd">		nonlinear kick, and its statistics come from the kick written as a</span>
-<span class="sd">		polynomial (:meth:`aberration_monomials`,</span>
-<span class="sd">		:meth:`chromatic_monomials`) evaluated through a **moment closure** —</span>
+<span class="sd">		polynomial (:meth:`_aberration_monomials`,</span>
+<span class="sd">		:meth:`_chromatic_monomials`) evaluated through a **moment closure** —</span>
 <span class="sd">		by default :class:`moments.GaussianMomentClosure`, which supplies the</span>
 <span class="sd">		higher central moments by Isserlis' theorem. No sampling, no</span>
 <span class="sd">		integrals, and no aberration-specific algebra.</span>
@@ -2041,7 +2184,7 @@
 <span class="sd">		"""</span>
 		<span class="n">M</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transfer_matrix</span><span class="p">()</span>
 		<span class="n">ab</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span>
-		<span class="n">P</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"pupil_power"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_power"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
+		<span class="n">P</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pupil_scale</span><span class="p">()</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="p">((</span><span class="n">ab</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">chromatic_aberration</span><span class="p">)</span> <span class="ow">and</span> <span class="n">P</span><span class="p">):</span>
 			<span class="n">Sigma_out</span> <span class="o">=</span> <span class="n">M</span> <span class="o">@</span> <span class="n">Sigma</span> <span class="o">@</span> <span class="n">M</span><span class="o">.</span><span class="n">T</span>
 			<span class="n">mu_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">(</span><span class="n">mu</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
@@ -2059,9 +2202,7 @@
 		<span class="k">return</span> <span class="n">mu_out</span><span class="p">,</span> <span class="n">Sigma_out</span></div>
 
 
-<div class="viewcode-block" id="Element.aberration_monomials">
-<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Element.aberration_monomials">[docs]</a>
-	<span class="k">def</span><span class="w"> </span><span class="nf">aberration_monomials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">P</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">_aberration_monomials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">P</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
 <span class="w">		</span><span class="sa">r</span><span class="sd">"""This element's nonlinear angular kick, written as a polynomial.</span>
 
 <span class="sd">		The ray path evaluates the kick numerically, one value per ray</span>
@@ -2106,7 +2247,7 @@
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
 <span class="sd">		aberration_kick : The same kick, evaluated per ray.</span>
-<span class="sd">		moments.center_monomials : Converts the result to central coordinates.</span>
+<span class="sd">		moments._center_monomials : Converts the result to central coordinates.</span>
 <span class="sd">		_aberration_moment_pieces : The consumer.</span>
 
 <span class="sd">		Notes</span>
@@ -2119,7 +2260,7 @@
 
 <span class="sd">		Examples</span>
 <span class="sd">		--------</span>
-<span class="sd">		&gt;&gt;&gt; Lens(focal_length=0.01, aberrations={'C30': 1e-3}).aberration_monomials(100.0)  # doctest: +SKIP</span>
+<span class="sd">		&gt;&gt;&gt; Lens(focal_length=0.01, aberrations={'C30': 1e-3})._aberration_monomials(100.0)  # doctest: +SKIP</span>
 <span class="sd">		{1: [(-100000.0, (0, 0, 0)), (-100000.0, (0, 2, 2))], 3: [...]}</span>
 <span class="sd">		"""</span>
 		<span class="n">ix</span><span class="p">,</span> <span class="n">ixt</span> <span class="o">=</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">),</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"xt"</span><span class="p">)</span>
@@ -2143,12 +2284,9 @@
 					<span class="n">out</span><span class="p">[</span><span class="n">ixt</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="nb">float</span><span class="p">(</span><span class="n">ax</span><span class="p">),</span> <span class="n">idx</span><span class="p">))</span>
 				<span class="k">if</span> <span class="n">ay</span><span class="p">:</span>
 					<span class="n">out</span><span class="p">[</span><span class="n">iyt</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="nb">float</span><span class="p">(</span><span class="n">ay</span><span class="p">),</span> <span class="n">idx</span><span class="p">))</span>
-		<span class="k">return</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="n">terms</span> <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">terms</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">terms</span><span class="p">}</span></div>
+		<span class="k">return</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="n">terms</span> <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">terms</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">terms</span><span class="p">}</span>
 
-
-<div class="viewcode-block" id="Element.chromatic_monomials">
-<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Element.chromatic_monomials">[docs]</a>
-	<span class="k">def</span><span class="w"> </span><span class="nf">chromatic_monomials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">P</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">mu</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">_chromatic_monomials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mu</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
 <span class="w">		</span><span class="sa">r</span><span class="sd">"""This element's chromatic kick, as a polynomial in central coordinates.</span>
 
 <span class="sd">		Chromatic aberration is the one term here that is not a function of</span>
@@ -2176,13 +2314,12 @@
 
 <span class="sd">		Parameters</span>
 <span class="sd">		----------</span>
-<span class="sd">		P : float</span>
-<span class="sd">			The pupil power (1/metres).</span>
 <span class="sd">		mu : xp.ndarray</span>
 <span class="sd">			Mean state vector, shape ``(len(convention),)``. Supplies both the</span>
 <span class="sd">			reference energy :math:`E_0 = \mu_E` and the beam offset, since a</span>
 <span class="sd">			displaced beam turns part of the bilinear term into one linear in</span>
-<span class="sd">			the energy deviation alone.</span>
+<span class="sd">			the energy deviation alone. The pupil powers come from</span>
+<span class="sd">			:meth:`_pupil_scales`, per axis.</span>
 
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
@@ -2190,7 +2327,7 @@
 <span class="sd">			Maps the ``xt`` and ``yt`` column indices to lists of</span>
 <span class="sd">			``(coefficient, indices)`` monomials in **central** coordinates</span>
 <span class="sd">			(deviations from ``mu``), ready for</span>
-<span class="sd">			:func:`moments.kick_moments`. Empty when the element is</span>
+<span class="sd">			:func:`moments._kick_moments`. Empty when the element is</span>
 <span class="sd">			achromatic, has no pupil power, or the beam carries no energy.</span>
 
 <span class="sd">		Raises</span>
@@ -2200,13 +2337,13 @@
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
 <span class="sd">		chromatic_kick : The same kick, evaluated per ray.</span>
-<span class="sd">		aberration_monomials : The geometric counterpart.</span>
+<span class="sd">		_aberration_monomials : The geometric counterpart.</span>
 
 <span class="sd">		Notes</span>
 <span class="sd">		-----</span>
 <span class="sd">		Unlike the geometric monomials these are emitted already centered:</span>
 <span class="sd">		the energy factor is a deviation by definition, so passing them</span>
-<span class="sd">		through :func:`moments.center_monomials` would wrongly re-expand it</span>
+<span class="sd">		through :func:`moments._center_monomials` would wrongly re-expand it</span>
 <span class="sd">		about :math:`\mu_E`.</span>
 
 <span class="sd">		The resulting covariance contribution</span>
@@ -2218,22 +2355,22 @@
 		<span class="n">ix</span><span class="p">,</span> <span class="n">ixt</span> <span class="o">=</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">),</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"xt"</span><span class="p">)</span>
 		<span class="n">iy</span><span class="p">,</span> <span class="n">iyt</span> <span class="o">=</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">),</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"yt"</span><span class="p">)</span>
 		<span class="n">iE</span> <span class="o">=</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"E"</span><span class="p">)</span>
-		<span class="n">Cc</span><span class="p">,</span> <span class="n">P</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chromatic_aberration</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">P</span><span class="p">)</span>
+		<span class="n">Cc</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chromatic_aberration</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
+		<span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pupil_scales</span><span class="p">()</span>
 		<span class="n">E0</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="n">iE</span><span class="p">])</span>
-		<span class="k">if</span> <span class="n">Cc</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="ow">or</span> <span class="n">P</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="ow">or</span> <span class="n">E0</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+		<span class="k">if</span> <span class="n">Cc</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="ow">or</span> <span class="p">(</span><span class="n">P_x</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="ow">and</span> <span class="n">P_y</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="n">E0</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
 			<span class="k">return</span> <span class="p">{}</span>
-		<span class="n">kappa</span> <span class="o">=</span> <span class="n">Cc</span> <span class="o">*</span> <span class="n">P</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">E0</span>
-		<span class="n">out</span> <span class="o">=</span> <span class="p">{</span><span class="n">ixt</span><span class="p">:</span> <span class="p">[(</span><span class="n">kappa</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="n">ix</span><span class="p">]),</span> <span class="p">(</span><span class="n">iE</span><span class="p">,)),</span> <span class="p">(</span><span class="n">kappa</span><span class="p">,</span> <span class="p">(</span><span class="n">iE</span><span class="p">,</span> <span class="n">ix</span><span class="p">))],</span>
-			   <span class="n">iyt</span><span class="p">:</span> <span class="p">[(</span><span class="n">kappa</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="n">iy</span><span class="p">]),</span> <span class="p">(</span><span class="n">iE</span><span class="p">,)),</span> <span class="p">(</span><span class="n">kappa</span><span class="p">,</span> <span class="p">(</span><span class="n">iE</span><span class="p">,</span> <span class="n">iy</span><span class="p">))]}</span>
-		<span class="k">return</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="p">[(</span><span class="n">c</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">terms</span> <span class="k">if</span> <span class="n">c</span><span class="p">]</span> <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">terms</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span></div>
-
+		<span class="n">kx</span><span class="p">,</span> <span class="n">ky</span> <span class="o">=</span> <span class="n">Cc</span> <span class="o">*</span> <span class="n">P_x</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">E0</span><span class="p">,</span> <span class="n">Cc</span> <span class="o">*</span> <span class="n">P_y</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">E0</span>
+		<span class="n">out</span> <span class="o">=</span> <span class="p">{</span><span class="n">ixt</span><span class="p">:</span> <span class="p">[(</span><span class="n">kx</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="n">ix</span><span class="p">]),</span> <span class="p">(</span><span class="n">iE</span><span class="p">,)),</span> <span class="p">(</span><span class="n">kx</span><span class="p">,</span> <span class="p">(</span><span class="n">iE</span><span class="p">,</span> <span class="n">ix</span><span class="p">))],</span>
+			   <span class="n">iyt</span><span class="p">:</span> <span class="p">[(</span><span class="n">ky</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="n">iy</span><span class="p">]),</span> <span class="p">(</span><span class="n">iE</span><span class="p">,)),</span> <span class="p">(</span><span class="n">ky</span><span class="p">,</span> <span class="p">(</span><span class="n">iE</span><span class="p">,</span> <span class="n">iy</span><span class="p">))]}</span>
+		<span class="k">return</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="p">[(</span><span class="n">c</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">terms</span> <span class="k">if</span> <span class="n">c</span><span class="p">]</span> <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">terms</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
 
 <div class="viewcode-block" id="Element.chromatic_kick">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Element.chromatic_kick">[docs]</a>
 	<span class="k">def</span><span class="w"> </span><span class="nf">chromatic_kick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
 <span class="w">		</span><span class="sa">r</span><span class="sd">"""This element's chromatic angular kick, per ray.</span>
 
-<span class="sd">		The ray-path companion to :meth:`chromatic_monomials`, and the</span>
+<span class="sd">		The ray-path companion to :meth:`_chromatic_monomials`, and the</span>
 <span class="sd">		reference the covariance closure is checked against. Each ray is</span>
 <span class="sd">		deflected by :math:`C_c P^2 \delta\,x` with</span>
 <span class="sd">		:math:`\delta = (E - E_0)/E_0` its own fractional energy deviation,</span>
@@ -2258,7 +2395,7 @@
 
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
-<span class="sd">		chromatic_monomials : The same kick, as an algebraic object.</span>
+<span class="sd">		_chromatic_monomials : The same kick, as an algebraic object.</span>
 <span class="sd">		aberration_kick : The geometric counterpart.</span>
 
 <span class="sd">		Notes</span>
@@ -2270,17 +2407,17 @@
 		<span class="n">Cc</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chromatic_aberration</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">Cc</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
 			<span class="k">return</span> <span class="kc">None</span>
-		<span class="n">P</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"pupil_power"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_power"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
-		<span class="k">if</span> <span class="ow">not</span> <span class="n">P</span><span class="p">:</span>
+		<span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pupil_scales</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">P_x</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="ow">and</span> <span class="n">P_y</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
 			<span class="k">return</span> <span class="kc">None</span>
 		<span class="n">rays</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">r0</span><span class="p">)</span>
 		<span class="n">E</span> <span class="o">=</span> <span class="n">rays</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"E"</span><span class="p">)]</span>
 		<span class="n">E0</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">E</span><span class="p">))</span>
 		<span class="k">if</span> <span class="n">E0</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
 			<span class="k">return</span> <span class="kc">None</span>
-		<span class="n">kappa</span> <span class="o">=</span> <span class="n">Cc</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">P</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">E0</span>
 		<span class="n">delta</span> <span class="o">=</span> <span class="n">E</span> <span class="o">-</span> <span class="n">E0</span>
-		<span class="k">return</span> <span class="n">kappa</span> <span class="o">*</span> <span class="n">delta</span> <span class="o">*</span> <span class="n">rays</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)],</span> <span class="n">kappa</span> <span class="o">*</span> <span class="n">delta</span> <span class="o">*</span> <span class="n">rays</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)]</span></div>
+		<span class="k">return</span> <span class="p">((</span><span class="n">Cc</span> <span class="o">*</span> <span class="n">P_x</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">E0</span><span class="p">)</span> <span class="o">*</span> <span class="n">delta</span> <span class="o">*</span> <span class="n">rays</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)],</span>
+				<span class="p">(</span><span class="n">Cc</span> <span class="o">*</span> <span class="n">P_y</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">E0</span><span class="p">)</span> <span class="o">*</span> <span class="n">delta</span> <span class="o">*</span> <span class="n">rays</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)])</span></div>
 
 
 	<span class="k">def</span><span class="w"> </span><span class="nf">_aberration_moment_pieces</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">M</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Sigma</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
@@ -2293,7 +2430,7 @@
 <span class="sd">		aligned ``C12`` are power changes, so</span>
 <span class="sd">		:func:`_split_quadratic_aberrations` folds them into :math:`M_l`</span>
 <span class="sd">		exactly. What is left is genuinely nonlinear, and its statistics come</span>
-<span class="sd">		from :meth:`aberration_monomials` and :meth:`chromatic_monomials`</span>
+<span class="sd">		from :meth:`_aberration_monomials` and :meth:`_chromatic_monomials`</span>
 <span class="sd">		(the kick as a polynomial) evaluated through ``closure`` (the moments</span>
 <span class="sd">		that polynomial needs but the beam state does not carry).</span>
 
@@ -2339,8 +2476,8 @@
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
 <span class="sd">		propagate_moments : The consumer.</span>
-<span class="sd">		aberration_monomials, chromatic_monomials : The kick, as a polynomial.</span>
-<span class="sd">		moments.kick_moments : Where the closure is actually applied.</span>
+<span class="sd">		aberration_monomials, _chromatic_monomials : The kick, as a polynomial.</span>
+<span class="sd">		moments._kick_moments : Where the closure is actually applied.</span>
 <span class="sd">		_split_quadratic_aberrations : Supplies the linear (power-change) part.</span>
 
 <span class="sd">		Notes</span>
@@ -2364,13 +2501,13 @@
 		<span class="n">M_l</span><span class="p">[</span><span class="n">ixt</span><span class="p">,</span> <span class="n">ix</span><span class="p">]</span> <span class="o">-=</span> <span class="p">(</span><span class="n">P_x</span> <span class="o">-</span> <span class="n">P</span><span class="p">)</span>
 		<span class="n">M_l</span><span class="p">[</span><span class="n">iyt</span><span class="p">,</span> <span class="n">iy</span><span class="p">]</span> <span class="o">-=</span> <span class="p">(</span><span class="n">P_y</span> <span class="o">-</span> <span class="n">P</span><span class="p">)</span>
 		<span class="n">monomials</span> <span class="o">=</span> <span class="p">{}</span>
-		<span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">terms</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberration_monomials</span><span class="p">(</span><span class="n">P</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>		<span class="c1"># absolute -&gt; central</span>
-			<span class="n">monomials</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">center_monomials</span><span class="p">(</span><span class="n">terms</span><span class="p">,</span> <span class="n">mu</span><span class="p">))</span>
-		<span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">terms</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">chromatic_monomials</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">mu</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>	<span class="c1"># already central</span>
+		<span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">terms</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aberration_monomials</span><span class="p">(</span><span class="n">P</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>		<span class="c1"># absolute -&gt; central</span>
+			<span class="n">monomials</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_center_monomials</span><span class="p">(</span><span class="n">terms</span><span class="p">,</span> <span class="n">mu</span><span class="p">))</span>
+		<span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">terms</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chromatic_monomials</span><span class="p">(</span><span class="n">mu</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>	<span class="c1"># already central</span>
 			<span class="n">monomials</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">terms</span><span class="p">)</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="n">monomials</span><span class="p">:</span>
 			<span class="k">return</span> <span class="n">M_l</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">)),</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
-		<span class="n">delta_mean</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">D</span> <span class="o">=</span> <span class="n">kick_moments</span><span class="p">(</span><span class="n">monomials</span><span class="p">,</span> <span class="n">Sigma</span><span class="p">,</span>
+		<span class="n">delta_mean</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">D</span> <span class="o">=</span> <span class="n">_kick_moments</span><span class="p">(</span><span class="n">monomials</span><span class="p">,</span> <span class="n">Sigma</span><span class="p">,</span>
 										<span class="n">closure</span> <span class="k">if</span> <span class="n">closure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">GaussianMomentClosure</span><span class="p">())</span>
 		<span class="k">return</span> <span class="n">M_l</span><span class="p">,</span> <span class="n">delta_mean</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">D</span>
 
@@ -2412,7 +2549,7 @@
 <span class="sd">		assemblies.Microscope.focal_surface : The frame-method consumer.</span>
 <span class="sd">		"""</span>
 		<span class="n">ab</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span>
-		<span class="n">P</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"pupil_power"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_power"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
+		<span class="n">P</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pupil_scale</span><span class="p">()</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="n">ab</span> <span class="ow">or</span> <span class="n">P</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">h</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
 			<span class="k">return</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span>
 		<span class="n">dxt_x</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">ab</span><span class="o">.</span><span class="n">deflection_at</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">h</span><span class="p">]),</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="mf">0.0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">P</span><span class="p">))</span>
@@ -3805,7 +3942,8 @@
 	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span>
 				 <span class="n">position</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">length</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span>
 				 <span class="n">strength</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">calibration</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-				 <span class="n">rotation</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>
+				 <span class="n">rotation</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">aberrations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+				 <span class="n">pupil_power</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>
 
 <span class="w">		</span><span class="sd">"""Quadripole.</span>
 
@@ -3832,6 +3970,18 @@
 <span class="sd">			per-lab-axis machinery (``transfer_block``, the scaled-wave</span>
 <span class="sd">			curvature) raises for a rotated quadrupole, because a coupled</span>
 <span class="sd">			plane has no independent per-axis description.</span>
+<span class="sd">		aberrations : Aberrations or dict, optional</span>
+<span class="sd">			Axial aberrations carried by the quadrupole, by default None</span>
+<span class="sd">			(ideal). They are referenced to ``pupil_power``, because a</span>
+<span class="sd">			quadrupole has no single focal power of its own; see</span>
+<span class="sd">			:meth:`Element._pupil_scale`. The chromatic coefficient ``'Cc'``</span>
+<span class="sd">			rides in the same set and, unlike the Krivanek terms, is applied</span>
+<span class="sd">			per axis and so needs no round-pupil assumption.</span>
+<span class="sd">		pupil_power : float, optional</span>
+<span class="sd">			The pupil scale (1/metres) the Krivanek coefficients are defined</span>
+<span class="sd">			against, by default 0 -- which means "use the geometric mean of</span>
+<span class="sd">			:attr:`focal_powers`". State it explicitly when the coefficients</span>
+<span class="sd">			were measured against a particular scale.</span>
 <span class="sd">		label : bool, optional</span>
 <span class="sd">			If the element should be labeled when plotted, by default False</span>
 <span class="sd">		print_fancy : bool, optional</span>
@@ -3847,6 +3997,8 @@
 		<span class="bp">self</span><span class="o">.</span><span class="n">strength</span> <span class="o">=</span> <span class="n">strength</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">calibration</span> <span class="o">=</span> <span class="n">calibration</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">rotation</span> <span class="o">=</span> <span class="n">rotation</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span> <span class="o">=</span> <span class="n">_as_aberrations</span><span class="p">(</span><span class="n">aberrations</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">pupil_power</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">pupil_power</span><span class="p">)</span>
 
 	<span class="nd">@property</span>
 	<span class="k">def</span><span class="w"> </span><span class="nf">calibrated_strength</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
@@ -4536,27 +4688,17 @@
 <span class="sd">			The position of the element along the z-axis, by default None</span>
 <span class="sd">		rotation : bool, optional</span>
 <span class="sd">			if set to False, lens rotation for finite-thickness lenses is overridden and turned off.</span>
-<span class="sd">		chromatic_aberration : float, optional</span>
-<span class="sd">			Chromatic aberration coefficient C_c in metres, by default 0</span>
-<span class="sd">			(achromatic). Stated as a constructor argument rather than left to</span>
-<span class="sd">			:attr:Element.chromatic_aberration alone so a chromatic lens</span>
-<span class="sd">			survives a ``.json`` reload, which rebuilds elements from their</span>
-<span class="sd">			constructor arguments only. See that attribute for what the</span>
-<span class="sd">			coefficient must be referenced against, and</span>
-<span class="sd">			:meth:Element.chromatic_monomials for what it does.</span>
 <span class="sd">		"""</span>
 	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span> <span class="n">length</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span>
 				 <span class="n">strength</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">calibration</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">focal_length</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
 				 <span class="n">aberrations</span><span class="p">:</span><span class="nb">dict</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
 				 <span class="n">position</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-				 <span class="n">allow_diverging</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-				 <span class="n">chromatic_aberration</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>
+				 <span class="n">allow_diverging</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>
 		
 		<span class="k">if</span> <span class="n">length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="n">kind</span> <span class="o">=</span> <span class="s1">'Thin lens'</span>
 		<span class="k">else</span><span class="p">:</span>		   <span class="n">kind</span> <span class="o">=</span> <span class="s1">'QLens'</span>
 
 		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span><span class="n">kind</span><span class="o">=</span><span class="n">kind</span><span class="p">)</span>
-		<span class="bp">self</span><span class="o">.</span><span class="n">chromatic_aberration</span> <span class="o">=</span> <span class="n">chromatic_aberration</span>	<span class="c1"># stated here so it survives a JSON reload</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">_position</span> <span class="o">=</span> <span class="n">position</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">=</span> <span class="n">length</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">strength</span> <span class="o">=</span> <span class="n">strength</span>

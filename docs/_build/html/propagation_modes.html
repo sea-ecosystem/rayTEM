@@ -193,9 +193,17 @@ Krivanek <code class="docutils literal notranslate"><span class="pre">C_{n,m}</s
 the pupil to the <strong>energy column the state vector already carries</strong>, so the
 kick is bilinear — <code class="docutils literal notranslate"><span class="pre">δθ</span> <span class="pre">=</span> <span class="pre">C_c</span> <span class="pre">P²</span> <span class="pre">δ</span> <span class="pre">x</span></code> with <code class="docutils literal notranslate"><span class="pre">δ</span> <span class="pre">=</span> <span class="pre">(E</span> <span class="pre">−</span> <span class="pre">E₀)/E₀</span></code> — and cannot be a
 matrix entry, even though it is “just a power change”, because the power
-change differs per electron. Set <code class="docutils literal notranslate"><span class="pre">Element.chromatic_aberration</span></code> (a <code class="docutils literal notranslate"><span class="pre">Lens</span></code>
-constructor argument) and <code class="docutils literal notranslate"><span class="pre">Source.energy_spread</span></code>; either alone leaves the
-column achromatic.</p>
+change differs per electron.</p>
+<p>It is declared <em>inside</em> the aberration set, as the <code class="docutils literal notranslate"><span class="pre">'Cc'</span></code> term:
+<code class="docutils literal notranslate"><span class="pre">Lens(aberrations={'C30':</span> <span class="pre">4.5e-6,</span> <span class="pre">'Cc':</span> <span class="pre">1.2e-3})</span></code>. One declaration then carries
+everything the element does beyond its matrix — it serializes with the
+aberrations, is detached with them by <code class="docutils literal notranslate"><span class="pre">apply_aberrations=False</span></code>, and cannot be
+left behind when they are cleared. <code class="docutils literal notranslate"><span class="pre">Element.chromatic_aberration</span></code> is a
+convenience view onto it. Pair it with <code class="docutils literal notranslate"><span class="pre">Source.energy_spread</span></code>; either alone
+leaves the column achromatic.</p>
+<p>Unlike the Krivanek terms it needs no round-pupil assumption, so it is applied
+<strong>per axis</strong> and is exact on an astigmatic element: a quadrupole’s two powers
+have opposite signs and each gets its own <code class="docutils literal notranslate"><span class="pre">ΔP_u</span> <span class="pre">=</span> <span class="pre">−C_c</span> <span class="pre">P_u²</span> <span class="pre">δ</span></code>.</p>
 <p>Its covariance contribution <code class="docutils literal notranslate"><span class="pre">ΔΣ_θθ</span> <span class="pre">=</span> <span class="pre">κ²σ_δ²σ_x²</span></code> needs only a fourth moment
 that factorizes when the energy spread is independent of position, so unlike
 the geometric terms it is <strong>exact rather than closed</strong>.</p>

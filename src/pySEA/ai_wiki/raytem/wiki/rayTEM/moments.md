@@ -36,7 +36,7 @@ Rewrite an absolute-coordinate polynomial in deviations from the mean.
 Absolute → central coordinates by binomial expansion, `2^n` terms for degree
 `n` (8 for the cubic spherical kick). A no-op for a centered beam, so it costs
 nothing in the common case; it matters when an element sits on a beam that has
-already been displaced. **`chromatic_monomials` must NOT go through this** —
+already been displaced. **`_chromatic_monomials` must NOT go through this** —
 its energy factor is a deviation by definition and would be wrongly re-expanded
 about `μ_E`.
 

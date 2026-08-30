@@ -42,3 +42,38 @@ closure is **sufficient** here and no higher-moment machinery is needed. The
 aberration's share of the angular variance is `f = 2.4e-4` at OL1, so the
 excess kurtosis the closure discards is `27 f^2 = 1.6e-6`, and the OL1-OL2
 interaction residual is +0.45% of the summed emittance growth.
+
+
+---
+
+## Follow-up round (Eric's review, same day)
+
+- [x] Chromatic moved **into** `Aberrations` as the `'Cc'` term. `Aberrations`
+      already inherited `SEASerializable`; the JSON hole was `Microscope.save`,
+      a hand-rolled writer with no case for a nested SEA object or complex
+      coefficients. `to_metadata()`/`from_metadata` now close it, and an
+      aberrated column can be written to `.json` at all -- it could not before.
+- [x] Astigmatic elements fixed. `Element._pupil_scale()` is the single
+      resolution rule; a `Quadrapole` states `focal_powers` (plural) and so
+      resolved zero, silently disabling its aberrations on **every** path.
+      `Quadrapole` now accepts `aberrations`/`pupil_power`, and chromatic uses
+      `_pupil_scales()` per axis, which needs no round pupil and is therefore
+      exact for a quadrupole.
+- [x] Privacy: `_center_monomials`, `_kick_moments`, `_aberration_monomials`,
+      `_chromatic_monomials`. `chromatic_kick` stays public because
+      `propagate_ray` calls it exactly as it calls the pre-existing public
+      `aberration_kick`.
+- [x] `CovarianceBeam` and `MomentClosure` are `SEASerializable`; the beam
+      carries the calibrated covariance `Signal` the driver already built
+      rather than a second bare copy, and rebuilds from no arguments.
+- [x] Stale docstrings corrected against the current column (OL1 is 0.08 mm at
+      KL = 0.164, the column is 0.777 m, OL1 is f = 3 mm).
+- [x] Example 08 re-based on a cold FEG at a **30 mrad** nominal convergence,
+      loaded from the stored `high-convergent-image` state with the emission
+      half-angle solved. 30 mrad is only sensible for a corrected objective, so
+      `Cs` is corrected to micrometres and `Cc` is not -- which is the real
+      regime, and makes chromatic a live term.
+
+**Not merged.** `dev` carries the first round (up to `7a10268`); everything in
+this follow-up is on `covariance_propagation` only, at Eric's direction, until
+the behaviour is confirmed.

@@ -99,6 +99,7 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.postprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot2D</span><span class="p">,</span><span class="n">findPlanes</span><span class="p">,</span><span class="n">zFromFractional</span><span class="p">,</span><span class="n">measureAtZ</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span><span class="p">,</span><span class="n">Source</span><span class="p">,</span><span class="n">Drift</span><span class="p">,</span><span class="n">Lens</span><span class="p">,</span><span class="n">Dipole</span><span class="p">,</span><span class="n">Quadrapole</span><span class="p">,</span><span class="n">Rays</span><span class="p">,</span><span class="n">columnByName</span><span class="p">,</span><span class="n">Aperture</span><span class="p">,</span><span class="n">convention</span><span class="p">,</span><span class="n">_propagate_method_name</span><span class="p">,</span><span class="n">suspended_aberrations</span><span class="p">,</span><span class="n">SealedAttributes</span><span class="p">,</span><span class="n">AberrationScreen</span><span class="p">,</span><span class="n">_as_aberrations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.aberrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">Aberrations</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">SEASerializable</span>
 
@@ -862,8 +863,10 @@
 <span class="w">		</span><span class="sd">"""The propagated moments as a :class:`moments.CovarianceBeam`.</span>
 
 <span class="sd">		A **view** over ``self.mu`` and ``self.covariance_matrix``, not a</span>
-<span class="sd">		second copy: the driver keeps storing exactly what it always stored,</span>
-<span class="sd">		and this wraps it so the resolution quantities — rms widths,</span>
+<span class="sd">		second copy: the beam carries the calibrated covariance ``Signal``</span>
+<span class="sd">		itself, so nothing is duplicated and nothing can drift out of step.</span>
+<span class="sd">		The driver keeps storing exactly what it always stored, and this wraps</span>
+<span class="sd">		it so the resolution quantities — rms widths,</span>
 <span class="sd">		position-angle correlations, emittance, and the principal axes of the</span>
 <span class="sd">		real-space and angular blocks — are available without every caller</span>
 <span class="sd">		re-deriving them from raw matrix entries.</span>
@@ -887,12 +890,11 @@
 <span class="sd">		&gt;&gt;&gt; section.propagate_moments()                    # doctest: +SKIP</span>
 <span class="sd">		&gt;&gt;&gt; section.covariance_beam.emittance('x')[-1]     # doctest: +SKIP</span>
 <span class="sd">		"""</span>
-		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">as_ndarray</span>
 		<span class="kn">from</span><span class="w"> </span><span class="nn">.moments</span><span class="w"> </span><span class="kn">import</span> <span class="n">CovarianceBeam</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 			<span class="k">return</span> <span class="kc">None</span>
 		<span class="n">source</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="ow">or</span> <span class="p">())</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">Source</span><span class="p">)),</span> <span class="kc">None</span><span class="p">)</span>
-		<span class="k">return</span> <span class="n">CovarianceBeam</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">,</span> <span class="n">as_ndarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span><span class="p">),</span>
+		<span class="k">return</span> <span class="n">CovarianceBeam</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span><span class="p">,</span>
 							  <span class="n">wavelength</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="s2">"wavelength"</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
 
 <div class="viewcode-block" id="MicroscopeSection.propagate_wave">
@@ -2999,8 +3001,10 @@
 <span class="w">		</span><span class="sd">"""The propagated moments as a :class:`moments.CovarianceBeam`.</span>
 
 <span class="sd">		A **view** over ``self.mu`` and ``self.covariance_matrix``, not a</span>
-<span class="sd">		second copy: the driver keeps storing exactly what it always stored,</span>
-<span class="sd">		and this wraps it so the resolution quantities — rms widths,</span>
+<span class="sd">		second copy: the beam carries the calibrated covariance ``Signal``</span>
+<span class="sd">		itself, so nothing is duplicated and nothing can drift out of step.</span>
+<span class="sd">		The driver keeps storing exactly what it always stored, and this wraps</span>
+<span class="sd">		it so the resolution quantities — rms widths,</span>
 <span class="sd">		position-angle correlations, emittance, and the principal axes of the</span>
 <span class="sd">		real-space and angular blocks — are available without every caller</span>
 <span class="sd">		re-deriving them from raw matrix entries.</span>
@@ -3024,13 +3028,12 @@
 <span class="sd">		&gt;&gt;&gt; scope.propagate_moments()                      # doctest: +SKIP</span>
 <span class="sd">		&gt;&gt;&gt; scope.covariance_beam.emittance('x')[-1]       # doctest: +SKIP</span>
 <span class="sd">		"""</span>
-		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">as_ndarray</span>
 		<span class="kn">from</span><span class="w"> </span><span class="nn">.moments</span><span class="w"> </span><span class="kn">import</span> <span class="n">CovarianceBeam</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 			<span class="k">return</span> <span class="kc">None</span>
 		<span class="n">source</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">e</span> <span class="k">for</span> <span class="n">sec</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sections</span> <span class="ow">or</span> <span class="p">())</span>
 					   <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="p">(</span><span class="n">sec</span><span class="o">.</span><span class="n">elements</span> <span class="ow">or</span> <span class="p">())</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">Source</span><span class="p">)),</span> <span class="kc">None</span><span class="p">)</span>
-		<span class="k">return</span> <span class="n">CovarianceBeam</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">,</span> <span class="n">as_ndarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span><span class="p">),</span>
+		<span class="k">return</span> <span class="n">CovarianceBeam</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span><span class="p">,</span>
 							  <span class="n">wavelength</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="s2">"wavelength"</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
 
 <div class="viewcode-block" id="Microscope.propagate_wave">
@@ -3660,6 +3663,11 @@
 		<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 		<span class="n">skip</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_JSON_EXCLUDE_RESULTS</span><span class="p">)</span> <span class="o">|</span> <span class="p">{</span><span class="s2">"_arriving_current"</span><span class="p">,</span><span class="s2">"format"</span><span class="p">,</span><span class="s2">"sea_type"</span><span class="p">,</span><span class="s2">"payload"</span><span class="p">}</span>
 		<span class="k">def</span><span class="w"> </span><span class="nf">clean</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+			<span class="c1"># Aberrations is a SEASerializable carrying complex coefficients, and</span>
+			<span class="c1"># json can encode neither. to_metadata is its flat, real-valued form,</span>
+			<span class="c1"># and _load_legacy_microscope_json reads it back with from_metadata.</span>
+			<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">Aberrations</span><span class="p">):</span>
+				<span class="k">return</span> <span class="n">v</span><span class="o">.</span><span class="n">to_metadata</span><span class="p">()</span>
 			<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="nb">dict</span><span class="p">):</span>
 				<span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span><span class="n">clean</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">x</span> <span class="ow">in</span> <span class="n">v</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">skip</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">}</span>
 			<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,(</span><span class="nb">list</span><span class="p">,</span><span class="nb">tuple</span><span class="p">)):</span>
@@ -3840,6 +3848,8 @@
 			<span class="n">kind</span> <span class="o">=</span> <span class="n">element</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">]</span>
 			<span class="n">func</span> <span class="o">=</span> <span class="n">mapping</span><span class="p">[</span><span class="n">kind</span><span class="p">]</span>
 			<span class="n">element</span><span class="p">[</span><span class="s2">"name"</span><span class="p">]</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Element name"</span><span class="p">,</span><span class="n">element</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"name"</span><span class="p">))</span> <span class="c1"># undo the custom mapping we did inside MicroscopeSection.save</span>
+			<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"aberrations"</span><span class="p">),</span> <span class="nb">dict</span><span class="p">):</span>		<span class="c1"># written by Microscope.save's clean()</span>
+				<span class="n">element</span><span class="p">[</span><span class="s2">"aberrations"</span><span class="p">]</span> <span class="o">=</span> <span class="n">Aberrations</span><span class="o">.</span><span class="n">from_metadata</span><span class="p">(</span><span class="n">element</span><span class="p">[</span><span class="s2">"aberrations"</span><span class="p">])</span>
 			<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">element</span><span class="p">[</span><span class="s2">"name"</span><span class="p">],</span><span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s2">"None"</span> <span class="ow">in</span> <span class="n">element</span><span class="p">[</span><span class="s2">"name"</span><span class="p">]:</span> <span class="n">element</span><span class="p">[</span><span class="s2">"name"</span><span class="p">]</span><span class="o">=</span><span class="s1">''</span>
 			<span class="n">element</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">"Element name"</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span> <span class="c1"># delete "Element name" entry, if it exists (pop avoids KeyError with del)</span>
 			<span class="n">allowed_kwargs</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="c1"># infer allowed kwargs from function itself, and filter down to only those.</span>
