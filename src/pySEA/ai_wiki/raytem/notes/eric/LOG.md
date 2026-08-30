@@ -2,6 +2,18 @@
 
 Newest entries at top.
 
+## 2026-08-30 — [Under Construction] Three-name focal API
+**Goal:** `focal_power` / `focal_length` (EFL, reciprocal pair) /
+`back_focal_distance` (signed −A/C, the measured exit-face quantity), plus
+the interactive thick-lens geometry figure in the docs.
+**Why:** The current "focal_power is deliberately not 1/focal_length" state
+is correct but a standing trap; the planning session settled the clean
+naming and the geometry story (real vs virtual BFP, in-body crossovers).
+- [ ] properties + docstrings
+- [ ] physics test list
+- [ ] docs figure + terminology + wiki
+- [ ] issue #11 proposal comment
+
 ## 2026-08-29 — [Done] Finishing propagation additions (power split + ex06)
 **Goal:** New workflow (branch `finishing_propagation_additions`, merged to
 `dev` every commit) and the two items gated on the thick-lens focal-power
