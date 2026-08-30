@@ -100,6 +100,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.copy"><code class="docutils literal notranslate"><span class="pre">Element.copy()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.kget"><code class="docutils literal notranslate"><span class="pre">Element.kget()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.kset"><code class="docutils literal notranslate"><span class="pre">Element.kset()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.larmor_rotation"><code class="docutils literal notranslate"><span class="pre">Element.larmor_rotation</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.phase_shift"><code class="docutils literal notranslate"><span class="pre">Element.phase_shift()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.position"><code class="docutils literal notranslate"><span class="pre">Element.position</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.propagate"><code class="docutils literal notranslate"><span class="pre">Element.propagate()</span></code></a></li>
@@ -973,8 +974,10 @@ attenuation depends on ray positions (e.g. an aperture).</p></li>
 <span class="sig-name descname"><span class="pre">apply_rotation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">R</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Element.apply_rotation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Element.apply_rotation" title="Link to this definition"></a></dt>
 <dd><p>Return the cumulative Larmor rotation after this element.</p>
 <p>Rotation is tracked as a parallel array rather than as a ray coordinate.
-Thick lenses accumulate rotation via self.rotation (set as a side effect
-of :meth:transfer_matrix), so this must be called <em>after</em> propagate_ray.</p>
+Thick lenses accumulate rotation via self.larmor_rotation (set as a side
+effect of :meth:transfer_matrix), so this must be called <em>after</em>
+propagate_ray. (Not to be confused with self.rotation, the user-set
+roll of an element about the optical axis.)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>R</strong> (<em>xp.ndarray</em>) – Per-ray cumulative rotation (radians) entering the element,
@@ -990,7 +993,7 @@ shape (n_rays,).</p>
 <div class="admonition seealso">
 <p class="admonition-title">See also</p>
 <dl class="simple">
-<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.transfer_matrix" title="pySEA.rayTEM.elements.Lens.transfer_matrix"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Lens.transfer_matrix</span></code></a></dt><dd><p>Sets self.rotation for finite-thickness lenses.</p>
+<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.transfer_matrix" title="pySEA.rayTEM.elements.Lens.transfer_matrix"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Lens.transfer_matrix</span></code></a></dt><dd><p>Sets self.larmor_rotation for finite-thickness lenses.</p>
 </dd>
 </dl>
 </div>
@@ -1128,6 +1131,14 @@ a parameter such as “strength” generically.</p>
 </dd>
 </dl>
 </div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Element.larmor_rotation">
+<span class="sig-name descname"><span class="pre">larmor_rotation</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Element.larmor_rotation" title="Link to this definition"></a></dt>
+<dd><p>Larmor rotation accumulated through this element (radians). Set by the
+elements that have an axial field (a side effect of transfer_matrix);
+0 for everything else. A RESULT, not a setting.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -1365,8 +1376,10 @@ treated as thin between two half-length free segments.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Element.rotation">
 <span class="sig-name descname"><span class="pre">rotation</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Element.rotation" title="Link to this definition"></a></dt>
-<dd><p>Larmor rotation accumulated through this element (radians). Set by the
-elements that have an axial field; 0 for everything else.</p>
+<dd><p>Roll of the element about the optical axis (radians, from lab +x
+toward +y). A SETTING: consumed by elements whose physics is not
+rotationally symmetric (currently Quadrapole); a round lens is
+invariant and ignores it. Distinct from larmor_rotation above.</p>
 </dd></dl>
 
 <dl class="py property">
@@ -1654,10 +1667,10 @@ power_x == power_y for a round lens with no C12.</p>
 <p class="rubric">Notes</p>
 <p>C12 is absorbed only when it is <strong>aligned</strong> with the grid axes,
 which for a complex coefficient means a zero imaginary part. A rotated
-quadratic is a <em>skew</em> astigmatism, which a per-axis :math:(R_x, R_y)
+quadratic is a <em>rotated</em> (“skew”) astigmatism, which a per-axis :math:(R_x, R_y)
 frame cannot represent - the frame would need off-diagonal terms - so a
-skew C12 is left in the residual screen instead. Same limitation as
-a skew quadrupole.</p>
+rotated C12 is left in the residual screen instead. Same limitation
+as a rotated quadrupole.</p>
 </dd></dl>
 
 <dl class="py property">
@@ -1970,7 +1983,7 @@ wave-optics support is deferred.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Quadrapole">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.elements.</span></span><span class="sig-name descname"><span class="pre">Quadrapole</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strength</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skew</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Quadrapole"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Quadrapole" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.elements.</span></span><span class="sig-name descname"><span class="pre">Quadrapole</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strength</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rotation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Quadrapole"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Quadrapole" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#pySEA.rayTEM.elements.Element" title="pySEA.rayTEM.elements.Element"><code class="xref py py-class docutils literal notranslate"><span class="pre">Element</span></code></a></p>
 <dl class="py property">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Quadrapole.calibrated_strength">
@@ -2012,7 +2025,7 @@ exponentially, and the old sin on both axes hid that.</p>
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>(power_x, power_y) in 1/metres; (0, 0) at zero strength.
 These are powers along the quadrupole’s <strong>principal axes</strong> — for a
-skewed quadrupole (skew != 0) they are the element-frame
+rotated quadrupole (rotation != 0) they are the element-frame
 values, not lab-frame ones (no independent lab-frame pair exists
 once the planes couple).</p>
 </dd>
@@ -2062,10 +2075,10 @@ sampling limit. (0.0, None) at zero strength.</p>
 <dd class="field-odd"><p>list or tuple</p>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>NotImplementedError</strong> – scaled=True with skew != 0: the per-axis curvature state
+<dd class="field-even"><p><strong>NotImplementedError</strong> – scaled=True with rotation != 0: the per-axis curvature state
     cannot represent a coupled saddle. The fixed path instead
-    evaluates χ on the rolled coordinates, so a skewed quadrupole is
-    usable there.</p>
+    evaluates χ on the rotated coordinates, so a rotated quadrupole
+    is usable there.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -2106,7 +2119,7 @@ of the focusing term - that is what makes it a quadrupole.</p></li>
 </div>
 <dl class="field-list simple">
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>NotImplementedError</strong> – If <code class="docutils literal notranslate"><span class="pre">skew</span> <span class="pre">!=</span> <span class="pre">0</span></code>: a rolled quadrupole couples x and y, so no
+<dd class="field-odd"><p><strong>NotImplementedError</strong> – If <code class="docutils literal notranslate"><span class="pre">rotation</span> <span class="pre">!=</span> <span class="pre">0</span></code>: a rotated quadrupole couples x and y, so no
     independent per-axis block exists.</p>
 </dd>
 </dl>
@@ -2154,14 +2167,14 @@ quadrupole a length changed which axis converged.</p>
 <p>Brown 1983 <a class="footnote-reference brackets" href="#id3" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a>, p. 46. The defocusing axis previously reused cos/sin,
 giving det = cos(2|KL|) - 0.75 over a 30 mm body, so a quarter of
 the phase-space area vanished and the block’s halves did not compose.</p>
-<p>A <strong>skew</strong> (rolled) quadrupole is supported here by conjugation: the
-element’s own matrix (two independent 2×2 blocks in its principal
-frame) is rotated into the lab frame, <code class="docutils literal notranslate"><span class="pre">M_lab</span> <span class="pre">=</span> <span class="pre">G(-skew)·M·G(skew)</span></code>,
-which fills the coupling entries. Per-axis views
-(<a class="reference internal" href="#pySEA.rayTEM.elements.Quadrapole.transfer_block" title="pySEA.rayTEM.elements.Quadrapole.transfer_block"><code class="xref py py-meth docutils literal notranslate"><span class="pre">transfer_block()</span></code></a>, <a class="reference internal" href="#pySEA.rayTEM.elements.Quadrapole.focal_powers" title="pySEA.rayTEM.elements.Quadrapole.focal_powers"><code class="xref py py-meth docutils literal notranslate"><span class="pre">focal_powers()</span></code></a> read in the lab frame,
-the scaled-wave curvature) remain undefined for <code class="docutils literal notranslate"><span class="pre">skew</span> <span class="pre">!=</span> <span class="pre">0</span></code> and
-raise, because a coupled plane has no independent per-axis
-description.</p>
+<p>A <strong>rotated</strong> quadrupole (the literature’s “skew quadrupole”) is
+supported here by conjugation: the element’s own matrix (two
+independent 2×2 blocks in its principal frame) is rotated into the
+lab frame, <code class="docutils literal notranslate"><span class="pre">M_lab</span> <span class="pre">=</span> <span class="pre">G(-rotation)·M·G(rotation)</span></code>, which fills the
+coupling entries. Per-axis views (<a class="reference internal" href="#pySEA.rayTEM.elements.Quadrapole.transfer_block" title="pySEA.rayTEM.elements.Quadrapole.transfer_block"><code class="xref py py-meth docutils literal notranslate"><span class="pre">transfer_block()</span></code></a>,
+<a class="reference internal" href="#pySEA.rayTEM.elements.Quadrapole.focal_powers" title="pySEA.rayTEM.elements.Quadrapole.focal_powers"><code class="xref py py-meth docutils literal notranslate"><span class="pre">focal_powers()</span></code></a> read in the lab frame, the scaled-wave
+curvature) remain undefined for <code class="docutils literal notranslate"><span class="pre">rotation</span> <span class="pre">!=</span> <span class="pre">0</span></code> and raise, because
+a coupled plane has no independent per-axis description.</p>
 <p class="rubric">References</p>
 <aside class="footnote-list brackets">
 <aside class="footnote brackets" id="id3" role="doc-footnote">
@@ -3810,7 +3823,7 @@ angular response at the exit. It is the pupil scale the section-level
 <dd class="field-even"><p>float</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>NotImplementedError</strong> – If an element cannot provide a per-axis block (e.g. a skewed
+<dd class="field-odd"><p><strong>NotImplementedError</strong> – If an element cannot provide a per-axis block (e.g. a rotated
     quadrupole).</p>
 </dd>
 </dl>
@@ -6040,7 +6053,7 @@ condition every other screen operation already assumes.</p>
 <dd><p>Rotate a sampled complex field about the optical axis, band-limited-exactly.</p>
 <p>Magnetic round lenses rotate the beam (Larmor rotation): the ray path
 accumulates it on <code class="docutils literal notranslate"><span class="pre">MicroscopeSection.R</span></code> and a thick lens reports it as
-<code class="docutils literal notranslate"><span class="pre">Lens.rotation</span> <span class="pre">=</span> <span class="pre">-K</span> <span class="pre">L</span></code>. A scalar wave rotates the same way — the rotation
+<code class="docutils literal notranslate"><span class="pre">Lens.larmor_rotation</span> <span class="pre">=</span> <span class="pre">-K</span> <span class="pre">L</span></code>. A scalar wave rotates the same way — the rotation
 is a coordinate rotation of the transverse plane, <code class="docutils literal notranslate"><span class="pre">psi_out(r)</span> <span class="pre">=</span>
 <span class="pre">psi_in(R^-1</span> <span class="pre">r)</span></code> — so it can be applied to the sampled field directly.</p>
 <p>The rotation is realized as the exact three-shear decomposition</p>

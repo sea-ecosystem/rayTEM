@@ -649,7 +649,7 @@
 <span class="sd">		Raises</span>
 <span class="sd">		------</span>
 <span class="sd">		NotImplementedError</span>
-<span class="sd">			If an element cannot provide a per-axis block (e.g. a skewed</span>
+<span class="sd">			If an element cannot provide a per-axis block (e.g. a rotated</span>
 <span class="sd">			quadrupole).</span>
 
 <span class="sd">		Related</span>
@@ -768,7 +768,7 @@
 			<span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
 				<span class="nb">print</span><span class="p">(</span><span class="s2">"propate:"</span><span class="p">,</span><span class="n">ele</span><span class="o">.</span><span class="n">name</span><span class="p">,</span><span class="s2">"@"</span><span class="p">,</span><span class="n">ele</span><span class="o">.</span><span class="n">position</span><span class="p">,</span><span class="s2">"x,y"</span><span class="p">,</span><span class="n">xp</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">ri</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)]),</span><span class="n">xp</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">ri</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)]))</span> <span class="c1">#,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))</span>
 			<span class="c1"># intensity/rotation are evaluated relative to the incoming rays; rotation</span>
-			<span class="c1"># must follow propagate_ray so thick-lens self.rotation is already set.</span>
+			<span class="c1"># must follow propagate_ray so thick-lens self.larmor_rotation is already set.</span>
 			<span class="c1"># The element is told the current ARRIVING at it, so Element.beam_current</span>
 			<span class="c1"># can be a derived read rather than a second place a current is stated.</span>
 			<span class="c1"># Recorded on the element, so it is saved with .I and .rays.</span>
