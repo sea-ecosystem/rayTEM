@@ -2185,9 +2185,9 @@
   },
   {
     "class": null,
-    "method": "strength_for_focal_length",
+    "method": "solve_strength_for_focal_length",
     "kind": "method",
-    "signature": "strength_for_focal_length(f, length)",
+    "signature": "solve_strength_for_focal_length(f, length)",
     "doc": "Solve the thick-lens strength ``K`` that yields focal length ``f``.",
     "source_path": "src/pySEA/rayTEM/microscopes/basic_column.py",
     "source_lineno": 59,

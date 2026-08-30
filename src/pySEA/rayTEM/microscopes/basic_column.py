@@ -56,7 +56,7 @@ from pySEA.rayTEM.elements import Source, Drift, Lens, Dipole, Quadrapole, Apert
 from pySEA.rayTEM.assemblies import Microscope, MicroscopeSection
 
 
-def strength_for_focal_length(f: float, length: float) -> float:
+def solve_strength_for_focal_length(f: float, length: float) -> float:
 	r"""Solve the thick-lens strength ``K`` that yields focal length ``f``.
 
 	Inverts the thick-lens focusing relation used by ``Lens.transfer_matrix``
@@ -115,7 +115,7 @@ def round_lens(name: str, f: float, length: float) -> Lens:
 	Lens
 		Lens whose strength satisfies ``K·sin(K·length) = 1/f``.
 	"""
-	return Lens(name=name, strength=strength_for_focal_length(f, length), length=length)
+	return Lens(name=name, strength=solve_strength_for_focal_length(f, length), length=length)
 
 
 def dipole_pair(name: str, strength: float = 0.0) -> list:

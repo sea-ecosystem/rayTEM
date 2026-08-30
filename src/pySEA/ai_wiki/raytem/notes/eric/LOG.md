@@ -2,6 +2,13 @@
 
 Newest entries at top.
 
+## 2026-08-30 — [Done] Rename: solve_strength_for_focal_length
+**Goal:** Action-oriented name for the f→K inversion (Eric's call).
+**Why:** `strength_for_focal_length` read like a property; it is a solve
+(brentq on K·sin(KL) = 1/f, first branch).
+**Outcome:** Renamed across basic_column, example 07, tests, terminology
+page, wiki. 159/159.
+
 ## 2026-08-30 — [Done] findPlanes ignores dead rays
 **Goal:** Plane detection only trusts rays that still carry intensity: per
 interval, a crossing counts only if both tracer rays are alive, reselecting
