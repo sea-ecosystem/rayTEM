@@ -4347,7 +4347,7 @@ class Lens(Element):
 		phase_shift : Consumes this on the wave path.
 		"""
 		if self.length == 0:
-			f = self.focal_length
+			f = self._focal_length
 			return 0.0 if xp.isinf(f) else float(1 / f)
 		K = self.calibrated_strength
 		return 0.0 if K == 0 else float(K * xp.sin(K * self.length))
@@ -4359,7 +4359,7 @@ class Lens(Element):
 		K = self.calibrated_strength
 
 		# FINITE LENGTH LENS, ZERO STRENGTH = DRIFT (try inserting a zero-strength lens and seeing if the result changes)
-		if (self.length == 0 and xp.isinf(self.focal_length)) or (self.length > 0 and K == 0):
+		if (self.length == 0 and xp.isinf(self._focal_length)) or (self.length > 0 and K == 0):
 			m = xp.eye(4) # IDENTITY MATRIX, OR DRIFT-EQUIVALENT
 			m[0,1]=self.length
 			m[2,3]=self.length
@@ -4438,6 +4438,13 @@ class Lens(Element):
 		focal_power : Its reciprocal, ``P = -C``.
 		back_focal_distance : The exit-face-to-BFP geometry number.
 		"""
+		columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]
+		M = self.transfer_matrix()[columns, :][:, columns]
+		r1 = xp.matmul(M, [1, 0, 1, 0])		# parallel entering rays, finite x_1,y_1, zero xt_1,yt_1
+		x = xp.sqrt(r1[0]**2 + r1[2]**2)
+		xt = xp.sqrt(r1[1]**2 + r1[3]**2)
+		return self.length + x / xt						# focuses to: ratio of x_2/xt_2
+
 		if self.length == 0:
 			return self._focal_length if self.allow_diverging else abs(self._focal_length)
 		K = self.calibrated_strength
@@ -4485,6 +4492,14 @@ class Lens(Element):
 		focal_power : The equivalent power ``-C`` (the aberration scale).
 		transfer_block : Locates physical planes inside the body.
 		"""
+
+		columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]
+		M = self.transfer_matrix()[columns, :][:, columns]
+		r1 = xp.matmul(M, [1, 0, 1, 0])		# parallel entering rays, finite x_1,y_1, zero xt_1,yt_1
+		x = xp.sqrt(r1[0]**2 + r1[2]**2)
+		xt = xp.sqrt(r1[1]**2 + r1[3]**2)
+		return x / xt						# focuses to: ratio of x_2/xt_2
+
 		if self.length == 0:
 			return self.focal_length
 		K = self.calibrated_strength
