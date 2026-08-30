@@ -178,8 +178,9 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_scaled_wave_cross_section</span><span class="p">(</span><span class="n">planes</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">named_positions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">crossovers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-							   <span class="n">image_planes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">	</span><span class="sd">"""Draw the |ψ(x, y=0, z)| cross-section of a scaled-wave run into an axis.</span>
+							   <span class="n">image_planes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+							   <span class="n">coordinates</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s1">'physical'</span><span class="p">,</span><span class="s1">'scaled'</span><span class="p">]</span><span class="o">=</span><span class="s1">'physical'</span><span class="p">):</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""Draw the |ψ(x, y=0, z)| cross-section of a scaled-wave run into an axis.</span>
 
 <span class="sd">	The wave analog of the geometric ray diagram: each logged plane is</span>
 <span class="sd">	reconstructed to physical coordinates on its native grid (``Δx = |s|·Δξ``,</span>
@@ -207,6 +208,15 @@
 <span class="sd">		:meth:`Microscope.conjugate_planes` (magenta dashed), by default none.</span>
 <span class="sd">	title : str, optional</span>
 <span class="sd">		Axis title, by default none.</span>
+<span class="sd">	coordinates : {'physical', 'scaled'}, optional</span>
+<span class="sd">		Which transverse coordinate to render against, by default</span>
+<span class="sd">		``'physical'`` -- metres, the frame the instrument is in, where the</span>
+<span class="sd">		beam spans nanometres at a focus and millimetres at the detector.</span>
+<span class="sd">		``'scaled'`` renders the same planes against</span>
+<span class="sd">		:math:`\xi = x/s`, the *reduced* coordinate the field actually rides</span>
+<span class="sd">		on: one grid for the whole run, in which the zooming frame keeps the</span>
+<span class="sd">		internal structure resolved everywhere. The two are the same data,</span>
+<span class="sd">		and switching between them is the point of the scaled representation.</span>
 
 <span class="sd">	Returns</span>
 <span class="sd">	-------</span>
@@ -233,7 +243,10 @@
 	<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">planes</span><span class="p">:</span>
 		<span class="n">U</span><span class="p">,</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">deta</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">read_scaled_wavefield</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
 		<span class="n">psi</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span> <span class="o">=</span> <span class="n">reconstruct_physical_wave</span><span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">deta</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">)</span>
-		<span class="n">recon</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">z</span> <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">psi</span><span class="p">,</span> <span class="n">dx</span><span class="p">))</span>
+		<span class="c1"># xi = x/s is the reduced coordinate the field rides on, so the scaled</span>
+		<span class="c1"># view is the same rows against the (single, run-wide) xi grid</span>
+		<span class="n">recon</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">z</span> <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">psi</span><span class="p">,</span>
+					  <span class="n">dx</span> <span class="k">if</span> <span class="n">coordinates</span> <span class="o">==</span> <span class="s1">'physical'</span> <span class="k">else</span> <span class="n">dxi</span><span class="p">))</span>
 	<span class="n">recon</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 	<span class="n">zs</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">recon</span><span class="p">])</span>
 	<span class="n">z_edges</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="n">zs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1e-4</span><span class="p">],</span> <span class="p">(</span><span class="n">zs</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">zs</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="p">[</span><span class="n">zs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mf">1e-4</span><span class="p">]])</span> <span class="o">*</span> <span class="mf">1e3</span>
@@ -248,7 +261,7 @@
 	<span class="n">x_edges</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="n">half</span><span class="p">,</span> <span class="n">half</span><span class="p">,</span> <span class="n">x_common</span><span class="o">.</span><span class="n">size</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e6</span>
 	<span class="n">ax</span><span class="o">.</span><span class="n">pcolormesh</span><span class="p">(</span><span class="n">z_edges</span><span class="p">,</span> <span class="n">x_edges</span><span class="p">,</span> <span class="n">prof</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">"magma"</span><span class="p">,</span> <span class="n">shading</span><span class="o">=</span><span class="s2">"flat"</span><span class="p">)</span>
 	<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"z (mm)"</span><span class="p">)</span>
-	<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"x (µm)"</span><span class="p">)</span>
+	<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"x (µm)"</span> <span class="k">if</span> <span class="n">coordinates</span> <span class="o">==</span> <span class="s1">'physical'</span> <span class="k">else</span> <span class="s2">"ξ = x/s (µm)"</span><span class="p">)</span>
 	<span class="k">if</span> <span class="n">named_positions</span><span class="p">:</span>
 		<span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">zp</span> <span class="ow">in</span> <span class="n">named_positions</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
 			<span class="k">if</span> <span class="ow">not</span> <span class="n">label</span><span class="p">:</span>			<span class="c1"># unnamed elements share one blank key; skip them</span>
@@ -3375,8 +3388,9 @@
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.Microscope.show">[docs]</a>
 	<span class="k">def</span><span class="w"> </span><span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"ray"</span><span class="p">,</span><span class="s2">"rays"</span><span class="p">,</span><span class="s2">"moments"</span><span class="p">,</span><span class="s2">"envelope"</span><span class="p">,</span><span class="s2">"covariance"</span><span class="p">,</span><span class="s2">"wave"</span><span class="p">,</span><span class="s2">"wave-scaled"</span><span class="p">,</span><span class="s2">"wave_scaled"</span><span class="p">,</span><span class="s2">"wave-hybrid"</span><span class="p">,</span><span class="s2">"wave_hybrid"</span><span class="p">]</span><span class="o">=</span><span class="s2">"ray"</span><span class="p">,</span>
 			 <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ylims</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">zlims</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">regenerate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plt_ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-			 <span class="n">plane</span><span class="p">:</span><span class="nb">int</span><span class="o">|</span><span class="nb">float</span><span class="o">|</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">zpts</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">conjugates</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-<span class="w">		</span><span class="sd">"""Visualize a propagation result.</span>
+			 <span class="n">plane</span><span class="p">:</span><span class="nb">int</span><span class="o">|</span><span class="nb">float</span><span class="o">|</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">zpts</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">conjugates</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+			 <span class="n">coordinates</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s1">'physical'</span><span class="p">,</span><span class="s1">'scaled'</span><span class="p">]</span><span class="o">=</span><span class="s1">'physical'</span><span class="p">):</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""Visualize a propagation result.</span>
 
 <span class="sd">		``kind="ray"`` draws the usual ray diagram (with element/plane overlays).</span>
 <span class="sd">		``kind="moments"`` and ``kind="wave"`` delegate to the result **Signal's own**</span>
@@ -3406,12 +3420,13 @@
 <span class="sd">		plt_ax : matplotlib axis, optional</span>
 <span class="sd">			Draw into an existing axis instead of creating one.</span>
 <span class="sd">		plane : int, float, or str, optional</span>
-<span class="sd">			Which plane to image. ``kind='wave'``/``'moments'``: an integer</span>
-<span class="sd">			z-plane index, ``None`` (default) meaning the last plane. The</span>
-<span class="sd">			scaled kinds: ``None`` draws the cross-section; an integer indexes</span>
-<span class="sd">			the logged planes, a float selects the nearest plane to that z</span>
-<span class="sd">			(metres), and a string a named position (e.g. ``"sample"``) or a</span>
-<span class="sd">			crossover z from :attr:`crossovers`.</span>
+<span class="sd">			Which plane to image, ``None`` (default) meaning the last one --</span>
+<span class="sd">			except for the scaled kinds, where ``None`` draws the whole</span>
+<span class="sd">			cross-section. An integer indexes the logged planes; a float</span>
+<span class="sd">			selects the plane nearest that z in metres; a string names a</span>
+<span class="sd">			position (e.g. ``"sample"``) through :attr:`named_positions`. The</span>
+<span class="sd">			scaled kinds additionally accept a crossover z from</span>
+<span class="sd">			:attr:`crossovers`.</span>
 <span class="sd">		zpts : float or Sequence[float], optional</span>
 <span class="sd">			Scaled kinds only: plot from a temporary :meth:`subdivided` copy of</span>
 <span class="sd">			this column, for denser z sampling than the stored element list</span>
@@ -3426,6 +3441,12 @@
 <span class="sd">			:meth:`conjugate_planes` (magenta dash-dot) alongside the wave</span>
 <span class="sd">			run's own crossovers (cyan dotted), by default True. Costs one</span>
 <span class="sd">			four-ray reference trace on a copy.</span>
+<span class="sd">		coordinates : {'physical', 'scaled'}, optional</span>
+<span class="sd">			Scaled cross-section only: whether to render against physical</span>
+<span class="sd">			``x`` in metres or against the reduced coordinate</span>
+<span class="sd">			:math:`\xi = x/s` the field actually rides on, by default</span>
+<span class="sd">			``'physical'``. The same data either way -- moving between the two</span>
+<span class="sd">			is what the scaled representation is for.</span>
 
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
@@ -3449,6 +3470,7 @@
 <span class="sd">		&gt;&gt;&gt; scope.show(kind='wave-hybrid', zpts=5e-3)            # doctest: +SKIP</span>
 <span class="sd">		&gt;&gt;&gt; scope.show(kind='wave-hybrid', plane='sample')       # doctest: +SKIP</span>
 <span class="sd">		&gt;&gt;&gt; scope.show(kind='wave-hybrid', plane=scope.crossovers[0])  # doctest: +SKIP</span>
+<span class="sd">		&gt;&gt;&gt; scope.show(kind='wave-hybrid', coordinates='scaled')  # doctest: +SKIP</span>
 <span class="sd">		"""</span>
 		<span class="k">if</span> <span class="n">zpts</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">kind</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"wave-scaled"</span><span class="p">,</span><span class="s2">"wave_scaled"</span><span class="p">,</span><span class="s2">"wave-hybrid"</span><span class="p">,</span><span class="s2">"wave_hybrid"</span><span class="p">):</span>
 			<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"zpts is only supported for the scaled wave kinds, not </span><span class="si">{</span><span class="n">kind</span><span class="si">!r}</span><span class="s2">; "</span>
@@ -3468,14 +3490,21 @@
 		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_wavefield</span><span class="p">,</span> <span class="n">make_wavefield_signal</span>
 		<span class="n">ax</span> <span class="o">=</span> <span class="n">plt_ax</span> <span class="k">if</span> <span class="n">plt_ax</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
 		<span class="k">if</span> <span class="n">kind</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"moments"</span><span class="p">,</span><span class="s2">"envelope"</span><span class="p">,</span><span class="s2">"covariance"</span><span class="p">):</span>
-			<span class="n">idx</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="k">if</span> <span class="n">plane</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">plane</span>
 			<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">regenerate</span><span class="p">:</span>
 				<span class="bp">self</span><span class="o">.</span><span class="n">propagate_moments</span><span class="p">()</span>
+			<span class="c1"># a name resolves through named_positions, exactly as it does for the</span>
+			<span class="c1"># scaled kinds; a float is resolved by the Signal's own calibrated</span>
+			<span class="c1"># indexing, and an int is a plane index</span>
+			<span class="n">idx</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="k">if</span> <span class="n">plane</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">plane</span>
+			<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+				<span class="n">idx</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">named_positions</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
 			<span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>			<span class="c1"># 6x6 covariance at one plane</span>
 			<span class="k">if</span> <span class="n">title</span><span class="p">:</span>
 				<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
 		<span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"wave"</span><span class="p">:</span>
 			<span class="n">idx</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="k">if</span> <span class="n">plane</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">plane</span>
+			<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+				<span class="n">idx</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">named_positions</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
 			<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">regenerate</span><span class="p">:</span>
 				<span class="bp">self</span><span class="o">.</span><span class="n">propagate_wave</span><span class="p">()</span>
 			<span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">zvals</span> <span class="o">=</span> <span class="n">read_wavefield</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wave</span><span class="p">)</span>
@@ -3506,7 +3535,7 @@
 					<span class="n">scope</span><span class="o">.</span><span class="n">_wave_scaled_planes</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span>
 					<span class="n">named_positions</span><span class="o">=</span><span class="n">scope</span><span class="o">.</span><span class="n">named_positions</span><span class="p">,</span>
 					<span class="n">crossovers</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">scope</span><span class="p">,</span> <span class="s2">"crossovers"</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
-					<span class="n">image_planes</span><span class="o">=</span><span class="n">images</span><span class="p">,</span>
+					<span class="n">image_planes</span><span class="o">=</span><span class="n">images</span><span class="p">,</span> <span class="n">coordinates</span><span class="o">=</span><span class="n">coordinates</span><span class="p">,</span>
 					<span class="n">title</span><span class="o">=</span><span class="n">title</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'microscope'</span><span class="p">)</span> <span class="o">+</span> <span class="sa">f</span><span class="s2">" </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2"> wave |ψ(x, 0, z)|"</span><span class="p">)</span>
 			<span class="k">else</span><span class="p">:</span>
 				<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">plane</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">integer</span><span class="p">))</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">plane</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>

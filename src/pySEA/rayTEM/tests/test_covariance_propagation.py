@@ -576,6 +576,29 @@ def test_a_different_closure_changes_the_answer():
 	assert gauss > zero						# the discarded moments only add area
 
 
+def test_show_resolves_a_plane_by_name_for_every_kind():
+	# `plane` accepts an index, a z in metres, or a named position, and the
+	# three propagation kinds resolve it the same way -- a name went through
+	# for the scaled wave but raised KeyError for moments
+	import matplotlib
+	matplotlib.use("Agg")
+	import matplotlib.pyplot as plt
+	from pySEA.rayTEM.microscopes.basic_column import build_basic_column
+	scope = build_basic_column()
+	scope.propagate_moments()
+	z = scope.get_element_position('sample')
+	drawn = []
+	for plane in (None, 14, float(z), 'sample'):
+		fig, ax = plt.subplots()
+		scope.show(kind='moments', plane=plane, plt_ax=ax, regenerate=False)
+		drawn.append(len(ax.images))
+		plt.close(fig)
+	assert all(n == 1 for n in drawn), drawn
+	# the name and the float must land on the same plane
+	named = as_ndarray(scope.covariance_matrix[float(scope.named_positions['sample'])])
+	assert np.allclose(named, as_ndarray(scope.covariance_matrix[float(z)]))
+
+
 # ---- the example's own claims ------------------------------------------
 
 def test_example_ideal_case_conserves_emittance():

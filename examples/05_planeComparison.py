@@ -45,6 +45,8 @@ def _():
 	from pySEA.rayTEM import Drift, Lens, Quadrapole, MicroscopeSection, Microscope
 	from pySEA.rayTEM import waveoptics as wo
 	from pySEA.rayTEM.assemblies import load_microscope
+	# aliased without the underscore: marimo treats _names as cell-local
+	from pySEA.rayTEM.assemblies import _scaled_wave_cross_section as scaled_wave_cross_section
 	from pySEA.rayTEM.elements import columnByName, convention
 	from pySEA.rayTEM.postprocessing import convert_to_rotating_reference_frame
 	from pySEA.rayTEM.seashells import read_scaled_wavefield
@@ -55,9 +57,9 @@ def _():
 	DZ_DENSE = 1e-3				# m, plane spacing for the continuous cross-section
 	AIM_AT = "C1"				# image rays leave (0,0) and reach +-aperture here
 	return (AIM_AT, APERTURE_RADIUS, DZ_DENSE, Drift, Lens, MicroscopeSection,
-			Microscope, Quadrapole, TAIL, TRIM_AFTER, columnByName,
-			convert_to_rotating_reference_frame, convention, load_microscope, np,
-			os, plt, read_scaled_wavefield, wo)
+			Microscope, Quadrapole, TAIL, TRIM_AFTER, scaled_wave_cross_section,
+			columnByName, convert_to_rotating_reference_frame, convention,
+			load_microscope, np, os, plt, read_scaled_wavefield, wo)
 
 
 @app.cell
@@ -348,7 +350,13 @@ def _(AIM_AT, APERTURE_RADIUS, DZ_DENSE, columnByName,
 		return dense.rays[:, 0, columnByName("z")], rot[:, :, xi], theta_aim
 
 	def wave_cross_section(scope, z_max):
-		"""Densely sample the physical ``|psi(x, 0, z)|`` cross-section.
+		"""The scaled-wave planes up to ``z_max``, ready to draw.
+
+		The rendering itself is :func:`assemblies._scaled_wave_cross_section`,
+		the same helper :meth:`Microscope.show` uses for ``kind='wave-hybrid'``
+		-- reconstructing each plane, peak-normalizing it and resampling onto a
+		common x axis is its job, not this notebook's. All that is left here is
+		the run and the ``z_max`` window.
 
 		Parameters
 		----------
@@ -360,39 +368,25 @@ def _(AIM_AT, APERTURE_RADIUS, DZ_DENSE, columnByName,
 		Returns
 		-------
 		tuple
-			``(z, x, profile, crossovers)`` — plane positions (m), common x axis
-			(m), ``(n_planes, n_x)`` peak-normalized ``|psi|``, and the run's
-			crossover positions (m).
+			``(planes, crossovers)`` -- the scaled wavefields within the
+			window, and the run's crossover positions (m).
 		"""
 		dense = scope.subdivided(DZ_DENSE)
 		dense.propagate_wave(mode="hybrid")
-		recon = []
-		for p in dense._wave_scaled_planes:
-			U, dxi, deta, lam, s, R, tau, z = read_scaled_wavefield(p)
-			if z is None or z > z_max + 1e-12:
-				continue
-			psi, dx, dy = wo.reconstruct_physical_wave(U, dxi, deta, lam, s, R)
-			recon.append((z, psi, dx))
-		recon.sort(key=lambda r: r[0])
-		n = recon[0][1].shape[1]
-		half = max(abs(r[2]) * n / 2 for r in recon)
-		x = np.linspace(-half, half, 700)
-		prof = np.zeros((len(recon), x.size))
-		for i, (z, psi, dx) in enumerate(recon):
-			xs = (np.arange(n) - n // 2) * dx
-			row = np.abs(psi[psi.shape[0] // 2, :])
-			prof[i] = np.interp(x, xs, row / row.max(), left=0, right=0)
-		return (np.array([r[0] for r in recon]), x, prof,
-				np.asarray(dense.crossovers if dense.crossovers is not None else []))
+		planes = [p for p in dense._wave_scaled_planes
+				  if read_scaled_wavefield(p)[7] is not None
+				  and read_scaled_wavefield(p)[7] <= z_max + 1e-12]
+		return planes, np.asarray(dense.crossovers
+								  if dense.crossovers is not None else [])
 
-	zw, xw, prof, crossovers = wave_cross_section(scope, z_max)
+	wave_planes, crossovers = wave_cross_section(scope, z_max)
 	ray = scope.conjugate_planes(axis="x")
 	zr, rays_x, theta_aim = reference_rays(scope)
-	print(f"wave planes: {len(zw)}   crossovers: {len(crossovers)}   "
+	print(f"wave planes: {len(wave_planes)}   crossovers: {len(crossovers)}   "
 		  f"ray diff: {len(ray['diff'])}   ray image: {len(ray['image'])}")
 	print(f"image rays aimed from (0,0) to ({AIM_AT}, ±{APERTURE_RADIUS*1e6:g} µm) "
 		  f"=> θ = ±{theta_aim*1e6:.1f} µrad")
-	return crossovers, prof, ray, rays_x, theta_aim, xw, zr, zw
+	return crossovers, ray, rays_x, theta_aim, wave_planes, zr
 
 
 @app.cell(hide_code=True)
@@ -598,14 +592,15 @@ def _(mo):
 
 
 @app.cell
-def _(AIM_AT, APERTURE_RADIUS, analytic, crossovers, np, plt, prof, ray,
-	  rays_x, scope, theta_aim, xw, z_max, zr, zw):
+def _(AIM_AT, APERTURE_RADIUS, analytic, scaled_wave_cross_section,
+	  crossovers, np, plt, ray, rays_x, scope, theta_aim, wave_planes, z_max,
+	  zr):
 	fig, ax = plt.subplots(figsize=(13, 7))
 
-	_ze = np.concatenate([[zw[0] - 1e-4], (zw[:-1] + zw[1:]) / 2,
-						  [zw[-1] + 1e-4]]) * 1e3
-	_xe = np.linspace(xw[0], xw[-1], xw.size + 1) * 1e6
-	ax.pcolormesh(_ze, _xe, prof.T, cmap="magma", shading="flat")
+	# the same renderer Microscope.show uses for kind='wave-hybrid', so the
+	# reference rays below are overlaid on the canonical cross-section rather
+	# than on a second, hand-built copy of it
+	scaled_wave_cross_section(wave_planes, ax, crossovers=crossovers)
 
 	_m = zr <= z_max + 1e-12
 	for _j in (0, 1):
@@ -620,7 +615,7 @@ def _(AIM_AT, APERTURE_RADIUS, analytic, crossovers, np, plt, prof, ray,
 					  f"θ=±{theta_aim*1e6:.0f} µrad (probes B → image)"
 					  if _j == 2 else None)
 
-	_yl, _yh = _xe[0], _xe[-1]
+	_yl, _yh = ax.get_ylim()			# the renderer has already set the x extent
 	for _zs, _c, _lbl in [(analytic["diff"], "cyan", "analytic A=0 (diffraction)"),
 						  (analytic["image"], "magenta", "analytic B=0 (image)")]:
 		for _i, _z in enumerate(np.asarray(_zs)):
@@ -646,8 +641,6 @@ def _(AIM_AT, APERTURE_RADIUS, analytic, crossovers, np, plt, prof, ray,
 			ax.text(_z * 1e3, _yh * 0.97, _name, color="w", rotation=90,
 					ha="right", va="top", fontsize=7)
 
-	ax.set_xlabel("z (mm)")
-	ax.set_ylabel("x (µm) — physical, unscaled")
 	ax.set_title("Special planes: analytic matrix vs ray trace vs wave frame\n"
 				 "basic_column trimmed past PL4, |ψ(x, 0, z)| (each plane peak-normalized)")
 	ax.legend(loc="lower left", fontsize=7, framealpha=0.45, labelcolor="w",

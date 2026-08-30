@@ -283,7 +283,7 @@
     "name": "check_lengths",
     "qualname": "check_lengths",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3565,
+    "source_lineno": 3594,
     "signature": "check_lengths(section)",
     "doc": ""
   },
@@ -913,7 +913,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3664,
+    "source_lineno": 3693,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -922,7 +922,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3494,
+    "source_lineno": 3523,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -1165,7 +1165,7 @@
     "name": "Microscope",
     "qualname": "Microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 920,
+    "source_lineno": 933,
     "signature": "class Microscope",
     "doc": "Microscope class represents a whole microscope, and is comprised of multiple MicroscopeSections. propagation through a Microscope results in propagation through individual MicroscopeSections"
   },
@@ -1174,7 +1174,7 @@
     "name": "MicroscopeSection",
     "qualname": "MicroscopeSection",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 182,
+    "source_lineno": 195,
     "signature": "class MicroscopeSection",
     "doc": "MicroscopeSection class represents a portion of a microscope, and contains multiple Elements. propagation through a Section results in propagation through individual Elements."
   },
@@ -1552,7 +1552,7 @@
     "name": "repair",
     "qualname": "repair",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3579,
+    "source_lineno": 3608,
     "signature": "repair(section, combine_drifts)",
     "doc": "Close gaps and overlaps in a section's element list, in place."
   },
@@ -1633,7 +1633,7 @@
     "name": "roundjson",
     "qualname": "roundjson",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3476,
+    "source_lineno": 3505,
     "signature": "roundjson(jdict)",
     "doc": ""
   },
@@ -2614,7 +2614,7 @@
     "name": "test_example_budget_is_dominated_by_ol1_and_nearly_additive",
     "qualname": "test_example_budget_is_dominated_by_ol1_and_nearly_additive",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 610,
+    "source_lineno": 633,
     "signature": "test_example_budget_is_dominated_by_ol1_and_nearly_additive()",
     "doc": ""
   },
@@ -2623,7 +2623,7 @@
     "name": "test_example_chromatic_is_a_live_term_at_this_aperture",
     "qualname": "test_example_chromatic_is_a_live_term_at_this_aperture",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 629,
+    "source_lineno": 652,
     "signature": "test_example_chromatic_is_a_live_term_at_this_aperture()",
     "doc": ""
   },
@@ -2632,7 +2632,7 @@
     "name": "test_example_closure_validity_is_small_enough_to_justify_the_closure",
     "qualname": "test_example_closure_validity_is_small_enough_to_justify_the_closure",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 636,
+    "source_lineno": 659,
     "signature": "test_example_closure_validity_is_small_enough_to_justify_the_closure()",
     "doc": ""
   },
@@ -2641,7 +2641,7 @@
     "name": "test_example_disabling_either_objective_reproduces_the_single_case",
     "qualname": "test_example_disabling_either_objective_reproduces_the_single_case",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 600,
+    "source_lineno": 623,
     "signature": "test_example_disabling_either_objective_reproduces_the_single_case()",
     "doc": ""
   },
@@ -2650,7 +2650,7 @@
     "name": "test_example_ideal_case_conserves_emittance",
     "qualname": "test_example_ideal_case_conserves_emittance",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 581,
+    "source_lineno": 604,
     "signature": "test_example_ideal_case_conserves_emittance()",
     "doc": ""
   },
@@ -2659,7 +2659,7 @@
     "name": "test_example_ol2_cannot_affect_the_specimen",
     "qualname": "test_example_ol2_cannot_affect_the_specimen",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 590,
+    "source_lineno": 613,
     "signature": "test_example_ol2_cannot_affect_the_specimen()",
     "doc": ""
   },
@@ -2668,7 +2668,7 @@
     "name": "test_example_runs_at_the_stated_operating_point",
     "qualname": "test_example_runs_at_the_stated_operating_point",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 617,
+    "source_lineno": 640,
     "signature": "test_example_runs_at_the_stated_operating_point()",
     "doc": ""
   },
@@ -3318,6 +3318,15 @@
     "path": "src/pySEA/rayTEM/tests/test_wave_and_envelope.py",
     "source_lineno": 78,
     "signature": "test_show_plots_each_mode_headless()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_show_resolves_a_plane_by_name_for_every_kind",
+    "qualname": "test_show_resolves_a_plane_by_name_for_every_kind",
+    "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
+    "source_lineno": 579,
+    "signature": "test_show_resolves_a_plane_by_name_for_every_kind()",
     "doc": ""
   },
   {

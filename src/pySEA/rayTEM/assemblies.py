@@ -87,8 +87,9 @@ def _stack_scaled_wavefields(planes, name="scaled wave"):
 
 
 def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None,
-							   image_planes=None, title=None):
-	"""Draw the |ψ(x, y=0, z)| cross-section of a scaled-wave run into an axis.
+							   image_planes=None, title=None,
+							   coordinates:Literal['physical','scaled']='physical'):
+	r"""Draw the |ψ(x, y=0, z)| cross-section of a scaled-wave run into an axis.
 
 	The wave analog of the geometric ray diagram: each logged plane is
 	reconstructed to physical coordinates on its native grid (``Δx = |s|·Δξ``,
@@ -116,6 +117,15 @@ def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None
 		:meth:`Microscope.conjugate_planes` (magenta dashed), by default none.
 	title : str, optional
 		Axis title, by default none.
+	coordinates : {'physical', 'scaled'}, optional
+		Which transverse coordinate to render against, by default
+		``'physical'`` -- metres, the frame the instrument is in, where the
+		beam spans nanometres at a focus and millimetres at the detector.
+		``'scaled'`` renders the same planes against
+		:math:`\xi = x/s`, the *reduced* coordinate the field actually rides
+		on: one grid for the whole run, in which the zooming frame keeps the
+		internal structure resolved everywhere. The two are the same data,
+		and switching between them is the point of the scaled representation.
 
 	Returns
 	-------
@@ -142,7 +152,10 @@ def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None
 	for p in planes:
 		U, dxi, deta, lam, s, R, tau, z = read_scaled_wavefield(p)
 		psi, dx, dy = reconstruct_physical_wave(U, dxi, deta, lam, s, R)
-		recon.append((z if z is not None else 0.0, psi, dx))
+		# xi = x/s is the reduced coordinate the field rides on, so the scaled
+		# view is the same rows against the (single, run-wide) xi grid
+		recon.append((z if z is not None else 0.0, psi,
+					  dx if coordinates == 'physical' else dxi))
 	recon.sort(key=lambda r: r[0])
 	zs = xp.array([r[0] for r in recon])
 	z_edges = xp.concatenate([[zs[0] - 1e-4], (zs[:-1] + zs[1:]) / 2, [zs[-1] + 1e-4]]) * 1e3
@@ -157,7 +170,7 @@ def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None
 	x_edges = xp.linspace(-half, half, x_common.size + 1) * 1e6
 	ax.pcolormesh(z_edges, x_edges, prof.T, cmap="magma", shading="flat")
 	ax.set_xlabel("z (mm)")
-	ax.set_ylabel("x (µm)")
+	ax.set_ylabel("x (µm)" if coordinates == 'physical' else "ξ = x/s (µm)")
 	if named_positions:
 		for label, zp in named_positions.items():
 			if not label:			# unnamed elements share one blank key; skip them
@@ -3178,8 +3191,9 @@ class Microscope(SealedAttributes, SEASerializable):
 
 	def show(self, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray",
 			 filename=None, title=None, ylims=None, zlims=None, regenerate=True, plt_ax=None,
-			 plane:int|float|str=None, zpts=None, conjugates:bool=True):
-		"""Visualize a propagation result.
+			 plane:int|float|str=None, zpts=None, conjugates:bool=True,
+			 coordinates:Literal['physical','scaled']='physical'):
+		r"""Visualize a propagation result.
 
 		``kind="ray"`` draws the usual ray diagram (with element/plane overlays).
 		``kind="moments"`` and ``kind="wave"`` delegate to the result **Signal's own**
@@ -3209,12 +3223,13 @@ class Microscope(SealedAttributes, SEASerializable):
 		plt_ax : matplotlib axis, optional
 			Draw into an existing axis instead of creating one.
 		plane : int, float, or str, optional
-			Which plane to image. ``kind='wave'``/``'moments'``: an integer
-			z-plane index, ``None`` (default) meaning the last plane. The
-			scaled kinds: ``None`` draws the cross-section; an integer indexes
-			the logged planes, a float selects the nearest plane to that z
-			(metres), and a string a named position (e.g. ``"sample"``) or a
-			crossover z from :attr:`crossovers`.
+			Which plane to image, ``None`` (default) meaning the last one --
+			except for the scaled kinds, where ``None`` draws the whole
+			cross-section. An integer indexes the logged planes; a float
+			selects the plane nearest that z in metres; a string names a
+			position (e.g. ``"sample"``) through :attr:`named_positions`. The
+			scaled kinds additionally accept a crossover z from
+			:attr:`crossovers`.
 		zpts : float or Sequence[float], optional
 			Scaled kinds only: plot from a temporary :meth:`subdivided` copy of
 			this column, for denser z sampling than the stored element list
@@ -3229,6 +3244,12 @@ class Microscope(SealedAttributes, SEASerializable):
 			:meth:`conjugate_planes` (magenta dash-dot) alongside the wave
 			run's own crossovers (cyan dotted), by default True. Costs one
 			four-ray reference trace on a copy.
+		coordinates : {'physical', 'scaled'}, optional
+			Scaled cross-section only: whether to render against physical
+			``x`` in metres or against the reduced coordinate
+			:math:`\xi = x/s` the field actually rides on, by default
+			``'physical'``. The same data either way -- moving between the two
+			is what the scaled representation is for.
 
 		Returns
 		-------
@@ -3252,6 +3273,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		>>> scope.show(kind='wave-hybrid', zpts=5e-3)            # doctest: +SKIP
 		>>> scope.show(kind='wave-hybrid', plane='sample')       # doctest: +SKIP
 		>>> scope.show(kind='wave-hybrid', plane=scope.crossovers[0])  # doctest: +SKIP
+		>>> scope.show(kind='wave-hybrid', coordinates='scaled')  # doctest: +SKIP
 		"""
 		if zpts is not None and kind not in ("wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"):
 			raise ValueError(f"zpts is only supported for the scaled wave kinds, not {kind!r}; "
@@ -3271,14 +3293,21 @@ class Microscope(SealedAttributes, SEASerializable):
 		from .seashells import read_wavefield, make_wavefield_signal
 		ax = plt_ax if plt_ax is not None else plt.subplots()[1]
 		if kind in ("moments","envelope","covariance"):
-			idx = -1 if plane is None else plane
 			if self.covariance_matrix is None or regenerate:
 				self.propagate_moments()
+			# a name resolves through named_positions, exactly as it does for the
+			# scaled kinds; a float is resolved by the Signal's own calibrated
+			# indexing, and an int is a plane index
+			idx = -1 if plane is None else plane
+			if isinstance(idx, str):
+				idx = float(self.named_positions[idx])
 			self.covariance_matrix[idx].show(ax=ax)			# 6x6 covariance at one plane
 			if title:
 				ax.set_title(title)
 		elif kind == "wave":
 			idx = -1 if plane is None else plane
+			if isinstance(idx, str):
+				idx = float(self.named_positions[idx])
 			if self.wave is None or regenerate:
 				self.propagate_wave()
 			data, dx, dy, wavelength, zvals = read_wavefield(self.wave)
@@ -3309,7 +3338,7 @@ class Microscope(SealedAttributes, SEASerializable):
 					scope._wave_scaled_planes, ax,
 					named_positions=scope.named_positions,
 					crossovers=getattr(scope, "crossovers", None),
-					image_planes=images,
+					image_planes=images, coordinates=coordinates,
 					title=title or (self.name or 'microscope') + f" {mode} wave |ψ(x, 0, z)|")
 			else:
 				if isinstance(plane, (int, xp.integer)) and not isinstance(plane, bool):

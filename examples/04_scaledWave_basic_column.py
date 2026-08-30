@@ -106,24 +106,22 @@ def reconstruct_planes(planes):
 	return out
 
 
-def plot_cross_section(recon, markers, crossovers, filename):
-	"""Render |ψ| vs z in physical x and in the scaled coordinate ξ.
+def plot_cross_section(scope, filename):
+	r"""Render |ψ| vs z in physical x and in the scaled coordinate ξ.
 
-	Two panels share the z axis: the top shows |ψ(x, y=0, z)| in physical
-	micrometres (the wave analog of the geometric ray diagram — the beam
-	envelope spans nm at the foci to mm at the detector); the bottom shows the
-	same planes in the scaled coordinate ξ = x/s, where the zooming grid keeps
-	the internal structure visible at every z. Planes are individually
-	normalized to their peak.
+	Both panels are :meth:`Microscope.show` with ``kind='wave-hybrid'`` --
+	the wave analog of the geometric ray diagram, with the element and
+	crossover annotations it already draws. The only difference between them
+	is ``coordinates``: the top panel is physical micrometres, where the beam
+	spans nanometres at a focus and millimetres at the detector; the bottom is
+	the reduced coordinate :math:`\xi = x/s` the field actually rides on,
+	where one grid keeps the internal structure resolved at every z. Moving
+	between the two is the whole point of the scaled representation.
 
 	Parameters
 	----------
-	recon : list of tuple
-		``(z, s, psi, dx, tag)`` per plane from :func:`reconstruct_planes`.
-	markers : dict
-		``{label: z}`` element annotations.
-	crossovers : Sequence[float]
-		Crossover (focal-plane) z positions from the run.
+	scope : Microscope
+		A column already propagated with ``mode='hybrid'``.
 	filename : str
 		Output PNG path.
 
@@ -131,46 +129,21 @@ def plot_cross_section(recon, markers, crossovers, filename):
 	-------
 	None
 		Writes ``filename``.
-	"""
-	zs = np.array([r[0] for r in recon])
-	z_edges = np.concatenate([[zs[0] - 1e-4], (zs[:-1] + zs[1:]) / 2, [zs[-1] + 1e-4]]) * 1e3
-	n = recon[0][2].shape[1]
 
+	Raises
+	------
+	None
+
+	Related
+	-------
+	assemblies.Microscope.show : What both panels are.
+	assemblies._scaled_wave_cross_section : The renderer behind it.
+	"""
 	fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
-	# top: physical coordinates (row extents differ per plane -> common grid)
-	half = max(abs(r[3]) * n / 2 for r in recon)
-	x_common = np.linspace(-half, half, 600)
-	prof = np.zeros((len(recon), x_common.size))
-	for i, (z, s, psi, dx, tag) in enumerate(recon):
-		x = (np.arange(n) - n // 2) * dx
-		row = np.abs(psi[psi.shape[0] // 2, :])
-		prof[i] = np.interp(x_common, x, row / row.max(), left=0, right=0)
-	x_edges = np.linspace(-half, half, x_common.size + 1) * 1e6
-	ax1.pcolormesh(z_edges, x_edges, prof.T, cmap="magma", shading="flat")
-	ax1.set_ylabel("x (µm)")
-	ax1.set_title("basic_column hybrid scaled-Fresnel |ψ(x, y=0, z)| — physical coordinates")
-	# bottom: scaled coordinate xi = x/s (one shared grid for the whole run)
-	prof_xi = np.zeros((len(recon), n))
-	for i, (z, s, psi, dx, tag) in enumerate(recon):
-		row = np.abs(psi[psi.shape[0] // 2, :])
-		prof_xi[i] = row / row.max()
-	dxi = recon[0][3] / abs(recon[0][1])
-	xi_edges = (np.arange(n + 1) - n / 2) * dxi * 1e6
-	ax2.pcolormesh(z_edges, xi_edges, prof_xi.T, cmap="magma", shading="flat")
-	ax2.set_ylabel("ξ = x/s (µm)")
-	ax2.set_xlabel("z (mm)")
-	ax2.set_title("same planes in the scaled coordinate (the grid the wave actually rides)")
-	for ax in (ax1, ax2):
-		for label, z in markers.items():
-			ax.axvline(z * 1e3, color="w", lw=0.6, ls="--", alpha=0.6)
-		for zc in crossovers:
-			ax.axvline(zc * 1e3, color="cyan", lw=0.8, ls=":", alpha=0.9)
-	for label, z in markers.items():
-		ax1.text(z * 1e3, half * 1e6 * 0.95, label, color="w", rotation=90,
-				 ha="right", va="top", fontsize=7)
-	for zc in crossovers:
-		ax1.text(zc * 1e3, -half * 1e6 * 0.95, "crossover", color="cyan", rotation=90,
-				 ha="right", va="bottom", fontsize=7)
+	scope.show(kind="wave-hybrid", plt_ax=ax1, regenerate=False,
+			   title="basic_column hybrid scaled-Fresnel |ψ(x, y=0, z)| — physical coordinates")
+	scope.show(kind="wave-hybrid", plt_ax=ax2, regenerate=False, coordinates="scaled",
+			   title="the same planes in the scaled coordinate the wave actually rides")
 	fig.tight_layout()
 	fig.savefig(filename, dpi=160)
 	plt.close(fig)
@@ -179,8 +152,9 @@ def plot_cross_section(recon, markers, crossovers, filename):
 def plot_xy_slices(scope, filename):
 	"""Render |ψ(x, y)|² at the column's key planes on their native grids.
 
-	Uses :meth:`Microscope.wavefield_at` to reconstruct the physical wave at
-	the source exit, the C1 back-focal (crossover) plane, the ``sample``
+	Uses :meth:`Microscope.show` with a ``plane``, which reconstructs the
+	physical wave there and lets the wavefield ``Signal`` draw itself on its
+	own calibrated axes. The planes shown are the source exit, the C1 back-focal (crossover) plane, the ``sample``
 	plane, the objective and projector crossovers, and the ``detector``.
 
 	Parameters
@@ -203,14 +177,11 @@ def plot_xy_slices(scope, filename):
 			  ("detector", scope.named_positions["detector"])]
 	fig, axes = plt.subplots(2, 3, figsize=(11, 7))
 	for ax, (label, z) in zip(axes.flat, planes):
-		sig = scope.wavefield_at(z)
-		data, dx, dy, lam, z_out = read_wavefield(sig)
-		nn = data.shape[0]
-		ext = np.array([-1, 1, -1, 1]) * (nn // 2) * dx * 1e6
-		ax.imshow(np.abs(data) ** 2, extent=ext, origin="lower", cmap="magma")
-		ax.set_title(f"{label}\nz = {z_out*1e3:.2f} mm   Δx = {dx*1e9:.3g} nm", fontsize=9)
-		ax.set_xlabel("x (µm)", fontsize=8)
-		ax.set_ylabel("y (µm)", fontsize=8)
+		# show() reconstructs the plane and lets the wavefield Signal draw
+		# itself on its own calibrated axes -- no extent arithmetic here
+		scope.show(kind="wave-hybrid", plane=float(z), plt_ax=ax, regenerate=False)
+		dx = scope.wavefield_at(z).dimensions['x'].scale
+		ax.set_title(f"{label}\nz = {z*1e3:.2f} mm   Δx = {dx*1e9:.3g} nm", fontsize=9)
 		ax.tick_params(labelsize=7)
 	fig.suptitle("basic_column hybrid scaled-Fresnel |ψ(x, y)|² — note the per-plane physical grids", y=1.0)
 	fig.tight_layout()
@@ -247,11 +218,7 @@ def main():
 	# 2) dense column for the cross-section figure
 	dense = load_column(subdivide=DZ_STEP)
 	dense.propagate_wave(mode="hybrid")
-	recon = reconstruct_planes(dense._wave_scaled_planes)
-	markers = {name: z for name, z in dense.named_positions.items()
-			   if name and not name[-1] in "ab" and name != "G"}
-	plot_cross_section(recon, markers, dense.crossovers,
-					   "basic_column_scaled_wave_cross_section.png")
+	plot_cross_section(dense, "basic_column_scaled_wave_cross_section.png")
 	plot_xy_slices(scope, "basic_column_scaled_wave_xy_slices.png")
 	print("wrote basic_column_scaled_wave_cross_section.png, "
 		  "basic_column_scaled_wave_xy_slices.png")

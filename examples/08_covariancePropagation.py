@@ -589,6 +589,11 @@ def figure(results: dict, filename: str) -> None:
 	marks = {name: scope.get_element_position(name) * 1e3 for name in ("OL1", "OL2")}
 
 	ixt = columnByName('xt')
+	# These three panels overlay FOUR configurations of a derived quantity, so
+	# they are drawn explicitly rather than through Signal.show(): a single
+	# Signal drawing itself is the right tool for one dataset (see panel F, and
+	# examples/04), not for a multi-case comparison that needs a shared axis,
+	# per-case linestyles and one legend.
 	panels = [("A: real-space width", "sigma_x (nm)",
 			   lambda c: beam_widths(c)[:, 0] * 1e9),
 			  ("B: angular width", "sigma_xt (mrad)",
