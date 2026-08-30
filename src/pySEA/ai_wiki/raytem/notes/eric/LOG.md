@@ -2,7 +2,7 @@
 
 Newest entries at top.
 
-## 2026-08-30 — [Under Construction] Aperture masking + rotation rename
+## 2026-08-30 — [Done] Aperture masking + rotation rename
 **Goal:** Ray-path apertures become true masks (blocked rays get I = 0,
 geometry untouched); `skew` becomes `rotation` (roll about z) with the
 Larmor bookkeeping moved to `larmor_rotation`.
@@ -10,9 +10,28 @@ Larmor bookkeeping moved to `larmor_rotation`.
 resolution (the rescale compresses emittance and mislabels pupil zones for
 aberrations, and Thomas's own comment documents its one-aperture limit);
 "skew" suggests shear when the element is simply rotated.
-- [ ] rotation rename
-- [ ] aperture mask + plotting truncation
-- [ ] ex07/tests/docs adapted
+- [x] rotation rename
+- [x] aperture mask + plotting truncation
+- [x] ex07/tests/docs adapted
+**Outcome:** `Quadrapole.rotation` (was skew) with Larmor bookkeeping moved
+to `larmor_rotation`; old .sea lenses with a stale `rotation` key reload
+harmlessly (round lenses ignore the roll; larmor_rotation is recomputed
+every run). Aperture ray path = true mask (Thomas's original option 1):
+geometry passes, blocked rays get I = 0 and stay dead; survivors
+unattenuated; masks compose across apertures (the rescale's documented
+one-aperture limit is gone); current = sum(I), sampled and quantized by
+I_total/n_rays. plot2D truncates dead rays at their death plane. ex07's
+predict_probe is now the same circular cut as the trace (prediction ==
+traced exactly; the Larmor lab-frame corner bookkeeping evaporated —
+a circular mask is rotation-invariant). fit_VOA rewired to the new smooth
+Aperture.transmitted_fraction (the masked current is a staircase, which
+starves curve_fit — the old scale_x*scale_y formula lives on as the
+FITTING surface, mask stays the propagation truth). every_element fixture
+regenerated (rescale-era hash). 158/158; examples 01/02/03/05 run.
+FLAGGED, not done: findPlanes still lets ghost (I=0) rays participate in
+plane detection — fine for laminar fans, biased for finite sources through
+a cutting aperture; MACSTEM VOA scripts still assume rescale semantics
+(left per 'leave it').
 
 ## 2026-08-30 — [Done] Three-name focal API
 **Goal:** `focal_power` / `focal_length` (EFL, reciprocal pair) /

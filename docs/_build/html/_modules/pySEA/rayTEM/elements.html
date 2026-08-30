@@ -2761,7 +2761,11 @@
 <div class="viewcode-block" id="Aperture">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Aperture">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Aperture</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
-<span class="w">	</span><span class="sd">"""Aperture element class. An aperture serves to crop the beam, and the total beam intensity is reduced dependent on the area of the beam and the area of aperture.</span>
+<span class="w">	</span><span class="sd">"""Aperture element class. An aperture MASKS the beam: rays outside the</span>
+<span class="sd">		radius keep propagating geometrically but carry zero intensity from</span>
+<span class="sd">		this plane on, so ``sum(I)`` at any downstream plane is the beam</span>
+<span class="sd">		current that survived. This matches the wave path, which masks the</span>
+<span class="sd">		field with the same transmission.</span>
 
 <span class="sd">		Parameters</span>
 <span class="sd">		----------</span>
@@ -2798,44 +2802,55 @@
 	<span class="c1">#	rf[radii&gt;self.radius,columnByName("I")]=0</span>
 	<span class="c1">#	return rf</span>
 	<span class="c1"># 2) aperture can rescale all rays based on the outer ray's position, or the area covered by the rays. we can thus calculate reductions in beam current based on the aperture's reduction in intensity (area cropped out). we're effectively pretending the originating rays were less divergent or something, which is actually sort of what we see IRL; you can't tell the divergence of the beam from the gun because the VOA masks out a bunch of it. This will only work for one aperture in the system though (otherwise second aperture undoes the scaling of the first one? or should we only allow the aperture to scale-down, so if the first aperture scales down, second scales down further (second is smaller), or first scale down, second leaves it alone (second is larger, we'd be able to see our first aperture in the CCD for example). and how do we handle apertures of different shapes??</span>
-	<span class="k">def</span><span class="w"> </span><span class="nf">_aperture_scales</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
-<span class="w">		</span><span class="sd">"""Return the x and y demagnification factors imposed by the aperture.</span>
-
-<span class="sd">		The aperture rescales the beam based on the outermost ray's position</span>
-<span class="sd">		relative to the aperture radius (see the class-level discussion). The same</span>
-<span class="sd">		factors drive both the geometric rescaling (in :meth:propagate_ray) and</span>
-<span class="sd">		the intensity attenuation (in :meth:apply_intensity), so they are computed</span>
-<span class="sd">		once here from the incoming rays.</span>
-
-<span class="sd">		Parameters</span>
-<span class="sd">		----------</span>
-<span class="sd">		r0 : xp.ndarray</span>
-<span class="sd">			Incoming ray table (geometric coordinates).</span>
-
-<span class="sd">		Returns</span>
-<span class="sd">		-------</span>
-<span class="sd">		tuple of float</span>
-<span class="sd">			(scale_x, scale_y), each in (0, 1].</span>
-<span class="sd">		"""</span>
-		<span class="n">xmax</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">r0</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)])</span>
-		<span class="n">ymax</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">r0</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)])</span>
-		<span class="n">scale_x</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">xmax</span><span class="o">&lt;</span><span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span><span class="o">/</span><span class="n">xmax</span>
-		<span class="n">scale_y</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">ymax</span><span class="o">&lt;</span><span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span><span class="o">/</span><span class="n">ymax</span>
-		<span class="k">return</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">scale_y</span>
-
+	<span class="c1"># 2026-08-30: option 1 (masking) is now the implementation. The rescale</span>
+	<span class="c1"># (option 2) had the one-aperture limitation described above, compressed</span>
+	<span class="c1"># the survivors' emittance instead of truncating the distribution (finite</span>
+	<span class="c1"># sources), and relabeled outer rays inward so downstream aberrations</span>
+	<span class="c1"># acted on coordinates the rays never had. The two coincide only for a</span>
+	<span class="c1"># laminar (point-source) fan. Masking composes correctly across any</span>
+	<span class="c1"># number of apertures; the cost is that the transmitted current becomes a</span>
+	<span class="c1"># SAMPLED estimate, quantized in units of I_total/n_rays.</span>
 <div class="viewcode-block" id="Aperture.propagate_ray">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Aperture.propagate_ray">[docs]</a>
 	<span class="k">def</span><span class="w"> </span><span class="nf">propagate_ray</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">Rays</span><span class="p">,</span>
 					  <span class="n">z</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">z0</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Pass rays through geometrically unchanged; the mask acts on I.</span>
+
+<span class="sd">		Overrides :meth:`Element.propagate_ray` (the aperture has no ray</span>
+<span class="sd">		matrix). Coordinates are untouched — blocked rays become *ghosts*</span>
+<span class="sd">		that keep propagating with zero intensity (see</span>
+<span class="sd">		:meth:`apply_intensity`), which keeps array shapes stable, keeps the</span>
+<span class="sd">		plotted trajectories honest up to the aperture plane, and lets every</span>
+<span class="sd">		current read stay ``sum(I)``.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		r0 : xp.ndarray or Rays</span>
+<span class="sd">			Rays arriving at the aperture plane, shape</span>
+<span class="sd">			``(n_rays, len(convention))``.</span>
+<span class="sd">		z : float, optional</span>
+<span class="sd">			Unused (zero-length element), by default ``None``.</span>
+<span class="sd">		z0 : float, optional</span>
+<span class="sd">			Unused, by default 0.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		xp.ndarray or Rays</span>
+<span class="sd">			The rays, geometrically unchanged; a ``Rays`` input comes back</span>
+<span class="sd">			paired with its masked intensity.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		apply_intensity : Where the mask actually acts.</span>
+<span class="sd">		phase_shift : The wave path's identical transmission mask.</span>
+<span class="sd">		"""</span>
 		<span class="n">paired</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">r0</span><span class="p">,</span><span class="n">Rays</span><span class="p">)</span>
 		<span class="n">rays</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">r0</span><span class="p">)</span>
-		<span class="n">scale_x</span><span class="p">,</span> <span class="n">scale_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aperture_scales</span><span class="p">(</span><span class="n">rays</span><span class="p">)</span>
-		<span class="c1">#print("Aperture",self.name,"radius",self.radius,"scale x,y",scale_x,scale_y)</span>
-		<span class="n">rf</span><span class="o">=</span><span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">rays</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">+</span><span class="n">rays</span>
-		<span class="n">rf</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)]</span><span class="o">*=</span><span class="n">scale_x</span>
-		<span class="n">rf</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"xt"</span><span class="p">)]</span><span class="o">*=</span><span class="n">scale_x</span>
-		<span class="n">rf</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)]</span><span class="o">*=</span><span class="n">scale_y</span>
-		<span class="n">rf</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"yt"</span><span class="p">)]</span><span class="o">*=</span><span class="n">scale_y</span>
+		<span class="n">rf</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">rays</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">+</span><span class="n">rays</span>
 		<span class="k">if</span> <span class="n">paired</span><span class="p">:</span>
 			<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">rf</span><span class="p">,</span><span class="n">r0</span><span class="o">.</span><span class="n">R</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">apply_intensity</span><span class="p">(</span><span class="n">r0</span><span class="o">.</span><span class="n">I</span><span class="p">,</span><span class="n">rays</span><span class="p">))</span>
 		<span class="k">return</span> <span class="n">rf</span></div>
@@ -2844,26 +2859,85 @@
 <div class="viewcode-block" id="Aperture.apply_intensity">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Aperture.apply_intensity">[docs]</a>
 	<span class="k">def</span><span class="w"> </span><span class="nf">apply_intensity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">I</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">		</span><span class="sd">"""Attenuate intensity by the fraction of beam area the aperture passes.</span>
+<span class="w">		</span><span class="sd">"""Zero the intensity of rays outside the aperture radius (the MASK).</span>
 
-<span class="sd">		Extends :meth:Element.apply_intensity. The transmitted fraction is</span>
-<span class="sd">		scale_x * scale_y (the cropped-area fraction), matching the geometric</span>
-<span class="sd">		rescaling applied to the ray positions in :meth:propagate_ray.</span>
+<span class="sd">		Extends :meth:`Element.apply_intensity`. A ray at lab-frame radius</span>
+<span class="sd">		``sqrt(x² + y²) &gt; radius`` at the aperture plane is blocked: its</span>
+<span class="sd">		intensity becomes exactly 0 and stays 0 downstream (nothing ever</span>
+<span class="sd">		re-raises a dead ray). Rays inside pass **unattenuated** — a real</span>
+<span class="sd">		diaphragm does not dim the survivors. The transmitted current is</span>
+<span class="sd">		therefore the sampled sum over surviving rays, quantized in units of</span>
+<span class="sd">		``I_total/n_rays``; refine the source's ``np_xy``/``na_xy`` when the</span>
+<span class="sd">		quantization matters.</span>
 
 <span class="sd">		Parameters</span>
 <span class="sd">		----------</span>
 <span class="sd">		I : xp.ndarray</span>
-<span class="sd">			Per-ray intensity entering the aperture, shape (n_rays,).</span>
+<span class="sd">			Per-ray intensity entering the aperture, shape ``(n_rays,)``.</span>
 <span class="sd">		r0 : xp.ndarray</span>
-<span class="sd">			Incoming ray table, used to compute the demagnification factors.</span>
+<span class="sd">			Rays at the aperture plane (geometric coordinates), used for the</span>
+<span class="sd">			in/out test.</span>
 
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
 <span class="sd">		xp.ndarray</span>
-<span class="sd">			Attenuated per-ray intensity, shape (n_rays,).</span>
+<span class="sd">			Masked per-ray intensity, shape ``(n_rays,)``.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		propagate_ray : Leaves the geometry untouched.</span>
+<span class="sd">		assemblies.MicroscopeSection.propagate_ray : Calls this with the</span>
+<span class="sd">			rays *arriving* at the element, i.e. at the aperture plane.</span>
 <span class="sd">		"""</span>
-		<span class="n">scale_x</span><span class="p">,</span> <span class="n">scale_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aperture_scales</span><span class="p">(</span><span class="n">r0</span><span class="p">)</span>
-		<span class="k">return</span> <span class="n">I</span> <span class="o">*</span> <span class="n">scale_x</span> <span class="o">*</span> <span class="n">scale_y</span></div>
+		<span class="n">x</span> <span class="o">=</span> <span class="n">r0</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)]</span>
+		<span class="n">y</span> <span class="o">=</span> <span class="n">r0</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)]</span>
+		<span class="k">return</span> <span class="n">I</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">y</span><span class="o">**</span><span class="mi">2</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Aperture.transmitted_fraction">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Aperture.transmitted_fraction">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">transmitted_fraction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Smooth continuum estimate of the fraction of current this passes.</span>
+
+<span class="sd">		The per-axis area-ratio model the ray path itself used before it</span>
+<span class="sd">		became a mask: ``scale_x * scale_y`` with</span>
+<span class="sd">		``scale = min(1, radius/max)`` per axis. It exists for **fitting**:</span>
+<span class="sd">		the masked current (``sum(I)`` after :meth:`apply_intensity`) is a</span>
+<span class="sd">		staircase in any upstream parameter — quantized by the ray count —</span>
+<span class="sd">		which starves gradient-based fits; this estimate is smooth in lens</span>
+<span class="sd">		strengths and aperture radius, which is what a fit needs. It is an</span>
+<span class="sd">		estimate, exact only for a beam filling its bounding box; the mask</span>
+<span class="sd">		remains the propagation truth.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		r0 : xp.ndarray</span>
+<span class="sd">			Rays at the aperture plane (geometric coordinates), shape</span>
+<span class="sd">			``(n_rays, len(convention))``.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		float</span>
+<span class="sd">			Estimated transmitted fraction, in ``(0, 1]``.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		apply_intensity : The mask actually applied during propagation.</span>
+<span class="sd">		generalized_CL_PL_fitting.fit_VOA : The fitting consumer.</span>
+<span class="sd">		"""</span>
+		<span class="n">xmax</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">r0</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)]))</span>
+		<span class="n">ymax</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">r0</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)]))</span>
+		<span class="n">scale_x</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="k">if</span> <span class="n">xmax</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="o">/</span> <span class="n">xmax</span>
+		<span class="n">scale_y</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="k">if</span> <span class="n">ymax</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="o">/</span> <span class="n">ymax</span>
+		<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">scale_x</span> <span class="o">*</span> <span class="n">scale_y</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Aperture.propagate_moments">
