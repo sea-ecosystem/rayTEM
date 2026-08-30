@@ -2,47 +2,47 @@
 | Section | Line |
 |---------|------|
 | Overview | 51 |
-| Module-level functions | 78 |
-|   `columnByName(name)` | 80 |
-|   `fix_mat_dims(m, columnNames)` | 84 |
-|   `fix_ray_dims(rays, columnNames)` | 88 |
-| Element | 94 |
-|   `Element.__init__(self, name, kind)` | 98 |
-|   `Element.transfer_matrix(self)` | 102 |
-|   `Element.propagate_ray(self, r0, z, z0)` | 106 |
-|   `Element.phase_shift(self, dimensions, wavelength, scaled=False, s=1.0)` | 112 |
-|   `Element._scaled_segment(self)` | 176 |
-|   `Element.propagate_wave(self, signal, mode='fixed', s_min=1e-3, log=None, absorb=0.1, crossover='flat', rotate=False)` | 187 |
-|   `Element.propagate(self, *args, kind='ray', **kwargs)` | 223 |
-| Source | 232 |
-|   `Source.__init__(self, name, size, np_xy, angle, na_xy, position)` | 236 |
-|   `Source.rays(self)` | 243 |
-|   `Source.propagate_ray(self, r0, **kwargs)` | 247 |
-|   `Source.wave(self, mode='fixed')` / `Source._aperture_wave(self, radius)` | 251 |
-| Aperture | 265 |
-|   `Aperture.__init__(self, name, radius, calibration, position)` | 269 |
-|   `Aperture.propagate_ray(self, r0, z, z0)` | 273 |
-|   `Aperture.propagate_wave(self, signal, mode='fixed', ...)` | 277 |
-| Drift | 293 |
-|   `Drift.__init__(self, name, length, calibration, position)` | 297 |
-|   `Drift.transfer_matrix(self)` | 301 |
-| Quadrapole | 307 |
-|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 311 |
-|   `Quadrapole.transfer_matrix(self)` | 315 |
-| AberrationScreen | 359 |
-| Dipole | 379 |
-|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 383 |
-|   `Dipole.transfer_matrix(self)` | 387 |
-|   `Dipole.propagate_ray(self, r0, z, z0)` | 391 |
-| Lens | 397 |
-|   `Lens.__init__(self, name, length, strength, calibration, position)` | 420 |
-|   `Lens.transfer_matrix(self)` | 428 |
-|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 435 |
-| Prism | 441 |
-|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 445 |
-|   `Prism.focus_matrix(self)` | 449 |
-|   `Prism.bending_matrix(self, s)` | 453 |
-|   `Prism.transfer_matrix(self)` | 457 |
+| Module-level functions | 80 |
+|   `columnByName(name)` | 82 |
+|   `fix_mat_dims(m, columnNames)` | 86 |
+|   `fix_ray_dims(rays, columnNames)` | 90 |
+| Element | 96 |
+|   `Element.__init__(self, name, kind)` | 100 |
+|   `Element.transfer_matrix(self)` | 104 |
+|   `Element.propagate_ray(self, r0, z, z0)` | 108 |
+|   `Element.phase_shift(self, dimensions, wavelength, scaled=False, s=1.0)` | 114 |
+|   `Element._scaled_segment(self)` | 178 |
+|   `Element.propagate_wave(self, signal, mode='fixed', s_min=1e-3, log=None, absorb=0.1, crossover='flat', rotate=False)` | 189 |
+|   `Element.propagate(self, *args, kind='ray', **kwargs)` | 225 |
+| Source | 234 |
+|   `Source.__init__(self, name, size, np_xy, angle, na_xy, position)` | 238 |
+|   `Source.rays(self)` | 245 |
+|   `Source.propagate_ray(self, r0, **kwargs)` | 249 |
+|   `Source.wave(self, mode='fixed')` / `Source._aperture_wave(self, radius)` | 253 |
+| Aperture | 267 |
+|   `Aperture.__init__(self, name, radius, calibration, position)` | 271 |
+|   `Aperture.propagate_ray(self, r0, z, z0)` | 275 |
+|   `Aperture.propagate_wave(self, signal, mode='fixed', ...)` | 279 |
+| Drift | 295 |
+|   `Drift.__init__(self, name, length, calibration, position)` | 299 |
+|   `Drift.transfer_matrix(self)` | 303 |
+| Quadrapole | 309 |
+|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 313 |
+|   `Quadrapole.transfer_matrix(self)` | 317 |
+| AberrationScreen | 364 |
+| Dipole | 384 |
+|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 388 |
+|   `Dipole.transfer_matrix(self)` | 392 |
+|   `Dipole.propagate_ray(self, r0, z, z0)` | 396 |
+| Lens | 402 |
+|   `Lens.__init__(self, name, length, strength, calibration, position)` | 425 |
+|   `Lens.transfer_matrix(self)` | 433 |
+|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 440 |
+| Prism | 446 |
+|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 450 |
+|   `Prism.focus_matrix(self)` | 454 |
+|   `Prism.bending_matrix(self, s)` | 458 |
+|   `Prism.transfer_matrix(self)` | 462 |
 <!-- END AUTO-GENERATED TOC -->
 
 # elements.py
@@ -69,8 +69,10 @@ The column ordering is frozen — `columnByName()` is the only safe way to acces
 travel as separate parallel `(n_planes, n_rays)` arrays on
 `MicroscopeSection`/`Microscope` (`.I`/`.R`), updated per element via
 `Element.apply_intensity` (before `propagate_ray` — e.g. `Aperture` attenuates
-by the cropped-area fraction) and `Element.apply_rotation` (after — thick
-lenses accumulate `self.rotation`). Any code reading `columnByName("I")`/`("R")`
+by zeroing blocked rays) and `Element.apply_rotation` (after — thick
+lenses accumulate `self.larmor_rotation`, a result set by `transfer_matrix`;
+distinct from `Element.rotation`, the user-set roll of an element about the
+optical axis). Any code reading `columnByName("I")`/`("R")`
 is stale.
 
 ---
@@ -264,7 +266,7 @@ passthrough in every mode (drivers seed from the generator).
 
 ## Aperture
 
-Models a circular aperture by scaling down rays proportionally when the beam exceeds the aperture radius. Does not zero out rays (to keep the fitting landscape smooth); instead rescales all x and y coordinates so the outermost ray just touches the edge, and reduces I by the area ratio.
+A true circular **mask** (2026-08-30, matching the wave path): `propagate_ray` leaves the geometry untouched, and `apply_intensity` zeroes `I` for rays with `x² + y² > radius²` at the aperture plane — blocked rays keep propagating as ghosts with zero intensity, so array shapes stay stable and `sum(I)` at any plane is the surviving current (a SAMPLED estimate, quantized by `I_total/n_rays`; refine `np_xy`/`na_xy` when that matters). Survivors pass unattenuated. `plot2D` truncates dead rays at the plane where `I` hits zero. This replaced the old whole-beam rescale (`radius/xmax` on positions+angles, area-ratio attenuation), which coincided with masking only for laminar point-source fans, compressed survivor emittance for finite sources, mislabeled pupil zones for downstream aberrations, and — per the original design comment kept in the source — only composed correctly for a single aperture. Masks compose across any number of apertures.
 
 ### `Aperture.__init__(self, name, radius, calibration, position)`
 
@@ -344,15 +346,18 @@ Two defects fixed here (issue #3 steps 1–2); both were live before 2026-08-23:
 - the off-diagonal `B` term was `S/K` with a **signed** `K`, so it went negative
   for `K < 0`, which a drift-like term must not.
 
-A **skew** (rolled) quadrupole is supported via the `skew` parameter
-(radians, focusing axis rolled from lab +x toward +y): the principal-frame
-matrix is conjugated into the lab frame, `M_lab = G(−skew)·M·G(skew)`, which
-fills the x–y coupling entries (`skew=π/4` is the classic 45° stigmator,
-kick `Δθ_x = −P·y`, `Δθ_y = −P·x`). Per-axis views stay undefined once the
-planes couple: `transfer_block` and the scaled-wave curvature **raise**
-`NotImplementedError` for `skew ≠ 0`, `focal_powers` documents itself as
-principal-frame, and the fixed wave path evaluates the saddle χ on the
-rolled coordinates. Closes issue #3 step 4.
+A **rotated** quadrupole (the literature's "skew quadrupole") is supported
+via the `rotation` parameter (radians, focusing axis rolled from lab +x
+toward +y — declared on `Element`; the Larmor bookkeeping moved to
+`larmor_rotation` to free the name): the principal-frame matrix is
+conjugated into the lab frame, `M_lab = G(−rotation)·M·G(rotation)`, which
+fills the x–y coupling entries (`rotation=π/4` is the classic 45°
+stigmator, kick `Δθ_x = −P·y`, `Δθ_y = −P·x`). Per-axis views stay
+undefined once the planes couple: `transfer_block` and the scaled-wave
+curvature **raise** `NotImplementedError` for `rotation ≠ 0`,
+`focal_powers` documents itself as principal-frame, and the fixed wave
+path evaluates the saddle χ on the rotated coordinates. Closes issue #3
+step 4.
 
 ---
 

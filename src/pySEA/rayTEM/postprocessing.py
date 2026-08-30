@@ -14,6 +14,10 @@ from matplotlib.cm import plasma as cmap
 # For now, plot2D assumes it is given unrotated-reference-frame rays, and should likely call convert_to_rotating_reference_frame.
 def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,title=None,plt_ax=None):
 	planes = findPlanes(r1,axis=axis)
+	# masked (dead) rays stop being drawn at the plane where their intensity
+	# hits zero -- an aperture kills them there, and plotting their ghost
+	# trajectories onward would show beam that no longer exists
+	I = getattr(r1, "I", None)
 	r1 = convert_to_rotating_reference_frame(r1)
 	if plt_ax is None:
 		fig,ax = plt.subplots()
@@ -24,7 +28,10 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 
 	# loop through rays
 	i,j=columnByName(axis),columnByName("z")
-	for ys,xs,c in zip( r1[:,:,i].T , r1[:,:,j].T , linecolors ):
+	Y = np.array(np.asarray(r1)[:,:,i], dtype=float)
+	if I is not None:
+		Y[np.asarray(I) <= 0] = np.nan
+	for ys,xs,c in zip( Y.T , np.asarray(r1)[:,:,j].T , linecolors ):
 		ax.plot(xs,ys,linestyle="-",color=c,marker='',linewidth=1)
 
 	# add all image/diffraction planes
@@ -32,7 +39,7 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 	#print(planes)
 	nplanes=len(planes[axis]["diff"]["z"])+len(planes[axis]["image"]["z"])+len(zpts)
 	if ylims is None:
-		ylims = [ np.amin(r1[:,:,i]) , np.amax(r1[:,:,i]) ]
+		ylims = [ np.nanmin(Y) , np.nanmax(Y) ]
 	for imdiff in ["diff","image"]:
 		Z=planes[axis][imdiff]["z"]
 		M=planes[axis][imdiff]["M"]

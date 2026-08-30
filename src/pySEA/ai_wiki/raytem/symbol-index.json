@@ -13,7 +13,7 @@
     "name": "AberrationScreen",
     "qualname": "AberrationScreen",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2831,
+    "source_lineno": 2910,
     "signature": "class AberrationScreen",
     "doc": "A zero-thickness pure aberration plate."
   },
@@ -130,9 +130,9 @@
     "name": "Aperture",
     "qualname": "Aperture",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2557,
+    "source_lineno": 2565,
     "signature": "class Aperture",
-    "doc": "Aperture element class. An aperture serves to crop the beam, and the total beam intensity is reduced dependent on the area of the beam and the area of aperture."
+    "doc": "Aperture element class. An aperture MASKS the beam: rays outside the"
   },
   {
     "kind": "function",
@@ -238,7 +238,7 @@
     "name": "beam_widths",
     "qualname": "beam_widths",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1267,
+    "source_lineno": 1274,
     "signature": "beam_widths(covariance_matrix)",
     "doc": "RMS beam half-widths in x and y from a stack of covariance matrices."
   },
@@ -292,7 +292,7 @@
     "name": "closest_plane",
     "qualname": "closest_plane",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 879,
+    "source_lineno": 886,
     "signature": "closest_plane(microscope, z_target, plane_type, regenerate)",
     "doc": ""
   },
@@ -364,7 +364,7 @@
     "name": "convert_to_rotating_reference_frame",
     "qualname": "convert_to_rotating_reference_frame",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 349,
+    "source_lineno": 356,
     "signature": "convert_to_rotating_reference_frame(rays)",
     "doc": "Rotate rays into the beam's rotating (Larmor) reference frame."
   },
@@ -373,7 +373,7 @@
     "name": "Dipole",
     "qualname": "Dipole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3481,
+    "source_lineno": 3561,
     "signature": "class Dipole",
     "doc": ""
   },
@@ -409,7 +409,7 @@
     "name": "Drift",
     "qualname": "Drift",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2755,
+    "source_lineno": 2834,
     "signature": "class Drift",
     "doc": "Drift element class for free-space propagation."
   },
@@ -472,7 +472,7 @@
     "name": "dz_focus_to",
     "qualname": "dz_focus_to",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 823,
+    "source_lineno": 830,
     "signature": "dz_focus_to(vals, setKeys, cases, microscope, plotting)",
     "doc": ""
   },
@@ -535,7 +535,7 @@
     "name": "emittance",
     "qualname": "emittance",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1298,
+    "source_lineno": 1305,
     "signature": "emittance(covariance_matrix)",
     "doc": "RMS emittance in x and y from a stack of covariance matrices."
   },
@@ -544,7 +544,7 @@
     "name": "error_angles",
     "qualname": "error_angles",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 967,
+    "source_lineno": 974,
     "signature": "error_angles(microscope, settings, targets, absolute)",
     "doc": ""
   },
@@ -553,7 +553,7 @@
     "name": "error_at_plane",
     "qualname": "error_at_plane",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 898,
+    "source_lineno": 905,
     "signature": "error_at_plane(microscope, settings, targets, absolute, include_z)",
     "doc": ""
   },
@@ -562,7 +562,7 @@
     "name": "error_at_position",
     "qualname": "error_at_position",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 931,
+    "source_lineno": 938,
     "signature": "error_at_position(microscope, settings, targets, absolute)",
     "doc": ""
   },
@@ -571,7 +571,7 @@
     "name": "error_diameter",
     "qualname": "error_diameter",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 953,
+    "source_lineno": 960,
     "signature": "error_diameter(microscope, settings, targets, absolute)",
     "doc": ""
   },
@@ -580,7 +580,7 @@
     "name": "error_dz",
     "qualname": "error_dz",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 857,
+    "source_lineno": 864,
     "signature": "error_dz(microscope, settings, targets)",
     "doc": ""
   },
@@ -607,7 +607,7 @@
     "name": "findPlanes",
     "qualname": "findPlanes",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 391,
+    "source_lineno": 398,
     "signature": "findPlanes(rays, axis)",
     "doc": ""
   },
@@ -616,7 +616,7 @@
     "name": "findPlanes1",
     "qualname": "findPlanes1",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 531,
+    "source_lineno": 538,
     "signature": "findPlanes1(rays)",
     "doc": ""
   },
@@ -625,7 +625,7 @@
     "name": "findPlanes2",
     "qualname": "findPlanes2",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 679,
+    "source_lineno": 686,
     "signature": "findPlanes2(rays)",
     "doc": ""
   },
@@ -634,7 +634,7 @@
     "name": "findPlanes4",
     "qualname": "findPlanes4",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 202,
+    "source_lineno": 209,
     "signature": "findPlanes4(rays, axes)",
     "doc": ""
   },
@@ -652,7 +652,7 @@
     "name": "fit_PLs",
     "qualname": "fit_PLs",
     "path": "src/pySEA/rayTEM/generalized_CL_PL_fitting.py",
-    "source_lineno": 150,
+    "source_lineno": 154,
     "signature": "fit_PLs(file_in, mode)",
     "doc": ""
   },
@@ -661,7 +661,7 @@
     "name": "fit_rotation",
     "qualname": "fit_rotation",
     "path": "src/pySEA/rayTEM/generalized_CL_PL_fitting.py",
-    "source_lineno": 210,
+    "source_lineno": 214,
     "signature": "fit_rotation(file_in, mode)",
     "doc": ""
   },
@@ -679,7 +679,7 @@
     "name": "fitForCrossover",
     "qualname": "fitForCrossover",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 990,
+    "source_lineno": 997,
     "signature": "fitForCrossover(section, r0, targets, modifiable, axis, prefer, ignoreSigns, filename)",
     "doc": ""
   },
@@ -742,7 +742,7 @@
     "name": "Gun",
     "qualname": "Gun",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2505,
+    "source_lineno": 2513,
     "signature": "class Gun",
     "doc": "A Source by its microscope name."
   },
@@ -751,7 +751,7 @@
     "name": "helper_focus_to",
     "qualname": "helper_focus_to",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 793,
+    "source_lineno": 800,
     "signature": "helper_focus_to(microscope, initializeAt, focusTo, plotting)",
     "doc": ""
   },
@@ -841,7 +841,7 @@
     "name": "Lens",
     "qualname": "Lens",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3702,
+    "source_lineno": 3782,
     "signature": "class Lens",
     "doc": "Lens element class for round lenses / symmetric focusing. https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example or Brown1983 page 105"
   },
@@ -904,7 +904,7 @@
     "name": "load_guesses",
     "qualname": "load_guesses",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1255,
+    "source_lineno": 1262,
     "signature": "load_guesses(guess_file)",
     "doc": ""
   },
@@ -1120,7 +1120,7 @@
     "name": "measureAtZ",
     "qualname": "measureAtZ",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1166,
+    "source_lineno": 1173,
     "signature": "measureAtZ(z, rays, I, R, section, live_only)",
     "doc": "Measure the outermost ray's state at an arbitrary z position."
   },
@@ -1291,7 +1291,7 @@
     "name": "plot3D",
     "qualname": "plot3D",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 106,
+    "source_lineno": 113,
     "signature": "plot3D(r1, filename, elev, azi, roll)",
     "doc": ""
   },
@@ -1309,7 +1309,7 @@
     "name": "plotSliceSeries",
     "qualname": "plotSliceSeries",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 161,
+    "source_lineno": 168,
     "signature": "plotSliceSeries(rays, N, M, filename)",
     "doc": ""
   },
@@ -1327,7 +1327,7 @@
     "name": "Prism",
     "qualname": "Prism",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4273,
+    "source_lineno": 4353,
     "signature": "class Prism",
     "doc": ""
   },
@@ -1444,7 +1444,7 @@
     "name": "Quadrapole",
     "qualname": "Quadrapole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3018,
+    "source_lineno": 3097,
     "signature": "class Quadrapole",
     "doc": ""
   },
@@ -1732,7 +1732,7 @@
     "name": "setkeys_to_settables_dict",
     "qualname": "setkeys_to_settables_dict",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 786,
+    "source_lineno": 793,
     "signature": "setkeys_to_settables_dict(vals, setKeys)",
     "doc": ""
   },
@@ -1777,7 +1777,7 @@
     "name": "Source",
     "qualname": "Source",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2104,
+    "source_lineno": 2112,
     "signature": "class Source",
     "doc": "Source element class. Source element can be put in a MicroscopeSection and then propagating \"through\" the section will mean the starting rays r0 are generated by the Source (instead of requiring the user pass in starting rays)"
   },
@@ -1978,6 +1978,15 @@
     "source_lineno": 246,
     "signature": "test_aperture_lens_system_scaled_vs_ordinary()",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_aperture_masks_rays",
+    "qualname": "test_aperture_masks_rays",
+    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 584,
+    "signature": "test_aperture_masks_rays()",
+    "doc": "An aperture is a true mask: blocked rays carry I = 0 onward,"
   },
   {
     "kind": "function",
@@ -2854,6 +2863,15 @@
   },
   {
     "kind": "function",
+    "name": "test_rotated_quadrupole",
+    "qualname": "test_rotated_quadrupole",
+    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 408,
+    "signature": "test_rotated_quadrupole()",
+    "doc": "A rotated quadrupole couples the planes; pi/2 swaps them exactly."
+  },
+  {
+    "kind": "function",
     "name": "test_rotation_commutes_with_propagation",
     "qualname": "test_rotation_commutes_with_propagation",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -2995,15 +3013,6 @@
     "source_lineno": 2775,
     "signature": "test_skew_C12_rotates_the_line_foci_by_45_degrees()",
     "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "test_skew_quadrupole",
-    "qualname": "test_skew_quadrupole",
-    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 408,
-    "signature": "test_skew_quadrupole()",
-    "doc": "A rolled quadrupole couples the planes; pi/2 swaps them exactly."
   },
   {
     "kind": "function",
@@ -3523,7 +3532,7 @@
     "name": "zFromFractional",
     "qualname": "zFromFractional",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 776,
+    "source_lineno": 783,
     "signature": "zFromFractional(zs, z)",
     "doc": ""
   }

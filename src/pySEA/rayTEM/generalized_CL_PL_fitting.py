@@ -120,14 +120,18 @@ def fit_VOA(file_in,mode="fit"):
 	microscope = load_microscope(microscope_file) ; z0 = microscope.get_element_position("VOA")
 	#microscope["GL"].strength/=1.05 ; microscope["C1"].calibration*=1.05
 	def I(C1s,r_VOA,dz_VOA):
+		# the traced current through a MASKING aperture is a staircase in C1
+		# (quantized by ray count), which starves curve_fit's gradients; the
+		# smooth continuum estimate Aperture.transmitted_fraction is the
+		# fitting surface instead, evaluated on the rays ARRIVING at the VOA
 		microscope["VOA"].radius = r_VOA
 		microscope.move_element("VOA",z=z0+dz_VOA)
 		Is = []
 		for C1 in C1s:
 			microscope["C1"].strength = C1
-			r1 = microscope.propagate_ray()
-			I = r1.I[-1,-1]
-			Is.append(I)
+			r1 = np.asarray(microscope.propagate_ray())
+			at_voa = r1[np.argmin(np.abs(r1[:,0,columnByName("z")] - (z0+dz_VOA)))]
+			Is.append(microscope["VOA"].transmitted_fraction(at_voa))
 		Is = np.asarray(Is)/np.amax(Is)
 		return Is
 	# fitting

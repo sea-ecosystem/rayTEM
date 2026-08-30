@@ -2563,7 +2563,11 @@ class Gun(Source):
 		self.kind = 'Gun'
 
 class Aperture(Element):
-	"""Aperture element class. An aperture serves to crop the beam, and the total beam intensity is reduced dependent on the area of the beam and the area of aperture.
+	"""Aperture element class. An aperture MASKS the beam: rays outside the
+		radius keep propagating geometrically but carry zero intensity from
+		this plane on, so ``sum(I)`` at any downstream plane is the beam
+		current that survived. This matches the wave path, which masks the
+		field with the same transmission.
 
 		Parameters
 		----------
@@ -2600,67 +2604,134 @@ class Aperture(Element):
 	#	rf[radii>self.radius,columnByName("I")]=0
 	#	return rf
 	# 2) aperture can rescale all rays based on the outer ray's position, or the area covered by the rays. we can thus calculate reductions in beam current based on the aperture's reduction in intensity (area cropped out). we're effectively pretending the originating rays were less divergent or something, which is actually sort of what we see IRL; you can't tell the divergence of the beam from the gun because the VOA masks out a bunch of it. This will only work for one aperture in the system though (otherwise second aperture undoes the scaling of the first one? or should we only allow the aperture to scale-down, so if the first aperture scales down, second scales down further (second is smaller), or first scale down, second leaves it alone (second is larger, we'd be able to see our first aperture in the CCD for example). and how do we handle apertures of different shapes??
-	def _aperture_scales(self, r0:xp.ndarray) -> tuple:
-		"""Return the x and y demagnification factors imposed by the aperture.
+	# 2026-08-30: option 1 (masking) is now the implementation. The rescale
+	# (option 2) had the one-aperture limitation described above, compressed
+	# the survivors' emittance instead of truncating the distribution (finite
+	# sources), and relabeled outer rays inward so downstream aberrations
+	# acted on coordinates the rays never had. The two coincide only for a
+	# laminar (point-source) fan. Masking composes correctly across any
+	# number of apertures; the cost is that the transmitted current becomes a
+	# SAMPLED estimate, quantized in units of I_total/n_rays.
+	def propagate_ray(self, r0:xp.ndarray | Rays,
+					  z:float=None, z0:float=0) -> xp.ndarray:
+		"""Pass rays through geometrically unchanged; the mask acts on I.
 
-		The aperture rescales the beam based on the outermost ray's position
-		relative to the aperture radius (see the class-level discussion). The same
-		factors drive both the geometric rescaling (in :meth:propagate_ray) and
-		the intensity attenuation (in :meth:apply_intensity), so they are computed
-		once here from the incoming rays.
+		Overrides :meth:`Element.propagate_ray` (the aperture has no ray
+		matrix). Coordinates are untouched — blocked rays become *ghosts*
+		that keep propagating with zero intensity (see
+		:meth:`apply_intensity`), which keeps array shapes stable, keeps the
+		plotted trajectories honest up to the aperture plane, and lets every
+		current read stay ``sum(I)``.
 
 		Parameters
 		----------
-		r0 : xp.ndarray
-			Incoming ray table (geometric coordinates).
+		r0 : xp.ndarray or Rays
+			Rays arriving at the aperture plane, shape
+			``(n_rays, len(convention))``.
+		z : float, optional
+			Unused (zero-length element), by default ``None``.
+		z0 : float, optional
+			Unused, by default 0.
 
 		Returns
 		-------
-		tuple of float
-			(scale_x, scale_y), each in (0, 1].
-		"""
-		xmax = xp.amax(r0[:,columnByName("x")])
-		ymax = xp.amax(r0[:,columnByName("y")])
-		scale_x = 1 if xmax<self.radius else self.radius/xmax
-		scale_y = 1 if ymax<self.radius else self.radius/ymax
-		return scale_x, scale_y
+		xp.ndarray or Rays
+			The rays, geometrically unchanged; a ``Rays`` input comes back
+			paired with its masked intensity.
 
-	def propagate_ray(self, r0:xp.ndarray | Rays,
-					  z:float=None, z0:float=0) -> xp.ndarray:
+		Raises
+		------
+		None
+
+		Related
+		-------
+		apply_intensity : Where the mask actually acts.
+		phase_shift : The wave path's identical transmission mask.
+		"""
 		paired = isinstance(r0,Rays)
 		rays = xp.asarray(r0)
-		scale_x, scale_y = self._aperture_scales(rays)
-		#print("Aperture",self.name,"radius",self.radius,"scale x,y",scale_x,scale_y)
-		rf=xp.zeros(rays.shape)+rays
-		rf[:,columnByName("x")]*=scale_x
-		rf[:,columnByName("xt")]*=scale_x
-		rf[:,columnByName("y")]*=scale_y
-		rf[:,columnByName("yt")]*=scale_y
+		rf = xp.zeros(rays.shape)+rays
 		if paired:
 			return Rays(rf,r0.R,self.apply_intensity(r0.I,rays))
 		return rf
 
 	def apply_intensity(self, I:xp.ndarray, r0:xp.ndarray) -> xp.ndarray:
-		"""Attenuate intensity by the fraction of beam area the aperture passes.
+		"""Zero the intensity of rays outside the aperture radius (the MASK).
 
-		Extends :meth:Element.apply_intensity. The transmitted fraction is
-		scale_x * scale_y (the cropped-area fraction), matching the geometric
-		rescaling applied to the ray positions in :meth:propagate_ray.
+		Extends :meth:`Element.apply_intensity`. A ray at lab-frame radius
+		``sqrt(x² + y²) > radius`` at the aperture plane is blocked: its
+		intensity becomes exactly 0 and stays 0 downstream (nothing ever
+		re-raises a dead ray). Rays inside pass **unattenuated** — a real
+		diaphragm does not dim the survivors. The transmitted current is
+		therefore the sampled sum over surviving rays, quantized in units of
+		``I_total/n_rays``; refine the source's ``np_xy``/``na_xy`` when the
+		quantization matters.
 
 		Parameters
 		----------
 		I : xp.ndarray
-			Per-ray intensity entering the aperture, shape (n_rays,).
+			Per-ray intensity entering the aperture, shape ``(n_rays,)``.
 		r0 : xp.ndarray
-			Incoming ray table, used to compute the demagnification factors.
+			Rays at the aperture plane (geometric coordinates), used for the
+			in/out test.
 
 		Returns
 		-------
 		xp.ndarray
-			Attenuated per-ray intensity, shape (n_rays,).
+			Masked per-ray intensity, shape ``(n_rays,)``.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		propagate_ray : Leaves the geometry untouched.
+		assemblies.MicroscopeSection.propagate_ray : Calls this with the
+			rays *arriving* at the element, i.e. at the aperture plane.
 		"""
-		scale_x, scale_y = self._aperture_scales(r0)
-		return I * scale_x * scale_y
+		x = r0[:,columnByName("x")]
+		y = r0[:,columnByName("y")]
+		return I * (x**2 + y**2 <= self.radius**2)
+
+	def transmitted_fraction(self, r0:xp.ndarray) -> float:
+		"""Smooth continuum estimate of the fraction of current this passes.
+
+		The per-axis area-ratio model the ray path itself used before it
+		became a mask: ``scale_x * scale_y`` with
+		``scale = min(1, radius/max)`` per axis. It exists for **fitting**:
+		the masked current (``sum(I)`` after :meth:`apply_intensity`) is a
+		staircase in any upstream parameter — quantized by the ray count —
+		which starves gradient-based fits; this estimate is smooth in lens
+		strengths and aperture radius, which is what a fit needs. It is an
+		estimate, exact only for a beam filling its bounding box; the mask
+		remains the propagation truth.
+
+		Parameters
+		----------
+		r0 : xp.ndarray
+			Rays at the aperture plane (geometric coordinates), shape
+			``(n_rays, len(convention))``.
+
+		Returns
+		-------
+		float
+			Estimated transmitted fraction, in ``(0, 1]``.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		apply_intensity : The mask actually applied during propagation.
+		generalized_CL_PL_fitting.fit_VOA : The fitting consumer.
+		"""
+		xmax = xp.amax(xp.abs(r0[:,columnByName("x")]))
+		ymax = xp.amax(xp.abs(r0[:,columnByName("y")]))
+		scale_x = 1.0 if xmax < self.radius else self.radius / xmax
+		scale_y = 1.0 if ymax < self.radius else self.radius / ymax
+		return float(scale_x * scale_y)
 
 	def propagate_moments(self, mu:xp.ndarray, Sigma:xp.ndarray) -> tuple:
 		"""Pass moments through unchanged (aperture is treated as non-truncating here).

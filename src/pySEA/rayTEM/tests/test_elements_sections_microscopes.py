@@ -579,3 +579,43 @@ def test_focal_properties_round_trip():
 	for prop in ("focal_length", "focal_power", "back_focal_distance"):
 		assert getattr(back["FL"], prop) == pytest.approx(getattr(m["FL"], prop))
 	assert back["FL"].focal_length == pytest.approx(0.03)
+
+
+def test_aperture_masks_rays():
+	"""An aperture is a true mask: blocked rays carry I = 0 onward,
+	survivors pass unattenuated with their geometry untouched, masks
+	compose across multiple apertures, and the smooth continuum estimate
+	transmitted_fraction stays available for fitting."""
+	sec = MicroscopeSection(name="S", elements=[
+		Source(voltage=200, size=(10e-6, 10e-6), np_xy=(9, 9),
+			   angle=(0.0, 0.0), na_xy=(1, 1), beam_current=1e-9),
+		Drift(length=0.01),
+		Aperture(name="A1", radius=6e-6),
+		Drift(length=0.01),
+		Aperture(name="A2", radius=3e-6),
+		Drift(length=0.01)])
+	m = Microscope(sections=[sec])
+	rays = np.asarray(m.propagate_ray())
+	I = np.asarray(m.I)
+	r_at = np.hypot(rays[0, :, 0], rays[0, :, 2])	# parallel fan: radii constant
+	# geometry is untouched everywhere (drifts aside, transverse coords const)
+	assert np.allclose(rays[-1, :, 0], rays[0, :, 0])
+	assert np.allclose(rays[-1, :, 2], rays[0, :, 2])
+	# after A1: outside 6 um dead, inside alive and unattenuated
+	# the drift exit and the aperture plane share a z; the aperture's own
+	# (post-mask) plane is the LAST one logged at that z
+	i_a1 = int(np.where(np.abs(rays[:, 0, 4] - m.get_element_position("A1")) < 1e-12)[0][-1])
+	assert np.all(I[i_a1][r_at > 6e-6] == 0)
+	assert np.allclose(I[i_a1][r_at <= 6e-6], I[0][r_at <= 6e-6])
+	# after A2: the SECOND aperture masks further (composition -- the old
+	# rescale could not do this, per the design comment in elements.py)
+	assert np.all(I[-1][r_at > 3e-6] == 0)
+	assert np.allclose(I[-1][r_at <= 3e-6], I[0][r_at <= 3e-6])
+	# current bookkeeping: sum(I) is the surviving fraction of the stated 1 nA
+	frac = float((r_at <= 3e-6).mean())
+	assert np.isclose(float(I[-1].sum()), frac * 1e-9, rtol=1e-12)
+	assert np.isclose(m.beam_current, frac * 1e-9, rtol=1e-12)
+	# the smooth fitting estimate exists and brackets sensibly
+	tf = m["A2"].transmitted_fraction(rays[i_a1])
+	assert 0 < tf <= 1
+	assert m["A1"].transmitted_fraction(rays[0] * 0) == 1.0
