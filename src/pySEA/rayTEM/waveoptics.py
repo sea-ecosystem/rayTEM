@@ -504,7 +504,7 @@ def rotate_field(U: np.ndarray, angle: float) -> np.ndarray:
 
 	Magnetic round lenses rotate the beam (Larmor rotation): the ray path
 	accumulates it on ``MicroscopeSection.R`` and a thick lens reports it as
-	``Lens.rotation = -K L``. A scalar wave rotates the same way — the rotation
+	``Lens.larmor_rotation = -K L``. A scalar wave rotates the same way — the rotation
 	is a coordinate rotation of the transverse plane, ``psi_out(r) =
 	psi_in(R^-1 r)`` — so it can be applied to the sampled field directly.
 

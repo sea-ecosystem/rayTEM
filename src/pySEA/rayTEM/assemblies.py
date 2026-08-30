@@ -538,7 +538,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		Raises
 		------
 		NotImplementedError
-			If an element cannot provide a per-axis block (e.g. a skewed
+			If an element cannot provide a per-axis block (e.g. a rotated
 			quadrupole).
 
 		Related
@@ -655,7 +655,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			if verbose:
 				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
 			# intensity/rotation are evaluated relative to the incoming rays; rotation
-			# must follow propagate_ray so thick-lens self.rotation is already set.
+			# must follow propagate_ray so thick-lens self.larmor_rotation is already set.
 			# The element is told the current ARRIVING at it, so Element.beam_current
 			# can be a derived read rather than a second place a current is stated.
 			# Recorded on the element, so it is saved with .I and .rays.

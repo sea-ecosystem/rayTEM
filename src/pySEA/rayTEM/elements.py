@@ -619,7 +619,7 @@ def _split_quadratic_aberrations(aberrations, pupil_power:float,
 	``C10`` (defocus) adds :math:`\Delta P = C_{10}P^2` isotropically, and an
 	**aligned** ``C12`` (twofold astigmatism, zero imaginary part) adds
 	:math:`\pm C_{12}P^2` per axis. Everything of second order and above, and
-	any *skew* ``C12``, is genuinely non-quadratic per axis and stays in the
+	any *rotated* ("skew") ``C12``, is genuinely non-quadratic per axis and stays in the
 	residual. Shared by :meth:`Lens.aberration_powers` (base = the lens's own
 	power) and :class:`AberrationScreen` (base = 0), so the split cannot
 	drift between the two.
@@ -678,7 +678,13 @@ class Element(SealedAttributes, SEASerializable):
 	tilt_x = 0.0
 	tilt_y = 0.0
 	#: Larmor rotation accumulated through this element (radians). Set by the
-	#: elements that have an axial field; 0 for everything else.
+	#: elements that have an axial field (a side effect of transfer_matrix);
+	#: 0 for everything else. A RESULT, not a setting.
+	larmor_rotation = 0.0
+	#: Roll of the element about the optical axis (radians, from lab +x
+	#: toward +y). A SETTING: consumed by elements whose physics is not
+	#: rotationally symmetric (currently Quadrapole); a round lens is
+	#: invariant and ignores it. Distinct from larmor_rotation above.
 	rotation = 0.0
 
 	def __init__(self, name:str='', kind:str=None,
@@ -979,10 +985,10 @@ class Element(SealedAttributes, SEASerializable):
 		step = L if dz is None else float(dz)
 		power = 0.0
 		if isinstance(self, Quadrapole):
-			if getattr(self, 'skew', 0.0):
+			if getattr(self, 'rotation', 0.0):
 				raise NotImplementedError(
-					f"Quadrapole {self.name or ''!r} has skew={self.skew}, which couples x and y: "
-					"no independent per-axis 2x2 block exists. Locate planes with skew "
+					f"Quadrapole {self.name or ''!r} has rotation={self.rotation}, which couples x and y: "
+					"no independent per-axis 2x2 block exists. Locate planes with rotation "
 					"temporarily set to 0, or work in the element's principal frame.")
 			power = self.focal_powers[0 if axis == 'x' else 1]
 		elif hasattr(self, "focal_power"):
@@ -1742,8 +1748,10 @@ class Element(SealedAttributes, SEASerializable):
 		"""Return the cumulative Larmor rotation after this element.
 
 		Rotation is tracked as a parallel array rather than as a ray coordinate.
-		Thick lenses accumulate rotation via self.rotation (set as a side effect
-		of :meth:transfer_matrix), so this must be called *after* propagate_ray.
+		Thick lenses accumulate rotation via self.larmor_rotation (set as a side
+		effect of :meth:transfer_matrix), so this must be called *after*
+		propagate_ray. (Not to be confused with self.rotation, the user-set
+		roll of an element about the optical axis.)
 
 		Parameters
 		----------
@@ -1758,9 +1766,9 @@ class Element(SealedAttributes, SEASerializable):
 
 		Related
 		-------
-		Lens.transfer_matrix : Sets self.rotation for finite-thickness lenses.
+		Lens.transfer_matrix : Sets self.larmor_rotation for finite-thickness lenses.
 		"""
-		return R + getattr(self, "rotation", 0)
+		return R + getattr(self, "larmor_rotation", 0)
 
 	def propagate_moments(self, mu:xp.ndarray, Sigma:xp.ndarray) -> tuple:
 		r"""Propagate the beam's first and second moments through this element.
@@ -3019,7 +3027,7 @@ class Quadrapole(Element):
 	def __init__(self, name:str='',
 				 position:float=None, length:float=0.,
 				 strength:float=0, calibration:float=None,
-				 skew:float=0.0) -> SEASerializable:
+				 rotation:float=0.0) -> SEASerializable:
 
 		"""Quadripole.
 
@@ -3036,14 +3044,15 @@ class Quadrapole(Element):
 			see equations in brown1983), by default 0
 		calibration : float, optional
 			Currnet calibration of the lens in units of ???/A, by default None
-		skew : float, optional
+		rotation : float, optional
 			Roll of the focusing axis about z, in **radians** from lab +x
-			toward +y, by default 0. A nonzero skew couples the transverse
-			planes: ``skew=pi/4`` is the classic 45° (skew) stigmator, whose
-			thin kick is ``Δθ_x = -P·y``, ``Δθ_y = -P·x``. The ray path
-			supports any skew (the 4×4 matrix is conjugated by the roll);
+			toward +y, by default 0. A rotated quadrupole couples the
+			transverse planes: ``rotation=pi/4`` is the classic 45°
+			stigmator (the literature's "skew quadrupole"), whose thin kick
+			is ``Δθ_x = -P·y``, ``Δθ_y = -P·x``. The ray path supports any
+			rotation (the 4×4 matrix is conjugated by the roll);
 			per-lab-axis machinery (``transfer_block``, the scaled-wave
-			curvature) raises for a skewed quadrupole, because a coupled
+			curvature) raises for a rotated quadrupole, because a coupled
 			plane has no independent per-axis description.
 		label : bool, optional
 			If the element should be labeled when plotted, by default False
@@ -3059,7 +3068,7 @@ class Quadrapole(Element):
 		self.length = length
 		self.strength = strength
 		self.calibration = calibration
-		self.skew = skew
+		self.rotation = rotation
 
 	@property
 	def calibrated_strength(self) -> float:
@@ -3219,7 +3228,7 @@ class Quadrapole(Element):
 		Raises
 		------
 		NotImplementedError
-			If ``skew != 0``: a rolled quadrupole couples x and y, so no
+			If ``rotation != 0``: a rotated quadrupole couples x and y, so no
 			independent per-axis block exists.
 
 		Notes
@@ -3227,10 +3236,10 @@ class Quadrapole(Element):
 		Delegates to :meth:_body_block, the same helper :meth:transfer_matrix
 		uses, so plane finding and ray tracing cannot disagree.
 		"""
-		if getattr(self, 'skew', 0.0):
+		if getattr(self, 'rotation', 0.0):
 			raise NotImplementedError(
-				f"Quadrapole {self.name or ''!r} has skew={self.skew}, which couples x and y: "
-				"no independent per-axis 2x2 block exists. Locate planes with skew "
+				f"Quadrapole {self.name or ''!r} has rotation={self.rotation}, which couples x and y: "
+				"no independent per-axis 2x2 block exists. Locate planes with rotation "
 				"temporarily set to 0, or work in the element's principal frame.")
 		L = self.length or 0.0
 		step = L if dz is None else float(dz)
@@ -3269,11 +3278,11 @@ class Quadrapole(Element):
 		"""
 		K = self.calibrated_strength
 		if self.length > 0 and K != 0:
-			if self.skew:
+			if self.rotation:
 				raise NotImplementedError(
-					f"Quadrapole {self.name or ''!r} has skew={self.skew}: the scaled frame's "
+					f"Quadrapole {self.name or ''!r} has rotation={self.rotation}: the scaled frame's "
 					"per-axis curvature (R_x, R_y) cannot represent a coupled saddle. "
-					"Use mode='fixed' near this element, or skew=0.")
+					"Use mode='fixed' near this element, or rotation=0.")
 			kappa = float(K**2)
 			pair = (kappa, -kappa) if self._axis_focuses('x') else (-kappa, kappa)
 			return ('quadratic', pair, 0.0)
@@ -3300,7 +3309,7 @@ class Quadrapole(Element):
 		tuple of float
 			(power_x, power_y) in 1/metres; (0, 0) at zero strength.
 			These are powers along the quadrupole's **principal axes** — for a
-			skewed quadrupole (skew != 0) they are the element-frame
+			rotated quadrupole (rotation != 0) they are the element-frame
 			values, not lab-frame ones (no independent lab-frame pair exists
 			once the planes couple).
 
@@ -3354,14 +3363,14 @@ class Quadrapole(Element):
 		giving det = cos(2|KL|) - 0.75 over a 30 mm body, so a quarter of
 		the phase-space area vanished and the block's halves did not compose.
 
-		A **skew** (rolled) quadrupole is supported here by conjugation: the
-		element's own matrix (two independent 2×2 blocks in its principal
-		frame) is rotated into the lab frame, ``M_lab = G(-skew)·M·G(skew)``,
-		which fills the coupling entries. Per-axis views
-		(:meth:`transfer_block`, :meth:`focal_powers` read in the lab frame,
-		the scaled-wave curvature) remain undefined for ``skew != 0`` and
-		raise, because a coupled plane has no independent per-axis
-		description.
+		A **rotated** quadrupole (the literature's "skew quadrupole") is
+		supported here by conjugation: the element's own matrix (two
+		independent 2×2 blocks in its principal frame) is rotated into the
+		lab frame, ``M_lab = G(-rotation)·M·G(rotation)``, which fills the
+		coupling entries. Per-axis views (:meth:`transfer_block`,
+		:meth:`focal_powers` read in the lab frame, the scaled-wave
+		curvature) remain undefined for ``rotation != 0`` and raise, because
+		a coupled plane has no independent per-axis description.
 
 		References
 		----------
@@ -3397,10 +3406,10 @@ class Quadrapole(Element):
 		#m2 = xp.eye(4) ; m2[0,0] = c ; m2[0,1] = 1/K*s ; m2[1,0] = -K*s ; m2[1,1]=c
 		#m2[2,2] = ch ; m2[2,3] = 1/K*sh ; m2[3,2] = K*sh ; m2[3,3]=ch
 		#print(m-fix_mat_dims(m2,["x","xt","y","yt"]))
-		if self.skew:
+		if self.rotation:
 			# roll the principal frame into the lab frame: lab -> element is
-			# G(skew) on (x, xt, y, yt), so M_lab = G(-skew) @ M_elem @ G(skew)
-			c = float(xp.cos(self.skew)) ; s_ = float(xp.sin(self.skew))
+			# G(rot) on (x, xt, y, yt), so M_lab = G(-rot) @ M_elem @ G(rot)
+			c = float(xp.cos(self.rotation)) ; s_ = float(xp.sin(self.rotation))
 			G  = fix_mat_dims(xp.asarray([[ c,0, s_,0],[0, c,0, s_],
 										  [-s_,0, c,0],[0,-s_,0, c]]),
 							  ["x","xt","y","yt"])
@@ -3444,32 +3453,32 @@ class Quadrapole(Element):
 		Raises
 		------
 		NotImplementedError
-			scaled=True with skew != 0: the per-axis curvature state
+			scaled=True with rotation != 0: the per-axis curvature state
 			cannot represent a coupled saddle. The fixed path instead
-			evaluates χ on the rolled coordinates, so a skewed quadrupole is
-			usable there.
+			evaluates χ on the rotated coordinates, so a rotated quadrupole
+			is usable there.
 		"""
 		from .waveoptics import quadratic_phase, transverse_coordinates
 		from .seashells import grid_of
 		P_x, P_y = self.focal_powers
 		ny, nx, dy, dx = grid_of(dimensions)
 		if scaled:
-			if self.skew and (P_x or P_y):
+			if self.rotation and (P_x or P_y):
 				raise NotImplementedError(
-					f"Quadrapole {self.name or ''!r} has skew={self.skew}: the scaled frame's "
+					f"Quadrapole {self.name or ''!r} has rotation={self.rotation}: the scaled frame's "
 					"per-axis curvature (R_x, R_y) cannot represent a coupled saddle. "
-					"Use mode='fixed' near this element, or skew=0.")
+					"Use mode='fixed' near this element, or rotation=0.")
 			screen = self._scaled_screen(None, (ny, nx), dx, dy, s,
 										 self.name or "quadrupole")
 			if P_x == 0 and P_y == 0:
 				return 0.0, screen
 			return (float(P_x), float(P_y)), screen
-		if self.skew and (P_x or P_y):
+		if self.rotation and (P_x or P_y):
 			# the saddle is separable only in the element's principal frame:
 			# evaluate chi on the rolled coordinates instead of raising, since a
 			# fixed-grid screen has no per-axis constraint
 			X, Y = transverse_coordinates((ny, nx), dx, dy)
-			c = float(xp.cos(self.skew)) ; s_ = float(xp.sin(self.skew))
+			c = float(xp.cos(self.rotation)) ; s_ = float(xp.sin(self.rotation))
 			Xe = c * X + s_ * Y ; Ye = -s_ * X + c * Y
 			k = 2 * xp.pi / wavelength
 			chi = -k * (P_x * Xe**2 + P_y * Ye**2) / 2
@@ -3743,7 +3752,7 @@ class Lens(Element):
 			focal_length = xp.inf if strength == 0 else 1 / (xp.sign(strength) * strength**2)
 		self._focal_length = focal_length if length == 0 else None
 		self.calibration = calibration
-		self.rotation = 0
+		self.larmor_rotation = 0
 		# One nested Aberrations object, not a scatter of flat scalars: it is a
 		# SEASerializable itself, so .sea and JSON carry it as a child node, and
 		# every order is applied by one generic expression rather than per term.
@@ -3812,7 +3821,7 @@ class Lens(Element):
 			m = xp.eye(4) # IDENTITY MATRIX, OR DRIFT-EQUIVALENT
 			m[0,1]=self.length
 			m[2,3]=self.length
-			self.rotation = 0
+			self.larmor_rotation = 0
 			return fix_mat_dims(m,["x","xt","y","yt"])
 
 		# THIN LENS, NO ROTATION (thick lens math will have sine term going to zero)
@@ -3821,7 +3830,7 @@ class Lens(Element):
 					     [ -self.focal_power , 1 ]])
 			Y=xp.asarray([[    1   , 0 ],
 						 [ -self.focal_power , 1 ]])
-			self.rotation = 0
+			self.larmor_rotation = 0
 			return xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
 
 		# THICK LENS, FINITE K (zero K will have iK going to infinite)
@@ -3852,7 +3861,7 @@ class Lens(Element):
 		#print("lens",self.name,"adds rotation",kL)
 		# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
 		XY = xp.matmul(R,XY)
-		self.rotation = -kL
+		self.larmor_rotation = -kL
 		M = fix_mat_dims(XY,["x","xt","y","yt"])
 		return M
 
@@ -3954,7 +3963,7 @@ class Lens(Element):
 			r1 = xp.matmul(M,r0)
 			x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
 			f = x/xt # f = x/theta
-			rot = new.rotation
+			rot = new.larmor_rotation
 			return f,rot
 		f0,_ = FR(self.calibration,self.length)	# initial focal length
 		print("currently focuses to",f0)
@@ -4222,10 +4231,10 @@ class Lens(Element):
 		-----
 		C12 is absorbed only when it is **aligned** with the grid axes,
 		which for a complex coefficient means a zero imaginary part. A rotated
-		quadratic is a *skew* astigmatism, which a per-axis :math:(R_x, R_y)
+		quadratic is a *rotated* ("skew") astigmatism, which a per-axis :math:(R_x, R_y)
 		frame cannot represent - the frame would need off-diagonal terms - so a
-		skew C12 is left in the residual screen instead. Same limitation as
-		a skew quadrupole.
+		rotated C12 is left in the residual screen instead. Same limitation
+		as a rotated quadrupole.
 		"""
 		P = float(self.focal_power)
 		return _split_quadratic_aberrations(self.aberrations, P, P, P)

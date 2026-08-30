@@ -405,36 +405,36 @@ def test_old_json_compatibility():
 #test_element_insertion_microscope()
 
 
-def test_skew_quadrupole():
-	"""A rolled quadrupole couples the planes; pi/2 swaps them exactly."""
+def test_rotated_quadrupole():
+	"""A rotated quadrupole couples the planes; pi/2 swaps them exactly."""
 	from pySEA.rayTEM.elements import Quadrapole as Q
 	P = Q(strength=2.0).focal_powers[0]
-	# 45 degrees: the classic skew stigmator kick, dxt = -P*y, dyt = -P*x
-	M = np.asarray(Q(strength=2.0, skew=np.pi / 4).transfer_matrix())
+	# 45 degrees: the classic rotated-stigmator kick, dxt = -P*y, dyt = -P*x
+	M = np.asarray(Q(strength=2.0, rotation=np.pi / 4).transfer_matrix())
 	r = np.zeros(6) ; r[0] = 1.0
 	out = M @ r
 	assert abs(out[1]) < 1e-12 and abs(out[3] + P) < 1e-12
 	# rolling by pi/2 is the same as flipping the strength sign
-	assert np.allclose(Q(strength=2.0, skew=np.pi / 2).transfer_matrix(),
+	assert np.allclose(Q(strength=2.0, rotation=np.pi / 2).transfer_matrix(),
 					   Q(strength=-2.0).transfer_matrix(), atol=1e-12)
-	# a thick skew body stays symplectic (unit determinant)
-	Mt = np.asarray(Q(strength=30.0, length=0.02, skew=0.3).transfer_matrix())
+	# a thick rotated body stays symplectic (unit determinant)
+	Mt = np.asarray(Q(strength=30.0, length=0.02, rotation=0.3).transfer_matrix())
 	assert abs(np.linalg.det(Mt[:4, :4]) - 1) < 1e-9
 	# per-axis machinery must refuse rather than silently answer wrong
 	with pytest.raises(NotImplementedError):
-		Q(strength=30.0, length=0.02, skew=0.3).transfer_block()
-	# skew survives a .sea round trip
+		Q(strength=30.0, length=0.02, rotation=0.3).transfer_block()
+	# the rotation survives a .sea round trip
 	sec = MicroscopeSection(name="S", elements=[
 		Source(voltage=200, size=(2e-6, 2e-6), np_xy=(3, 3),
 			   angle=(1e-4, 1e-4), na_xy=(3, 3)),
 		Drift(length=0.05),
-		Quadrapole(name="SQ", strength=2.0, skew=np.pi / 4),
+		Quadrapole(name="SQ", strength=2.0, rotation=np.pi / 4),
 		Drift(length=0.05)])
 	m = Microscope(sections=[sec])
-	m.to_sea("t_skew.sea")
-	back = load_microscope("t_skew.sea")
-	os.remove("t_skew.sea")
-	assert back["SQ"].skew == pytest.approx(np.pi / 4)
+	m.to_sea("t_rot.sea")
+	back = load_microscope("t_rot.sea")
+	os.remove("t_rot.sea")
+	assert back["SQ"].rotation == pytest.approx(np.pi / 4)
 	assert np.allclose(back.propagate_ray(), m.propagate_ray())
 
 

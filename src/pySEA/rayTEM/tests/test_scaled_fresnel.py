@@ -1306,7 +1306,7 @@ def test_rotation_commutes_with_propagation():
 
 def test_thick_lens_wave_rotation_matches_ray_larmor():
 	# with rotate=True the wave picks up the same Larmor angle the ray path
-	# applies (Lens.rotation = -K L): an off-axis blob's azimuth must agree
+	# applies (Lens.larmor_rotation = -K L): an off-axis blob's azimuth must agree
 	lens = Lens(strength=34.72, length=0.02)
 	K, L = lens.calibrated_strength, lens.length
 	n, dxi = 128, 1e-7
@@ -1322,8 +1322,8 @@ def test_thick_lens_wave_rotation_matches_ray_larmor():
 													 np.inf, K**2)
 	U_rot, *_ = wo.propagate_quadratic_segment_scaled(U0, dxi, dxi, LAM, L, 1.0,
 													  np.inf, K**2, rotate=-K * L)
-	lens.transfer_matrix()					# sets lens.rotation as the ray path does
-	assert np.isclose(lens.rotation, -K * L, rtol=1e-12)
+	lens.transfer_matrix()					# sets lens.larmor_rotation as the ray path does
+	assert np.isclose(lens.larmor_rotation, -K * L, rtol=1e-12)
 	assert np.isclose(azimuth(U_no), 0.0, atol=1e-6)			# default: no rotation
 	assert np.isclose(azimuth(U_rot), -K * L, atol=1e-3)		# opt-in: ray's angle
 	# and the element is what declares that angle -- the propagator never
