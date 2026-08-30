@@ -31,10 +31,10 @@
 |   `Element.transfer_block(dz=None, axis='x')` — the shared seam | 201 |
 |   `Microscope.conjugate_planes(axis='x', method='frame', reference=None, x0=1e-6, theta0=1e-6)` | 223 |
 |   `Microscope.beam_waists(axis='x', sigma0=None)` | 254 |
-|   `Microscope.subdivided(zpts)` | 283 |
-|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 327 |
-|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 332 |
-|   `Microscope.save(self, filename)` | 336 |
+|   `Microscope.subdivided(zpts)` | 293 |
+|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 337 |
+|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 342 |
+|   `Microscope.save(self, filename)` | 346 |
 <!-- END AUTO-GENERATED TOC -->
 
 # assemblies.py
@@ -260,6 +260,16 @@ geometric focus by the emittance-driven focal shift. Returns
 matrix, unlike the linear plane condition, so thick bodies use their own
 closed form `tan(2K·dz) = −2K·Σ₁₂/(Σ₂₂ − K²Σ₁₁)` (`_waist_roots`) — which is
 why `basic_column` shows waists inside the C1, OL1 and PL3 bodies.
+
+**`focal_surface(method='frame')` (2026-08-30):** the aberrated focal
+surface in **closed form**, no rays: each aberrated element's block is
+rebuilt about its principal planes with the pupil zone's own power
+(`Element.zone_power_shift(h)` = −Δθ(h)/h from the analytic kick), and the
+zone reference ray's axis crossing is solved linearly per free span
+(`_zone_focus`). Azimuths fixed to the two lab axes; crossings inside
+powered bodies are not searched (the traced `method='ray'` covers those).
+Matches the traced surface to machine precision on thin lenses; ideal
+columns give an exactly flat surface.
 
 **When planes become surfaces:** with aberrations or multipoles the conjugate
 condition acquires a dependence on field radius and azimuth, so the root

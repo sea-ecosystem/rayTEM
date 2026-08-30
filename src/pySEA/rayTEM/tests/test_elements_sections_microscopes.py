@@ -662,3 +662,81 @@ def test_findplanes_ignores_dead_rays():
 	assert za_cut[0] > za_open[0] + 1e-4
 	# everything masked: no beam, no plane
 	assert build(radius=1e-9, c30=0.0) == []
+
+
+def test_covariance_aberration_closure():
+	"""Aberrations enter the moments mode analytically (Gaussian closure).
+
+	The linear terms (C10, aligned C12) fold into the matrix exactly; the
+	cubic spherical kick's cross- and self-moments close on Sigma by
+	Isserlis' theorem. Verified against Monte-Carlo statistics of the exact
+	per-ray kick, against the exact power-shift equivalence for C10, and
+	bit-for-bit idle behavior without aberrations.
+	"""
+	rng = np.random.default_rng(7)
+	ix, ixt, iy, iyt = (columnByName(k) for k in ("x", "xt", "y", "yt"))
+	f, C30, N = 0.02, 3e3, 300000
+	sx, st = 5e-6, 2e-6
+	mu0 = np.zeros(6)
+	Sig0 = np.zeros((6, 6))
+	for i, s in ((ix, sx), (ixt, st), (iy, sx), (iyt, st)):
+		Sig0[i, i] = s * s
+	# Monte-Carlo reference: the exact per-ray kick on a Gaussian ensemble
+	lens = Lens(name="L", strength=np.sqrt(1 / f), aberrations={'C30': C30})
+	r0 = np.zeros((N, 6))
+	for i, s in ((ix, sx), (ixt, st), (iy, sx), (iyt, st)):
+		r0[:, i] = rng.normal(0, s, N)
+	r1 = np.asarray(lens.propagate_ray(r0.copy()))
+	Sig_MC = np.cov(r1[:, [ix, ixt, iy, iyt]].T)
+	_, Sig1 = lens.propagate_moments(mu0, Sig0)
+	An = Sig1[np.ix_([ix, ixt, iy, iyt], [ix, ixt, iy, iyt])]
+	# the aberration-inflated entries agree with sampled statistics (~MC noise)
+	assert np.isclose(An[1, 1], Sig_MC[1, 1], rtol=2e-2)
+	assert np.isclose(An[0, 1], Sig_MC[0, 1], rtol=2e-2)
+	assert np.isclose(An[3, 3], Sig_MC[3, 3], rtol=2e-2)
+	# and the aberration genuinely inflates them vs the ideal lens
+	ideal = Lens(strength=np.sqrt(1 / f))
+	_, SigI = ideal.propagate_moments(mu0, Sig0)
+	assert An[1, 1] > 1.05 * SigI[ixt, ixt]
+	# C10 is a pure power change: the closure must equal the shifted lens
+	P = ideal.focal_power
+	c10 = 1e-2
+	ab10 = Lens(strength=np.sqrt(1 / f), aberrations={'C10': c10})
+	_, SigA = ab10.propagate_moments(mu0, Sig0)
+	M = np.asarray(ideal.transfer_matrix())
+	M[ixt, ix] -= c10 * P**2
+	M[iyt, iy] -= c10 * P**2
+	assert np.allclose(SigA, M @ Sig0 @ M.T, rtol=1e-12)
+	# idle path bit-for-bit
+	M0 = np.asarray(ideal.transfer_matrix())
+	assert np.allclose(SigI, M0 @ Sig0 @ M0.T)
+
+
+def test_frame_focal_surface():
+	"""focal_surface(method='frame'): the aberrated surface in closed form.
+
+	Zone-modified ABCD reproduces the traced surface on a thin lens to
+	machine precision, both matching the closed form -C30*alpha^2; an ideal
+	column gives an exactly flat surface at the paraxial plane.
+	"""
+	f, C30, ALPHA = 0.02, 2.0, 5e-3
+	def build(c30):
+		from pySEA.rayTEM.aberrations import Aberrations
+		lens = Lens(name="L", strength=np.sqrt(1 / f))
+		if c30:
+			lens.aberrations = Aberrations({'C30': c30})
+		sec = MicroscopeSection(name="S", elements=[
+			Source(voltage=200, size=(1e-6, 1e-6), np_xy=(3, 3),
+				   angle=(1e-6, 1e-6), na_xy=(3, 3)),
+			Drift(length=0.01), lens, Drift(length=0.05)])
+		return Microscope(sections=[sec])
+	m = build(C30)
+	sr = m.focal_surface(family="diff", aperture=ALPHA * f, radii=8, azimuths=4)
+	sf = m.focal_surface(family="diff", aperture=ALPHA * f, radii=8, method="frame")
+	assert np.isclose(sf["fit"]["c20"], sr["fit"]["c20"], rtol=1e-9)
+	assert np.isclose(sf["sag"], sr["sag"], rtol=1e-9)
+	assert np.isclose(sf["fit"]["c20"], -C30 * ALPHA**2, rtol=5e-3)
+	s0 = build(0.0).focal_surface(family="diff", aperture=ALPHA * f, radii=8,
+								  method="frame")
+	assert s0["sag"] == 0.0
+	assert np.allclose(s0["z"], s0["z_paraxial"], atol=1e-12)

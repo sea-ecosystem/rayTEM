@@ -2134,7 +2134,8 @@ class Microscope(SealedAttributes, SEASerializable):
 
 	def focal_surface(self, family:Literal['diff','image']='diff',
 					  aperture:float=1e-4, radii:int=6, azimuths:int=8,
-					  reference=None, near=None, window:float=None) -> dict:
+					  reference=None, near=None, window:float=None,
+					  method:Literal['ray','frame']='ray') -> dict:
 		r"""Where the beam actually focuses, as a function of aperture position.
 
 		:meth:`conjugate_planes` answers the paraxial question, and its answer is
@@ -2175,6 +2176,16 @@ class Microscope(SealedAttributes, SEASerializable):
 		reference : str, float, or None, optional
 			Forwarded to :meth:`conjugate_planes` for the paraxial reference
 			plane, by default None (the column entrance).
+		method : {'ray', 'frame'}, optional
+			``'ray'`` (default) traces a sampled bundle and measures each
+			ray's closest approach — sees everything the ray path applies,
+			including in-body foci. ``'frame'`` computes the surface in
+			**closed form** by zone-modified ABCD: each aberrated element's
+			block is rebuilt with the zone's own power
+			(:meth:`elements.Element.zone_power_shift`), and the zone ray's
+			axis crossing is solved analytically. No rays, no sampling; the
+			azimuths are fixed to the two lab axes, and crossings inside
+			powered bodies are not searched.
 		near : int, float, str, or None, optional
 			**Which** focus to describe. A real column has several planes of a
 			given family, and a ray bundle crosses the axis at every one of
@@ -2249,6 +2260,22 @@ class Microscope(SealedAttributes, SEASerializable):
 			window = float(others.min()) / 2 if others.size else xp.inf
 
 		rho = xp.linspace(0.0, 1.0, int(radii) + 1)[1:]		# skip the axis
+		if method == 'frame':
+			# closed form, no rays: each zone height gets its own ABCD walk
+			# with the aberrated elements' powers shifted by zone_power_shift.
+			# The walk is per-axis, so the azimuths are the two lab axes.
+			RRf = xp.concatenate([rho, rho])
+			PPf = xp.concatenate([xp.zeros_like(rho), xp.full_like(rho, xp.pi / 2)])
+			z_focus = xp.asarray([
+				self._zone_focus(family, float(r) * aperture,
+								 'x' if p == 0 else 'y',
+								 reference, z_paraxial, window)
+				for r, p in zip(RRf, PPf)], dtype=float)
+			finite = xp.isfinite(z_focus)
+			sag = float(z_focus[finite].max() - z_focus[finite].min()) if finite.any() else 0.0
+			return {'radius': RRf * aperture, 'azimuth': PPf, 'z': z_focus,
+					'z_paraxial': z_paraxial, 'sag': sag,
+					'fit': self._fit_surface(RRf, PPf, z_focus)}
 		phi = xp.linspace(0.0, 2 * xp.pi, int(azimuths), endpoint=False)
 		RR, PP = xp.meshgrid(rho, phi, indexing='ij')
 		RR, PP = RR.ravel(), PP.ravel()
@@ -2282,6 +2309,106 @@ class Microscope(SealedAttributes, SEASerializable):
 		return {'radius': RR * aperture, 'azimuth': PP, 'z': z_focus,
 				'z_paraxial': z_paraxial, 'sag': sag,
 				'fit': self._fit_surface(RR, PP, z_focus)}
+
+	def _zone_focus(self, family:Literal['diff','image'], launch:float,
+					axis:Literal['x','y'], reference, z_paraxial:float,
+					window:float) -> float:
+		r"""Closed-form focus of one pupil zone, by zone-modified ABCD.
+
+		The analytic aberrated ray: a single reference ray for the zone is
+		transported through the column's blocks, except that every aberrated
+		element's block is rebuilt about its principal planes with the zone's
+		own power, ``P + zone_power_shift(h_local)`` — the drift·kick·drift
+		factorization of the ideal block with the kick strengthened by the
+		zone's aberration. The focus is where the zone ray crosses the axis,
+		solved linearly inside each free span. Everything stays closed form.
+
+		Parameters
+		----------
+		family : {'diff', 'image'}
+			``'diff'`` launches the zone ray parallel at height ``launch``;
+			``'image'`` launches it from the axis at angle ``launch``.
+		launch : float
+			Zone coordinate at the reference plane — metres for ``'diff'``,
+			radians for ``'image'``.
+		axis : {'x', 'y'}
+			Which transverse axis's blocks (and zone power shift) to use.
+		reference : str, float, or None
+			The object plane, as in :meth:`conjugate_planes`.
+		z_paraxial : float
+			The paraxial plane this surface describes; the crossing nearest
+			it is returned.
+		window : float
+			Half-width around ``z_paraxial`` outside which crossings belong
+			to a different focus; ``inf`` disables the filter.
+
+		Returns
+		-------
+		float
+			Absolute z of the zone's focus (metres), or ``nan`` when the zone
+			ray never crosses in range.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		elements.Element.zone_power_shift : The per-element power change.
+		focal_surface : The consumer (``method='frame'``).
+
+		Notes
+		-----
+		Crossings **inside powered bodies** are not searched — the frame
+		surface reports free-space foci (the traced ``method='ray'`` covers
+		in-body cases). Zero-power (drift-like) element interiors are linear
+		and are searched.
+		"""
+		iaxis = 0 if axis == 'x' else 1
+		z_ref = 0.0
+		if reference is not None:
+			z_ref = (self.named_positions[reference] if isinstance(reference, str)
+					 else float(reference))
+		v = xp.asarray([launch, 0.0] if family == 'diff' else [0.0, launch],
+					   dtype=float)
+		roots = []
+		z_prev = z_ref
+		for z0, ele, L, M, block in self._accumulate_blocks(axis=axis,
+															 reference=reference):
+			start = max(z0, z_ref)
+			gap = start - z_prev
+			if gap > 1e-12:						# free space between elements
+				if v[1] != 0:
+					dz = -v[0] / v[1]
+					if 0 < dz <= gap + 1e-15:
+						roots.append(z_prev + dz)
+				v = xp.asarray([[1.0, gap], [0.0, 1.0]]) @ v
+			E = xp.asarray(block(z0 + L - start), dtype=float)
+			dP = ele.zone_power_shift(float(v[0]))[iaxis]
+			P_id = -float(E[1, 0])
+			if dP:
+				if abs(P_id) > 1e-15:
+					# rebuild about the principal planes with the zone power
+					d = (1.0 - float(E[0, 0])) / P_id
+					Dd = xp.asarray([[1.0, d], [0.0, 1.0]])
+					E = Dd @ xp.asarray([[1.0, 0.0], [-(P_id + dP), 1.0]]) @ Dd
+				else:							# a pure plate: just the kick
+					E = xp.asarray([[1.0, 0.0], [-dP, 1.0]]) @ E
+			elif P_id == 0 and v[1] != 0 and L > 0:
+				dz = -v[0] / v[1]				# drift-like interior is linear
+				if 0 < dz <= (z0 + L - start) + 1e-15:
+					roots.append(start + dz)
+			v = E @ v
+			z_prev = z0 + L
+		if v[1] != 0:							# open segment past the column
+			dz = -v[0] / v[1]
+			if dz > 0:
+				roots.append(z_prev + dz)
+		if xp.isfinite(window):
+			roots = [z for z in roots if abs(z - z_paraxial) <= window]
+		if not roots:
+			return float('nan')
+		return float(min(roots, key=lambda z: abs(z - z_paraxial)))
 
 	@staticmethod
 	def _axis_approach(ray_track:xp.ndarray, z_min:float=None,
