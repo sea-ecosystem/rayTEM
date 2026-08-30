@@ -556,7 +556,7 @@ def run(make_figure: bool = True, figdir: str = "figs") -> dict:
 	reference = results['ideal'][0]
 
 	print(f"source: {SOURCE_SIZE * 1e9:.1f} nm rms, {SOURCE_ANGLE * 1e3:.3f} mrad rms, "
-		  f"{ENERGY_SPREAD * 1e6:.0f} eV rms energy spread")
+		  f"{ENERGY_SPREAD * 1e3:.2f} eV rms energy spread")
 	print(f"OL1: Cs = {OL1_CS * 1e3:.2f} mm, Cc = {OL1_CC * 1e3:.2f} mm   "
 		  f"OL2: Cs = {OL2_CS * 1e3:.2f} mm, Cc = {OL2_CC * 1e3:.2f} mm")
 	print(f"closure in force at every nonlinear element: {closure.name}")
