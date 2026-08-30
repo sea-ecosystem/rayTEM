@@ -2,17 +2,28 @@
 
 Newest entries at top.
 
-## 2026-08-30 — [Under Construction] Three-name focal API
+## 2026-08-30 — [Done] Three-name focal API
 **Goal:** `focal_power` / `focal_length` (EFL, reciprocal pair) /
 `back_focal_distance` (signed −A/C, the measured exit-face quantity), plus
 the interactive thick-lens geometry figure in the docs.
 **Why:** The current "focal_power is deliberately not 1/focal_length" state
 is correct but a standing trap; the planning session settled the clean
 naming and the geometry story (real vs virtual BFP, in-body crossovers).
-- [ ] properties + docstrings
-- [ ] physics test list
-- [ ] docs figure + terminology + wiki
-- [ ] issue #11 proposal comment
+- [x] properties + docstrings
+- [x] physics test list
+- [x] docs figure + terminology + wiki
+- [x] issue #11 proposal comment
+**Outcome:** `focal_power = −C` (unchanged) and `focal_length = 1/P` (EFL)
+are exact reciprocals again; the measured exit-face quantity lives on the
+new signed `back_focal_distance = −A/C` (negative past KL = π/2 = virtual
+BFP; real crossover in-body at π/2K). Thin-lens plumbing and .sea round
+trips untouched. Physics tests: matrix defs, BFD = A·EFL, traced angle =
+P·h, drift-of-BFD zeroes accumulated A, thin limit, strong-lens
+virtual-vs-in-body case, serialization. Terminology page carries the
+three-name table plus the interactive thick-lens geometry figure
+(docs/_static/thick_lens_focal_geometry.html — both ray families, sliders
+across π/2), scrubbed to pure physics. Proposed to Thomas on issue #11
+(commit a4b7e63). Suite 157/157.
 
 ## 2026-08-29 — [Done] Finishing propagation additions (power split + ex06)
 **Goal:** New workflow (branch `finishing_propagation_additions`, merged to
