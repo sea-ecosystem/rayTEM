@@ -64,6 +64,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#invariants">Invariants</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#the-scaled-wave-engine">The scaled-wave engine</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#aberrations">Aberrations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#moments-and-the-closure-seam">Moments, and the closure seam</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#high-risk-seams">High-risk seams</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#schema">Schema</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#provenance-and-verification">Provenance and verification</a></li>
@@ -171,13 +172,61 @@ phase: see <a class="reference internal" href="terminology.html"><span class="st
 focal power distinctions and the aberration-power split.</p>
 <p>They now reach <strong>all four propagation modes</strong>: the ray path applies the
 exact eikonal kick, the wave paths carry χ, the covariance mode closes the
-kick’s moments analytically on Σ (linear terms exact; C30 by Gaussian
-closure), and the frame/ABCD machinery computes the <strong>aberrated focal
-surface in closed form</strong> — <code class="docutils literal notranslate"><span class="pre">focal_surface(method='frame')</span></code> rebuilds each
-aberrated element’s block with its pupil zone’s own power
-(<code class="docutils literal notranslate"><span class="pre">Element.zone_power_shift</span></code>) and solves the zone ray’s crossing
-analytically. On a thin lens the frame surface matches the traced one to
-machine precision.</p>
+kick’s moments analytically on Σ, and the frame/ABCD machinery computes the
+<strong>aberrated focal surface in closed form</strong> — <code class="docutils literal notranslate"><span class="pre">focal_surface(method='frame')</span></code>
+rebuilds each aberrated element’s block with its pupil zone’s own power
+(<code class="docutils literal notranslate"><span class="pre">Element.zone_power_shift</span></code>) and solves the zone ray’s crossing analytically.
+On a thin lens the frame surface matches the traced one to machine precision.</p>
+</section>
+<section id="moments-and-the-closure-seam">
+<h2>Moments, and the closure seam<a class="headerlink" href="#moments-and-the-closure-seam" title="Link to this heading"></a></h2>
+<p>The covariance mode carries two moments; a nonlinear element needs more.
+Rather than hard-code where they come from, the mode splits the beam state
+from the assumption used to extend it — <code class="docutils literal notranslate"><span class="pre">moments.CovarianceBeam</span></code> holds
+<code class="docutils literal notranslate"><span class="pre">{mean,</span> <span class="pre">covariance,</span> <span class="pre">moment_closure}</span></code>, and <code class="docutils literal notranslate"><span class="pre">moments.MomentClosure</span></code> is a
+one-method interface (<code class="docutils literal notranslate"><span class="pre">moment(Sigma,</span> <span class="pre">indices)</span></code>) that a caller can replace.
+<code class="docutils literal notranslate"><span class="pre">GaussianMomentClosure</span></code> answers by Wick pairing at any order.</p>
+<p>The nonlinear kick reaches the closure as a <em>polynomial</em>, not as per-term
+algebra: <code class="docutils literal notranslate"><span class="pre">Element.aberration_monomials</span></code> recovers it by sampling the existing
+<code class="docutils literal notranslate"><span class="pre">deflection_at</span></code> on the unit circle and solving for the coefficients of a
+homogeneous degree-<code class="docutils literal notranslate"><span class="pre">n</span></code> form, which is legitimate precisely because a Krivanek
+term of order <code class="docutils literal notranslate"><span class="pre">n</span></code> deflects by a degree-<code class="docutils literal notranslate"><span class="pre">n</span></code> homogeneous polynomial and
+therefore carries no length scale of its own. One consequence worth stating:
+<strong>every</strong> order the pupil carries is now closed, rotated terms included, and
+adding a term to <code class="docutils literal notranslate"><span class="pre">KRIVANEK_TERMS</span></code> reaches this path with no algebra written by
+hand.</p>
+<p>Three properties this buys, each of which the previous hand-derived C30
+closure lacked:</p>
+<ul class="simple">
+<li><p><strong>Completeness.</strong> Cross-plane terms (<code class="docutils literal notranslate"><span class="pre">&lt;x</span> <span class="pre">δθ_y&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;δθ_x</span> <span class="pre">δθ_y&gt;</span></code>) are computed,
+not dropped. They vanish for a transversely decoupled beam and are
+emphatically not negligible otherwise — through a Larmor-rotating objective
+an astigmatic source produces cross-plane terms as large as the in-plane
+ones.</p></li>
+<li><p><strong>Positive semidefiniteness by construction.</strong> A complete Gaussian closure is
+the exact pushforward of a Gaussian, so <code class="docutils literal notranslate"><span class="pre">Σ'</span></code> is a real covariance for any
+aberration strength. It is <em>truncation</em> that breaks PSD, not strength — which
+is the argument against ever shipping a partial closure, and the reason
+<code class="docutils literal notranslate"><span class="pre">CovarianceBeam.is_positive_semidefinite</span></code> exists as a guard on custom ones.</p></li>
+<li><p><strong>A retained mean shift.</strong> An even-order aberration moves the ensemble mean
+by <code class="docutils literal notranslate"><span class="pre">&lt;δ(r)&gt;</span></code> while the centroid ray, which feels <code class="docutils literal notranslate"><span class="pre">δ(μ)</span></code>, does not move at all.
+<code class="docutils literal notranslate"><span class="pre">propagate_moments</span></code> takes the affine terms from an ideal ray and adds the
+aberration’s contributions explicitly, so the shift is reported rather than
+absorbed into the width.</p></li>
+</ul>
+<p><strong>Chromatic</strong> attaches here as the one non-geometric term:
+<code class="docutils literal notranslate"><span class="pre">Element.chromatic_aberration</span></code> (<code class="docutils literal notranslate"><span class="pre">C_c</span></code>) with <code class="docutils literal notranslate"><span class="pre">Source.energy_spread</span></code> seeding
+<code class="docutils literal notranslate"><span class="pre">Σ[E,E]</span></code>. It is kept out of <code class="docutils literal notranslate"><span class="pre">aberrations</span></code> on purpose — the Krivanek set is a
+function of pupil coordinate alone, whereas chromatic couples the pupil to the
+energy column, making the kick bilinear and so not matrix-expressible even
+though it is a power change. Its covariance term is exact rather than closed,
+because the only fourth moment it needs factorizes under the physical
+assumption that energy spread is independent of transverse position.</p>
+<p>The honest limit is stated where it is measured rather than buried: a cubic
+kick leaves excess kurtosis <code class="docutils literal notranslate"><span class="pre">γ₂</span> <span class="pre">=</span> <span class="pre">27f²</span></code>, with <code class="docutils literal notranslate"><span class="pre">f</span></code> the aberration’s share of the
+angular variance, so there is no regime in which the aberration matters to Σ
+but the induced non-Gaussianity does not. <code class="docutils literal notranslate"><span class="pre">examples/08_covariancePropagation.py</span></code>
+prints <code class="docutils literal notranslate"><span class="pre">f</span></code> per element and measures the OL1–OL2 interaction residual directly.</p>
 </section>
 <section id="high-risk-seams">
 <h2>High-risk seams<a class="headerlink" href="#high-risk-seams" title="Link to this heading"></a></h2>
@@ -206,15 +255,20 @@ first.</p>
 <li><p><strong>Implementation entry points</strong>: <code class="docutils literal notranslate"><span class="pre">elements.py</span></code> (elements, screens,
 aberration application), <code class="docutils literal notranslate"><span class="pre">assemblies.py</span></code> (sections, columns, propagation
 drivers, conjugate planes), <code class="docutils literal notranslate"><span class="pre">waveoptics.py</span></code> (paraxial and scaled-Fresnel
-primitives), <code class="docutils literal notranslate"><span class="pre">aberrations.py</span></code> (the Krivanek model), <code class="docutils literal notranslate"><span class="pre">seashells.py</span></code>
-(serialization seam).</p></li>
+primitives), <code class="docutils literal notranslate"><span class="pre">aberrations.py</span></code> (the Krivanek model), <code class="docutils literal notranslate"><span class="pre">moments.py</span></code> (the
+covariance state and the closure seam), <code class="docutils literal notranslate"><span class="pre">seashells.py</span></code> (serialization
+seam).</p></li>
 <li><p><strong>Focused tests</strong>: <code class="docutils literal notranslate"><span class="pre">src/pySEA/rayTEM/tests/</span></code> — <code class="docutils literal notranslate"><span class="pre">test_scaled_fresnel.py</span></code>
 (wave engine, screens, aberrations, currents),
 <code class="docutils literal notranslate"><span class="pre">test_eight_configurations.py</span></code> (the operating states as executable
-claims), <code class="docutils literal notranslate"><span class="pre">test_wave_and_envelope.py</span></code>, <code class="docutils literal notranslate"><span class="pre">test_elements_sections_microscopes.py</span></code>.</p></li>
+claims), <code class="docutils literal notranslate"><span class="pre">test_covariance_propagation.py</span></code> (the closure against hand-written
+Isserlis, the kick polynomial against <code class="docutils literal notranslate"><span class="pre">deflection_at</span></code> at every order, and
+the aberrated and chromatic covariance updates against Monte-Carlo rays),
+<code class="docutils literal notranslate"><span class="pre">test_wave_and_envelope.py</span></code>, <code class="docutils literal notranslate"><span class="pre">test_elements_sections_microscopes.py</span></code>.</p></li>
 <li><p><strong>User guides</strong>: Getting Started, Propagation Modes, Operating the Column.</p></li>
-<li><p><strong>Executable examples</strong>: <code class="docutils literal notranslate"><span class="pre">examples/01</span></code>–<code class="docutils literal notranslate"><span class="pre">07</span></code>, all headless-runnable; 05 and
-07 are cross-method verification scripts.</p></li>
+<li><p><strong>Executable examples</strong>: <code class="docutils literal notranslate"><span class="pre">examples/01</span></code>–<code class="docutils literal notranslate"><span class="pre">08</span></code>, all headless-runnable; 05 and
+07 are cross-method verification scripts, 08 is the covariance resolution
+study.</p></li>
 <li><p><strong>AI-tool artifacts</strong>: the <code class="docutils literal notranslate"><span class="pre">ai_wiki/raytem</span></code> slice (index, layer map,
 method index), refreshed by <code class="docutils literal notranslate"><span class="pre">pysea-refresh-wiki</span></code>.</p></li>
 <li><p><strong>API coverage</strong>: generated from the NumPy-style docstrings that every

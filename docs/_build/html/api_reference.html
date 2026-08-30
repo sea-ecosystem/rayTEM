@@ -95,9 +95,13 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.elements.Element"><code class="docutils literal notranslate"><span class="pre">Element</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.aberration_kick"><code class="docutils literal notranslate"><span class="pre">Element.aberration_kick()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.aberration_monomials"><code class="docutils literal notranslate"><span class="pre">Element.aberration_monomials()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.apply_intensity"><code class="docutils literal notranslate"><span class="pre">Element.apply_intensity()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.apply_rotation"><code class="docutils literal notranslate"><span class="pre">Element.apply_rotation()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.beam_current"><code class="docutils literal notranslate"><span class="pre">Element.beam_current</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.chromatic_aberration"><code class="docutils literal notranslate"><span class="pre">Element.chromatic_aberration</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.chromatic_kick"><code class="docutils literal notranslate"><span class="pre">Element.chromatic_kick()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.chromatic_monomials"><code class="docutils literal notranslate"><span class="pre">Element.chromatic_monomials()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.copy"><code class="docutils literal notranslate"><span class="pre">Element.copy()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.kget"><code class="docutils literal notranslate"><span class="pre">Element.kget()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.kset"><code class="docutils literal notranslate"><span class="pre">Element.kset()</span></code></a></li>
@@ -183,6 +187,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.elements.suspended_aberrations"><code class="docutils literal notranslate"><span class="pre">suspended_aberrations</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.suspended_aberrations.elements"><code class="docutils literal notranslate"><span class="pre">suspended_aberrations.elements</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.suspended_aberrations.suspend"><code class="docutils literal notranslate"><span class="pre">suspended_aberrations.suspend</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.suspended_aberrations._saved"><code class="docutils literal notranslate"><span class="pre">suspended_aberrations._saved</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.suspended_aberrations.__enter__"><code class="docutils literal notranslate"><span class="pre">suspended_aberrations.__enter__()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.suspended_aberrations.__exit__"><code class="docutils literal notranslate"><span class="pre">suspended_aberrations.__exit__()</span></code></a></li>
 </ul>
@@ -195,6 +200,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.convergence_angle"><code class="docutils literal notranslate"><span class="pre">Microscope.convergence_angle</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.convergence_angle_at"><code class="docutils literal notranslate"><span class="pre">Microscope.convergence_angle_at()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.copy"><code class="docutils literal notranslate"><span class="pre">Microscope.copy()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.covariance_beam"><code class="docutils literal notranslate"><span class="pre">Microscope.covariance_beam</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.current_at"><code class="docutils literal notranslate"><span class="pre">Microscope.current_at()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.focal_surface"><code class="docutils literal notranslate"><span class="pre">Microscope.focal_surface()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.focus_error"><code class="docutils literal notranslate"><span class="pre">Microscope.focus_error()</span></code></a></li>
@@ -230,6 +236,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.append"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.append()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.copy"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.copy()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.covariance_beam"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.covariance_beam</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.focal_power"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.focal_power</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.index"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.index()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.insert"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.insert()</span></code></a></li>
@@ -676,7 +683,7 @@ behaviour moved.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Aperture.propagate_moments">
-<span class="sig-name descname"><span class="pre">propagate_moments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Sigma</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Aperture.propagate_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Aperture.propagate_moments" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">propagate_moments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Sigma</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">closure</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Aperture.propagate_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Aperture.propagate_moments" title="Link to this definition"></a></dt>
 <dd><p>Pass moments through unchanged (aperture is treated as non-truncating here).</p>
 <p>Overrides :meth:Element.propagate_moments. An aperture has no ray-transfer
 matrix, and a hard circular truncation is non-linear - it would break the
@@ -689,6 +696,9 @@ envelope mode the aperture therefore leaves the mean and covariance untouched
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>mu</strong> (<em>xp.ndarray</em>) – Mean state vector.</p></li>
 <li><p><strong>Sigma</strong> (<em>xp.ndarray</em>) – Covariance matrix.</p></li>
+<li><p><strong>closure</strong> (<em>moments.MomentClosure</em><em>, </em><em>optional</em>) – Accepted for signature compatibility and unused: this element
+applies no nonlinear map, so it needs no moments beyond the
+second.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -1021,6 +1031,70 @@ of the matrix rather than linearized into it.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Element.aberration_monomials">
+<span class="sig-name descname"><span class="pre">aberration_monomials</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">P</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Element.aberration_monomials"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Element.aberration_monomials" title="Link to this definition"></a></dt>
+<dd><p>This element’s nonlinear angular kick, written as a polynomial.</p>
+<p>The ray path evaluates the kick numerically, one value per ray
+(<a class="reference internal" href="#pySEA.rayTEM.elements.Element.aberration_kick" title="pySEA.rayTEM.elements.Element.aberration_kick"><code class="xref py py-meth docutils literal notranslate"><span class="pre">aberration_kick()</span></code></a>). The covariance path cannot: it has no rays,
+only moments, so it needs the kick as an <strong>algebraic</strong> object whose
+moments can be taken. A Krivanek term of order <code class="docutils literal notranslate"><span class="pre">n</span></code> deflects by a
+polynomial that is homogeneous of degree <code class="docutils literal notranslate"><span class="pre">n</span></code> in <code class="docutils literal notranslate"><span class="pre">(x,</span> <span class="pre">y)</span></code> — the
+<span class="math notranslate nohighlight">\(\theta^n\)</span> in <code class="xref py py-meth docutils literal notranslate"><span class="pre">aberrations.Aberrations.deflection_at()</span></code>
+times an azimuthal factor that always collapses to one — so the
+polynomial is fully determined by its values on the unit circle.</p>
+<p>This recovers it there: evaluate the existing deflection at <code class="docutils literal notranslate"><span class="pre">n+1</span></code>
+directions and solve for the coefficients of
+<span class="math notranslate nohighlight">\(x^{n-j}y^{j}\)</span>. That keeps the repository’s “no per-aberration
+code” property intact on this path too — a term the covariance mode
+has never seen is handled the day it is added to
+<code class="xref py py-data docutils literal notranslate"><span class="pre">aberrations.KRIVANEK_TERMS</span></code>, with no algebra written by hand.</p>
+<p>Only the <strong>residual</strong> terms appear. <code class="docutils literal notranslate"><span class="pre">C10</span></code> and an aligned <code class="docutils literal notranslate"><span class="pre">C12</span></code> are
+linear in the ray vector, so <code class="xref py py-func docutils literal notranslate"><span class="pre">_split_quadratic_aberrations()</span></code>
+folds them into the transfer matrix exactly and they are not kicks at
+all.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>P</strong> (<em>float</em>) – The pupil power (1/metres) the coefficients are defined against.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Maps the <code class="docutils literal notranslate"><span class="pre">xt</span></code> and <code class="docutils literal notranslate"><span class="pre">yt</span></code> column indices to lists of
+<code class="docutils literal notranslate"><span class="pre">(coefficient,</span> <span class="pre">indices)</span></code> monomials in <strong>absolute</strong> coordinates,
+where <code class="docutils literal notranslate"><span class="pre">indices</span></code> is a tuple of <code class="docutils literal notranslate"><span class="pre">x</span></code>/<code class="docutils literal notranslate"><span class="pre">y</span></code> column indices with
+repetition. Empty when the element is ideal, has no pupil power,
+or carries only terms the matrix already absorbed.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Element.aberration_kick" title="pySEA.rayTEM.elements.Element.aberration_kick"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aberration_kick</span></code></a></dt><dd><p>The same kick, evaluated per ray.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">moments.center_monomials</span></code></dt><dd><p>Converts the result to central coordinates.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">_aberration_moment_pieces</span></code></dt><dd><p>The consumer.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Notes</p>
+<p>The recovery is exact up to floating point, and
+<code class="docutils literal notranslate"><span class="pre">test_aberration_monomials_reproduce_the_kick</span></code> pins it against
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">aberrations.Aberrations.deflection_at()</span></code> at random coordinates.
+Homogeneity is what makes sampling on the unit circle legitimate: the
+coefficients carry no length scale of their own.</p>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Lens</span><span class="p">(</span><span class="n">focal_length</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">aberrations</span><span class="o">=</span><span class="p">{</span><span class="s1">'C30'</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">})</span><span class="o">.</span><span class="n">aberration_monomials</span><span class="p">(</span><span class="mf">100.0</span><span class="p">)</span>
+<span class="go">{1: [(-100000.0, (0, 0, 0)), (-100000.0, (0, 2, 2))], 3: [...]}</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Element.apply_intensity">
 <span class="sig-name descname"><span class="pre">apply_intensity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">I</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Element.apply_intensity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Element.apply_intensity" title="Link to this definition"></a></dt>
 <dd><p>Return the beam intensity after passing through this element.</p>
@@ -1130,6 +1204,136 @@ source and re-propagate before trusting it.</p>
 <span class="go">1e-09</span>
 </pre></div>
 </div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Element.chromatic_aberration">
+<span class="sig-name descname"><span class="pre">chromatic_aberration</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Element.chromatic_aberration" title="Link to this definition"></a></dt>
+<dd><p>Chromatic aberration coefficient C_c (metres). A SETTING, and
+deliberately NOT one of <code class="xref py py-attr docutils literal notranslate"><span class="pre">aberrations</span></code>: the Krivanek C_{n,m} are
+functions of pupil coordinate alone, whereas chromatic couples the
+pupil to the beam’s <em>energy</em> column, which makes it a different kind
+of term (bilinear, so it cannot live in the transfer matrix). 0 means
+achromatic, which is every element until someone says otherwise.
+For a round magnetic lens C_c is of order f and always positive -
+there is no round-lens achromat. Two caveats on the <em>value</em>: it is
+referenced to the NON-relativistic fractional deviation (E - E0)/E0
+that the E column carries directly, and a coefficient quoted against
+the relativistically corrected potential is larger by about 10% at
+200 kV; and only the beam’s own energy spread reaches it, so lens-
+current ripple and high-tension instability - the other two terms of
+the usual chromatic budget - have to be folded into
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">Source.energy_spread</span></code> by hand if they are wanted.
+Read by elements resolving a scalar <code class="docutils literal notranslate"><span class="pre">focal_power</span></code>; a Quadrapole
+states <code class="docutils literal notranslate"><span class="pre">focal_powers</span></code> per axis and is not chromatic yet.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Element.chromatic_kick">
+<span class="sig-name descname"><span class="pre">chromatic_kick</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Element.chromatic_kick"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Element.chromatic_kick" title="Link to this definition"></a></dt>
+<dd><p>This element’s chromatic angular kick, per ray.</p>
+<p>The ray-path companion to <a class="reference internal" href="#pySEA.rayTEM.elements.Element.chromatic_monomials" title="pySEA.rayTEM.elements.Element.chromatic_monomials"><code class="xref py py-meth docutils literal notranslate"><span class="pre">chromatic_monomials()</span></code></a>, and the
+reference the covariance closure is checked against. Each ray is
+deflected by <span class="math notranslate nohighlight">\(C_c P^2 \delta\,x\)</span> with
+<span class="math notranslate nohighlight">\(\delta = (E - E_0)/E_0\)</span> its own fractional energy deviation,
+measured against the <strong>mean energy of the incoming rays</strong> — so a
+monoenergetic bundle is unaffected, which is correct: chromatic
+aberration blurs because of spread, not because of an offset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>r0</strong> (<em>xp.ndarray</em>) – Rays entering the element, shape <code class="docutils literal notranslate"><span class="pre">(n_rays,</span> <span class="pre">len(convention))</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">(delta_xt,</span> <span class="pre">delta_yt)</span></code> in radians, or <code class="docutils literal notranslate"><span class="pre">None</span></code> when the element
+is achromatic, has no pupil power, or the rays carry no energy.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple of xp.ndarray or <a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None">None</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Element.chromatic_monomials" title="pySEA.rayTEM.elements.Element.chromatic_monomials"><code class="xref py py-obj docutils literal notranslate"><span class="pre">chromatic_monomials</span></code></a></dt><dd><p>The same kick, as an algebraic object.</p>
+</dd>
+<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Element.aberration_kick" title="pySEA.rayTEM.elements.Element.aberration_kick"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aberration_kick</span></code></a></dt><dd><p>The geometric counterpart.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Notes</p>
+<p>Applied as one impulsive kick at the element, as the fixed wave path
+treats aberrations in a thick body — a first-order compromise for a
+body of finite length.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Element.chromatic_monomials">
+<span class="sig-name descname"><span class="pre">chromatic_monomials</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">P</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Element.chromatic_monomials"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Element.chromatic_monomials" title="Link to this definition"></a></dt>
+<dd><p>This element’s chromatic kick, as a polynomial in central coordinates.</p>
+<p>Chromatic aberration is the one term here that is not a function of
+the pupil coordinate alone: an off-energy electron is focused at a
+different power, so the deflection is proportional to the <em>product</em> of
+the ray height and its energy deviation. With
+<span class="math notranslate nohighlight">\(\delta = (E - E_0)/E_0\)</span> the fractional deviation and
+<span class="math notranslate nohighlight">\(C_c\)</span> the chromatic coefficient,</p>
+<div class="math notranslate nohighlight">
+\[\Delta f = C_c\,\delta \;\Longrightarrow\;
+\Delta P = -C_c P^2 \delta \;\Longrightarrow\;
+\delta\theta_x = -\Delta P\,x = C_c P^2 \delta\,x\]</div>
+<p>and likewise in y. Being <strong>bilinear</strong> — a product of two state
+components — this cannot be folded into the 6×6 transfer matrix the
+way <code class="docutils literal notranslate"><span class="pre">C10</span></code> defocus can, even though both are “just a power change”:
+the power change is different for each member of the ensemble.</p>
+<p>The reference <span class="math notranslate nohighlight">\(E_0\)</span> is the beam’s own mean energy, so what this
+models is chromatic <strong>blur</strong> from the energy <em>spread</em>. A beam
+uniformly off its design energy is a defocus, not an aberration, and
+is deliberately not applied here.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>P</strong> (<em>float</em>) – The pupil power (1/metres).</p></li>
+<li><p><strong>mu</strong> (<em>xp.ndarray</em>) – Mean state vector, shape <code class="docutils literal notranslate"><span class="pre">(len(convention),)</span></code>. Supplies both the
+reference energy <span class="math notranslate nohighlight">\(E_0 = \mu_E\)</span> and the beam offset, since a
+displaced beam turns part of the bilinear term into one linear in
+the energy deviation alone.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Maps the <code class="docutils literal notranslate"><span class="pre">xt</span></code> and <code class="docutils literal notranslate"><span class="pre">yt</span></code> column indices to lists of
+<code class="docutils literal notranslate"><span class="pre">(coefficient,</span> <span class="pre">indices)</span></code> monomials in <strong>central</strong> coordinates
+(deviations from <code class="docutils literal notranslate"><span class="pre">mu</span></code>), ready for
+<code class="xref py py-func docutils literal notranslate"><span class="pre">moments.kick_moments()</span></code>. Empty when the element is
+achromatic, has no pupil power, or the beam carries no energy.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Element.chromatic_kick" title="pySEA.rayTEM.elements.Element.chromatic_kick"><code class="xref py py-obj docutils literal notranslate"><span class="pre">chromatic_kick</span></code></a></dt><dd><p>The same kick, evaluated per ray.</p>
+</dd>
+<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Element.aberration_monomials" title="pySEA.rayTEM.elements.Element.aberration_monomials"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aberration_monomials</span></code></a></dt><dd><p>The geometric counterpart.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Notes</p>
+<p>Unlike the geometric monomials these are emitted already centered:
+the energy factor is a deviation by definition, so passing them
+through <code class="xref py py-func docutils literal notranslate"><span class="pre">moments.center_monomials()</span></code> would wrongly re-expand it
+about <span class="math notranslate nohighlight">\(\mu_E\)</span>.</p>
+<p>The resulting covariance contribution
+<span class="math notranslate nohighlight">\(\Delta\Sigma_{\theta\theta} = \kappa^2\sigma_\delta^2\sigma_x^2\)</span>
+is <strong>exact</strong> rather than a closure approximation whenever the energy
+spread is independent of the transverse coordinates, because the only
+fourth moment it needs factorizes.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -1325,7 +1529,7 @@ arguments are forwarded unchanged to the selected method.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Element.propagate_moments">
-<span class="sig-name descname"><span class="pre">propagate_moments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Sigma</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Element.propagate_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Element.propagate_moments" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">propagate_moments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Sigma</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">closure</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Element.propagate_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Element.propagate_moments" title="Link to this definition"></a></dt>
 <dd><p>Propagate the beam’s first and second moments through this element.</p>
 <p>Describes the ensemble by a mean state mu and covariance Sigma over
 the geometric phase space and transports them analytically through the same
@@ -1335,18 +1539,29 @@ ray-transfer matrix used by :meth:propagate_ray:</p>
 <p>where M is :meth:transfer_matrix and a collects the affine terms
 (drift length, dipole tilt, …). Covariance is invariant to the affine
 offset a, so the mean is obtained by reusing :meth:propagate_ray.</p>
-<p>An element carrying <code class="xref py py-attr docutils literal notranslate"><span class="pre">aberrations</span></code> also updates the covariance
-<strong>analytically</strong>: the first-order terms (<code class="docutils literal notranslate"><span class="pre">C10</span></code>, aligned <code class="docutils literal notranslate"><span class="pre">C12</span></code>) are
-linear kicks and fold into the matrix exactly, and the third-order
-spherical term (<code class="docutils literal notranslate"><span class="pre">C30</span></code>) enters through a <strong>Gaussian closure</strong> — the
-cross- and self-moments of the cubic kick reduce to closed-form
-polynomials in Sigma by Isserlis’ theorem (see
-<code class="xref py py-meth docutils literal notranslate"><span class="pre">_aberration_moment_pieces()</span></code>). No sampling, no integrals.</p>
+<p>An element carrying <code class="xref py py-attr docutils literal notranslate"><span class="pre">aberrations</span></code> or a nonzero
+<a class="reference internal" href="#pySEA.rayTEM.elements.Element.chromatic_aberration" title="pySEA.rayTEM.elements.Element.chromatic_aberration"><code class="xref py py-attr docutils literal notranslate"><span class="pre">chromatic_aberration</span></code></a> also updates the covariance
+<strong>analytically</strong>. Terms linear in the ray vector (<code class="docutils literal notranslate"><span class="pre">C10</span></code>, aligned
+<code class="docutils literal notranslate"><span class="pre">C12</span></code>) fold into the matrix exactly. What is left is a genuinely
+nonlinear kick, and its statistics come from the kick written as a
+polynomial (<a class="reference internal" href="#pySEA.rayTEM.elements.Element.aberration_monomials" title="pySEA.rayTEM.elements.Element.aberration_monomials"><code class="xref py py-meth docutils literal notranslate"><span class="pre">aberration_monomials()</span></code></a>,
+<a class="reference internal" href="#pySEA.rayTEM.elements.Element.chromatic_monomials" title="pySEA.rayTEM.elements.Element.chromatic_monomials"><code class="xref py py-meth docutils literal notranslate"><span class="pre">chromatic_monomials()</span></code></a>) evaluated through a <strong>moment closure</strong> —
+by default <code class="xref py py-class docutils literal notranslate"><span class="pre">moments.GaussianMomentClosure</span></code>, which supplies the
+higher central moments by Isserlis’ theorem. No sampling, no
+integrals, and no aberration-specific algebra.</p>
+<p>The closure is an explicit, replaceable argument rather than an
+assumption baked into this method. Using it does not make the beam
+Gaussian: it records what was assumed at one nonlinear step, which is
+exactly the distinction that matters when a <em>second</em> aberrated element
+acts on a distribution the first one already distorted.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>mu</strong> (<em>xp.ndarray</em>) – Mean state vector, shape (len(convention),).</p></li>
 <li><p><strong>Sigma</strong> (<em>xp.ndarray</em>) – Covariance matrix, shape (len(convention), len(convention)).</p></li>
+<li><p><strong>closure</strong> (<em>moments.MomentClosure</em><em>, </em><em>optional</em>) – How moments above second order are supplied to a nonlinear kick,
+by default <code class="xref py py-class docutils literal notranslate"><span class="pre">moments.GaussianMomentClosure</span></code>. An ideal
+element ignores it, needing no moments it does not already carry.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -1375,8 +1590,12 @@ transverse planes passing one aberrated element; through several
 aberrated elements the beam re-Gaussianizes at each (the standard rms
 treatment of nonlinearities). A thick body applies its aberration as if
 thin at the element, the same first-order compromise the fixed wave
-path makes; terms above third order are not closed here and are
-ignored by this mode (the ray and wave paths carry them exactly).</p>
+path makes. Every Krivanek order the pupil carries is closed, not only
+the third: the kick is recovered as a polynomial and the closure
+answers at any degree. Chromatic is the exception to the closure
+caveat entirely — its covariance term needs only a fourth moment that
+factorizes when the energy spread is independent of the transverse
+coordinates, so it is exact rather than closed.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -1737,7 +1956,7 @@ kind=’Gun’ so a reloaded column gets a Gun back.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.elements.</span></span><span class="sig-name descname"><span class="pre">Lens</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strength</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focal_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aberrations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_diverging</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Lens"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Lens" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.elements.</span></span><span class="sig-name descname"><span class="pre">Lens</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strength</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">focal_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aberrations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_diverging</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chromatic_aberration</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Lens"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Lens" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#pySEA.rayTEM.elements.Element" title="pySEA.rayTEM.elements.Element"><code class="xref py py-class docutils literal notranslate"><span class="pre">Element</span></code></a></p>
 <p>Lens element class for round lenses / symmetric focusing. <a class="reference external" href="https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example">https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example</a> or Brown1983 page 105</p>
 <dl class="field-list simple">
@@ -1757,6 +1976,13 @@ and the wave path, at every order - see
 :meth:aberration_kick and :meth:phase_shift.</p></li>
 <li><p><strong>position</strong> (<em>float</em><em>, </em><em>optional</em>) – The position of the element along the z-axis, by default None</p></li>
 <li><p><strong>rotation</strong> (<em>bool</em><em>, </em><em>optional</em>) – if set to False, lens rotation for finite-thickness lenses is overridden and turned off.</p></li>
+<li><p><strong>chromatic_aberration</strong> (<em>float</em><em>, </em><em>optional</em>) – Chromatic aberration coefficient C_c in metres, by default 0
+(achromatic). Stated as a constructor argument rather than left to
+:attr:Element.chromatic_aberration alone so a chromatic lens
+survives a <code class="docutils literal notranslate"><span class="pre">.json</span></code> reload, which rebuilds elements from their
+constructor arguments only. See that attribute for what the
+coefficient must be referenced against, and
+:meth:Element.chromatic_monomials for what it does.</p></li>
 </ul>
 </dd>
 </dl>
@@ -2430,7 +2656,7 @@ not to validate a file.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Source">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.elements.</span></span><span class="sig-name descname"><span class="pre">Source</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(0.002,</span> <span class="pre">0.002)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">np_xy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(3,</span> <span class="pre">3)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(1,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">na_xy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(3,</span> <span class="pre">3)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">voltage</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beam_current</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1e-09</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave_shape</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(128,</span> <span class="pre">128)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave_extent</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave_kind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'plane'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'gaussian'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'point'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'aperture'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'gaussian'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aperture_radius</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Source"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Source" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.elements.</span></span><span class="sig-name descname"><span class="pre">Source</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(0.002,</span> <span class="pre">0.002)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">np_xy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(3,</span> <span class="pre">3)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(1,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">na_xy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(3,</span> <span class="pre">3)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">voltage</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beam_current</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1e-09</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">energy_spread</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave_shape</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(128,</span> <span class="pre">128)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave_extent</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave_kind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'plane'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'gaussian'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'point'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'aperture'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'gaussian'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aperture_radius</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Source"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Source" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#pySEA.rayTEM.elements.Element" title="pySEA.rayTEM.elements.Element"><code class="xref py py-class docutils literal notranslate"><span class="pre">Element</span></code></a></p>
 <p>Source element class. Source element can be put in a MicroscopeSection and then propagating “through” the section will mean the starting rays r0 are generated by the Source (instead of requiring the user pass in starting rays)</p>
 <dl class="field-list simple">
@@ -2446,6 +2672,17 @@ not to validate a file.</p>
 wavelength (used by wave-optics/envelope propagation) and populates the
 per-ray E (beam energy, keV) column. When None (default), E
 stays 0 and no wavelength is defined, preserving purely geometric behavior.</p></li>
+<li><p><strong>energy_spread</strong> (<em>float</em><em>, </em><em>optional</em>) – RMS energy spread of the emitted beam in <strong>kilovolts</strong>, matching
+the units of voltage and of the E column, by default 0
+(monoenergetic). This is a primary source specification: it seeds
+the E variance for beam-envelope propagation, which is what
+gives an element with a nonzero
+<a class="reference internal" href="#pySEA.rayTEM.elements.Element.chromatic_aberration" title="pySEA.rayTEM.elements.Element.chromatic_aberration"><code class="xref py py-attr docutils literal notranslate"><span class="pre">Element.chromatic_aberration</span></code></a> something to act on. A cold
+field emitter is around 3e-4 (0.3 eV); a thermionic source an
+order of magnitude more. It does not change the ray table, whose
+energies stay at voltage — the ray path is the reference
+calculation, and a caller wanting a Monte-Carlo chromatic check
+perturbs the E column itself.</p></li>
 <li><p><strong>wave_shape</strong> (<em>tuple</em><em>, </em><em>optional</em>) – Wave-optics grid (ny, nx), by default (128, 128).</p></li>
 <li><p><strong>wave_extent</strong> (<em>float</em><em>, </em><em>optional</em>) – Wave-optics grid physical size (metres); None (default) derives
 8 * max(size).</p></li>
@@ -2526,7 +2763,11 @@ the source is the current it emitted.</p>
 <p>The analog of :meth:rays for :meth:propagate_moments. Builds a centered
 mean (mu0 = 0, with the E component set to voltage when defined)
 and a diagonal covariance whose entries are the squared source size (real
-space) and angle (angular spread), i.e. these are treated as RMS values.</p>
+space), angle (angular spread) and energy_spread, i.e. these are
+treated as RMS values. The energy variance is what an element with a
+nonzero chromatic_aberration reads; it is zero for a
+monoenergetic source, which leaves the beam achromatic no matter what
+C_c the optics carry.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>(mu0, Sigma0) with shapes (len(convention),) and
@@ -2577,7 +2818,7 @@ step is a passthrough.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Source.propagate_moments">
-<span class="sig-name descname"><span class="pre">propagate_moments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Sigma</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Source.propagate_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Source.propagate_moments" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">propagate_moments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Sigma</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">closure</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Source.propagate_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Source.propagate_moments" title="Link to this definition"></a></dt>
 <dd><p>Pass moments through unchanged (the source only originates the beam).</p>
 <p>Mirrors :meth:propagate_ray, which returns r0 untouched. The driver
 seeds (mu, Sigma) from :meth:moments, so the source’s own step is a
@@ -2587,6 +2828,9 @@ no-op.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>mu</strong> (<em>xp.ndarray</em>) – Mean state vector.</p></li>
 <li><p><strong>Sigma</strong> (<em>xp.ndarray</em>) – Covariance matrix.</p></li>
+<li><p><strong>closure</strong> (<em>moments.MomentClosure</em><em>, </em><em>optional</em>) – Accepted for signature compatibility and unused: this element
+applies no nonlinear map, so it needs no moments beyond the
+second.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -2760,6 +3004,19 @@ unconditionally.</p></li>
 </dl>
 </dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.suspended_aberrations._saved">
+<span class="sig-name descname"><span class="pre">_saved</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.suspended_aberrations._saved" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">(element,</span> <span class="pre">aberrations,</span> <span class="pre">chromatic_aberration)</span></code> per managed element
+while the context is open, the last being <code class="docutils literal notranslate"><span class="pre">None</span></code> for anything that
+has no chromatic coefficient (a section); empty otherwise.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.suspended_aberrations.__enter__">
 <span class="sig-name descname"><span class="pre">__enter__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#suspended_aberrations.__enter__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.suspended_aberrations.__enter__" title="Link to this definition"></a></dt>
@@ -2783,6 +3040,8 @@ unconditionally.</p></li>
 <dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">assemblies.Microscope.propagate_ray</span></code></dt><dd><p>One of the callers.</p>
 </dd>
 <dt><a class="reference internal" href="#pySEA.rayTEM.elements.Element.aberration_kick" title="pySEA.rayTEM.elements.Element.aberration_kick"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Element.aberration_kick</span></code></a></dt><dd><p>What goes quiet while suspended.</p>
+</dd>
+<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Element.chromatic_kick" title="pySEA.rayTEM.elements.Element.chromatic_kick"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Element.chromatic_kick</span></code></a></dt><dd><p>Silenced with it, since an “ideal” column has to mean an achromatic one as well.</p>
 </dd>
 </dl>
 </div>
@@ -3096,6 +3355,43 @@ basic_column’s OL1 that is a factor of 3.7.</p>
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.Microscope.copy">
 <span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#Microscope.copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope.copy" title="Link to this definition"></a></dt>
 <dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.Microscope.covariance_beam">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">covariance_beam</span></span><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope.covariance_beam" title="Link to this definition"></a></dt>
+<dd><p>The propagated moments as a <code class="xref py py-class docutils literal notranslate"><span class="pre">moments.CovarianceBeam</span></code>.</p>
+<p>A <strong>view</strong> over <code class="docutils literal notranslate"><span class="pre">self.mu</span></code> and <code class="docutils literal notranslate"><span class="pre">self.covariance_matrix</span></code>, not a
+second copy: the driver keeps storing exactly what it always stored,
+and this wraps it so the resolution quantities — rms widths,
+position-angle correlations, emittance, and the principal axes of the
+real-space and angular blocks — are available without every caller
+re-deriving them from raw matrix entries.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The beam, or <code class="docutils literal notranslate"><span class="pre">None</span></code> when nothing has been propagated yet.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>moments.CovarianceBeam or <a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None">None</a></p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.propagate_moments" title="pySEA.rayTEM.assemblies.Microscope.propagate_moments"><code class="xref py py-obj docutils literal notranslate"><span class="pre">propagate_moments</span></code></a></dt><dd><p>Produces the state this wraps.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">moments.CovarianceBeam</span></code></dt><dd><p>What the quantities mean.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">scope</span><span class="o">.</span><span class="n">propagate_moments</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">scope</span><span class="o">.</span><span class="n">covariance_beam</span><span class="o">.</span><span class="n">emittance</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</pre></div>
+</div>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.Microscope.current_at">
@@ -3464,7 +3760,7 @@ unchanged to the selected method.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.Microscope.propagate_moments">
-<span class="sig-name descname"><span class="pre">propagate_moments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mu0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Sigma0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_aberrations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#Microscope.propagate_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope.propagate_moments" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">propagate_moments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mu0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Sigma0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_aberrations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">closure</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#Microscope.propagate_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope.propagate_moments" title="Link to this definition"></a></dt>
 <dd><p>Propagate beam moments through every section, chaining across boundaries.</p>
 <p>Envelope-mode analog of <a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.propagate_ray" title="pySEA.rayTEM.assemblies.Microscope.propagate_ray"><code class="xref py py-meth docutils literal notranslate"><span class="pre">propagate_ray()</span></code></a>. Each section’s exit moments
 seed the next section (eager re-chain), so the assembled instrument is always
@@ -3481,6 +3777,11 @@ default True. <code class="docutils literal notranslate"><span class="pre">False
 element ideal, which is how an aberrated result is compared
 against its own unaberrated reference. Costs nothing when
 nothing is aberrated.</p></li>
+<li><p><strong>closure</strong> (<em>moments.MomentClosure</em><em>, </em><em>optional</em>) – How moments above second order are supplied where a nonlinear
+element needs them, by default
+<code class="xref py py-class docutils literal notranslate"><span class="pre">moments.GaussianMomentClosure</span></code>. Passed to every element,
+so the assumption in force is chosen once, at the call, rather
+than buried in the elements.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -3957,6 +4258,43 @@ their neighboring gaps. Pass True for the old tidying behavior.</p></li>
 <dd></dd></dl>
 
 <dl class="py property">
+<dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.MicroscopeSection.covariance_beam">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">covariance_beam</span></span><a class="headerlink" href="#pySEA.rayTEM.assemblies.MicroscopeSection.covariance_beam" title="Link to this definition"></a></dt>
+<dd><p>The propagated moments as a <code class="xref py py-class docutils literal notranslate"><span class="pre">moments.CovarianceBeam</span></code>.</p>
+<p>A <strong>view</strong> over <code class="docutils literal notranslate"><span class="pre">self.mu</span></code> and <code class="docutils literal notranslate"><span class="pre">self.covariance_matrix</span></code>, not a
+second copy: the driver keeps storing exactly what it always stored,
+and this wraps it so the resolution quantities — rms widths,
+position-angle correlations, emittance, and the principal axes of the
+real-space and angular blocks — are available without every caller
+re-deriving them from raw matrix entries.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The beam, or <code class="docutils literal notranslate"><span class="pre">None</span></code> when nothing has been propagated yet.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>moments.CovarianceBeam or <a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None">None</a></p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.propagate_moments" title="pySEA.rayTEM.assemblies.MicroscopeSection.propagate_moments"><code class="xref py py-obj docutils literal notranslate"><span class="pre">propagate_moments</span></code></a></dt><dd><p>Produces the state this wraps.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">moments.CovarianceBeam</span></code></dt><dd><p>What the quantities mean.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">section</span><span class="o">.</span><span class="n">propagate_moments</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">section</span><span class="o">.</span><span class="n">covariance_beam</span><span class="o">.</span><span class="n">emittance</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py property">
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.MicroscopeSection.focal_power">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">focal_power</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></span><a class="headerlink" href="#pySEA.rayTEM.assemblies.MicroscopeSection.focal_power" title="Link to this definition"></a></dt>
 <dd><p>The section’s composite focusing power <code class="docutils literal notranslate"><span class="pre">1/f</span></code> (1/metres).</p>
@@ -4036,7 +4374,7 @@ unchanged to the selected method.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.MicroscopeSection.propagate_moments">
-<span class="sig-name descname"><span class="pre">propagate_moments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mu0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Sigma0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_aberrations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#MicroscopeSection.propagate_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.MicroscopeSection.propagate_moments" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">propagate_moments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mu0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Sigma0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_aberrations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">closure</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#MicroscopeSection.propagate_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.MicroscopeSection.propagate_moments" title="Link to this definition"></a></dt>
 <dd><p>Propagate beam moments (mean + covariance) through every element.</p>
 <p>The envelope-mode analog of <a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.propagate_ray" title="pySEA.rayTEM.assemblies.MicroscopeSection.propagate_ray"><code class="xref py py-meth docutils literal notranslate"><span class="pre">propagate_ray()</span></code></a>: transports a mean state
 <code class="docutils literal notranslate"><span class="pre">mu</span></code> and covariance <code class="docutils literal notranslate"><span class="pre">Sigma</span></code> element-by-element via
@@ -4056,6 +4394,11 @@ default True. <code class="docutils literal notranslate"><span class="pre">False
 element ideal, which is how an aberrated result is compared
 against its own unaberrated reference. Costs nothing when
 nothing is aberrated.</p></li>
+<li><p><strong>closure</strong> (<em>moments.MomentClosure</em><em>, </em><em>optional</em>) – How moments above second order are supplied where a nonlinear
+element needs them, by default
+<code class="xref py py-class docutils literal notranslate"><span class="pre">moments.GaussianMomentClosure</span></code>. Passed to every element,
+so the assumption in force is chosen once, at the call, rather
+than buried in the elements.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -6735,16 +7078,18 @@ All objects we then expect to integrate with sea_eco then inherit the SEASeriali
 <dl class="py class">
 <dt class="sig sig-object py" id="pySEA.rayTEM.seashells.SEASerializable">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.seashells.</span></span><span class="sig-name descname"><span class="pre">SEASerializable</span></span><a class="reference internal" href="_modules/pySEA/rayTEM/seashells.html#SEASerializable"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.seashells.SEASerializable" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">SEASerializable</span></code></p>
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.seashells.SEASerializable.from_sea">
 <span class="sig-name descname"><span class="pre">from_sea</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/seashells.html#SEASerializable.from_sea"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.seashells.SEASerializable.from_sea" title="Link to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Load object data from an HDF5 file.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.seashells.SEASerializable.to_sea">
 <span class="sig-name descname"><span class="pre">to_sea</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/seashells.html#SEASerializable.to_sea"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.seashells.SEASerializable.to_sea" title="Link to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Save object to SEA formated HDF5.</p>
+</dd></dl>
 
 </dd></dl>
 

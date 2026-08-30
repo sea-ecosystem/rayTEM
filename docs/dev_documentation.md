@@ -70,13 +70,64 @@ focal power distinctions and the aberration-power split.
 
 They now reach **all four propagation modes**: the ray path applies the
 exact eikonal kick, the wave paths carry χ, the covariance mode closes the
-kick's moments analytically on Σ (linear terms exact; C30 by Gaussian
-closure), and the frame/ABCD machinery computes the **aberrated focal
-surface in closed form** — `focal_surface(method='frame')` rebuilds each
-aberrated element's block with its pupil zone's own power
-(`Element.zone_power_shift`) and solves the zone ray's crossing
-analytically. On a thin lens the frame surface matches the traced one to
-machine precision.
+kick's moments analytically on Σ, and the frame/ABCD machinery computes the
+**aberrated focal surface in closed form** — `focal_surface(method='frame')`
+rebuilds each aberrated element's block with its pupil zone's own power
+(`Element.zone_power_shift`) and solves the zone ray's crossing analytically.
+On a thin lens the frame surface matches the traced one to machine precision.
+
+## Moments, and the closure seam
+
+The covariance mode carries two moments; a nonlinear element needs more.
+Rather than hard-code where they come from, the mode splits the beam state
+from the assumption used to extend it — `moments.CovarianceBeam` holds
+`{mean, covariance, moment_closure}`, and `moments.MomentClosure` is a
+one-method interface (`moment(Sigma, indices)`) that a caller can replace.
+`GaussianMomentClosure` answers by Wick pairing at any order.
+
+The nonlinear kick reaches the closure as a *polynomial*, not as per-term
+algebra: `Element.aberration_monomials` recovers it by sampling the existing
+`deflection_at` on the unit circle and solving for the coefficients of a
+homogeneous degree-`n` form, which is legitimate precisely because a Krivanek
+term of order `n` deflects by a degree-`n` homogeneous polynomial and
+therefore carries no length scale of its own. One consequence worth stating:
+**every** order the pupil carries is now closed, rotated terms included, and
+adding a term to `KRIVANEK_TERMS` reaches this path with no algebra written by
+hand.
+
+Three properties this buys, each of which the previous hand-derived C30
+closure lacked:
+
+- **Completeness.** Cross-plane terms (`<x δθ_y>`, `<δθ_x δθ_y>`) are computed,
+  not dropped. They vanish for a transversely decoupled beam and are
+  emphatically not negligible otherwise — through a Larmor-rotating objective
+  an astigmatic source produces cross-plane terms as large as the in-plane
+  ones.
+- **Positive semidefiniteness by construction.** A complete Gaussian closure is
+  the exact pushforward of a Gaussian, so `Σ'` is a real covariance for any
+  aberration strength. It is *truncation* that breaks PSD, not strength — which
+  is the argument against ever shipping a partial closure, and the reason
+  `CovarianceBeam.is_positive_semidefinite` exists as a guard on custom ones.
+- **A retained mean shift.** An even-order aberration moves the ensemble mean
+  by `<δ(r)>` while the centroid ray, which feels `δ(μ)`, does not move at all.
+  `propagate_moments` takes the affine terms from an ideal ray and adds the
+  aberration's contributions explicitly, so the shift is reported rather than
+  absorbed into the width.
+
+**Chromatic** attaches here as the one non-geometric term:
+`Element.chromatic_aberration` (`C_c`) with `Source.energy_spread` seeding
+`Σ[E,E]`. It is kept out of `aberrations` on purpose — the Krivanek set is a
+function of pupil coordinate alone, whereas chromatic couples the pupil to the
+energy column, making the kick bilinear and so not matrix-expressible even
+though it is a power change. Its covariance term is exact rather than closed,
+because the only fourth moment it needs factorizes under the physical
+assumption that energy spread is independent of transverse position.
+
+The honest limit is stated where it is measured rather than buried: a cubic
+kick leaves excess kurtosis `γ₂ = 27f²`, with `f` the aberration's share of the
+angular variance, so there is no regime in which the aberration matters to Σ
+but the induced non-Gaussianity does not. `examples/08_covariancePropagation.py`
+prints `f` per element and measures the OL1–OL2 interaction residual directly.
 
 ## High-risk seams
 
@@ -102,15 +153,20 @@ first.
 - **Implementation entry points**: `elements.py` (elements, screens,
   aberration application), `assemblies.py` (sections, columns, propagation
   drivers, conjugate planes), `waveoptics.py` (paraxial and scaled-Fresnel
-  primitives), `aberrations.py` (the Krivanek model), `seashells.py`
-  (serialization seam).
+  primitives), `aberrations.py` (the Krivanek model), `moments.py` (the
+  covariance state and the closure seam), `seashells.py` (serialization
+  seam).
 - **Focused tests**: `src/pySEA/rayTEM/tests/` — `test_scaled_fresnel.py`
   (wave engine, screens, aberrations, currents),
   `test_eight_configurations.py` (the operating states as executable
-  claims), `test_wave_and_envelope.py`, `test_elements_sections_microscopes.py`.
+  claims), `test_covariance_propagation.py` (the closure against hand-written
+  Isserlis, the kick polynomial against `deflection_at` at every order, and
+  the aberrated and chromatic covariance updates against Monte-Carlo rays),
+  `test_wave_and_envelope.py`, `test_elements_sections_microscopes.py`.
 - **User guides**: Getting Started, Propagation Modes, Operating the Column.
-- **Executable examples**: `examples/01`–`07`, all headless-runnable; 05 and
-  07 are cross-method verification scripts.
+- **Executable examples**: `examples/01`–`08`, all headless-runnable; 05 and
+  07 are cross-method verification scripts, 08 is the covariance resolution
+  study.
 - **AI-tool artifacts**: the `ai_wiki/raytem` slice (index, layer map,
   method index), refreshed by `pysea-refresh-wiki`.
 - **API coverage**: generated from the NumPy-style docstrings that every

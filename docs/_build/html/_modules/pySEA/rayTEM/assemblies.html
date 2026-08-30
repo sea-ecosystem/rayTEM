@@ -791,7 +791,8 @@
 <div class="viewcode-block" id="MicroscopeSection.propagate_moments">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.propagate_moments">[docs]</a>
 	<span class="k">def</span><span class="w"> </span><span class="nf">propagate_moments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mu0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">Sigma0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-						   <span class="n">z</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">apply_aberrations</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+						   <span class="n">z</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">apply_aberrations</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+						   <span class="n">closure</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">		</span><span class="sd">"""Propagate beam moments (mean + covariance) through every element.</span>
 
 <span class="sd">		The envelope-mode analog of :meth:`propagate_ray`: transports a mean state</span>
@@ -817,6 +818,12 @@
 <span class="sd">			element ideal, which is how an aberrated result is compared</span>
 <span class="sd">			against its own unaberrated reference. Costs nothing when</span>
 <span class="sd">			nothing is aberrated.</span>
+<span class="sd">		closure : moments.MomentClosure, optional</span>
+<span class="sd">			How moments above second order are supplied where a nonlinear</span>
+<span class="sd">			element needs them, by default</span>
+<span class="sd">			:class:`moments.GaussianMomentClosure`. Passed to every element,</span>
+<span class="sd">			so the assumption in force is chosen once, at the call, rather</span>
+<span class="sd">			than buried in the elements.</span>
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
 <span class="sd">		xp.ndarray</span>
@@ -830,7 +837,7 @@
 <span class="sd">		"""</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="n">apply_aberrations</span><span class="p">:</span>
 			<span class="k">with</span> <span class="n">suspended_aberrations</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="ow">or</span> <span class="p">())</span> <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="p">]):</span>
-				<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate_moments</span><span class="p">(</span><span class="n">mu0</span><span class="p">,</span> <span class="n">Sigma0</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">)</span>
+				<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate_moments</span><span class="p">(</span><span class="n">mu0</span><span class="p">,</span> <span class="n">Sigma0</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span> <span class="n">closure</span><span class="o">=</span><span class="n">closure</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">mu0</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">Sigma0</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 			<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">Source</span><span class="p">):</span>
 				<span class="n">mu0</span><span class="p">,</span> <span class="n">Sigma0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">moments</span><span class="p">()</span>
@@ -838,7 +845,7 @@
 				<span class="k">raise</span> <span class="ne">UserWarning</span><span class="p">(</span><span class="s2">"First element is not a Source, and no (mu0, Sigma0) provided to propagate_moments. Please provide initial moments or ensure first element is a Source."</span><span class="p">)</span>
 		<span class="n">mui</span><span class="o">=</span><span class="p">[</span><span class="n">mu0</span><span class="p">]</span> <span class="p">;</span> <span class="n">Si</span><span class="o">=</span><span class="p">[</span><span class="n">Sigma0</span><span class="p">]</span>
 		<span class="k">for</span> <span class="n">ele</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_propagation_elements</span><span class="p">():</span>
-			<span class="n">mu</span><span class="p">,</span> <span class="n">S</span> <span class="o">=</span> <span class="n">ele</span><span class="o">.</span><span class="n">propagate_moments</span><span class="p">(</span><span class="n">mui</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">Si</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+			<span class="n">mu</span><span class="p">,</span> <span class="n">S</span> <span class="o">=</span> <span class="n">ele</span><span class="o">.</span><span class="n">propagate_moments</span><span class="p">(</span><span class="n">mui</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">Si</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">closure</span><span class="o">=</span><span class="n">closure</span><span class="p">)</span>
 			<span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">ele</span><span class="p">,</span><span class="s2">"length"</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">ele</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s2">"Aperture"</span><span class="p">:</span>
 				<span class="n">mui</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mu</span><span class="p">)</span> <span class="p">;</span> <span class="n">Si</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
 			<span class="k">else</span><span class="p">:</span>
@@ -849,6 +856,44 @@
 														<span class="n">convention</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'section'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">' covariance'</span><span class="p">)</span>
 		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span></div>
 
+
+	<span class="nd">@property</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">covariance_beam</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">		</span><span class="sd">"""The propagated moments as a :class:`moments.CovarianceBeam`.</span>
+
+<span class="sd">		A **view** over ``self.mu`` and ``self.covariance_matrix``, not a</span>
+<span class="sd">		second copy: the driver keeps storing exactly what it always stored,</span>
+<span class="sd">		and this wraps it so the resolution quantities — rms widths,</span>
+<span class="sd">		position-angle correlations, emittance, and the principal axes of the</span>
+<span class="sd">		real-space and angular blocks — are available without every caller</span>
+<span class="sd">		re-deriving them from raw matrix entries.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		moments.CovarianceBeam or None</span>
+<span class="sd">			The beam, or ``None`` when nothing has been propagated yet.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		propagate_moments : Produces the state this wraps.</span>
+<span class="sd">		moments.CovarianceBeam : What the quantities mean.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; section.propagate_moments()                    # doctest: +SKIP</span>
+<span class="sd">		&gt;&gt;&gt; section.covariance_beam.emittance('x')[-1]     # doctest: +SKIP</span>
+<span class="sd">		"""</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">as_ndarray</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.moments</span><span class="w"> </span><span class="kn">import</span> <span class="n">CovarianceBeam</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">return</span> <span class="kc">None</span>
+		<span class="n">source</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="ow">or</span> <span class="p">())</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">Source</span><span class="p">)),</span> <span class="kc">None</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">CovarianceBeam</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">,</span> <span class="n">as_ndarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span><span class="p">),</span>
+							  <span class="n">wavelength</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="s2">"wavelength"</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
 
 <div class="viewcode-block" id="MicroscopeSection.propagate_wave">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.propagate_wave">[docs]</a>
@@ -2896,7 +2941,7 @@
 <div class="viewcode-block" id="Microscope.propagate_moments">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.Microscope.propagate_moments">[docs]</a>
 	<span class="k">def</span><span class="w"> </span><span class="nf">propagate_moments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mu0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">Sigma0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-						   <span class="n">apply_aberrations</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+						   <span class="n">apply_aberrations</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">closure</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">		</span><span class="sd">"""Propagate beam moments through every section, chaining across boundaries.</span>
 
 <span class="sd">		Envelope-mode analog of :meth:`propagate_ray`. Each section's exit moments</span>
@@ -2919,6 +2964,12 @@
 <span class="sd">			element ideal, which is how an aberrated result is compared</span>
 <span class="sd">			against its own unaberrated reference. Costs nothing when</span>
 <span class="sd">			nothing is aberrated.</span>
+<span class="sd">		closure : moments.MomentClosure, optional</span>
+<span class="sd">			How moments above second order are supplied where a nonlinear</span>
+<span class="sd">			element needs them, by default</span>
+<span class="sd">			:class:`moments.GaussianMomentClosure`. Passed to every element,</span>
+<span class="sd">			so the assumption in force is chosen once, at the call, rather</span>
+<span class="sd">			than buried in the elements.</span>
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
 <span class="sd">		xp.ndarray</span>
@@ -2927,12 +2978,12 @@
 <span class="sd">		"""</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="n">apply_aberrations</span><span class="p">:</span>
 			<span class="k">with</span> <span class="n">suspended_aberrations</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_all_elements</span><span class="p">()):</span>
-				<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate_moments</span><span class="p">(</span><span class="n">mu0</span><span class="p">,</span> <span class="n">Sigma0</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">)</span>
+				<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate_moments</span><span class="p">(</span><span class="n">mu0</span><span class="p">,</span> <span class="n">Sigma0</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span> <span class="n">closure</span><span class="o">=</span><span class="n">closure</span><span class="p">)</span>
 		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_covariance_signal</span><span class="p">,</span> <span class="n">as_ndarray</span>
 		<span class="n">mu</span><span class="o">=</span><span class="n">mu0</span> <span class="p">;</span> <span class="n">S</span><span class="o">=</span><span class="n">Sigma0</span>
 		<span class="n">mus</span><span class="o">=</span><span class="p">[]</span> <span class="p">;</span> <span class="n">Ss</span><span class="o">=</span><span class="p">[]</span>
 		<span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sections</span><span class="p">:</span>
-			<span class="n">s</span><span class="o">.</span><span class="n">propagate_moments</span><span class="p">(</span><span class="n">mu0</span><span class="o">=</span><span class="n">mu</span><span class="p">,</span> <span class="n">Sigma0</span><span class="o">=</span><span class="n">S</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">)</span>
+			<span class="n">s</span><span class="o">.</span><span class="n">propagate_moments</span><span class="p">(</span><span class="n">mu0</span><span class="o">=</span><span class="n">mu</span><span class="p">,</span> <span class="n">Sigma0</span><span class="o">=</span><span class="n">S</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span> <span class="n">closure</span><span class="o">=</span><span class="n">closure</span><span class="p">)</span>
 			<span class="n">cov</span> <span class="o">=</span> <span class="n">as_ndarray</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">covariance_matrix</span><span class="p">)</span>		<span class="c1"># raw (n_planes, 6, 6) for chaining</span>
 			<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cov</span><span class="p">)):</span>
 				<span class="n">mus</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">mu</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="p">;</span> <span class="n">Ss</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cov</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
@@ -2942,6 +2993,45 @@
 														<span class="n">convention</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'microscope'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">' covariance'</span><span class="p">)</span>
 		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span></div>
 
+
+	<span class="nd">@property</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">covariance_beam</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">		</span><span class="sd">"""The propagated moments as a :class:`moments.CovarianceBeam`.</span>
+
+<span class="sd">		A **view** over ``self.mu`` and ``self.covariance_matrix``, not a</span>
+<span class="sd">		second copy: the driver keeps storing exactly what it always stored,</span>
+<span class="sd">		and this wraps it so the resolution quantities — rms widths,</span>
+<span class="sd">		position-angle correlations, emittance, and the principal axes of the</span>
+<span class="sd">		real-space and angular blocks — are available without every caller</span>
+<span class="sd">		re-deriving them from raw matrix entries.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		moments.CovarianceBeam or None</span>
+<span class="sd">			The beam, or ``None`` when nothing has been propagated yet.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		propagate_moments : Produces the state this wraps.</span>
+<span class="sd">		moments.CovarianceBeam : What the quantities mean.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; scope.propagate_moments()                      # doctest: +SKIP</span>
+<span class="sd">		&gt;&gt;&gt; scope.covariance_beam.emittance('x')[-1]       # doctest: +SKIP</span>
+<span class="sd">		"""</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">as_ndarray</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.moments</span><span class="w"> </span><span class="kn">import</span> <span class="n">CovarianceBeam</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">return</span> <span class="kc">None</span>
+		<span class="n">source</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">e</span> <span class="k">for</span> <span class="n">sec</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sections</span> <span class="ow">or</span> <span class="p">())</span>
+					   <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="p">(</span><span class="n">sec</span><span class="o">.</span><span class="n">elements</span> <span class="ow">or</span> <span class="p">())</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">Source</span><span class="p">)),</span> <span class="kc">None</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">CovarianceBeam</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">,</span> <span class="n">as_ndarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span><span class="p">),</span>
+							  <span class="n">wavelength</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="s2">"wavelength"</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
 
 <div class="viewcode-block" id="Microscope.propagate_wave">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.Microscope.propagate_wave">[docs]</a>

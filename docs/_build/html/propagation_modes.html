@@ -47,7 +47,12 @@
 <li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Propagation Modes</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#rays">Rays</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#moments">Moments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#moments">Moments</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#the-closure-is-a-stated-assumption-not-a-hidden-one">The closure is a stated assumption, not a hidden one</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chromatic">Chromatic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#reading-the-result">Reading the result</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#fixed-grid-wave">Fixed-grid wave</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#scaled-fresnel-wave-mode-hybrid">Scaled-Fresnel wave (<code class="docutils literal notranslate"><span class="pre">mode=&quot;hybrid&quot;</span></code>)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#they-answer-for-each-other">They answer for each other</a></li>
@@ -120,7 +125,7 @@ element-by-element hierarchy and the same dispatcher,
 <tr class="row-odd"><td><p>moments</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">propagate_moments()</span></code></p></td>
 <td><p>mean + covariance, <code class="docutils literal notranslate"><span class="pre">Σ'</span> <span class="pre">=</span> <span class="pre">MΣMᵀ</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">.mu</span></code>, <code class="docutils literal notranslate"><span class="pre">.covariance_matrix</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.mu</span></code>, <code class="docutils literal notranslate"><span class="pre">.covariance_matrix</span></code>, <code class="docutils literal notranslate"><span class="pre">.covariance_beam</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>wave</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">propagate_wave()</span></code></p></td>
@@ -150,14 +155,61 @@ travel as parallel arrays. <code class="docutils literal notranslate"><span clas
 rays. Waists (<code class="docutils literal notranslate"><span class="pre">beam_waists()</span></code>) sit beside the geometric image planes,
 displaced by the emittance focal shift — that displacement is physics the ray
 picture cannot show. Apertures are a documented no-op in this mode.</p>
-<p>Aberrations enter this mode <strong>analytically</strong>: the first-order terms (C10,
-aligned C12) are linear kicks and fold into the matrix exactly, and spherical
-(C30) enters through a Gaussian closure — the cubic kick’s cross- and
-self-moments reduce to closed-form polynomials in Σ (Isserlis), so the
-aberration-inflated waist size and its focal shift come out with no rays
-traced. Exact for a centered Gaussian through one aberrated element;
-re-Gaussianized per element beyond that; orders above three are carried only
-by the ray and wave paths.</p>
+<p>Aberrations enter this mode <strong>analytically</strong>. Terms linear in the ray vector
+(C10, aligned C12) are power changes and fold into the matrix exactly.
+Everything else is a genuinely nonlinear kick, and the mode handles it by
+recovering that kick as a <em>polynomial</em> (<code class="docutils literal notranslate"><span class="pre">Element.aberration_monomials</span></code>, from
+the same <code class="docutils literal notranslate"><span class="pre">deflection_at</span></code> the ray path uses) and taking its moments through an
+explicit <strong>moment closure</strong>. Every Krivanek order the pupil carries is
+covered, rotated terms included — there is no per-aberration code on this path
+either.</p>
+<section id="the-closure-is-a-stated-assumption-not-a-hidden-one">
+<h3>The closure is a stated assumption, not a hidden one<a class="headerlink" href="#the-closure-is-a-stated-assumption-not-a-hidden-one" title="Link to this heading"></a></h3>
+<p>A covariance carries only two moments; a nonlinear map needs more. What
+supplies them is a <code class="docutils literal notranslate"><span class="pre">moments.MomentClosure</span></code> object, passed to
+<code class="docutils literal notranslate"><span class="pre">propagate_moments(closure=...)</span></code> and defaulting to
+<code class="docutils literal notranslate"><span class="pre">moments.GaussianMomentClosure</span></code>, which evaluates any central moment by Wick
+pairing (Isserlis).</p>
+<p>Using it does <strong>not</strong> make the beam Gaussian. It is exact for one aberrated
+element acting on a Gaussian beam; it becomes an approximation only when a
+<em>second</em> nonlinear element acts on what the first one distorted. That
+approximation is auditable, because a cubic kick leaves excess kurtosis
+<code class="docutils literal notranslate"><span class="pre">γ₂</span> <span class="pre">=</span> <span class="pre">27f²</span></code> where <code class="docutils literal notranslate"><span class="pre">f</span></code> is the aberration’s share of the angular variance — the
+same number that says the aberration matters says how non-Gaussian the beam
+became. <code class="docutils literal notranslate"><span class="pre">examples/08_covariancePropagation.py</span></code> prints <code class="docutils literal notranslate"><span class="pre">f</span></code> at each aberrated
+element rather than assuming it is small.</p>
+<p>The closure is complete rather than truncated, which is why the result is
+always a physically possible covariance: it is the exact pushforward of a
+Gaussian, so positive semidefiniteness is guaranteed for any aberration
+strength. A <em>partial</em> closure — keeping the in-plane terms and dropping the
+cross-plane ones, as an earlier per-axis version did — loses that guarantee,
+and on an x-y coupled beam the dropped terms are the same size as the kept
+ones.</p>
+</section>
+<section id="chromatic">
+<h3>Chromatic<a class="headerlink" href="#chromatic" title="Link to this heading"></a></h3>
+<p>Chromatic aberration lives here too, and it is a different kind of term. The
+Krivanek <code class="docutils literal notranslate"><span class="pre">C_{n,m}</span></code> are functions of pupil coordinate alone; chromatic couples
+the pupil to the <strong>energy column the state vector already carries</strong>, so the
+kick is bilinear — <code class="docutils literal notranslate"><span class="pre">δθ</span> <span class="pre">=</span> <span class="pre">C_c</span> <span class="pre">P²</span> <span class="pre">δ</span> <span class="pre">x</span></code> with <code class="docutils literal notranslate"><span class="pre">δ</span> <span class="pre">=</span> <span class="pre">(E</span> <span class="pre">−</span> <span class="pre">E₀)/E₀</span></code> — and cannot be a
+matrix entry, even though it is “just a power change”, because the power
+change differs per electron. Set <code class="docutils literal notranslate"><span class="pre">Element.chromatic_aberration</span></code> (a <code class="docutils literal notranslate"><span class="pre">Lens</span></code>
+constructor argument) and <code class="docutils literal notranslate"><span class="pre">Source.energy_spread</span></code>; either alone leaves the
+column achromatic.</p>
+<p>Its covariance contribution <code class="docutils literal notranslate"><span class="pre">ΔΣ_θθ</span> <span class="pre">=</span> <span class="pre">κ²σ_δ²σ_x²</span></code> needs only a fourth moment
+that factorizes when the energy spread is independent of position, so unlike
+the geometric terms it is <strong>exact rather than closed</strong>.</p>
+</section>
+<section id="reading-the-result">
+<h3>Reading the result<a class="headerlink" href="#reading-the-result" title="Link to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">scope.covariance_beam</span></code> is a <code class="docutils literal notranslate"><span class="pre">moments.CovarianceBeam</span></code> view over the stored
+<code class="docutils literal notranslate"><span class="pre">.mu</span></code>/<code class="docutils literal notranslate"><span class="pre">.covariance_matrix</span></code>, and reports what a covariance is actually read
+for: rms widths, the signed position-angle correlations, the emittances, and
+the principal axes of the real-space, angular and transverse-momentum blocks.
+Prefer emittance to width when judging aberration damage — a width says
+nothing on its own, while emittance is invariant under ideal transport and
+grows only where something nonlinear acted.</p>
+</section>
 </section>
 <section id="fixed-grid-wave">
 <h2>Fixed-grid wave<a class="headerlink" href="#fixed-grid-wave" title="Link to this heading"></a></h2>

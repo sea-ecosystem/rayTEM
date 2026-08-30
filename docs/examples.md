@@ -14,3 +14,4 @@ makes framework claims, so they cannot silently rot.
 | `05_planeComparison.py` | ray / matrix / wave agreement on conjugate planes |
 | `06_aberratedObjective.py` | an aberrated objective: rays, wave, focal surface, Strehl |
 | `07_eightConfigurations.py` | the eight canonical operating states, solved and cross-checked |
+| `08_covariancePropagation.py` | where the resolution goes: four aberration cases, no rays traced |

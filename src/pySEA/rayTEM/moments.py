@@ -584,6 +584,8 @@ class CovarianceBeam:
 		-------
 		correlation : The off-diagonal entries.
 		emittance : The width that transport cannot reduce.
+		postprocessing.beam_widths : The array form, for ``x`` and ``y`` only;
+			this also covers the angle and energy columns.
 
 		Notes
 		-----
@@ -654,13 +656,15 @@ class CovarianceBeam:
 
 		Related
 		-------
+		postprocessing.emittance : The array form this delegates to, so the
+			formula has one implementation.
 		assemblies.Microscope.beam_waists : Reports the same invariant once.
 
 		Notes
 		-----
 		A nonlinear element raises this, and the rise is real: projected rms
 		emittance growth is how aberration damage shows up in a moments-only
-		description. Clipped at zero before the root against rounding.
+		description.
 
 		Examples
 		--------
@@ -669,9 +673,8 @@ class CovarianceBeam:
 		"""
 		if axis not in ('x', 'y'):
 			raise ValueError(f"axis must be 'x' or 'y', not {axis!r}.")
-		pos, ang = (axis, axis + 't')
-		det = (self.sigma(pos)**2 * self.sigma(ang)**2) - self.correlation(pos, ang)**2
-		return xp.sqrt(xp.clip(det, 0.0, None))
+		from .postprocessing import emittance as _emittance		# lazy: it imports elements
+		return _emittance(self.covariance)[:, 0 if axis == 'x' else 1]
 
 	def _block_ellipse(self, names:Sequence[str], index) -> tuple:
 		"""Principal widths and axes of a 2x2 covariance block.
