@@ -6224,7 +6224,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 29,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 49,
+    "wiki_lineno": 50,
     "wiki_method_lineno": null
   },
   {
@@ -6236,7 +6236,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 53,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 54,
+    "wiki_lineno": 55,
     "wiki_method_lineno": null
   },
   {
@@ -6248,7 +6248,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 69,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 59,
+    "wiki_lineno": 60,
     "wiki_method_lineno": null
   },
   {
@@ -6260,7 +6260,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 91,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 64,
+    "wiki_lineno": 65,
     "wiki_method_lineno": null
   },
   {
@@ -6272,7 +6272,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 111,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 69,
+    "wiki_lineno": 70,
     "wiki_method_lineno": null
   },
   {
@@ -6284,7 +6284,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 163,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 74,
+    "wiki_lineno": 75,
     "wiki_method_lineno": null
   },
   {
@@ -6296,7 +6296,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 240,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 111,
+    "wiki_lineno": 112,
     "wiki_method_lineno": null
   },
   {
@@ -6308,7 +6308,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 284,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 104,
+    "wiki_lineno": 105,
     "wiki_method_lineno": null
   },
   {
@@ -6320,7 +6320,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 318,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 108,
+    "wiki_lineno": 109,
     "wiki_method_lineno": null
   },
   {
@@ -6332,7 +6332,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 349,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 116,
+    "wiki_lineno": 117,
     "wiki_method_lineno": null
   },
   {
@@ -6344,7 +6344,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 377,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 120,
+    "wiki_lineno": 121,
     "wiki_method_lineno": null
   },
   {
@@ -6356,7 +6356,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 404,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 198,
+    "wiki_lineno": 199,
     "wiki_method_lineno": null
   },
   {
@@ -6380,7 +6380,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 457,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 178,
+    "wiki_lineno": 179,
     "wiki_method_lineno": null
   },
   {
@@ -6392,7 +6392,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 502,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 206,
+    "wiki_lineno": 207,
     "wiki_method_lineno": null
   },
   {
@@ -6404,7 +6404,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 586,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 217,
+    "wiki_lineno": 218,
     "wiki_method_lineno": null
   },
   {
@@ -6428,7 +6428,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 693,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 234,
+    "wiki_lineno": 235,
     "wiki_method_lineno": null
   },
   {
@@ -6440,7 +6440,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 777,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 258,
+    "wiki_lineno": 259,
     "wiki_method_lineno": null
   },
   {
@@ -6452,7 +6452,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 997,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 368,
     "wiki_method_lineno": null
   },
   {
@@ -6464,7 +6464,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 1228,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 293,
+    "wiki_lineno": 294,
     "wiki_method_lineno": null
   },
   {
@@ -6488,7 +6488,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 1301,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 315,
+    "wiki_lineno": 316,
     "wiki_method_lineno": null
   },
   {
@@ -6500,7 +6500,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 1358,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 322,
+    "wiki_lineno": 323,
     "wiki_method_lineno": null
   },
   {
@@ -6512,7 +6512,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 1481,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 183,
+    "wiki_lineno": 184,
     "wiki_method_lineno": null
   },
   {
@@ -6524,7 +6524,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 1531,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 187,
+    "wiki_lineno": 188,
     "wiki_method_lineno": null
   },
   {
@@ -6536,7 +6536,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 1567,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 193,
+    "wiki_lineno": 194,
     "wiki_method_lineno": null
   },
   {
@@ -6548,7 +6548,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 1669,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 287,
+    "wiki_lineno": 288,
     "wiki_method_lineno": null
   },
   {
@@ -6560,7 +6560,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 1708,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 161,
+    "wiki_lineno": 162,
     "wiki_method_lineno": null
   },
   {
@@ -6572,7 +6572,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 1752,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 301,
+    "wiki_lineno": 302,
     "wiki_method_lineno": null
   },
   {
@@ -6584,7 +6584,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 1848,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 333,
+    "wiki_lineno": 334,
     "wiki_method_lineno": null
   },
   {
@@ -6596,7 +6596,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 2231,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 124,
+    "wiki_lineno": 125,
     "wiki_method_lineno": null
   },
   {
@@ -6608,7 +6608,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 2266,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 139,
+    "wiki_lineno": 140,
     "wiki_method_lineno": null
   },
   {
@@ -6620,7 +6620,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 2323,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 144,
+    "wiki_lineno": 145,
     "wiki_method_lineno": null
   },
   {
@@ -6632,7 +6632,7 @@
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
     "source_lineno": 2402,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 154,
+    "wiki_lineno": 155,
     "wiki_method_lineno": null
   },
   {
