@@ -2,6 +2,17 @@
 
 Newest entries at top.
 
+## 2026-08-30 — [Under Construction] Analytic aberrations: zone-ABCD + covariance
+**Goal:** Aberrations enter the two remaining analytic representations: the
+frame/ABCD plane machinery (zone-modified blocks -> closed-form focal
+surface) and the covariance mode (Gaussian-closure moment updates).
+**Why:** The ray path applies aberrations exactly and the wave path carries
+chi, but moments ignored aberrations entirely and the frame method could
+only describe the ideal planes — no analytic aberrated waist/resolution.
+- [ ] zone_power_shift + frame focal surface
+- [ ] Gaussian-closure covariance update
+- [ ] Monte-Carlo pinning tests
+
 ## 2026-08-30 — [Done] Rename: solve_strength_for_focal_length
 **Goal:** Action-oriented name for the f→K inversion (Eric's call).
 **Why:** `strength_for_focal_length` read like a property; it is a solve
