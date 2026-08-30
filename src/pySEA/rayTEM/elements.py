@@ -4386,13 +4386,15 @@ class Lens(Element):
 		return self.transfer_matrix(rotation=False)[columns, :][:, columns]
 
 	# Terminology
-	#  zL    zP zE    zF	self.position: zL, position of the lens entrance plane
-	# __|____|  |     |		self.length: lens length, exit plane is zL, zL = self.position+self.length
-	#   |'-. '. |     |		"back focal distance": distance from lens exit (zE) to focal point (zF): zF-zE
-	#   |    '-'.     |		"principal_distance": position of principal plane (zP) relative to entrance (zL): zP-zL
-	#   |    |  |'.   |		"focal length": distance from principal plane (zP) to focal point (zF): zF-zP
-	#   |    |  |  '. |
-	# __|____|__|____'.
+	#  zL      zP   zE    zF		self.position: zL, position of the lens entrance plane
+	# __|______|     |     |		self.length: lens length, exit plane is zL, zL = self.position+self.length
+	#   |'-.    '.   |     |		"back focal distance": distance from lens exit (zE) to focal point (zF): zF-zE
+	#   |    '-.  '. |     |		"principal_distance": position of principal plane (zP) relative to entrance (zL): zP-zL
+	#   |      | '-.'.     |		"focal length": distance from principal plane (zP) to focal point (zF): zF-zP
+	#   |      |     |'.   |
+	#   |      |     |  '. |
+	# __|______|_____|____'.
+	#
 	@property
 	def principal_distance(self):
 		A,B,C,D = self.ABCD().flat
