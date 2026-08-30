@@ -507,6 +507,10 @@
 	<span class="k">if</span> <span class="n">axis</span><span class="o">==</span><span class="s2">"xy"</span> <span class="ow">or</span> <span class="n">axis</span><span class="o">==</span><span class="s2">"yx"</span><span class="p">:</span>
 		<span class="k">return</span> <span class="n">findPlanes</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="s1">'x'</span><span class="p">)</span> <span class="o">|</span> <span class="n">findPlanes</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="s1">'y'</span><span class="p">)</span>
 	<span class="n">R</span> <span class="o">=</span> <span class="n">rays</span><span class="o">.</span><span class="n">R</span>
+	<span class="c1"># per-ray intensity, if the caller passed a Rays object: dead (masked)</span>
+	<span class="c1"># rays must not report planes -- an aperture selects the pupil zone, and</span>
+	<span class="c1"># with aberrations the ghost pair's crossing is the WRONG focal plane</span>
+	<span class="n">I</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span> <span class="s2">"I"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 	<span class="n">rays</span> <span class="o">=</span> <span class="n">convert_to_rotating_reference_frame</span><span class="p">(</span><span class="n">rays</span><span class="p">)</span>
 	<span class="k">global</span> <span class="n">warned</span>
 	<span class="c1"># Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays</span>
@@ -526,28 +530,54 @@
 
 	<span class="c1"># diffraction ray is the first ray emitted at zero angle (nonzero position!)</span>
 	<span class="c1"># image ray is the first ray emitted from zero at non-zero angle</span>
+	<span class="c1"># ALL candidates are collected (in scan order, so with nothing masked the</span>
+	<span class="c1"># first two are chosen and behavior is bit-for-bit the old first-two);</span>
+	<span class="c1"># per interval the first two candidates STILL ALIVE stand in when a</span>
+	<span class="c1"># masking aperture killed the original pair</span>
 	<span class="n">n_rays</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+	<span class="n">diffCands</span><span class="o">=</span><span class="p">[]</span> <span class="p">;</span> <span class="n">imageCands</span><span class="o">=</span><span class="p">[]</span>
 	<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_rays</span><span class="p">):</span>
-		<span class="c1"># diff X first ray is: zero angle x and y, nonzero x, zero y</span>
-		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">diffRays</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span> <span class="ow">and</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">x</span><span class="p">]</span><span class="o">!=</span><span class="mi">0</span> <span class="ow">and</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">xt</span><span class="p">]</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
-				<span class="n">diffRays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
-				<span class="k">for</span> <span class="n">rr</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_rays</span><span class="p">):</span>
-					<span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">]</span><span class="o">==-</span><span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">rr</span><span class="p">]):</span>
-						<span class="n">diffRays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rr</span><span class="p">)</span>
-						<span class="k">break</span>
-		<span class="c1"># second is same, but opposite x position. TWP 20260317 edit: or, just a different x position?? changing all "==-" to "!="</span>
-		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">diffRays</span><span class="p">)</span><span class="o">==</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">x</span><span class="p">]</span><span class="o">!=</span><span class="mi">0</span> <span class="ow">and</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">xt</span><span class="p">]</span><span class="o">==</span><span class="mi">0</span> <span class="ow">and</span> \
-				<span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">x</span><span class="p">]</span><span class="o">!=</span><span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">diffRays</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">x</span><span class="p">]:</span> <span class="c1"># TWP 20260317 edit: or, just a different x position?? changing all "==-" to "!="</span>
-					<span class="n">diffRays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
-		<span class="c1"># image X first ray is: nonzero angle x, zero angle y, zero x, zero y</span>
-		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">imageRays</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span> <span class="ow">and</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">xt</span><span class="p">]</span><span class="o">!=</span><span class="mi">0</span> <span class="ow">and</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">x</span><span class="p">]</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
-				<span class="n">imageRays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
-		<span class="c1"># second is same, but opposite x angle</span>
-		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">imageRays</span><span class="p">)</span><span class="o">==</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">xt</span><span class="p">]</span><span class="o">!=</span><span class="mi">0</span> <span class="ow">and</span> \
-			<span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">x</span><span class="p">]</span><span class="o">==</span><span class="mi">0</span> <span class="ow">and</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">xt</span><span class="p">]</span><span class="o">!=</span><span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">imageRays</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">xt</span><span class="p">]:</span>
-					<span class="n">imageRays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
-		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">diffRays</span><span class="p">)</span><span class="o">==</span><span class="mi">2</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">imageRays</span><span class="p">)</span><span class="o">==</span><span class="mi">2</span><span class="p">:</span>
-				<span class="k">break</span>
+		<span class="k">if</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">x</span><span class="p">]</span><span class="o">!=</span><span class="mi">0</span> <span class="ow">and</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">xt</span><span class="p">]</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+			<span class="n">diffCands</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">xt</span><span class="p">]</span><span class="o">!=</span><span class="mi">0</span> <span class="ow">and</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">x</span><span class="p">]</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+			<span class="n">imageCands</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">live_pair</span><span class="p">(</span><span class="n">cands</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+<span class="w">		</span><span class="sd">"""First two candidates alive at plane ``i`` with distinct seeds.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		cands : list of int</span>
+<span class="sd">			Candidate ray indices, in scan order.</span>
+<span class="sd">		col : int</span>
+<span class="sd">			Ray column whose plane-0 value must differ within the pair</span>
+<span class="sd">			(position for the parallel family, angle for the axial one).</span>
+<span class="sd">		i : int</span>
+<span class="sd">			Plane index the pair must have survived to (``I[i] &gt; 0``).</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		list of int or None</span>
+<span class="sd">			``[a, b]``, or ``None`` when fewer than two live distinct</span>
+<span class="sd">			candidates remain — no plane is detectable from beam that</span>
+<span class="sd">			still exists.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+<span class="sd">		"""</span>
+		<span class="n">first</span> <span class="o">=</span> <span class="kc">None</span>
+		<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">cands</span><span class="p">:</span>
+			<span class="k">if</span> <span class="n">I</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">I</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">r</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+				<span class="k">continue</span>
+			<span class="k">if</span> <span class="n">first</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+				<span class="n">first</span> <span class="o">=</span> <span class="n">r</span>
+			<span class="k">elif</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">col</span><span class="p">]</span> <span class="o">!=</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">first</span><span class="p">,</span><span class="n">col</span><span class="p">]:</span>
+				<span class="k">return</span> <span class="p">[</span><span class="n">first</span><span class="p">,</span> <span class="n">r</span><span class="p">]</span>
+		<span class="k">return</span> <span class="kc">None</span>
+
+	<span class="n">diffRays</span>  <span class="o">=</span> <span class="n">live_pair</span><span class="p">(</span><span class="n">diffCands</span><span class="p">,</span>  <span class="n">x</span><span class="p">,</span>  <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="n">diffCands</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span>
+	<span class="n">imageRays</span> <span class="o">=</span> <span class="n">live_pair</span><span class="p">(</span><span class="n">imageCands</span><span class="p">,</span> <span class="n">xt</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="n">imageCands</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span>
 	<span class="c1">#if len(diffRays)!=2 or len(imageRays)!=2:</span>
 		<span class="c1">#print("WARNING: diffraction and/or image rays could not be inferred by findPlanes(). no planes found")</span>
 	<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">diffRays</span><span class="p">)</span><span class="o">&lt;</span><span class="mi">2</span> <span class="ow">and</span> <span class="s2">"diff"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">warned</span><span class="p">:</span>
@@ -597,6 +627,14 @@
 		<span class="k">return</span> <span class="p">(</span><span class="n">ya</span><span class="o">-</span><span class="n">yb</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">ta</span><span class="o">-</span><span class="n">tb</span><span class="p">)</span>
 
 	<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">rays</span><span class="p">)):</span>
+		<span class="c1"># per interval, plane detection only trusts rays that STILL CARRY</span>
+		<span class="c1"># INTENSITY at its end: a masked (dead) tracer must not report a</span>
+		<span class="c1"># plane for beam that no longer exists, and with aberrations the</span>
+		<span class="c1"># aperture selects the pupil zone -- a ghost pair's crossing is the</span>
+		<span class="c1"># wrong focal plane. Reselection walks the candidate lists, so with</span>
+		<span class="c1"># nothing masked the pair (and the result) is the old first-two.</span>
+		<span class="n">diffRays</span>  <span class="o">=</span> <span class="n">live_pair</span><span class="p">(</span><span class="n">diffCands</span><span class="p">,</span>  <span class="n">x</span><span class="p">,</span>  <span class="n">i</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+		<span class="n">imageRays</span> <span class="o">=</span> <span class="n">live_pair</span><span class="p">(</span><span class="n">imageCands</span><span class="p">,</span> <span class="n">xt</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
 		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">diffRays</span><span class="p">)</span><span class="o">&gt;=</span><span class="mi">2</span><span class="p">:</span>
 			<span class="c1"># CHECK DIFFRACTION: where originally-parallel rays cross</span>
 			<span class="p">(</span><span class="n">xa1</span><span class="p">,</span><span class="n">xb1</span><span class="p">),(</span><span class="n">xa2</span><span class="p">,</span><span class="n">xb2</span><span class="p">)</span><span class="o">=</span><span class="n">rays</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">diffRays</span><span class="p">,</span><span class="n">x</span><span class="p">]</span>
