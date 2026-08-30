@@ -593,8 +593,8 @@ def _(mo):
 
 @app.cell
 def _(AIM_AT, APERTURE_RADIUS, analytic, scaled_wave_cross_section,
-	  crossovers, np, plt, ray, rays_x, scope, theta_aim, wave_planes, z_max,
-	  zr):
+	  crossovers, np, os, plt, ray, rays_x, scope, theta_aim, wave_planes,
+	  z_max, zr):
 	fig, ax = plt.subplots(figsize=(13, 7))
 
 	# the same renderer Microscope.show uses for kind='wave-hybrid', so the
@@ -645,7 +645,10 @@ def _(AIM_AT, APERTURE_RADIUS, analytic, scaled_wave_cross_section,
 				 "basic_column trimmed past PL4, |ψ(x, 0, z)| (each plane peak-normalized)")
 	ax.legend(loc="lower left", fontsize=7, framealpha=0.45, labelcolor="w",
 			  facecolor="black", ncol=2)
-	fig.savefig("plane_comparison.png", dpi=150, bbox_inches="tight")
+	_figs = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figs")
+	os.makedirs(_figs, exist_ok=True)
+	fig.savefig(os.path.join(_figs, "05_planeComparison.png"), dpi=150,
+				bbox_inches="tight")
 	fig
 	return
 

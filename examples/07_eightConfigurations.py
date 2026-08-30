@@ -735,7 +735,7 @@ def ray_over_wave_figure(scope: Microscope, title: str, filename: str) -> list:
 
 
 def run_configuration(current: str, probe: str, detector: str,
-					  wave: bool = True, figdir: str = "figs") -> dict:
+					  wave: bool = True, figdir: str = None) -> dict:
 	"""Solve, save, propagate, and report one of the eight states.
 
 	Parameters
@@ -747,7 +747,8 @@ def run_configuration(current: str, probe: str, detector: str,
 		True. The solves, settings files, ray/moments checks, and tables run
 		regardless.
 	figdir : str, optional
-		Where figures land, by default ``'figs'``.
+		Where figures land, by default ``figs/`` beside this script, so any
+		working directory works.
 
 	Returns
 	-------
@@ -795,6 +796,8 @@ def run_configuration(current: str, probe: str, detector: str,
 									"detector": Z["detector"]}))
 	crossovers = None
 	if wave:
+		# default resolved from the script, so any cwd works (figs/ is gitignored)
+		figdir = figdir if figdir is not None else os.path.join(_HERE, "figs")
 		os.makedirs(figdir, exist_ok=True)
 		fig = os.path.join(figdir, f"07_{tag}.png")
 		crossovers = ray_over_wave_figure(scope, f"rays over |psi(x, z)| — {tag}", fig)

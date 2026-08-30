@@ -6,7 +6,9 @@ from pySEA.rayTEM.postprocessing import plot2D,plot3D,plotSliceSeries
 import numpy as np
 import os
 
-os.makedirs("figs", exist_ok=True)		# plots save here; running from any cwd works
+# figures land here, resolved from the script so any cwd works (figs/ is gitignored)
+FIGS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figs")
+os.makedirs(FIGS, exist_ok=True)
 
 # Construct our microscope section: drifts and lenses
 elements=[ 	Drift(length=1),
@@ -25,7 +27,7 @@ r0=fix_ray_dims(r0,["x","y","xt","yt"])
 
 # propagate and 2D plot
 r1=section.propagate_ray(r0)
-plot2D(r1,filename="figs/01_basicRays_2D.png")
+plot2D(r1,filename=os.path.join(FIGS,"01_basicRays_2D.png"))
 
 # alternate list of rays: a whole series of positions and angles should make visualizing the image and diffraction planes easier
 r0=[]
@@ -38,6 +40,6 @@ r0=fix_ray_dims(np.asarray(r0),["x","y","xt","yt"])
 
 # propoagate and 3D plot
 r1=section.propagate_ray(r0)
-plot3D(r1)#,filename="figs/01_basicRays_3D.png",elev=88,azi=10,roll=104)
+plot3D(r1,filename=os.path.join(FIGS,"01_basicRays_3D.png"))
 
-plotSliceSeries(r1,20,20,filename="plotSliceSeries.png")
+plotSliceSeries(r1,20,20,filename=os.path.join(FIGS,"01_basicRays_slices.png"))

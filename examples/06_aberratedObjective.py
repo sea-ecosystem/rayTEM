@@ -43,7 +43,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import PowerNorm
 from pySEA.rayTEM import Source, Drift, Lens, MicroscopeSection, Microscope
-from pySEA.rayTEM.elements import Drift as _Drift
 from pySEA.rayTEM.aberrations import Aberrations
 from pySEA.rayTEM.microscopes.objective_section import build_objective_section
 from pySEA.rayTEM.seashells import read_scaled_wavefield
@@ -75,39 +74,6 @@ def scope(c30, **kw):
 	return m
 
 
-def subdivide_focus(m, z_lo, z_hi, n_steps):
-	"""Split the sample gap so wave planes are logged densely across the focus.
-
-	The stored column logs a plane per element, which is far too coarse to
-	resolve a sub-micron caustic. This replaces the ``sample`` drift with a
-	lead-in, ``n_steps`` equal steps across the window, and a tail.
-
-	Parameters
-	----------
-	m : Microscope
-		Scope to modify in place.
-	z_lo, z_hi : float
-		Window bounds (metres, absolute z).
-	n_steps : int
-		Number of planes across the window.
-
-	Returns
-	-------
-	Microscope
-		The same object, for chaining.
-	"""
-	sec = m["O"]
-	els = list(sec.elements)
-	i = [j for j, e in enumerate(els) if e.name == "sample"][0]
-	z0 = sum(e.length for e in els[:i]) + m["O"].position
-	total = els[i].length
-	lead, span = z_lo - z0, z_hi - z_lo
-	els[i:i + 1] = ([_Drift(length=lead)] + [_Drift(length=span / n_steps)] * n_steps
-					+ [_Drift(length=total - lead - span)])
-	sec.elements = els
-	return m
-
-
 def wave_cross_section(c30, z_lo, z_hi, x_half, z_at, n_x=400):
 	"""|psi(x, y=0, z)| across the focal window, on a common x grid.
 
@@ -136,7 +102,14 @@ def wave_cross_section(c30, z_lo, z_hi, x_half, z_at, n_x=400):
 		line-out must keep the ideal peak as its reference or the Strehl loss
 		is hidden.
 	"""
-	m = subdivide_focus(scope(c30), z_lo, z_hi, N_PLANES)
+	# Microscope.subdivided cuts the drifts at the requested absolute z, which
+	# is what puts a logged plane on each sample of the focal window. It cuts
+	# only UNNAMED drifts -- the focus here sits inside the 3 mm drift ahead of
+	# the specimen, so the `sample` marker survives, the lengths stay positive
+	# and z stays monotonic. Splitting the named marker by hand instead (as an
+	# earlier version did) inserted a negative-length drift to walk back to the
+	# focus and deleted the marker on the way.
+	m = scope(c30).subdivided(list(np.linspace(z_lo, z_hi, N_PLANES)))
 	m.propagate_wave(mode="hybrid", absorb=0.0)
 	x = np.linspace(-x_half, x_half, n_x)
 	zs, rows, native = [], [], None
@@ -241,7 +214,7 @@ i_ol = int(np.argmin(np.abs(rr[:, 0, 4] - z_ol)))
 h_f = np.abs(rr[i_ol, :, 0]) / F_OL
 oc = np.argsort(h_f)
 axE.plot(h_f[oc] * 1e3, (sc["z"][oc] - sc["z_paraxial"]) * 1e9, "s", ms=6,
-			color="tab:red", label="OL1 (10 mm thick), traced")
+			color="tab:red", label="OL1 (0.08 mm bore), traced")
 axE.set_xlabel(r"$h/f$ at OL1 (mrad) — what enters the kick")
 axE.set_ylabel(r"$z-z_{\rm paraxial}$ (nm)")
 axE.set_title("E   the plane becomes a surface")

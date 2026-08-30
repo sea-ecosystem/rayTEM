@@ -94,9 +94,20 @@
   <section id="example-scripts">
 <h1>Example Scripts<a class="headerlink" href="#example-scripts" title="Link to this heading"></a></h1>
 <p>The examples live in <code class="docutils literal notranslate"><span class="pre">examples/</span></code> at the repository root, smallest first, and
-every one runs headless (<code class="docutils literal notranslate"><span class="pre">MPLBACKEND=Agg</span> <span class="pre">python</span> <span class="pre">&lt;script&gt;</span></code>). They are scripts
-rather than notebooks — each is also exercised by the test suite where it
-makes framework claims, so they cannot silently rot.</p>
+every one runs headless (<code class="docutils literal notranslate"><span class="pre">MPLBACKEND=Agg</span> <span class="pre">python</span> <span class="pre">&lt;script&gt;</span></code>), writing its
+figures into <code class="docutils literal notranslate"><span class="pre">examples/figs/</span></code> — resolved from the script, so any working
+directory works. They are scripts rather than notebooks (05 is a marimo
+notebook: <code class="docutils literal notranslate"><span class="pre">marimo</span> <span class="pre">edit</span> <span class="pre">examples/05_planeComparison.py</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">marimo</span> <span class="pre">export</span> <span class="pre">html</span></code> to render it headless). Each is also exercised by the
+test suite where it makes framework claims, so they cannot silently rot.</p>
+<p>They draw through the framework’s own renderers rather than rebuilding them:
+<code class="docutils literal notranslate"><span class="pre">postprocessing.plot2D</span></code>/<code class="docutils literal notranslate"><span class="pre">plot3D</span></code> for ray diagrams,
+<code class="docutils literal notranslate"><span class="pre">Microscope.show(kind=...)</span></code> for a propagation result — which delegates to the
+result <code class="docutils literal notranslate"><span class="pre">Signal</span></code>’s own <code class="docutils literal notranslate"><span class="pre">.show()</span></code> for a single plane, and to the shared
+scaled-wave cross-section otherwise — and <code class="docutils literal notranslate"><span class="pre">Signal.show()</span></code> directly for a
+Signal or a slice of one. Raw matplotlib appears only where an example
+<em>overlays</em> something on a rendered panel, or plots a quantity that is not a
+Signal.</p>
 <table class="docutils align-default">
 <thead>
 <tr class="row-odd"><th class="head"><p>script</p></th>

@@ -45,6 +45,10 @@ from pySEA.rayTEM.seashells import read_scaled_wavefield, read_wavefield, scaled
 APERTURE_RADIUS = 5e-6	# flat-intensity initial wave: theta(a - r), a = 5 um (grid extent 20 um)
 DZ_STEP = 10e-3			# drift subdivision for the dense cross-section (m)
 
+# figures land here, resolved from the script so any cwd works (figs/ is gitignored)
+FIGS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figs")
+os.makedirs(FIGS, exist_ok=True)
+
 
 def load_column(subdivide:float=None):
 	"""Load basic_column.sea with the aperture source, optionally with split drifts.
@@ -218,10 +222,10 @@ def main():
 	# 2) dense column for the cross-section figure
 	dense = load_column(subdivide=DZ_STEP)
 	dense.propagate_wave(mode="hybrid")
-	plot_cross_section(dense, "basic_column_scaled_wave_cross_section.png")
-	plot_xy_slices(scope, "basic_column_scaled_wave_xy_slices.png")
-	print("wrote basic_column_scaled_wave_cross_section.png, "
-		  "basic_column_scaled_wave_xy_slices.png")
+	plot_cross_section(dense, os.path.join(FIGS, "04_scaledWave_cross_section.png"))
+	plot_xy_slices(scope, os.path.join(FIGS, "04_scaledWave_xy_slices.png"))
+	print(f"wrote {FIGS}/04_scaledWave_cross_section.png, "
+		  f"{FIGS}/04_scaledWave_xy_slices.png")
 
 
 if __name__ == "__main__":

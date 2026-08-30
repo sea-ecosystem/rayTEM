@@ -4,6 +4,11 @@ from pySEA.rayTEM.elements import Lens,Drift,fix_ray_dims,Source
 from pySEA.rayTEM.assemblies import MicroscopeSection
 from pySEA.rayTEM.postprocessing import fitForCrossover,plot2D
 import numpy as np
+import os
+
+# figures land here, resolved from the script so any cwd works (figs/ is gitignored)
+FIGS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figs")
+os.makedirs(FIGS, exist_ok=True)
 
 def createFreshSection():
 	elements=[ 	
@@ -23,17 +28,23 @@ def createFreshSection():
 #r0=fix_ray_dims(np.asarray(r0),["x","y","xt","yt"])
 
 section = createFreshSection()
-plot2D( section.propagate_ray() )
+plot2D( section.propagate_ray(), filename=os.path.join(FIGS,"02_basicFitting_section.png") )
 
-fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":3}],modifiable={2:"strength",4:"strength"})#,filename="figs/02_basicFitting_01")
+# NOTE: fitForCrossover takes a `filename` and would save a residual heatmap and
+# the fitted rays, but that block is currently unreachable -- postprocessing.py
+# has two unconditional `return`s after the scipy.optimize.minimize call, which
+# also disable the staged brute-force search. Passing a filename here would be
+# silently ignored, so it is not passed. The fits below still run and print.
 
-fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":3,"strength":"maximize"}],modifiable={2:"strength",4:"strength"})#,filename="figs/02_basicFitting_02")
+fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":3}],modifiable={2:"strength",4:"strength"})
 
-fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":3,"strength":"minimize"}],modifiable={2:"strength",4:"strength"})#,filename="figs/02_basicFitting_03")
+fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":3,"strength":"maximize"}],modifiable={2:"strength",4:"strength"})
 
-fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":"maximize"}],modifiable={2:"strength",4:"strength"})#,filename="figs/02_basicFitting_04")
+fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":3,"strength":"minimize"}],modifiable={2:"strength",4:"strength"})
 
-fitForCrossover(createFreshSection(),targets=[{"plane":"diff","z":6,"mag":"maximize"}],modifiable={2:"strength",4:"strength"})#,filename="figs/02_basicFitting_05")
+fitForCrossover(createFreshSection(),targets=[{"plane":"image","z":6,"mag":"maximize"}],modifiable={2:"strength",4:"strength"})
+
+fitForCrossover(createFreshSection(),targets=[{"plane":"diff","z":6,"mag":"maximize"}],modifiable={2:"strength",4:"strength"})
 
 
 # TODOs
