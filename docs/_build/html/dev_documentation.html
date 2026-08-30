@@ -169,6 +169,15 @@ synthesizes a transient screen at its exit with the section’s composite
 focal power as the pupil scale. The low-order terms are power changes, not
 phase: see <a class="reference internal" href="terminology.html"><span class="std std-doc">Terminology</span></a> for the strength / focal length /
 focal power distinctions and the aberration-power split.</p>
+<p>They now reach <strong>all four propagation modes</strong>: the ray path applies the
+exact eikonal kick, the wave paths carry χ, the covariance mode closes the
+kick’s moments analytically on Σ (linear terms exact; C30 by Gaussian
+closure), and the frame/ABCD machinery computes the <strong>aberrated focal
+surface in closed form</strong> — <code class="docutils literal notranslate"><span class="pre">focal_surface(method='frame')</span></code> rebuilds each
+aberrated element’s block with its pupil zone’s own power
+(<code class="docutils literal notranslate"><span class="pre">Element.zone_power_shift</span></code>) and solves the zone ray’s crossing
+analytically. On a thin lens the frame surface matches the traced one to
+machine precision.</p>
 </section>
 <section id="high-risk-seams">
 <h2>High-risk seams<a class="headerlink" href="#high-risk-seams" title="Link to this heading"></a></h2>

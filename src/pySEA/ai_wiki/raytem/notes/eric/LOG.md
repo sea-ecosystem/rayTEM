@@ -2,16 +2,29 @@
 
 Newest entries at top.
 
-## 2026-08-30 — [Under Construction] Analytic aberrations: zone-ABCD + covariance
+## 2026-08-30 — [Done] Analytic aberrations: zone-ABCD + covariance
 **Goal:** Aberrations enter the two remaining analytic representations: the
 frame/ABCD plane machinery (zone-modified blocks -> closed-form focal
 surface) and the covariance mode (Gaussian-closure moment updates).
 **Why:** The ray path applies aberrations exactly and the wave path carries
 chi, but moments ignored aberrations entirely and the frame method could
 only describe the ideal planes — no analytic aberrated waist/resolution.
-- [ ] zone_power_shift + frame focal surface
-- [ ] Gaussian-closure covariance update
-- [ ] Monte-Carlo pinning tests
+- [x] zone_power_shift + frame focal surface
+- [x] Gaussian-closure covariance update
+- [x] Monte-Carlo pinning tests
+**Outcome:** `Element.zone_power_shift(h)` turns the analytic kick into a
+per-axis zone power change (−Δθ(h)/h via deflection_at, no per-term code);
+`focal_surface(method='frame')` walks zone-modified ABCD (each aberrated
+element's block rebuilt about its principal planes with the zone's power,
+crossings solved linearly per free span in `_zone_focus`) — matches the
+traced surface to machine precision on a thin lens, ideal columns exactly
+flat. `Element.propagate_moments` now closes aberrations analytically:
+C10/aligned-C12 fold into the matrix exactly, C30 via Isserlis Gaussian
+closure in `_aberration_moment_pieces` — verified against Monte-Carlo
+statistics of the exact per-ray kick (agreement at MC noise, ~0.3%).
+Assumptions documented: centered Gaussian, decoupled planes, thin-at-element
+for thick bodies, orders >3 carried only by ray/wave. 161/161; docs
+(propagation_modes, dev docs) + wiki synced; site rebuilt.
 
 ## 2026-08-30 — [Done] Rename: solve_strength_for_focal_length
 **Goal:** Action-oriented name for the f→K inversion (Eric's call).

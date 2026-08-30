@@ -116,6 +116,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.tilt_y"><code class="docutils literal notranslate"><span class="pre">Element.tilt_y</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.transfer_block"><code class="docutils literal notranslate"><span class="pre">Element.transfer_block()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.transfer_matrix"><code class="docutils literal notranslate"><span class="pre">Element.transfer_matrix()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.zone_power_shift"><code class="docutils literal notranslate"><span class="pre">Element.zone_power_shift()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.elements.Gun"><code class="docutils literal notranslate"><span class="pre">Gun</span></code></a><ul>
@@ -1334,6 +1335,13 @@ ray-transfer matrix used by :meth:propagate_ray:</p>
 <p>where M is :meth:transfer_matrix and a collects the affine terms
 (drift length, dipole tilt, …). Covariance is invariant to the affine
 offset a, so the mean is obtained by reusing :meth:propagate_ray.</p>
+<p>An element carrying <code class="xref py py-attr docutils literal notranslate"><span class="pre">aberrations</span></code> also updates the covariance
+<strong>analytically</strong>: the first-order terms (<code class="docutils literal notranslate"><span class="pre">C10</span></code>, aligned <code class="docutils literal notranslate"><span class="pre">C12</span></code>) are
+linear kicks and fold into the matrix exactly, and the third-order
+spherical term (<code class="docutils literal notranslate"><span class="pre">C30</span></code>) enters through a <strong>Gaussian closure</strong> — the
+cross- and self-moments of the cubic kick reduce to closed-form
+polynomials in Sigma by Isserlis’ theorem (see
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">_aberration_moment_pieces()</span></code>). No sampling, no integrals.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -1355,11 +1363,20 @@ offset a, so the mean is obtained by reusing :meth:propagate_ray.</p>
 </dd>
 <dt><a class="reference internal" href="#pySEA.rayTEM.elements.Source.moments" title="pySEA.rayTEM.elements.Source.moments"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Source.moments</span></code></a></dt><dd><p>Seeds the initial (mu, Sigma).</p>
 </dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">_aberration_moment_pieces</span></code></dt><dd><p>The closure terms.</p>
+</dd>
 </dl>
 </div>
 <p class="rubric">Notes</p>
 <p>Valid in the paraxial/linear regime, where the transfer matrix acts as a
-linear map on phase space and a Gaussian ensemble stays Gaussian.</p>
+linear map on phase space and a Gaussian ensemble stays Gaussian. The
+aberration closure is exact for a <strong>centered</strong> Gaussian with decoupled
+transverse planes passing one aberrated element; through several
+aberrated elements the beam re-Gaussianizes at each (the standard rms
+treatment of nonlinearities). A thick body applies its aberration as if
+thin at the element, the same first-order compromise the fixed wave
+path makes; terms above third order are not closed here and are
+ignored by this mode (the ray and wave paths carry them exactly).</p>
 </dd></dl>
 
 <dl class="py method">
@@ -1624,6 +1641,47 @@ on the base class).</p>
 </dd>
 </dl>
 <p><a class="reference internal" href="#pySEA.rayTEM.elements.Element.propagate_ray" title="pySEA.rayTEM.elements.Element.propagate_ray"><code class="xref py py-obj docutils literal notranslate"><span class="pre">propagate_ray</span></code></a>, <a class="reference internal" href="#pySEA.rayTEM.elements.Element.propagate_moments" title="pySEA.rayTEM.elements.Element.propagate_moments"><code class="xref py py-obj docutils literal notranslate"><span class="pre">propagate_moments</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Element.zone_power_shift">
+<span class="sig-name descname"><span class="pre">zone_power_shift</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Element.zone_power_shift"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Element.zone_power_shift" title="Link to this definition"></a></dt>
+<dd><p>Per-axis focal-power change this element applies to a pupil zone.</p>
+<p>The analytic bridge from aberrations to ABCD optics: a ray in the
+zone at height <code class="docutils literal notranslate"><span class="pre">h</span></code> picks up the extra deflection
+<span class="math notranslate nohighlight">\(\Delta\theta = (1/k)\nabla\chi\)</span>, and dividing by <code class="docutils literal notranslate"><span class="pre">h</span></code> turns
+that into an equivalent <strong>power change</strong> for the zone,
+<span class="math notranslate nohighlight">\(\Delta P(h) = -\Delta\theta(h)/h\)</span> (spherical:
+<span class="math notranslate nohighlight">\(C_{30}P^4h^2\)</span>; defocus: <span class="math notranslate nohighlight">\(C_{10}P^2\)</span>; and every other
+term through <code class="xref py py-meth docutils literal notranslate"><span class="pre">aberrations.Aberrations.deflection_at()</span></code>, with no
+per-term code). Zone-modified transfer blocks built from this are how
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">assemblies.Microscope.focal_surface()</span></code> computes the aberrated
+focal surface in closed form.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>h</strong> (<em>float</em>) – Zone height at this element (metres); the x value is evaluated at
+<code class="docutils literal notranslate"><span class="pre">(h,</span> <span class="pre">0)</span></code> and the y value at <code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">h)</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">(dP_x,</span> <span class="pre">dP_y)</span></code> in 1/metres; <code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">0)</span></code> for an ideal element,
+zero pupil power, or <code class="docutils literal notranslate"><span class="pre">h</span> <span class="pre">=</span> <span class="pre">0</span></code> (the axis has no zone).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple of float</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Element.aberration_kick" title="pySEA.rayTEM.elements.Element.aberration_kick"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aberration_kick</span></code></a></dt><dd><p>The same deflection, applied per ray.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">assemblies.Microscope.focal_surface</span></code></dt><dd><p>The frame-method consumer.</p>
+</dd>
+</dl>
 </div>
 </dd></dl>
 
@@ -3076,7 +3134,7 @@ current away.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.Microscope.focal_surface">
-<span class="sig-name descname"><span class="pre">focal_surface</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">family</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'diff'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'image'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'diff'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aperture</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">radii</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">azimuths</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">near</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#Microscope.focal_surface"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope.focal_surface" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">focal_surface</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">family</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'diff'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'image'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'diff'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aperture</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">radii</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">azimuths</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">near</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'ray'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'frame'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'ray'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#Microscope.focal_surface"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope.focal_surface" title="Link to this definition"></a></dt>
 <dd><p>Where the beam actually focuses, as a function of aperture position.</p>
 <p><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.conjugate_planes" title="pySEA.rayTEM.assemblies.Microscope.conjugate_planes"><code class="xref py py-meth docutils literal notranslate"><span class="pre">conjugate_planes()</span></code></a> answers the paraxial question, and its answer is
 a <strong>plane</strong> because the transfer matrix is linear: <cite>A = 0</cite> and <cite>B = 0</cite>
@@ -3109,6 +3167,15 @@ rotationally symmetric optics; more resolves astigmatism and
 N-fold terms.</p></li>
 <li><p><strong>reference</strong> (<em>str</em><em>, </em><em>float</em><em>, or </em><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><em>None</em></a><em>, </em><em>optional</em>) – Forwarded to <a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.conjugate_planes" title="pySEA.rayTEM.assemblies.Microscope.conjugate_planes"><code class="xref py py-meth docutils literal notranslate"><span class="pre">conjugate_planes()</span></code></a> for the paraxial reference
 plane, by default None (the column entrance).</p></li>
+<li><p><strong>method</strong> (<em>{'ray'</em><em>, </em><em>'frame'}</em><em>, </em><em>optional</em>) – <code class="docutils literal notranslate"><span class="pre">'ray'</span></code> (default) traces a sampled bundle and measures each
+ray’s closest approach — sees everything the ray path applies,
+including in-body foci. <code class="docutils literal notranslate"><span class="pre">'frame'</span></code> computes the surface in
+<strong>closed form</strong> by zone-modified ABCD: each aberrated element’s
+block is rebuilt with the zone’s own power
+(<code class="xref py py-meth docutils literal notranslate"><span class="pre">elements.Element.zone_power_shift()</span></code>), and the zone ray’s
+axis crossing is solved analytically. No rays, no sampling; the
+azimuths are fixed to the two lab axes, and crossings inside
+powered bodies are not searched.</p></li>
 <li><p><strong>near</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>str</em><em>, or </em><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><em>None</em></a><em>, </em><em>optional</em>) – <strong>Which</strong> focus to describe. A real column has several planes of a
 given family, and a ray bundle crosses the axis at every one of
 them, so the surface has to be told which. An <code class="docutils literal notranslate"><span class="pre">int</span></code> indexes the

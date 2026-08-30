@@ -29,6 +29,15 @@ rays. Waists (`beam_waists()`) sit beside the geometric image planes,
 displaced by the emittance focal shift — that displacement is physics the ray
 picture cannot show. Apertures are a documented no-op in this mode.
 
+Aberrations enter this mode **analytically**: the first-order terms (C10,
+aligned C12) are linear kicks and fold into the matrix exactly, and spherical
+(C30) enters through a Gaussian closure — the cubic kick's cross- and
+self-moments reduce to closed-form polynomials in Σ (Isserlis), so the
+aberration-inflated waist size and its focal shift come out with no rays
+traced. Exact for a centered Gaussian through one aberrated element;
+re-Gaussianized per element beyond that; orders above three are carried only
+by the ray and wave paths.
+
 ## Fixed-grid wave
 
 A split-step paraxial propagator on a grid fixed at the source. Exact where

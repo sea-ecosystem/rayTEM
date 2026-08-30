@@ -68,6 +68,16 @@ focal power as the pupil scale. The low-order terms are power changes, not
 phase: see [Terminology](terminology.md) for the strength / focal length /
 focal power distinctions and the aberration-power split.
 
+They now reach **all four propagation modes**: the ray path applies the
+exact eikonal kick, the wave paths carry χ, the covariance mode closes the
+kick's moments analytically on Σ (linear terms exact; C30 by Gaussian
+closure), and the frame/ABCD machinery computes the **aberrated focal
+surface in closed form** — `focal_surface(method='frame')` rebuilds each
+aberrated element's block with its pupil zone's own power
+(`Element.zone_power_shift`) and solves the zone ray's crossing
+analytically. On a thin lens the frame surface matches the traced one to
+machine precision.
+
 ## High-risk seams
 
 - `elements.py` — `columnByName()` and `fix_mat_dims()` are referenced

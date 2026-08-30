@@ -1946,6 +1946,14 @@
 <span class="sd">		(drift length, dipole tilt, ...). Covariance is invariant to the affine</span>
 <span class="sd">		offset a, so the mean is obtained by reusing :meth:propagate_ray.</span>
 
+<span class="sd">		An element carrying :attr:`aberrations` also updates the covariance</span>
+<span class="sd">		**analytically**: the first-order terms (``C10``, aligned ``C12``) are</span>
+<span class="sd">		linear kicks and fold into the matrix exactly, and the third-order</span>
+<span class="sd">		spherical term (``C30``) enters through a **Gaussian closure** — the</span>
+<span class="sd">		cross- and self-moments of the cubic kick reduce to closed-form</span>
+<span class="sd">		polynomials in Sigma by Isserlis' theorem (see</span>
+<span class="sd">		:meth:`_aberration_moment_pieces`). No sampling, no integrals.</span>
+
 <span class="sd">		Parameters</span>
 <span class="sd">		----------</span>
 <span class="sd">		mu : xp.ndarray</span>
@@ -1962,16 +1970,163 @@
 <span class="sd">		-------</span>
 <span class="sd">		propagate_ray : Ray transport sharing the same transfer matrix.</span>
 <span class="sd">		Source.moments : Seeds the initial (mu, Sigma).</span>
+<span class="sd">		_aberration_moment_pieces : The closure terms.</span>
 
 <span class="sd">		Notes</span>
 <span class="sd">		-----</span>
 <span class="sd">		Valid in the paraxial/linear regime, where the transfer matrix acts as a</span>
-<span class="sd">		linear map on phase space and a Gaussian ensemble stays Gaussian.</span>
+<span class="sd">		linear map on phase space and a Gaussian ensemble stays Gaussian. The</span>
+<span class="sd">		aberration closure is exact for a **centered** Gaussian with decoupled</span>
+<span class="sd">		transverse planes passing one aberrated element; through several</span>
+<span class="sd">		aberrated elements the beam re-Gaussianizes at each (the standard rms</span>
+<span class="sd">		treatment of nonlinearities). A thick body applies its aberration as if</span>
+<span class="sd">		thin at the element, the same first-order compromise the fixed wave</span>
+<span class="sd">		path makes; terms above third order are not closed here and are</span>
+<span class="sd">		ignored by this mode (the ray and wave paths carry them exactly).</span>
 <span class="sd">		"""</span>
 		<span class="n">M</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transfer_matrix</span><span class="p">()</span>
-		<span class="n">Sigma_out</span> <span class="o">=</span> <span class="n">M</span> <span class="o">@</span> <span class="n">Sigma</span> <span class="o">@</span> <span class="n">M</span><span class="o">.</span><span class="n">T</span>
+		<span class="n">ab</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span>
+		<span class="n">P</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"pupil_power"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_power"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">ab</span> <span class="ow">or</span> <span class="n">P</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">Sigma_out</span> <span class="o">=</span> <span class="n">M</span> <span class="o">@</span> <span class="n">Sigma</span> <span class="o">@</span> <span class="n">M</span><span class="o">.</span><span class="n">T</span>
+			<span class="n">mu_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">(</span><span class="n">mu</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+			<span class="k">return</span> <span class="n">mu_out</span><span class="p">,</span> <span class="n">Sigma_out</span>
+		<span class="n">M_l</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aberration_moment_pieces</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="n">Sigma</span><span class="p">,</span> <span class="n">ab</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">P</span><span class="p">))</span>
+		<span class="n">Sigma_out</span> <span class="o">=</span> <span class="n">M_l</span> <span class="o">@</span> <span class="n">Sigma</span> <span class="o">@</span> <span class="n">M_l</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">M_l</span> <span class="o">@</span> <span class="n">C</span> <span class="o">+</span> <span class="n">C</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">M_l</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">D</span>
 		<span class="n">mu_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">(</span><span class="n">mu</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
 		<span class="k">return</span> <span class="n">mu_out</span><span class="p">,</span> <span class="n">Sigma_out</span></div>
+
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_aberration_moment_pieces</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">M</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Sigma</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+								  <span class="n">ab</span><span class="p">,</span> <span class="n">P</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The closed-form covariance pieces of an aberrated element.</span>
+
+<span class="sd">		The aberrated map is :math:`r' = M_l r + \delta(r)` with the linear</span>
+<span class="sd">		aberration terms folded into :math:`M_l` and the cubic spherical kick</span>
+
+<span class="sd">		.. math::</span>
+
+<span class="sd">			\delta\theta_x = g\,(x^2{+}y^2)\,x, \qquad</span>
+<span class="sd">			\delta\theta_y = g\,(x^2{+}y^2)\,y, \qquad g = -C_{30}P^4</span>
+
+<span class="sd">		(the same expression :meth:`aberrations.Aberrations.deflection_at`</span>
+<span class="sd">		evaluates per ray). Its covariance contribution needs fourth and sixth</span>
+<span class="sd">		moments; for a **centered Gaussian with decoupled transverse planes**</span>
+<span class="sd">		Isserlis' theorem closes them on :math:`\Sigma` alone</span>
+<span class="sd">		(:math:`\langle x^4\rangle = 3\sigma_x^4`,</span>
+<span class="sd">		:math:`\langle x^6\rangle = 15\sigma_x^6`, ...):</span>
+
+<span class="sd">		.. math::</span>
+
+<span class="sd">			\langle x\,\delta\theta_x\rangle = g(3\sigma_x^4 +</span>
+<span class="sd">			   \sigma_x^2\sigma_y^2), \quad</span>
+<span class="sd">			\langle x'\delta\theta_x\rangle = g\,c_x(3\sigma_x^2 +</span>
+<span class="sd">			   \sigma_y^2), \quad</span>
+<span class="sd">			\langle\delta\theta_x^2\rangle = g^2(15\sigma_x^6 +</span>
+<span class="sd">			   6\sigma_x^4\sigma_y^2 + 3\sigma_x^2\sigma_y^4)</span>
+
+<span class="sd">		with :math:`c_x = \langle x x'\rangle`, and the y expressions by</span>
+<span class="sd">		exchange. Cross-plane pieces vanish for the decoupled case.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		M : xp.ndarray</span>
+<span class="sd">			The element's ideal transfer matrix.</span>
+<span class="sd">		Sigma : xp.ndarray</span>
+<span class="sd">			Entrance covariance, shape ``(len(convention),)*2``.</span>
+<span class="sd">		ab : aberrations.Aberrations</span>
+<span class="sd">			The element's aberration function.</span>
+<span class="sd">		P : float</span>
+<span class="sd">			The pupil power (EFL power, or an ``AberrationScreen``'s</span>
+<span class="sd">			``pupil_power``).</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		tuple of xp.ndarray</span>
+<span class="sd">			``(M_l, C, D)`` — the matrix with the linear aberration kicks</span>
+<span class="sd">			folded in, the cross matrix ``C[a, b] = &lt;r_a delta_b&gt;``, and the</span>
+<span class="sd">			kick self-covariance ``D = &lt;delta deltaᵀ&gt;``.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		propagate_moments : The consumer.</span>
+<span class="sd">		_split_quadratic_aberrations : Supplies the linear (power-change) part.</span>
+<span class="sd">		aberrations.Aberrations.deflection_at : The per-ray form of the same kick.</span>
+<span class="sd">		"""</span>
+		<span class="n">ix</span><span class="p">,</span> <span class="n">ixt</span> <span class="o">=</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">),</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"xt"</span><span class="p">)</span>
+		<span class="n">iy</span><span class="p">,</span> <span class="n">iyt</span> <span class="o">=</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">),</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"yt"</span><span class="p">)</span>
+		<span class="c1"># linear terms (C10, aligned C12) are power changes: exact in the matrix</span>
+		<span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span><span class="p">,</span> <span class="n">residual</span> <span class="o">=</span> <span class="n">_split_quadratic_aberrations</span><span class="p">(</span><span class="n">ab</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">P</span><span class="p">)</span>
+		<span class="n">M_l</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+		<span class="n">M_l</span><span class="p">[</span><span class="n">ixt</span><span class="p">,</span> <span class="n">ix</span><span class="p">]</span> <span class="o">-=</span> <span class="p">(</span><span class="n">P_x</span> <span class="o">-</span> <span class="n">P</span><span class="p">)</span>
+		<span class="n">M_l</span><span class="p">[</span><span class="n">iyt</span><span class="p">,</span> <span class="n">iy</span><span class="p">]</span> <span class="o">-=</span> <span class="p">(</span><span class="n">P_y</span> <span class="o">-</span> <span class="n">P</span><span class="p">)</span>
+		<span class="n">C</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">M_l</span><span class="p">)</span>
+		<span class="n">D</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">M_l</span><span class="p">)</span>
+		<span class="n">c30</span> <span class="o">=</span> <span class="mf">0.0</span>
+		<span class="k">if</span> <span class="n">residual</span><span class="p">:</span>
+			<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">residual</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+				<span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s1">'C30'</span><span class="p">:</span>
+					<span class="n">c30</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">real</span>
+		<span class="k">if</span> <span class="n">c30</span><span class="p">:</span>
+			<span class="n">g</span> <span class="o">=</span> <span class="o">-</span><span class="n">c30</span> <span class="o">*</span> <span class="n">P</span><span class="o">**</span><span class="mi">4</span>
+			<span class="n">sx2</span><span class="p">,</span> <span class="n">cx</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">Sigma</span><span class="p">[</span><span class="n">ix</span><span class="p">,</span> <span class="n">ix</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">Sigma</span><span class="p">[</span><span class="n">ix</span><span class="p">,</span> <span class="n">ixt</span><span class="p">])</span>
+			<span class="n">sy2</span><span class="p">,</span> <span class="n">cy</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">Sigma</span><span class="p">[</span><span class="n">iy</span><span class="p">,</span> <span class="n">iy</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">Sigma</span><span class="p">[</span><span class="n">iy</span><span class="p">,</span> <span class="n">iyt</span><span class="p">])</span>
+			<span class="n">C</span><span class="p">[</span><span class="n">ix</span><span class="p">,</span> <span class="n">ixt</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span> <span class="o">*</span> <span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="n">sx2</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">sx2</span> <span class="o">*</span> <span class="n">sy2</span><span class="p">)</span>
+			<span class="n">C</span><span class="p">[</span><span class="n">ixt</span><span class="p">,</span> <span class="n">ixt</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span> <span class="o">*</span> <span class="n">cx</span> <span class="o">*</span> <span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="n">sx2</span> <span class="o">+</span> <span class="n">sy2</span><span class="p">)</span>
+			<span class="n">C</span><span class="p">[</span><span class="n">iy</span><span class="p">,</span> <span class="n">iyt</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span> <span class="o">*</span> <span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="n">sy2</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">sy2</span> <span class="o">*</span> <span class="n">sx2</span><span class="p">)</span>
+			<span class="n">C</span><span class="p">[</span><span class="n">iyt</span><span class="p">,</span> <span class="n">iyt</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span> <span class="o">*</span> <span class="n">cy</span> <span class="o">*</span> <span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="n">sy2</span> <span class="o">+</span> <span class="n">sx2</span><span class="p">)</span>
+			<span class="n">D</span><span class="p">[</span><span class="n">ixt</span><span class="p">,</span> <span class="n">ixt</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="mi">15</span> <span class="o">*</span> <span class="n">sx2</span><span class="o">**</span><span class="mi">3</span> <span class="o">+</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">sx2</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">sy2</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">sx2</span> <span class="o">*</span> <span class="n">sy2</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+			<span class="n">D</span><span class="p">[</span><span class="n">iyt</span><span class="p">,</span> <span class="n">iyt</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="mi">15</span> <span class="o">*</span> <span class="n">sy2</span><span class="o">**</span><span class="mi">3</span> <span class="o">+</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">sy2</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">sx2</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">sy2</span> <span class="o">*</span> <span class="n">sx2</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">M_l</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">D</span>
+
+<div class="viewcode-block" id="Element.zone_power_shift">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Element.zone_power_shift">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">zone_power_shift</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">h</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""Per-axis focal-power change this element applies to a pupil zone.</span>
+
+<span class="sd">		The analytic bridge from aberrations to ABCD optics: a ray in the</span>
+<span class="sd">		zone at height ``h`` picks up the extra deflection</span>
+<span class="sd">		:math:`\Delta\theta = (1/k)\nabla\chi`, and dividing by ``h`` turns</span>
+<span class="sd">		that into an equivalent **power change** for the zone,</span>
+<span class="sd">		:math:`\Delta P(h) = -\Delta\theta(h)/h` (spherical:</span>
+<span class="sd">		:math:`C_{30}P^4h^2`; defocus: :math:`C_{10}P^2`; and every other</span>
+<span class="sd">		term through :meth:`aberrations.Aberrations.deflection_at`, with no</span>
+<span class="sd">		per-term code). Zone-modified transfer blocks built from this are how</span>
+<span class="sd">		:meth:`assemblies.Microscope.focal_surface` computes the aberrated</span>
+<span class="sd">		focal surface in closed form.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		h : float</span>
+<span class="sd">			Zone height at this element (metres); the x value is evaluated at</span>
+<span class="sd">			``(h, 0)`` and the y value at ``(0, h)``.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		tuple of float</span>
+<span class="sd">			``(dP_x, dP_y)`` in 1/metres; ``(0, 0)`` for an ideal element,</span>
+<span class="sd">			zero pupil power, or ``h = 0`` (the axis has no zone).</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		aberration_kick : The same deflection, applied per ray.</span>
+<span class="sd">		assemblies.Microscope.focal_surface : The frame-method consumer.</span>
+<span class="sd">		"""</span>
+		<span class="n">ab</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span>
+		<span class="n">P</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"pupil_power"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_power"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">ab</span> <span class="ow">or</span> <span class="n">P</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">h</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="k">return</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span>
+		<span class="n">dxt_x</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">ab</span><span class="o">.</span><span class="n">deflection_at</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">h</span><span class="p">]),</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="mf">0.0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">P</span><span class="p">))</span>
+		<span class="n">_</span><span class="p">,</span> <span class="n">dyt_y</span> <span class="o">=</span> <span class="n">ab</span><span class="o">.</span><span class="n">deflection_at</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="mf">0.0</span><span class="p">]),</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">h</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">P</span><span class="p">))</span>
+		<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="o">-</span><span class="n">dxt_x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">h</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="o">-</span><span class="n">dyt_y</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">h</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Element.propagate_wave">

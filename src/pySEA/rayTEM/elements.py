@@ -1785,6 +1785,14 @@ class Element(SealedAttributes, SEASerializable):
 		(drift length, dipole tilt, ...). Covariance is invariant to the affine
 		offset a, so the mean is obtained by reusing :meth:propagate_ray.
 
+		An element carrying :attr:`aberrations` also updates the covariance
+		**analytically**: the first-order terms (``C10``, aligned ``C12``) are
+		linear kicks and fold into the matrix exactly, and the third-order
+		spherical term (``C30``) enters through a **Gaussian closure** — the
+		cross- and self-moments of the cubic kick reduce to closed-form
+		polynomials in Sigma by Isserlis' theorem (see
+		:meth:`_aberration_moment_pieces`). No sampling, no integrals.
+
 		Parameters
 		----------
 		mu : xp.ndarray
@@ -1801,16 +1809,160 @@ class Element(SealedAttributes, SEASerializable):
 		-------
 		propagate_ray : Ray transport sharing the same transfer matrix.
 		Source.moments : Seeds the initial (mu, Sigma).
+		_aberration_moment_pieces : The closure terms.
 
 		Notes
 		-----
 		Valid in the paraxial/linear regime, where the transfer matrix acts as a
-		linear map on phase space and a Gaussian ensemble stays Gaussian.
+		linear map on phase space and a Gaussian ensemble stays Gaussian. The
+		aberration closure is exact for a **centered** Gaussian with decoupled
+		transverse planes passing one aberrated element; through several
+		aberrated elements the beam re-Gaussianizes at each (the standard rms
+		treatment of nonlinearities). A thick body applies its aberration as if
+		thin at the element, the same first-order compromise the fixed wave
+		path makes; terms above third order are not closed here and are
+		ignored by this mode (the ray and wave paths carry them exactly).
 		"""
 		M = self.transfer_matrix()
-		Sigma_out = M @ Sigma @ M.T
+		ab = self.aberrations
+		P = getattr(self, "pupil_power", None) or (getattr(self, "focal_power", 0.0) or 0.0)
+		if not ab or P == 0:
+			Sigma_out = M @ Sigma @ M.T
+			mu_out = self.propagate_ray(mu.reshape(1, -1))[0]
+			return mu_out, Sigma_out
+		M_l, C, D = self._aberration_moment_pieces(M, Sigma, ab, float(P))
+		Sigma_out = M_l @ Sigma @ M_l.T + M_l @ C + C.T @ M_l.T + D
 		mu_out = self.propagate_ray(mu.reshape(1, -1))[0]
 		return mu_out, Sigma_out
+
+	def _aberration_moment_pieces(self, M:xp.ndarray, Sigma:xp.ndarray,
+								  ab, P:float) -> tuple:
+		r"""The closed-form covariance pieces of an aberrated element.
+
+		The aberrated map is :math:`r' = M_l r + \delta(r)` with the linear
+		aberration terms folded into :math:`M_l` and the cubic spherical kick
+
+		.. math::
+
+			\delta\theta_x = g\,(x^2{+}y^2)\,x, \qquad
+			\delta\theta_y = g\,(x^2{+}y^2)\,y, \qquad g = -C_{30}P^4
+
+		(the same expression :meth:`aberrations.Aberrations.deflection_at`
+		evaluates per ray). Its covariance contribution needs fourth and sixth
+		moments; for a **centered Gaussian with decoupled transverse planes**
+		Isserlis' theorem closes them on :math:`\Sigma` alone
+		(:math:`\langle x^4\rangle = 3\sigma_x^4`,
+		:math:`\langle x^6\rangle = 15\sigma_x^6`, ...):
+
+		.. math::
+
+			\langle x\,\delta\theta_x\rangle = g(3\sigma_x^4 +
+			   \sigma_x^2\sigma_y^2), \quad
+			\langle x'\delta\theta_x\rangle = g\,c_x(3\sigma_x^2 +
+			   \sigma_y^2), \quad
+			\langle\delta\theta_x^2\rangle = g^2(15\sigma_x^6 +
+			   6\sigma_x^4\sigma_y^2 + 3\sigma_x^2\sigma_y^4)
+
+		with :math:`c_x = \langle x x'\rangle`, and the y expressions by
+		exchange. Cross-plane pieces vanish for the decoupled case.
+
+		Parameters
+		----------
+		M : xp.ndarray
+			The element's ideal transfer matrix.
+		Sigma : xp.ndarray
+			Entrance covariance, shape ``(len(convention),)*2``.
+		ab : aberrations.Aberrations
+			The element's aberration function.
+		P : float
+			The pupil power (EFL power, or an ``AberrationScreen``'s
+			``pupil_power``).
+
+		Returns
+		-------
+		tuple of xp.ndarray
+			``(M_l, C, D)`` — the matrix with the linear aberration kicks
+			folded in, the cross matrix ``C[a, b] = <r_a delta_b>``, and the
+			kick self-covariance ``D = <delta deltaᵀ>``.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		propagate_moments : The consumer.
+		_split_quadratic_aberrations : Supplies the linear (power-change) part.
+		aberrations.Aberrations.deflection_at : The per-ray form of the same kick.
+		"""
+		ix, ixt = columnByName("x"), columnByName("xt")
+		iy, iyt = columnByName("y"), columnByName("yt")
+		# linear terms (C10, aligned C12) are power changes: exact in the matrix
+		P_x, P_y, residual = _split_quadratic_aberrations(ab, P, P, P)
+		M_l = xp.array(M, dtype=float)
+		M_l[ixt, ix] -= (P_x - P)
+		M_l[iyt, iy] -= (P_y - P)
+		C = xp.zeros_like(M_l)
+		D = xp.zeros_like(M_l)
+		c30 = 0.0
+		if residual:
+			for name, c in residual.items():
+				if name == 'C30':
+					c30 = c.real
+		if c30:
+			g = -c30 * P**4
+			sx2, cx = float(Sigma[ix, ix]), float(Sigma[ix, ixt])
+			sy2, cy = float(Sigma[iy, iy]), float(Sigma[iy, iyt])
+			C[ix, ixt] = g * (3 * sx2**2 + sx2 * sy2)
+			C[ixt, ixt] = g * cx * (3 * sx2 + sy2)
+			C[iy, iyt] = g * (3 * sy2**2 + sy2 * sx2)
+			C[iyt, iyt] = g * cy * (3 * sy2 + sx2)
+			D[ixt, ixt] = g**2 * (15 * sx2**3 + 6 * sx2**2 * sy2 + 3 * sx2 * sy2**2)
+			D[iyt, iyt] = g**2 * (15 * sy2**3 + 6 * sy2**2 * sx2 + 3 * sy2 * sx2**2)
+		return M_l, C, D
+
+	def zone_power_shift(self, h:float) -> tuple:
+		r"""Per-axis focal-power change this element applies to a pupil zone.
+
+		The analytic bridge from aberrations to ABCD optics: a ray in the
+		zone at height ``h`` picks up the extra deflection
+		:math:`\Delta\theta = (1/k)\nabla\chi`, and dividing by ``h`` turns
+		that into an equivalent **power change** for the zone,
+		:math:`\Delta P(h) = -\Delta\theta(h)/h` (spherical:
+		:math:`C_{30}P^4h^2`; defocus: :math:`C_{10}P^2`; and every other
+		term through :meth:`aberrations.Aberrations.deflection_at`, with no
+		per-term code). Zone-modified transfer blocks built from this are how
+		:meth:`assemblies.Microscope.focal_surface` computes the aberrated
+		focal surface in closed form.
+
+		Parameters
+		----------
+		h : float
+			Zone height at this element (metres); the x value is evaluated at
+			``(h, 0)`` and the y value at ``(0, h)``.
+
+		Returns
+		-------
+		tuple of float
+			``(dP_x, dP_y)`` in 1/metres; ``(0, 0)`` for an ideal element,
+			zero pupil power, or ``h = 0`` (the axis has no zone).
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		aberration_kick : The same deflection, applied per ray.
+		assemblies.Microscope.focal_surface : The frame-method consumer.
+		"""
+		ab = self.aberrations
+		P = getattr(self, "pupil_power", None) or (getattr(self, "focal_power", 0.0) or 0.0)
+		if not ab or P == 0 or h == 0:
+			return 0.0, 0.0
+		dxt_x, _ = ab.deflection_at(xp.asarray([h]), xp.asarray([0.0]), float(P))
+		_, dyt_y = ab.deflection_at(xp.asarray([0.0]), xp.asarray([h]), float(P))
+		return float(-dxt_x[0] / h), float(-dyt_y[0] / h)
 
 	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, log:list=None, absorb:float=0.1,
