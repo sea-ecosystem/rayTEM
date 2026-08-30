@@ -126,11 +126,12 @@ oscillation rate. It is the quantity the transfer matrix is written in
 onto, and the quantity a thick lens’s Larmor rotation is built from
 (<code class="docutils literal notranslate"><span class="pre">R</span> <span class="pre">=</span> <span class="pre">KL</span></code>). It is a property of the <em>field</em>, not of the imaging: two lenses
 with the same <code class="docutils literal notranslate"><span class="pre">K</span></code> but different lengths focus differently.</p>
-<p><strong>Focal length <code class="docutils literal notranslate"><span class="pre">f</span></code></strong> (m) is the classical light-optics quantity: the
-back-focal distance of the equivalent thin lens. It is what a microscopist
-quotes and what column geometry is designed around. For a thin element the
-two are tied by <code class="docutils literal notranslate"><span class="pre">1/f</span> <span class="pre">=</span> <span class="pre">sign(K)·K²</span></code>; for a thick body by Brown’s focusing
-relation</p>
+<p><strong>Focal length <code class="docutils literal notranslate"><span class="pre">f</span></code></strong> (m) is the classical light-optics quantity: the focal
+length of the equivalent thin lens (the EFL; the exit-face
+<code class="docutils literal notranslate"><span class="pre">back_focal_distance</span></code> is a separate number, next section). It is what a
+microscopist quotes and what column geometry is designed around. For a thin
+element the two are tied by <code class="docutils literal notranslate"><span class="pre">1/f</span> <span class="pre">=</span> <span class="pre">sign(K)·K²</span></code>; for a thick body by Brown’s
+focusing relation</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>1/f = K · sin(K·L)
 </pre></div>
 </div>
@@ -170,27 +171,45 @@ height <code class="docutils literal notranslate"><span class="pre">x</span> <sp
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><strong>EFL</strong> (effective focal length)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">h/θ</span></code> — height in vs. angle out, referenced to the principal plane</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">1/(K·sin</span> <span class="pre">KL)</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Lens.focal_power</span></code> = <code class="docutils literal notranslate"><span class="pre">K·sin(KL)</span></code></p></td>
+<tr class="row-even"><td><p><strong>Equivalent power</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">θ/h</span></code> — angle out per height in (<code class="docutils literal notranslate"><span class="pre">P</span> <span class="pre">=</span> <span class="pre">−C</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">K·sin(KL)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Lens.focal_power</span></code></p></td>
 <td><p>The <strong>angle</strong> number: the pupil scale for aberrations (<code class="docutils literal notranslate"><span class="pre">α</span> <span class="pre">=</span> <span class="pre">P·h</span></code> is the angle the ray <em>actually crosses the focus at</em>), the wave-path χ, and the power that composes additively</p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>BFD</strong> (back focal distance)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">x/θ</span></code> — exit face to the crossover</p></td>
+<tr class="row-odd"><td><p><strong>EFL</strong> (effective focal length)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">1/P</span></code>, referenced to the rear principal plane</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">1/(K·sin</span> <span class="pre">KL)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Lens.focal_length</span></code></p></td>
+<td><p>The conventional focal length of the equivalent thin lens</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>BFD</strong> (back focal distance)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">x/θ</span></code> — <strong>signed</strong> exit face to the BFP (<code class="docutils literal notranslate"><span class="pre">−A/C</span></code>)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">1/(K·tan</span> <span class="pre">KL)</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Lens.focal_length</span></code> (traced through the full matrix)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Lens.back_focal_distance</span></code></p></td>
 <td><p>The <strong>geometry</strong> number: where the focus physically sits — placing a sample or detector, bench comparison</p></td>
 </tr>
 </tbody>
 </table>
-<p>They differ by exactly <code class="docutils literal notranslate"><span class="pre">cos(KL)</span></code> (3.7× for an OL1-class lens with
-<code class="docutils literal notranslate"><span class="pre">KL</span> <span class="pre">≈</span> <span class="pre">1.3</span></code>) and coincide for a thin lens, which is why the distinction only
-matters once lenses have bodies. Consequently <strong><code class="docutils literal notranslate"><span class="pre">focal_power</span></code> is not
-<code class="docutils literal notranslate"><span class="pre">1/focal_length</span></code> for a thick lens</strong> — wiring them together silently rescales
-every aberration: a <code class="docutils literal notranslate"><span class="pre">C30</span></code> interpreted against the BFD power means a pupil
-angle <code class="docutils literal notranslate"><span class="pre">1/cos(KL)</span></code> larger than the beam actually has, and the ray-side kick
-coefficient scales as <code class="docutils literal notranslate"><span class="pre">P⁴</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">focal_power</span></code> and <code class="docutils literal notranslate"><span class="pre">focal_length</span></code> are exact reciprocals. It is
+<strong><code class="docutils literal notranslate"><span class="pre">back_focal_distance</span></code> that is not</strong>: EFL and BFD differ by exactly
+<code class="docutils literal notranslate"><span class="pre">cos(KL)</span></code> (3.7× for an OL1-class lens with <code class="docutils literal notranslate"><span class="pre">KL</span> <span class="pre">≈</span> <span class="pre">1.3</span></code>) and coincide for a
+thin lens, which is why the distinction only matters once lenses have
+bodies. Using <code class="docutils literal notranslate"><span class="pre">1/BFD</span></code> as the pupil scale silently rescales every
+aberration: a <code class="docutils literal notranslate"><span class="pre">C30</span></code> interpreted against the BFD power means a pupil angle
+<code class="docutils literal notranslate"><span class="pre">1/cos(KL)</span></code> larger than the beam actually has, and the ray-side kick
+coefficient scales as <code class="docutils literal notranslate"><span class="pre">P⁴</span></code>. The BFD is signed: for <code class="docutils literal notranslate"><span class="pre">π/2</span> <span class="pre">&lt;</span> <span class="pre">KL</span> <span class="pre">&lt;</span> <span class="pre">π</span></code> it goes
+<strong>negative</strong> — a <em>virtual</em> output-space BFP reached by backward drift
+extrapolation, while the physical parallel bundle has already crossed
+<em>inside</em> the body at <code class="docutils literal notranslate"><span class="pre">dz</span> <span class="pre">=</span> <span class="pre">π/(2K)</span></code> (located by <code class="docutils literal notranslate"><span class="pre">transfer_block(dz)</span></code>, never
+by the BFD). And the BFP (<code class="docutils literal notranslate"><span class="pre">A_total</span> <span class="pre">=</span> <span class="pre">0</span></code>, rays sharing one <em>angle</em> meet) is
+not an image plane (<code class="docutils literal notranslate"><span class="pre">B_total</span> <span class="pre">=</span> <span class="pre">0</span></code>, rays leaving one <em>object point</em> meet) —
+the two conditions are independent, which is exactly how
+<code class="docutils literal notranslate"><span class="pre">conjugate_planes</span></code> distinguishes its <code class="docutils literal notranslate"><span class="pre">diff</span></code> and <code class="docutils literal notranslate"><span class="pre">image</span></code> families.</p>
+<p>Explore all of this interactively — both ray families, either side of
+<code class="docutils literal notranslate"><span class="pre">KL</span> <span class="pre">=</span> <span class="pre">π/2</span></code> — in the
+<a href="_static/thick_lens_focal_geometry.html">thick-lens focal geometry
+figure</a>.</p>
 <section id="the-matrix-view-both-numbers-come-from-one-matrix">
 <h4>The matrix view: both numbers come from one matrix<a class="headerlink" href="#the-matrix-view-both-numbers-come-from-one-matrix" title="Link to this heading"></a></h4>
 <p>There is only one thick-lens matrix — the two focal quantities are two
@@ -208,9 +227,10 @@ below):</p>
 i.e. exit <strong>height</strong> <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=</span> <span class="pre">cos(KL)·h</span></code> (the <code class="docutils literal notranslate"><span class="pre">A</span></code> entry) and exit <strong>angle</strong>
 <code class="docutils literal notranslate"><span class="pre">θ</span> <span class="pre">=</span> <span class="pre">K·sin(KL)·h</span></code> (the <code class="docutils literal notranslate"><span class="pre">−C</span></code> entry). Then:</p>
 <ul class="simple">
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">focal_power</span> <span class="pre">=</span> <span class="pre">−C</span></code></strong> — angle out per height in, <code class="docutils literal notranslate"><span class="pre">K·sin(KL)</span></code>.</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">focal_length</span> <span class="pre">=</span> <span class="pre">A/(−C)</span></code></strong> — exit height over exit angle, the distance
-the ray still needs to reach the axis: <code class="docutils literal notranslate"><span class="pre">1/(K·tan</span> <span class="pre">KL)</span></code>.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">focal_power</span> <span class="pre">=</span> <span class="pre">−C</span></code></strong> — angle out per height in, <code class="docutils literal notranslate"><span class="pre">K·sin(KL)</span></code>;
+<code class="docutils literal notranslate"><span class="pre">focal_length</span></code> is its reciprocal, the EFL.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">back_focal_distance</span> <span class="pre">=</span> <span class="pre">−A/C</span></code></strong> — exit height over exit angle, the
+distance the ray still needs to reach the axis: <code class="docutils literal notranslate"><span class="pre">1/(K·tan</span> <span class="pre">KL)</span></code>, signed.</p></li>
 </ul>
 <p>Same matrix, one ray: one reading takes the angle row, the other the ratio.
 The <code class="docutils literal notranslate"><span class="pre">cos(KL)</span></code> connecting them is literally the <code class="docutils literal notranslate"><span class="pre">A</span></code> entry — how far inward

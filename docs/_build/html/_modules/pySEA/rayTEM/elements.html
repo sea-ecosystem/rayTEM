@@ -4017,29 +4017,27 @@
 
 	<span class="nd">@property</span>
 	<span class="k">def</span><span class="w"> </span><span class="nf">focal_power</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">		</span><span class="sa">r</span><span class="sd">"""The lens's **EFL** focusing power ``1/f_EFL`` (1/metres).</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The equivalent paraxial focal power ``P = -C`` (1/metres).</span>
 
-<span class="sd">		This is the effective-focal-length power — the ``-C`` entry of the</span>
-<span class="sd">		transfer block: a parallel ray at height ``h`` leaves the lens (and</span>
-<span class="sd">		crosses the axis) at angle ``theta = P*h``. Thin lens:</span>
-<span class="sd">		``1/focal_length``. Thick lens: Brown's focusing relation</span>
-<span class="sd">		``K*sin(K*L)``.</span>
+<span class="sd">		The lens's matrix maps the entrance face to the exit face; for an</span>
+<span class="sd">		on-axis parallel ray at height ``h``, the exit angle is</span>
+<span class="sd">		``x' = C*h = -P*h``. So ``P`` converts entrance pupil height into</span>
+<span class="sd">		the converging exit angle — the angle the ray actually crosses the</span>
+<span class="sd">		focus at — which is why it is the scale used by the ray- and</span>
+<span class="sd">		wave-path aberration expressions, and the quantity that composes</span>
+<span class="sd">		additively when lenses stack. Thin lens: ``1/focal_length``. Thick</span>
+<span class="sd">		lens: Brown's focusing relation ``K*sin(K*L)``.</span>
 
-<span class="sd">		**This is deliberately NOT ``1/focal_length`` for a thick lens.**</span>
-<span class="sd">		:attr:`focal_length` is the *measured back-focal distance* (exit face</span>
-<span class="sd">		to crossover, ``1/(K*tan(K*L))`` for a thick body) — the geometry</span>
-<span class="sd">		number, for placing a sample or detector. ``focal_power`` is the</span>
-<span class="sd">		*angle* number: it converts ray height to the physical pupil angle,</span>
-<span class="sd">		which is what the aberration machinery (:meth:`aberration_kick`,</span>
-<span class="sd">		:meth:`phase_shift`, :meth:`aberration_powers`) must scale against,</span>
-<span class="sd">		and it is the quantity that composes additively. The two coincide for</span>
-<span class="sd">		a thin lens and differ by ``cos(K*L)`` for a thick one. See the</span>
-<span class="sd">		Terminology page of the docs for the full derivation.</span>
+<span class="sd">		This is reciprocal to :attr:`focal_length` (the EFL), but generally</span>
+<span class="sd">		**not** reciprocal to :attr:`back_focal_distance` for a thick lens</span>
+<span class="sd">		(the two differ by ``cos(K*L)``). See the Terminology page of the</span>
+<span class="sd">		docs for the full derivation.</span>
 
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
 <span class="sd">		float</span>
-<span class="sd">			EFL power ``1/f`` (1/metres); 0 for a zero-strength lens.</span>
+<span class="sd">			Equivalent power ``P = -C`` (1/metres); 0 for a zero-strength</span>
+<span class="sd">			lens.</span>
 
 <span class="sd">		Raises</span>
 <span class="sd">		------</span>
@@ -4047,7 +4045,8 @@
 
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
-<span class="sd">		focal_length : The measured back-focal distance (the geometry number).</span>
+<span class="sd">		focal_length : The EFL, ``1/focal_power``.</span>
+<span class="sd">		back_focal_distance : The exit-face-to-BFP geometry number.</span>
 <span class="sd">		aberration_kick : Consumes this as the pupil scale on the ray path.</span>
 <span class="sd">		phase_shift : Consumes this on the wave path.</span>
 <span class="sd">		"""</span>
@@ -4117,29 +4116,25 @@
 
 	<span class="nd">@property</span>
 	<span class="k">def</span><span class="w"> </span><span class="nf">focal_length</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">		</span><span class="sa">r</span><span class="sd">"""The **measured back-focal distance** (metres).</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The effective focal length (EFL), ``f = -1/C`` (metres).</span>
 
-<span class="sd">		Traced, not assumed: a parallel unit ray goes through the full</span>
-<span class="sd">		transfer matrix and the crossover distance ``x/theta`` at the exit</span>
-<span class="sd">		face is returned (magnitudes across both axes, so the thick lens's</span>
-<span class="sd">		Larmor rotation cancels). For a thin lens this is the stored</span>
-<span class="sd">		definition ``_focal_length``; for a thick body it works out to</span>
-<span class="sd">		``cos(K*L)/(K*sin(K*L)) = 1/(K*tan(K*L))`` — the distance from the</span>
-<span class="sd">		**exit face** to where a parallel beam actually focuses. That is the</span>
-<span class="sd">		bench/geometry number: use it to place a sample or detector.</span>
+<span class="sd">		The conventional focal length of the equivalent paraxial system,</span>
+<span class="sd">		referenced to the **rear principal plane** (which sits inside a</span>
+<span class="sd">		thick body). It satisfies ``focal_length == 1/focal_power`` for</span>
+<span class="sd">		nonzero power: thin lens, the stored definition ``_focal_length``;</span>
+<span class="sd">		thick lens, ``1/(K*sin(K*L))``.</span>
 
-<span class="sd">		**Not the reciprocal of** :attr:`focal_power` for a thick lens:</span>
-<span class="sd">		``focal_power`` is the EFL power ``K*sin(K*L)`` (referenced to the</span>
-<span class="sd">		principal plane), the number that gives the physical crossing angle</span>
-<span class="sd">		``theta = P*h`` and scales aberrations. The two differ by</span>
-<span class="sd">		``cos(K*L)``; see the Terminology docs page.</span>
+<span class="sd">		It is **not** generally the distance from the exit face to the back</span>
+<span class="sd">		focal plane — for a thick lens that geometry number is smaller by</span>
+<span class="sd">		``cos(K*L)``. Use :attr:`back_focal_distance` for placing a sample</span>
+<span class="sd">		or detector.</span>
 
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
 <span class="sd">		float</span>
-<span class="sd">			Back-focal distance in metres; ``inf`` at zero strength. Thin</span>
-<span class="sd">			lenses return the signed stored value when ``allow_diverging``,</span>
-<span class="sd">			else its magnitude.</span>
+<span class="sd">			EFL in metres; ``inf`` at zero strength. Thin lenses return the</span>
+<span class="sd">			signed stored value when ``allow_diverging``, else its</span>
+<span class="sd">			magnitude.</span>
 
 <span class="sd">		Raises</span>
 <span class="sd">		------</span>
@@ -4147,19 +4142,62 @@
 
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
-<span class="sd">		focal_power : The EFL power (the angle/aberration number).</span>
-<span class="sd">		transfer_matrix : What the measuring ray is traced through.</span>
+<span class="sd">		focal_power : Its reciprocal, ``P = -C``.</span>
+<span class="sd">		back_focal_distance : The exit-face-to-BFP geometry number.</span>
 <span class="sd">		"""</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
 			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_focal_length</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">allow_diverging</span> <span class="k">else</span> <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_focal_length</span><span class="p">)</span>
-		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">calibrated_strength</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+		<span class="n">K</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calibrated_strength</span>
+		<span class="k">if</span> <span class="n">K</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
 			<span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">inf</span>
-		<span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"x"</span><span class="p">,</span> <span class="s2">"xt"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">,</span> <span class="s2">"yt"</span><span class="p">]]</span>
-		<span class="n">M</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transfer_matrix</span><span class="p">()[</span><span class="n">columns</span><span class="p">,</span> <span class="p">:][:,</span> <span class="n">columns</span><span class="p">]</span>
-		<span class="n">r1</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
-		<span class="n">x</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">r1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">r1</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-		<span class="n">xt</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">r1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">r1</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-		<span class="k">return</span> <span class="n">x</span> <span class="o">/</span> <span class="n">xt</span>
+		<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="n">xp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">)))</span>
+
+	<span class="nd">@property</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">back_focal_distance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The signed back focal distance, ``BFD = -A/C`` (metres).</span>
+
+<span class="sd">		Referenced to the lens **exit face**: it is the output drift ``b``</span>
+<span class="sd">		for which the accumulated ``A + b*C = 0``, so rays sharing one</span>
+<span class="sd">		incident angle meet at one position in the back focal plane. For a</span>
+<span class="sd">		parallel input at height ``h`` the exit state is</span>
+<span class="sd">		``(A*h, C*h) = (cos(KL)*h, -K*sin(KL)*h)``, giving</span>
+<span class="sd">		``BFD = cos(K*L)/(K*sin(K*L)) = 1/(K*tan(K*L))`` for a thick body</span>
+<span class="sd">		and ``BFD == focal_length`` for a thin lens. This is the geometry</span>
+<span class="sd">		number: use it to place a sample or detector after the lens.</span>
+
+<span class="sd">		**Positive** BFD is a real downstream BFP. **Negative** BFD</span>
+<span class="sd">		(``pi/2 &lt; K*L &lt; pi``) is a *virtual* output-space BFP obtained by</span>
+<span class="sd">		backward drift extrapolation of the exit rays — the physical</span>
+<span class="sd">		parallel bundle has already crossed *inside* the body, at</span>
+<span class="sd">		``dz = pi/(2K)``. A negative BFD is not an in-body crossover</span>
+<span class="sd">		locator; physical interior planes come from :meth:`transfer_block`</span>
+<span class="sd">		at partial length or the plane-finding machinery.</span>
+
+<span class="sd">		Generally **not** reciprocal to :attr:`focal_power` for a thick</span>
+<span class="sd">		lens (the two products give ``cos(K*L)``, the ``A`` entry).</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		float</span>
+<span class="sd">			Signed exit-face-to-BFP distance in metres; ``inf`` at zero</span>
+<span class="sd">			strength.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		focal_length : The EFL (principal-plane referenced).</span>
+<span class="sd">		focal_power : The equivalent power ``-C`` (the aberration scale).</span>
+<span class="sd">		transfer_block : Locates physical planes inside the body.</span>
+<span class="sd">		"""</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">focal_length</span>
+		<span class="n">K</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calibrated_strength</span>
+		<span class="k">if</span> <span class="n">K</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">inf</span>
+		<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="n">xp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">)))</span>
 
 
 	<span class="c1"># unlike below(?), here we'll *measure* focal length at the current K=I*C and L, then adjust C and L to preserve focal length and set beam rotation (K*L) to match R in radians at this current I.</span>

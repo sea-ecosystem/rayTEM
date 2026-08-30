@@ -2639,9 +2639,11 @@ def test_merging_a_complex_screen_into_a_real_volume_converts_it_meaningfully():
 def _thick_strength(f: float, L: float) -> float:
 	"""Strength K solving the back-focal relation ``1/f = K tan(K L)``.
 
-	The tests build thick lenses by focal length, and `Lens.focal_length` uses
-	that relation, so inverting it here keeps a test lens's f meaning what it
-	says rather than being whatever `sqrt(1/f)` happens to give for a body.
+	The tests here build thick lenses by their exit-face-to-focus distance,
+	i.e. `Lens.back_focal_distance`, so inverting that relation keeps a test
+	lens's f meaning what it says rather than being whatever `sqrt(1/f)`
+	happens to give for a body. (The EFL inverse, `1/f = K sin(K L)`, lives
+	in `basic_column.strength_for_focal_length`.)
 	"""
 	from scipy.optimize import brentq
 	return float(brentq(lambda K: K * np.tan(K * L) - 1.0 / f, 1e-6, np.pi / (2 * L) - 1e-6))

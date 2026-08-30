@@ -35,14 +35,14 @@
 |   `Dipole.transfer_matrix(self)` | 387 |
 |   `Dipole.propagate_ray(self, r0, z, z0)` | 391 |
 | Lens | 397 |
-|   `Lens.__init__(self, name, length, strength, calibration, position)` | 417 |
-|   `Lens.transfer_matrix(self)` | 425 |
-|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 432 |
-| Prism | 438 |
-|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 442 |
-|   `Prism.focus_matrix(self)` | 446 |
-|   `Prism.bending_matrix(self, s)` | 450 |
-|   `Prism.transfer_matrix(self)` | 454 |
+|   `Lens.__init__(self, name, length, strength, calibration, position)` | 420 |
+|   `Lens.transfer_matrix(self)` | 428 |
+|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 435 |
+| Prism | 441 |
+|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 445 |
+|   `Prism.focus_matrix(self)` | 449 |
+|   `Prism.bending_matrix(self, s)` | 453 |
+|   `Prism.transfer_matrix(self)` | 457 |
 <!-- END AUTO-GENERATED TOC -->
 
 # elements.py
@@ -398,21 +398,24 @@ Overrides the base class. Appends a column of ones to `r0` to form `r0_aug` `(N,
 
 Round (symmetric) magnetic lens. The dominant optic in TEM columns. A thick lens additionally rotates the beam by angle `K*L` radians (Larmor rotation) — this is tracked in the `R` column via `Element.propagate_ray`.
 
-**Two focal quantities, deliberately decoupled for thick lenses**
-(2026-08-29): `focal_length` is the *measured back-focal distance* — a
-parallel unit ray traced through the full matrix, `x/θ` at the exit face,
-`1/(K·tan KL)` for a thick body — the geometry number (place a sample or
-detector with it). `focal_power` is the *EFL power* `K·sin(KL)` (thin:
-`1/focal_length`) — the angle number: a parallel ray at height `h` crosses
-the focus at exactly `θ = focal_power·h`, so it is the pupil scale every
-aberration consumes (`aberration_kick`, `phase_shift`,
-`aberration_powers`) and the power that composes additively. They differ by
-`cos(KL)` and coincide for thin lenses. Wiring `focal_power = 1/focal_length`
-(briefly true after the measured-focal_length merge) silently rescaled thick
-lens aberrations by `1/cos(KL)` in the pupil (P⁴ in the ray-kick
-coefficient); a regression test now pins the split
-(`test_thick_lens_efl_vs_bfd_split`). Full derivation: the docs Terminology
-page, "EFL vs BFD".
+**Three focal quantities** (2026-08-30, the settled naming):
+`focal_power = −C = K·sin(KL)` is the equivalent power — a parallel ray at
+height `h` crosses the focus at exactly `θ = focal_power·h`, so it is the
+pupil scale every aberration consumes (`aberration_kick`, `phase_shift`,
+`aberration_powers`) and the power that composes additively.
+`focal_length = 1/focal_power` is the conventional EFL (rear-principal-plane
+referenced; thin lenses keep the stored `_focal_length` with
+`allow_diverging` sign handling) — the two are exact reciprocals.
+`back_focal_distance = −A/C = 1/(K·tan KL)` is the **signed** exit-face-to-BFP
+distance — the geometry number (place a sample or detector with it); it is
+NOT reciprocal to `focal_power` (their product is `A = cos KL`), goes
+negative for `π/2 < KL < π` (virtual BFP; the real crossover is in-body at
+`dz = π/2K`, located by `transfer_block`), and equals `focal_length` for a
+thin lens. Using `1/back_focal_distance` as the pupil scale rescales thick
+lens aberrations by `1/cos(KL)` (P⁴ in the ray-kick coefficient) — tests
+`test_thick_lens_efl_vs_bfd_split` and
+`test_strong_lens_virtual_bfp_vs_internal_crossover` pin all of this. Full
+derivation + interactive figure: the docs Terminology page, "EFL vs BFD".
 
 ### `Lens.__init__(self, name, length, strength, calibration, position)`
 

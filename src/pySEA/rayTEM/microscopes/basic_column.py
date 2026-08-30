@@ -65,7 +65,9 @@ def strength_for_focal_length(f: float, length: float) -> float:
 	.. math:: 1/f = K \sin(K L),
 
 	on the first branch ``K L < π/2``, so a physical bore length can be kept
-	while specifying optics by focal length.
+	while specifying optics by focal length. The ``f`` here is the **EFL**
+	(``Lens.focal_length``, the reciprocal of ``Lens.focal_power``) — not the
+	exit-face ``Lens.back_focal_distance``, which is smaller by ``cos(K·L)``.
 
 	Parameters
 	----------

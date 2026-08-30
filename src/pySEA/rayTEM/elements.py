@@ -3762,29 +3762,27 @@ class Lens(Element):
 
 	@property
 	def focal_power(self) -> float:
-		r"""The lens's **EFL** focusing power ``1/f_EFL`` (1/metres).
+		r"""The equivalent paraxial focal power ``P = -C`` (1/metres).
 
-		This is the effective-focal-length power — the ``-C`` entry of the
-		transfer block: a parallel ray at height ``h`` leaves the lens (and
-		crosses the axis) at angle ``theta = P*h``. Thin lens:
-		``1/focal_length``. Thick lens: Brown's focusing relation
-		``K*sin(K*L)``.
+		The lens's matrix maps the entrance face to the exit face; for an
+		on-axis parallel ray at height ``h``, the exit angle is
+		``x' = C*h = -P*h``. So ``P`` converts entrance pupil height into
+		the converging exit angle — the angle the ray actually crosses the
+		focus at — which is why it is the scale used by the ray- and
+		wave-path aberration expressions, and the quantity that composes
+		additively when lenses stack. Thin lens: ``1/focal_length``. Thick
+		lens: Brown's focusing relation ``K*sin(K*L)``.
 
-		**This is deliberately NOT ``1/focal_length`` for a thick lens.**
-		:attr:`focal_length` is the *measured back-focal distance* (exit face
-		to crossover, ``1/(K*tan(K*L))`` for a thick body) — the geometry
-		number, for placing a sample or detector. ``focal_power`` is the
-		*angle* number: it converts ray height to the physical pupil angle,
-		which is what the aberration machinery (:meth:`aberration_kick`,
-		:meth:`phase_shift`, :meth:`aberration_powers`) must scale against,
-		and it is the quantity that composes additively. The two coincide for
-		a thin lens and differ by ``cos(K*L)`` for a thick one. See the
-		Terminology page of the docs for the full derivation.
+		This is reciprocal to :attr:`focal_length` (the EFL), but generally
+		**not** reciprocal to :attr:`back_focal_distance` for a thick lens
+		(the two differ by ``cos(K*L)``). See the Terminology page of the
+		docs for the full derivation.
 
 		Returns
 		-------
 		float
-			EFL power ``1/f`` (1/metres); 0 for a zero-strength lens.
+			Equivalent power ``P = -C`` (1/metres); 0 for a zero-strength
+			lens.
 
 		Raises
 		------
@@ -3792,7 +3790,8 @@ class Lens(Element):
 
 		Related
 		-------
-		focal_length : The measured back-focal distance (the geometry number).
+		focal_length : The EFL, ``1/focal_power``.
+		back_focal_distance : The exit-face-to-BFP geometry number.
 		aberration_kick : Consumes this as the pupil scale on the ray path.
 		phase_shift : Consumes this on the wave path.
 		"""
@@ -3859,29 +3858,25 @@ class Lens(Element):
 
 	@property
 	def focal_length(self):
-		r"""The **measured back-focal distance** (metres).
+		r"""The effective focal length (EFL), ``f = -1/C`` (metres).
 
-		Traced, not assumed: a parallel unit ray goes through the full
-		transfer matrix and the crossover distance ``x/theta`` at the exit
-		face is returned (magnitudes across both axes, so the thick lens's
-		Larmor rotation cancels). For a thin lens this is the stored
-		definition ``_focal_length``; for a thick body it works out to
-		``cos(K*L)/(K*sin(K*L)) = 1/(K*tan(K*L))`` — the distance from the
-		**exit face** to where a parallel beam actually focuses. That is the
-		bench/geometry number: use it to place a sample or detector.
+		The conventional focal length of the equivalent paraxial system,
+		referenced to the **rear principal plane** (which sits inside a
+		thick body). It satisfies ``focal_length == 1/focal_power`` for
+		nonzero power: thin lens, the stored definition ``_focal_length``;
+		thick lens, ``1/(K*sin(K*L))``.
 
-		**Not the reciprocal of** :attr:`focal_power` for a thick lens:
-		``focal_power`` is the EFL power ``K*sin(K*L)`` (referenced to the
-		principal plane), the number that gives the physical crossing angle
-		``theta = P*h`` and scales aberrations. The two differ by
-		``cos(K*L)``; see the Terminology docs page.
+		It is **not** generally the distance from the exit face to the back
+		focal plane — for a thick lens that geometry number is smaller by
+		``cos(K*L)``. Use :attr:`back_focal_distance` for placing a sample
+		or detector.
 
 		Returns
 		-------
 		float
-			Back-focal distance in metres; ``inf`` at zero strength. Thin
-			lenses return the signed stored value when ``allow_diverging``,
-			else its magnitude.
+			EFL in metres; ``inf`` at zero strength. Thin lenses return the
+			signed stored value when ``allow_diverging``, else its
+			magnitude.
 
 		Raises
 		------
@@ -3889,19 +3884,62 @@ class Lens(Element):
 
 		Related
 		-------
-		focal_power : The EFL power (the angle/aberration number).
-		transfer_matrix : What the measuring ray is traced through.
+		focal_power : Its reciprocal, ``P = -C``.
+		back_focal_distance : The exit-face-to-BFP geometry number.
 		"""
 		if self.length == 0:
 			return self._focal_length if self.allow_diverging else abs(self._focal_length)
-		if self.calibrated_strength == 0:
+		K = self.calibrated_strength
+		if K == 0:
 			return xp.inf
-		columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]
-		M = self.transfer_matrix()[columns, :][:, columns]
-		r1 = xp.matmul(M, [1, 0, 1, 0])
-		x = xp.sqrt(r1[0]**2 + r1[2]**2)
-		xt = xp.sqrt(r1[1]**2 + r1[3]**2)
-		return x / xt
+		return float(1.0 / (K * xp.sin(K * self.length)))
+
+	@property
+	def back_focal_distance(self):
+		r"""The signed back focal distance, ``BFD = -A/C`` (metres).
+
+		Referenced to the lens **exit face**: it is the output drift ``b``
+		for which the accumulated ``A + b*C = 0``, so rays sharing one
+		incident angle meet at one position in the back focal plane. For a
+		parallel input at height ``h`` the exit state is
+		``(A*h, C*h) = (cos(KL)*h, -K*sin(KL)*h)``, giving
+		``BFD = cos(K*L)/(K*sin(K*L)) = 1/(K*tan(K*L))`` for a thick body
+		and ``BFD == focal_length`` for a thin lens. This is the geometry
+		number: use it to place a sample or detector after the lens.
+
+		**Positive** BFD is a real downstream BFP. **Negative** BFD
+		(``pi/2 < K*L < pi``) is a *virtual* output-space BFP obtained by
+		backward drift extrapolation of the exit rays — the physical
+		parallel bundle has already crossed *inside* the body, at
+		``dz = pi/(2K)``. A negative BFD is not an in-body crossover
+		locator; physical interior planes come from :meth:`transfer_block`
+		at partial length or the plane-finding machinery.
+
+		Generally **not** reciprocal to :attr:`focal_power` for a thick
+		lens (the two products give ``cos(K*L)``, the ``A`` entry).
+
+		Returns
+		-------
+		float
+			Signed exit-face-to-BFP distance in metres; ``inf`` at zero
+			strength.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		focal_length : The EFL (principal-plane referenced).
+		focal_power : The equivalent power ``-C`` (the aberration scale).
+		transfer_block : Locates physical planes inside the body.
+		"""
+		if self.length == 0:
+			return self.focal_length
+		K = self.calibrated_strength
+		if K == 0:
+			return xp.inf
+		return float(xp.cos(K * self.length) / (K * xp.sin(K * self.length)))
 
 
 	# unlike below(?), here we'll *measure* focal length at the current K=I*C and L, then adjust C and L to preserve focal length and set beam rotation (K*L) to match R in radians at this current I.

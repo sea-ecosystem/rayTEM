@@ -256,7 +256,7 @@
     "name": "build_basic_column",
     "qualname": "build_basic_column",
     "path": "src/pySEA/rayTEM/microscopes/basic_column.py",
-    "source_lineno": 164,
+    "source_lineno": 166,
     "signature": "build_basic_column(voltage)",
     "doc": "Assemble the default generic TEM column."
   },
@@ -382,7 +382,7 @@
     "name": "dipole_pair",
     "qualname": "dipole_pair",
     "path": "src/pySEA/rayTEM/microscopes/basic_column.py",
-    "source_lineno": 119,
+    "source_lineno": 121,
     "signature": "dipole_pair(name, strength)",
     "doc": "Build a dipole pair: two thin dipoles rotated 45\u00b0 in the same plane."
   },
@@ -1327,7 +1327,7 @@
     "name": "Prism",
     "qualname": "Prism",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4235,
+    "source_lineno": 4273,
     "signature": "class Prism",
     "doc": ""
   },
@@ -1462,7 +1462,7 @@
     "name": "quadrupole_pair",
     "qualname": "quadrupole_pair",
     "path": "src/pySEA/rayTEM/microscopes/basic_column.py",
-    "source_lineno": 141,
+    "source_lineno": 143,
     "signature": "quadrupole_pair(name, strength)",
     "doc": "Build a quadrupole pair: two thin quadrupoles of opposite-sign strength."
   },
@@ -1615,7 +1615,7 @@
     "name": "round_lens",
     "qualname": "round_lens",
     "path": "src/pySEA/rayTEM/microscopes/basic_column.py",
-    "source_lineno": 99,
+    "source_lineno": 101,
     "signature": "round_lens(name, f, length)",
     "doc": "Build a thick round lens specified by focal length."
   },
@@ -1867,7 +1867,7 @@
     "name": "test_a_sub_nanometre_drift_actually_propagates",
     "qualname": "test_a_sub_nanometre_drift_actually_propagates",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2696,
+    "source_lineno": 2698,
     "signature": "test_a_sub_nanometre_drift_actually_propagates()",
     "doc": ""
   },
@@ -1885,7 +1885,7 @@
     "name": "test_a_thick_medium_still_applies_its_screen",
     "qualname": "test_a_thick_medium_still_applies_its_screen",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2650,
+    "source_lineno": 2652,
     "signature": "test_a_thick_medium_still_applies_its_screen()",
     "doc": ""
   },
@@ -1939,7 +1939,7 @@
     "name": "test_aligned_C12_makes_two_line_foci",
     "qualname": "test_aligned_C12_makes_two_line_foci",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2744,
+    "source_lineno": 2746,
     "signature": "test_aligned_C12_makes_two_line_foci()",
     "doc": ""
   },
@@ -2101,7 +2101,7 @@
     "name": "test_beam_current_is_in_amps_and_apertures_take_it_away",
     "qualname": "test_beam_current_is_in_amps_and_apertures_take_it_away",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2952,
+    "source_lineno": 2954,
     "signature": "test_beam_current_is_in_amps_and_apertures_take_it_away()",
     "doc": ""
   },
@@ -2110,7 +2110,7 @@
     "name": "test_beam_current_survives_a_sea_round_trip",
     "qualname": "test_beam_current_survives_a_sea_round_trip",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 3147,
+    "source_lineno": 3149,
     "signature": "test_beam_current_survives_a_sea_round_trip(tmp_path)",
     "doc": ""
   },
@@ -2191,7 +2191,7 @@
     "name": "test_coma_is_even_order_and_spherical_is_odd",
     "qualname": "test_coma_is_even_order_and_spherical_is_odd",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2791,
+    "source_lineno": 2793,
     "signature": "test_coma_is_even_order_and_spherical_is_odd()",
     "doc": ""
   },
@@ -2245,7 +2245,7 @@
     "name": "test_convergence_angle_is_a_semi_angle_and_a_total_deflection",
     "qualname": "test_convergence_angle_is_a_semi_angle_and_a_total_deflection",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2911,
+    "source_lineno": 2913,
     "signature": "test_convergence_angle_is_a_semi_angle_and_a_total_deflection()",
     "doc": ""
   },
@@ -2335,7 +2335,7 @@
     "name": "test_element_beam_current_is_derived_from_the_source",
     "qualname": "test_element_beam_current_is_derived_from_the_source",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 3107,
+    "source_lineno": 3109,
     "signature": "test_element_beam_current_is_derived_from_the_source()",
     "doc": ""
   },
@@ -2407,7 +2407,7 @@
     "name": "test_every_element_kind_can_be_reloaded",
     "qualname": "test_every_element_kind_can_be_reloaded",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 3004,
+    "source_lineno": 3006,
     "signature": "test_every_element_kind_can_be_reloaded()",
     "doc": ""
   },
@@ -2437,6 +2437,15 @@
     "source_lineno": 104,
     "signature": "test_fixed_path_refactor_regression()",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_focal_properties_round_trip",
+    "qualname": "test_focal_properties_round_trip",
+    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 565,
+    "signature": "test_focal_properties_round_trip()",
+    "doc": "A thin lens defined by focal_length keeps all three focal numbers"
   },
   {
     "kind": "function",
@@ -2470,7 +2479,7 @@
     "name": "test_focus_error_finds_the_first_crossover_after_the_condenser",
     "qualname": "test_focus_error_finds_the_first_crossover_after_the_condenser",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2880,
+    "source_lineno": 2882,
     "signature": "test_focus_error_finds_the_first_crossover_after_the_condenser()",
     "doc": ""
   },
@@ -2524,7 +2533,7 @@
     "name": "test_gun_is_a_source_and_survives_a_round_trip",
     "qualname": "test_gun_is_a_source_and_survives_a_round_trip",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 3089,
+    "source_lineno": 3091,
     "signature": "test_gun_is_a_source_and_survives_a_round_trip(tmp_path)",
     "doc": ""
   },
@@ -2911,7 +2920,7 @@
     "name": "test_sections_and_microscopes_refuse_unknown_attributes_too",
     "qualname": "test_sections_and_microscopes_refuse_unknown_attributes_too",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2863,
+    "source_lineno": 2865,
     "signature": "test_sections_and_microscopes_refuse_unknown_attributes_too()",
     "doc": ""
   },
@@ -2947,7 +2956,7 @@
     "name": "test_setting_an_unknown_attribute_is_refused",
     "qualname": "test_setting_an_unknown_attribute_is_refused",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2810,
+    "source_lineno": 2812,
     "signature": "test_setting_an_unknown_attribute_is_refused()",
     "doc": ""
   },
@@ -2983,7 +2992,7 @@
     "name": "test_skew_C12_rotates_the_line_foci_by_45_degrees",
     "qualname": "test_skew_C12_rotates_the_line_foci_by_45_degrees",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2773,
+    "source_lineno": 2775,
     "signature": "test_skew_C12_rotates_the_line_foci_by_45_degrees()",
     "doc": ""
   },
@@ -3025,6 +3034,15 @@
   },
   {
     "kind": "function",
+    "name": "test_strong_lens_virtual_bfp_vs_internal_crossover",
+    "qualname": "test_strong_lens_virtual_bfp_vs_internal_crossover",
+    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 543,
+    "signature": "test_strong_lens_virtual_bfp_vs_internal_crossover()",
+    "doc": "Past KL = pi/2 the BFD goes virtual; the real crossover is in-body."
+  },
+  {
+    "kind": "function",
     "name": "test_strong_stigmator_absorbed_runs",
     "qualname": "test_strong_stigmator_absorbed_runs",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -3055,7 +3073,7 @@
     "name": "test_the_wave_carries_current_too",
     "qualname": "test_the_wave_carries_current_too",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 3038,
+    "source_lineno": 3040,
     "signature": "test_the_wave_carries_current_too()",
     "doc": ""
   },
@@ -3084,7 +3102,7 @@
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
     "source_lineno": 500,
     "signature": "test_thick_lens_efl_vs_bfd_split()",
-    "doc": "focal_power is the EFL power (the pupil angle); focal_length the BFD."
+    "doc": "The three focal quantities and their matrix definitions."
   },
   {
     "kind": "function",

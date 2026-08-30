@@ -498,20 +498,25 @@ def test_microscope_index_raises():
 
 
 def test_thick_lens_efl_vs_bfd_split():
-	"""focal_power is the EFL power (the pupil angle); focal_length the BFD.
+	"""The three focal quantities and their matrix definitions.
 
-	A parallel ray at height h crosses the axis at angle K*sin(KL)*h -- that
-	angle is what aberrations scale against, so focal_power must be the EFL
-	power. focal_length is the measured exit-face-to-crossover distance,
-	1/(K*tan(KL)). The two are deliberately NOT reciprocals for a thick lens
-	(they differ by cos(KL)); for a thin lens they coincide.
+	focal_power = -C = K*sin(KL) (the equivalent power, the pupil-angle
+	scale); focal_length = 1/focal_power (the EFL, principal-plane
+	referenced); back_focal_distance = -A/C = 1/(K*tan(KL)) (signed, exit
+	face to BFP). focal_power and focal_length are reciprocals;
+	back_focal_distance is NOT (their product is A = cos(KL)).
 	"""
 	K, L = 129.80, 0.010
 	lens = Lens(strength=K, length=L)
+	# 1. matrix definitions
 	assert lens.focal_power == pytest.approx(K * np.sin(K * L))
-	assert lens.focal_length == pytest.approx(1 / (K * np.tan(K * L)))
-	assert lens.focal_power * lens.focal_length == pytest.approx(np.cos(K * L))
-	# the traced crossing angle IS focal_power * h (Larmor-safe via hypot)
+	assert lens.focal_length == pytest.approx(1 / lens.focal_power)
+	assert lens.back_focal_distance == pytest.approx(1 / (K * np.tan(K * L)))
+	# 2. thick-lens relationship: BFD = A * EFL
+	assert lens.back_focal_distance == pytest.approx(np.cos(K * L) * lens.focal_length)
+	assert lens.focal_power * lens.back_focal_distance == pytest.approx(np.cos(K * L))
+	# 3. the traced crossing angle IS focal_power * h, not h/BFD
+	#    (Larmor-safe via hypot)
 	sec = MicroscopeSection(name="S", elements=[
 		Lens(name="OL", strength=K, length=L), Drift(length=0.02)])
 	m = Microscope(sections=[sec])
@@ -520,6 +525,57 @@ def test_thick_lens_efl_vs_bfd_split():
 	rays = np.asarray(m.propagate_ray(r0))
 	alpha = np.hypot(rays[-1, 0, 1], rays[-1, 0, 3])
 	assert alpha == pytest.approx(lens.focal_power * h, rel=1e-9)
-	# thin lens: one number, both ways
+	assert abs(alpha - h / lens.back_focal_distance) > 0.1 * alpha
+	# 4. a drift of exactly BFD reaches a real BFP: accumulated A entry = 0
+	M = np.matmul(np.asarray([[1.0, lens.back_focal_distance], [0.0, 1.0]]),
+				  np.asarray(lens.transfer_block()))
+	assert abs(M[0, 0]) < 1e-12
+	# 5. thin limit: EFL and BFD converge as KL -> 0 (gap ~ (KL)^2/2), and a
+	#    thin lens is one number all three ways
+	tiny = Lens(strength=K, length=1e-5)
+	gap = 1 - tiny.back_focal_distance / tiny.focal_length
+	assert gap == pytest.approx((K * 1e-5) ** 2 / 2, rel=1e-3)
 	thin = Lens(strength=np.sqrt(1 / 0.02))
 	assert thin.focal_power == pytest.approx(1 / thin.focal_length)
+	assert thin.back_focal_distance == pytest.approx(thin.focal_length)
+
+
+def test_strong_lens_virtual_bfp_vs_internal_crossover():
+	"""Past KL = pi/2 the BFD goes virtual; the real crossover is in-body.
+
+	The parallel bundle physically crosses inside the field at
+	dz = pi/(2K), while the complete exit matrix extrapolates backward to a
+	virtual output-space BFP: back_focal_distance < 0. The two are
+	different locations and neither substitutes for the other.
+	"""
+	K, L = 100.0, 0.028						# KL = 2.8 > pi/2
+	lens = Lens(strength=K, length=L)
+	assert lens.back_focal_distance < 0		# virtual BFP
+	assert lens.back_focal_distance == pytest.approx(1 / (K * np.tan(K * L)))
+	# the real crossover: the body's own partial-length A entry hits zero
+	dz_cross = np.pi / (2 * K)
+	assert abs(np.asarray(lens.transfer_block(dz=dz_cross))[0, 0]) < 1e-12
+	assert dz_cross < L						# genuinely inside the body
+	# and it is NOT where the virtual BFP extrapolates to
+	assert abs((L + lens.back_focal_distance) - dz_cross) > 1e-3
+	# focal_power stays the reciprocal of focal_length regardless
+	assert lens.focal_length == pytest.approx(1 / lens.focal_power)
+
+
+def test_focal_properties_round_trip():
+	"""A thin lens defined by focal_length keeps all three focal numbers
+	through a .sea round trip (the stored _focal_length re-seeds via the
+	constructor kwarg and the recorded __dict__ wins verbatim)."""
+	sec = MicroscopeSection(name="S", elements=[
+		Source(voltage=200, size=(2e-6, 2e-6), np_xy=(3, 3),
+			   angle=(1e-4, 1e-4), na_xy=(3, 3)),
+		Drift(length=0.05),
+		Lens(name="FL", focal_length=0.03, length=0),
+		Drift(length=0.05)])
+	m = Microscope(sections=[sec])
+	m.to_sea("t_focal_rt.sea")
+	back = load_microscope("t_focal_rt.sea")
+	os.remove("t_focal_rt.sea")
+	for prop in ("focal_length", "focal_power", "back_focal_distance"):
+		assert getattr(back["FL"], prop) == pytest.approx(getattr(m["FL"], prop))
+	assert back["FL"].focal_length == pytest.approx(0.03)

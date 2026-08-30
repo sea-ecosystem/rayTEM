@@ -571,8 +571,8 @@ def _(Lens, flat_elements, np, scope):
 		if isinstance(_ele, Lens) and _L > 0:
 			_K = _ele.calibrated_strength
 			_kL = _K * _L
-			_P = _K * np.sin(_kL)						# == focal_power()
-			_d_exact = np.cos(_kL) / (_K * np.sin(_kL))
+			_P = _K * np.sin(_kL)						# == ele.focal_power
+			_d_exact = np.cos(_kL) / (_K * np.sin(_kL))	# == ele.back_focal_distance
 			_d_thin = 1.0 / _P - _L / 2
 			print(f"{_ele.name:6s} {_L*1e3:8.1f} {_K:9.2f} {_kL:9.4f} "
 				  f"{_d_exact*1e3:13.3f} {_d_thin*1e3:12.3f} "

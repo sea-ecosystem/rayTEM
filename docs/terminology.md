@@ -20,11 +20,12 @@ onto, and the quantity a thick lens's Larmor rotation is built from
 (`R = KL`). It is a property of the *field*, not of the imaging: two lenses
 with the same `K` but different lengths focus differently.
 
-**Focal length `f`** (m) is the classical light-optics quantity: the
-back-focal distance of the equivalent thin lens. It is what a microscopist
-quotes and what column geometry is designed around. For a thin element the
-two are tied by `1/f = sign(K)·K²`; for a thick body by Brown's focusing
-relation
+**Focal length `f`** (m) is the classical light-optics quantity: the focal
+length of the equivalent thin lens (the EFL; the exit-face
+`back_focal_distance` is a separate number, next section). It is what a
+microscopist quotes and what column geometry is designed around. For a thin
+element the two are tied by `1/f = sign(K)·K²`; for a thick body by Brown's
+focusing relation
 
 ```
 1/f = K · sin(K·L)
@@ -62,16 +63,30 @@ height `x = cos(KL)·h`.
 
 | Quantity | Definition | Value | rayTEM property | Job |
 |---|---|---|---|---|
-| **EFL** (effective focal length) | `h/θ` — height in vs. angle out, referenced to the principal plane | `1/(K·sin KL)` | `Lens.focal_power` = `K·sin(KL)` | The **angle** number: the pupil scale for aberrations (`α = P·h` is the angle the ray *actually crosses the focus at*), the wave-path χ, and the power that composes additively |
-| **BFD** (back focal distance) | `x/θ` — exit face to the crossover | `1/(K·tan KL)` | `Lens.focal_length` (traced through the full matrix) | The **geometry** number: where the focus physically sits — placing a sample or detector, bench comparison |
+| **Equivalent power** | `θ/h` — angle out per height in (`P = −C`) | `K·sin(KL)` | `Lens.focal_power` | The **angle** number: the pupil scale for aberrations (`α = P·h` is the angle the ray *actually crosses the focus at*), the wave-path χ, and the power that composes additively |
+| **EFL** (effective focal length) | `1/P`, referenced to the rear principal plane | `1/(K·sin KL)` | `Lens.focal_length` | The conventional focal length of the equivalent thin lens |
+| **BFD** (back focal distance) | `x/θ` — **signed** exit face to the BFP (`−A/C`) | `1/(K·tan KL)` | `Lens.back_focal_distance` | The **geometry** number: where the focus physically sits — placing a sample or detector, bench comparison |
 
-They differ by exactly `cos(KL)` (3.7× for an OL1-class lens with
-`KL ≈ 1.3`) and coincide for a thin lens, which is why the distinction only
-matters once lenses have bodies. Consequently **`focal_power` is not
-`1/focal_length` for a thick lens** — wiring them together silently rescales
-every aberration: a `C30` interpreted against the BFD power means a pupil
-angle `1/cos(KL)` larger than the beam actually has, and the ray-side kick
-coefficient scales as `P⁴`.
+`focal_power` and `focal_length` are exact reciprocals. It is
+**`back_focal_distance` that is not**: EFL and BFD differ by exactly
+`cos(KL)` (3.7× for an OL1-class lens with `KL ≈ 1.3`) and coincide for a
+thin lens, which is why the distinction only matters once lenses have
+bodies. Using `1/BFD` as the pupil scale silently rescales every
+aberration: a `C30` interpreted against the BFD power means a pupil angle
+`1/cos(KL)` larger than the beam actually has, and the ray-side kick
+coefficient scales as `P⁴`. The BFD is signed: for `π/2 < KL < π` it goes
+**negative** — a *virtual* output-space BFP reached by backward drift
+extrapolation, while the physical parallel bundle has already crossed
+*inside* the body at `dz = π/(2K)` (located by `transfer_block(dz)`, never
+by the BFD). And the BFP (`A_total = 0`, rays sharing one *angle* meet) is
+not an image plane (`B_total = 0`, rays leaving one *object point* meet) —
+the two conditions are independent, which is exactly how
+`conjugate_planes` distinguishes its `diff` and `image` families.
+
+Explore all of this interactively — both ray families, either side of
+`KL = π/2` — in the
+<a href="_static/thick_lens_focal_geometry.html">thick-lens focal geometry
+figure</a>.
 
 #### The matrix view: both numbers come from one matrix
 
@@ -92,9 +107,10 @@ Trace one parallel ray `(h, 0)ᵀ` through it: `M·(h,0)ᵀ = (c·h, −K·s·h)
 i.e. exit **height** `x = cos(KL)·h` (the `A` entry) and exit **angle**
 `θ = K·sin(KL)·h` (the `−C` entry). Then:
 
-- **`focal_power = −C`** — angle out per height in, `K·sin(KL)`.
-- **`focal_length = A/(−C)`** — exit height over exit angle, the distance
-  the ray still needs to reach the axis: `1/(K·tan KL)`.
+- **`focal_power = −C`** — angle out per height in, `K·sin(KL)`;
+  `focal_length` is its reciprocal, the EFL.
+- **`back_focal_distance = −A/C`** — exit height over exit angle, the
+  distance the ray still needs to reach the axis: `1/(K·tan KL)`, signed.
 
 Same matrix, one ray: one reading takes the angle row, the other the ratio.
 The `cos(KL)` connecting them is literally the `A` entry — how far inward
