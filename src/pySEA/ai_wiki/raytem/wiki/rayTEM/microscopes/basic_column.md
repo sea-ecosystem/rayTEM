@@ -2,7 +2,7 @@
 | Section | Line |
 |---------|------|
 | Module-level functions | 19 |
-|   `strength_for_focal_length(f, length)` | 21 |
+|   `solve_strength_for_focal_length(f, length)` | 21 |
 |   `round_lens(name, f, length)` | 26 |
 |   `dipole_pair(name, strength)` | 31 |
 |   `quadrupole_pair(name, strength)` | 36 |
@@ -18,7 +18,7 @@ Builder for the default generic TEM column (``basic_column.sea``).
 
 ## Module-level functions
 
-### `strength_for_focal_length(f, length)` *(line 58)*
+### `solve_strength_for_focal_length(f, length)` *(line 58)*
 Solve the thick-lens strength ``K`` that yields focal length ``f``.
 
 <!-- AI: add cross-links and non-obvious notes here -->

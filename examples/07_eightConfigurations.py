@@ -78,7 +78,7 @@ sys.path.insert(1, "../")
 from pySEA.rayTEM.assemblies import Microscope, load_microscope, _scaled_wave_cross_section
 from pySEA.rayTEM.postprocessing import convert_to_rotating_reference_frame
 from pySEA.rayTEM.elements import columnByName, convention
-from pySEA.rayTEM.microscopes.basic_column import strength_for_focal_length
+from pySEA.rayTEM.microscopes.basic_column import solve_strength_for_focal_length
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 BASE_SEA = os.path.join(_HERE, "..", "src", "pySEA", "rayTEM", "microscopes",
@@ -384,8 +384,8 @@ def solve_column(current: str, probe: str, detector: str) -> dict:
 	# 1 mm) rather than up to the first-branch cap: with thin bores the cap
 	# sits orders of magnitude above any strength a column would run, and a
 	# scan stretched to it would step right over the working region
-	krange = {n: (strength_for_focal_length(2.0, l.length),
-				  strength_for_focal_length(0.001, l.length))
+	krange = {n: (solve_strength_for_focal_length(2.0, l.length),
+				  solve_strength_for_focal_length(0.001, l.length))
 			  for n, l in lens.items()}
 	solved = {}
 

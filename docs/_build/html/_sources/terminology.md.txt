@@ -33,7 +33,7 @@ focusing relation
 
 (`Lens.focal_power` implements exactly this pair). Note the thick relation
 is not monotonic: past `KL = π/2` a stronger field gives a *longer* focal
-length, which is why `strength_for_focal_length` in
+length, which is why `solve_strength_for_focal_length` in
 `microscopes/basic_column.py` restricts itself to the first branch,
 `f ≥ 2L/π`.
 

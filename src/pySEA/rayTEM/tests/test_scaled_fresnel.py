@@ -1822,7 +1822,7 @@ def test_mid_element_crossover_lands_on_the_analytic_plane():
 	# free-space plane to check too.
 	from pySEA.rayTEM.assemblies import Microscope, MicroscopeSection
 	from pySEA.rayTEM.elements import Source, Drift, Lens
-	from pySEA.rayTEM.microscopes.basic_column import strength_for_focal_length
+	from pySEA.rayTEM.microscopes.basic_column import solve_strength_for_focal_length
 	from pySEA.rayTEM.seashells import make_scaled_wavefield_signal
 
 	def thick_fixture():
@@ -1830,13 +1830,13 @@ def test_mid_element_crossover_lands_on_the_analytic_plane():
 			Source(voltage=200, wave_shape=(64, 64), wave_extent=20e-6,
 				   wave_kind="gaussian"),
 			Drift(length=0.05),
-			Lens(name="L1", strength=strength_for_focal_length(0.185, 0.02),
+			Lens(name="L1", strength=solve_strength_for_focal_length(0.185, 0.02),
 				 length=0.02),
 			Drift(length=0.25),
-			Lens(name="TL", strength=strength_for_focal_length(0.09, 0.02),
+			Lens(name="TL", strength=solve_strength_for_focal_length(0.09, 0.02),
 				 length=0.02),
 			Drift(length=0.08),
-			Lens(name="L2", strength=strength_for_focal_length(0.05, 0.02),
+			Lens(name="L2", strength=solve_strength_for_focal_length(0.05, 0.02),
 				 length=0.02),
 			Drift(length=0.12)])])
 
@@ -2643,7 +2643,7 @@ def _thick_strength(f: float, L: float) -> float:
 	i.e. `Lens.back_focal_distance`, so inverting that relation keeps a test
 	lens's f meaning what it says rather than being whatever `sqrt(1/f)`
 	happens to give for a body. (The EFL inverse, `1/f = K sin(K L)`, lives
-	in `basic_column.strength_for_focal_length`.)
+	in `basic_column.solve_strength_for_focal_length`.)
 	"""
 	from scipy.optimize import brentq
 	return float(brentq(lambda K: K * np.tan(K * L) - 1.0 / f, 1e-6, np.pi / (2 * L) - 1e-6))
