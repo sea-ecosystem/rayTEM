@@ -24,13 +24,13 @@ and transverse-momentum blocks.
 Related
 -------
 elements.Element.propagate_moments : The transport step these serve.
-elements.Element.aberration_monomials : The nonlinear kick, as a polynomial.
+elements.Element._aberration_monomials : The nonlinear kick, as a polynomial.
 assemblies.Microscope.covariance_beam : Builds a beam view over a propagated column.
 
 Notes
 -----
 All moments here are **central** — taken about the mean. A kick expressed in
-absolute coordinates is converted first by :func:`center_monomials`.
+absolute coordinates is converted first by :func:`_center_monomials`.
 
 References
 ----------
@@ -221,7 +221,7 @@ class GaussianMomentClosure(MomentClosure):
 		return total
 
 
-def center_monomials(monomials:Sequence[tuple], mu:xp.ndarray) -> list:
+def _center_monomials(monomials:Sequence[tuple], mu:xp.ndarray) -> list:
 	r"""Rewrite an absolute-coordinate polynomial in deviations from the mean.
 
 	A nonlinear kick is naturally written in absolute coordinates — spherical
@@ -256,7 +256,7 @@ def center_monomials(monomials:Sequence[tuple], mu:xp.ndarray) -> list:
 	Related
 	-------
 	MomentClosure.moment : Consumes the centered form.
-	elements.Element.aberration_monomials : Produces the absolute form.
+	elements.Element._aberration_monomials : Produces the absolute form.
 
 	Notes
 	-----
@@ -268,7 +268,7 @@ def center_monomials(monomials:Sequence[tuple], mu:xp.ndarray) -> list:
 	--------
 	>>> import numpy as np
 	>>> mu = np.zeros(6)
-	>>> center_monomials([(2.0, (0, 0))], mu)          # centered beam: unchanged
+	>>> _center_monomials([(2.0, (0, 0))], mu)          # centered beam: unchanged
 	[(2.0, (0, 0))]
 	"""
 	out = []
@@ -290,7 +290,7 @@ def center_monomials(monomials:Sequence[tuple], mu:xp.ndarray) -> list:
 	return out
 
 
-def kick_moments(monomials_by_column:dict, Sigma:xp.ndarray,
+def _kick_moments(monomials_by_column:dict, Sigma:xp.ndarray,
 				 closure:MomentClosure) -> tuple:
 	r"""Mean, cross-covariance and self-covariance of a polynomial kick.
 
@@ -336,7 +336,7 @@ def kick_moments(monomials_by_column:dict, Sigma:xp.ndarray,
 	Related
 	-------
 	elements.Element._aberration_moment_pieces : Assembles these into the update.
-	center_monomials : Puts the kick in the central coordinates assumed here.
+	_center_monomials : Puts the kick in the central coordinates assumed here.
 
 	Notes
 	-----

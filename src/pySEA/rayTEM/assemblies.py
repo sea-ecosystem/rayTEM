@@ -8,6 +8,7 @@ import sys,inspect,os,datetime,shutil
 
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
 from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,Rays,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes,AberrationScreen,_as_aberrations
+from .aberrations import Aberrations
 from typing import Literal
 from .seashells import SEASerializable
 
@@ -3460,6 +3461,11 @@ class Microscope(SealedAttributes, SEASerializable):
 		import json
 		skip = set(self._JSON_EXCLUDE_RESULTS) | {"_arriving_current","format","sea_type","payload"}
 		def clean(v):
+			# Aberrations is a SEASerializable carrying complex coefficients, and
+			# json can encode neither. to_metadata is its flat, real-valued form,
+			# and _load_legacy_microscope_json reads it back with from_metadata.
+			if isinstance(v,Aberrations):
+				return v.to_metadata()
 			if isinstance(v,dict):
 				return {k:clean(x) for k,x in v.items() if k not in skip and x is not None}
 			if isinstance(v,(list,tuple)):
@@ -3611,6 +3617,8 @@ def _load_legacy_microscope_json(jdict:dict) -> "Microscope":
 			kind = element["kind"]
 			func = mapping[kind]
 			element["name"] = element.get("Element name",element.get("name")) # undo the custom mapping we did inside MicroscopeSection.save
+			if isinstance(element.get("aberrations"), dict):		# written by Microscope.save's clean()
+				element["aberrations"] = Aberrations.from_metadata(element["aberrations"])
 			if isinstance(element["name"],str) and "None" in element["name"]: element["name"]=''
 			element.pop("Element name",None) # delete "Element name" entry, if it exists (pop avoids KeyError with del)
 			allowed_kwargs = inspect.signature(func).parameters.keys() # infer allowed kwargs from function itself, and filter down to only those.

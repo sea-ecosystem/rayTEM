@@ -29,7 +29,7 @@ from pySEA.rayTEM import Source, Lens, Drift, MicroscopeSection, Microscope, col
 from pySEA.rayTEM.aberrations import Aberrations
 from pySEA.rayTEM.elements import convention, suspended_aberrations
 from pySEA.rayTEM.moments import (CovarianceBeam, GaussianMomentClosure,
-								  MomentClosure, center_monomials, kick_moments)
+								  MomentClosure, _center_monomials, _kick_moments)
 from pySEA.rayTEM.seashells import as_ndarray
 
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -85,9 +85,12 @@ def _toy(c30=0.0, chromatic=0.0, drift=0.05, focal=0.02):
 	------
 	None
 	"""
-	lens = Lens(name="L", focal_length=focal, chromatic_aberration=chromatic)
+	terms = {}
 	if c30:
-		lens.aberrations = Aberrations({'C30': c30})
+		terms['C30'] = c30
+	if chromatic:
+		terms['Cc'] = chromatic
+	lens = Lens(name="L", focal_length=focal, aberrations=Aberrations(terms))
 	source = Source(name="S", size=(3e-6, 5e-6), angle=(2e-4, 2e-4),
 					voltage=200, energy_spread=1e-2)
 	return Microscope(sections=[MicroscopeSection(
@@ -125,9 +128,9 @@ def test_moment_closure_base_class_refuses_to_guess():
 def test_center_monomials_expands_about_the_mean():
 	# (mu + s)^2 = mu^2 + 2 mu s + s^2, and is the identity for a centered beam
 	mu = np.zeros(len(convention))
-	assert center_monomials([(2.0, (IX, IX))], mu) == [(2.0, (IX, IX))]
+	assert _center_monomials([(2.0, (IX, IX))], mu) == [(2.0, (IX, IX))]
 	mu[IX] = 3.0
-	terms = center_monomials([(2.0, (IX, IX))], mu)
+	terms = _center_monomials([(2.0, (IX, IX))], mu)
 	constant = sum(c for c, idx in terms if idx == ())
 	linear = sum(c for c, idx in terms if idx == (IX,))
 	quadratic = sum(c for c, idx in terms if idx == (IX, IX))
@@ -142,7 +145,7 @@ def test_kick_moments_reports_the_mean_of_an_even_order_kick():
 	# insists must be retained rather than absorbed into the width.
 	S = np.zeros((len(convention),) * 2)
 	S[IX, IX] = 4e-12
-	delta_mean, C, D = kick_moments({IXT: [(7.0, (IX, IX))]}, S, GaussianMomentClosure())
+	delta_mean, C, D = _kick_moments({IXT: [(7.0, (IX, IX))]}, S, GaussianMomentClosure())
 	assert np.isclose(delta_mean[IXT], 7.0 * 4e-12)
 	assert np.isclose(C[IX, IXT], 0.0)					# <s_x s_x s_x> = 0
 	assert np.isclose(D[IXT, IXT], 7.0**2 * 2 * 4e-12**2)	# 3 s^2 - s^2
@@ -160,7 +163,7 @@ def test_aberration_monomials_reproduce_the_kick(name, coefficient):
 	# at arbitrary coordinates, at every Krivanek order and for skew terms
 	lens = Lens(focal_length=0.01, aberrations={name: coefficient})
 	P = lens.focal_power
-	monomials = lens.aberration_monomials(P)
+	monomials = lens._aberration_monomials(P)
 	rng = np.random.default_rng(11)
 	x, y = rng.normal(0, 2e-6, 400), rng.normal(0, 2e-6, 400)
 
@@ -350,7 +353,7 @@ def test_chromatic_angular_variance_matches_the_closed_form():
 	S[IXT, IXT] = S[IYT, IYT] = 1e-8
 	S[IE, IE] = sE**2
 	mu = np.zeros(len(convention)); mu[IE] = E0
-	lens = Lens(focal_length=0.02, chromatic_aberration=cc)
+	lens = Lens(focal_length=0.02, aberrations={'Cc': cc})
 	_, out = lens.propagate_moments(mu, S)
 	with suspended_aberrations([lens]):
 		_, ideal = lens.propagate_moments(mu, S)
@@ -370,7 +373,7 @@ def test_chromatic_matches_a_monte_carlo_ray_reference():
 	S[IXT, IXT] = S[IYT, IYT] = 1e-8
 	S[IE, IE] = sE**2
 	mu = np.zeros(len(convention)); mu[IE] = E0
-	lens = Lens(focal_length=0.02, chromatic_aberration=cc)
+	lens = Lens(focal_length=0.02, aberrations={'Cc': cc})
 	_, out = lens.propagate_moments(mu, S)
 	rays = np.zeros((n, len(convention)))
 	rays[:, IX] = rng.normal(0, sx, n); rays[:, IY] = rng.normal(0, sx, n)
@@ -405,11 +408,106 @@ def test_an_ideal_reference_run_is_achromatic():
 
 
 def test_chromatic_survives_a_round_trip(tmp_path):
-	scope = _toy(chromatic=3e-3)
+	scope = _toy(c30=1e3, chromatic=3e-3)
 	base = str(tmp_path / "chromatic")
-	scope.save(base)
+	scope.save(base)                                  # .json
+	scope.to_sea(base + ".sea")
 	from pySEA.rayTEM import load_microscope
-	assert np.isclose(load_microscope(base)["L"].chromatic_aberration, 3e-3)
+	for path in (base, base + ".sea"):
+		back = load_microscope(path)["L"]
+		assert np.isclose(back.chromatic_aberration, 3e-3), path
+		assert np.isclose(back.aberrations['C30'].real, 1e3), path
+
+
+# ---- chromatic lives inside the aberration set --------------------------
+
+def test_chromatic_is_carried_by_the_aberration_set():
+	# one declaration carries everything the element does beyond its matrix,
+	# so chromatic serializes, suspends and copies with the Krivanek terms
+	ab = Aberrations({'C30': 1e-3, 'Cc': 1.2e-3})
+	assert ab.chromatic == 1.2e-3
+	assert ab['Cc'] == 1.2e-3
+	assert 'Cc' in ab
+	assert dict(ab.items()) == {'C30': 1e-3 + 0j}		# NOT a Krivanek term
+	assert bool(Aberrations({'Cc': 1e-3}))				# chromatic alone is not ideal
+	lens = Lens(focal_length=0.02, aberrations=ab)
+	assert lens.chromatic_aberration == 1.2e-3
+	lens.chromatic_aberration = 3e-3					# the property writes into the set
+	assert lens.aberrations.chromatic == 3e-3
+
+
+def test_a_chromatic_only_set_produces_no_pupil_deflection():
+	# 'Cc' must never reach the Krivanek evaluators, which would not know it
+	ab = Aberrations({'Cc': 2e-3})
+	dx, dy = ab.deflection_at(np.array([1e-6]), np.array([2e-6]), 100.0)
+	assert dx[0] == 0.0 and dy[0] == 0.0
+
+
+def test_aberrations_round_trip_through_json_and_sea(tmp_path):
+	# a column carrying aberrations could not be saved to JSON at all before:
+	# Aberrations is a SEASerializable holding complex coefficients, and the
+	# hand-rolled writer had no case for either
+	scope = _toy(c30=1e3, chromatic=3e-3)
+	scope["L"].aberrations['C12'] = (1e-9, 2e-9)		# complex, and json cannot hold it
+	base = str(tmp_path / "ab")
+	scope.save(base)
+	scope.to_sea(base + ".sea")
+	from pySEA.rayTEM import load_microscope
+	for path in (base, base + ".sea"):
+		back = load_microscope(path)["L"].aberrations
+		assert np.isclose(back['C30'].real, 1e3), path
+		assert np.isclose(back['C12'], 1e-9 + 2e-9j), path
+		assert np.isclose(back.chromatic, 3e-3), path
+
+
+def test_to_metadata_inverts_from_metadata():
+	ab = Aberrations({'C30': 1e-3, 'C12': (2e-9, 3e-9), 'Cc': 1.2e-3})
+	again = Aberrations.from_metadata(ab.to_metadata())
+	assert again.as_dict() == ab.as_dict()
+	assert again.chromatic == ab.chromatic
+
+
+# ---- astigmatic elements ------------------------------------------------
+
+def test_quadrupole_aberrations_reach_every_path():
+	# a quadrupole has no single focal power, so it used to resolve a pupil
+	# scale of zero and its aberrations were silently ignored everywhere
+	from pySEA.rayTEM import Quadrapole
+	quad = Quadrapole(length=0.01, strength=30.0,
+					  aberrations={'C30': 1e-3, 'Cc': 1.2e-3})
+	assert quad._pupil_scale() > 0
+	rays = np.zeros((3, len(convention)))
+	rays[:, IX] = [1e-5, 2e-5, 3e-5]
+	rays[:, IY] = 1e-5
+	rays[:, IE] = [199.9, 200.0, 200.1]
+	assert quad.aberration_kick(rays) is not None
+	assert np.any(quad.aberration_kick(rays)[2])
+	assert np.any(quad.chromatic_kick(rays)[0])
+	assert np.any(quad.zone_power_shift(1e-5))
+	S = np.eye(len(convention)) * 1e-12
+	S[IE, IE] = 1e-4
+	mu = np.zeros(len(convention)); mu[IE] = 200.0
+	_, aberrated = quad.propagate_moments(mu, S)
+	with suspended_aberrations([quad]):
+		_, ideal = quad.propagate_moments(mu, S)
+	assert aberrated[IXT, IXT] != ideal[IXT, IXT]
+
+
+def test_chromatic_is_per_axis_on_an_astigmatic_element():
+	# chromatic needs no round-pupil assumption: each axis sees its own power
+	# scaled, so the kick ratio is exactly (P_x/P_y)^2
+	from pySEA.rayTEM import Quadrapole
+	quad = Quadrapole(length=0.01, strength=30.0, aberrations={'Cc': 1.2e-3})
+	px, py = quad._pupil_scales()
+	assert px * py < 0								# one axis focuses, one diverges
+	rays = np.zeros((2, len(convention)))
+	rays[:, IX] = rays[:, IY] = 1e-5
+	rays[:, IE] = [199.9, 200.1]
+	kx, ky = quad.chromatic_kick(rays)
+	assert np.isclose(kx[0] / ky[0], (px / py)**2)
+	# and a round lens stays symmetric
+	round_lens = Lens(focal_length=0.02, aberrations={'Cc': 1.2e-3})
+	assert np.allclose(*round_lens.chromatic_kick(rays))
 
 
 # ---- CovarianceBeam -----------------------------------------------------

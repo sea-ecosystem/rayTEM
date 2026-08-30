@@ -74,6 +74,16 @@ def krivanek_terms(max_order: int = 5) -> dict:
 #: Krivanek ``C_{n,m}`` name -> ``(order, multiplicity)``, orders 1 through 5.
 KRIVANEK_TERMS = krivanek_terms(5)
 
+#: Name of the chromatic coefficient inside an :class:`Aberrations` set. It is
+#: deliberately NOT a Krivanek term: every ``C_{n,m}`` is a function of pupil
+#: coordinate alone, whereas chromatic multiplies the pupil coordinate by the
+#: beam's *energy* deviation. It lives in the same object so that one
+#: declaration carries everything an element does beyond its matrix -- and so
+#: it survives serialization, gets detached by ``suspended_aberrations``, and
+#: cannot be forgotten -- but it is kept out of ``names``/``items()`` so the
+#: Krivanek machinery never sees a term it cannot interpret.
+CHROMATIC_TERM = 'Cc'
+
 #: The letter convention (Nion/CEOS style) mapped onto Krivanek names. These
 #: are *different notations for the same quantities*, which is why they get a
 #: conversion rather than a second storage format.
@@ -158,7 +168,8 @@ class Aberrations(SEASerializable):
 	(0.001+0j)
 	"""
 
-	def __init__(self, coefficients=None, convention: str = 'krivanek'):
+	def __init__(self, coefficients=None, convention: str = 'krivanek',
+				 chromatic: float = 0.0):
 		"""Create a coefficient set.
 
 		Parameters
@@ -166,22 +177,27 @@ class Aberrations(SEASerializable):
 		coefficients : dict, optional
 			``{name: value}`` where the value is a real number, a complex
 			number, or an ``(a, b)`` pair. ``None`` (default) is an empty set,
-			which is a perfect lens.
+			which is a perfect lens. The name ``'Cc'`` is accepted here and
+			routed to ``chromatic``.
 		convention : str, optional
 			Notation of the names, by default ``'krivanek'``.
+		chromatic : float, optional
+			Chromatic aberration coefficient :math:`C_c` in metres, by default
+			0 (achromatic).
 
 		Raises
 		------
 		KeyError
-			If a name is not a known Krivanek term.
+			If a name is not a known Krivanek term (or ``'Cc'``).
 		ValueError
 			If a rotationally symmetric term is given a nonzero second
-			component.
+			component, or ``'Cc'`` is given a complex value.
 		"""
 		self.convention = str(convention)
 		self.names = []
 		self.real = []
 		self.imag = []
+		self.chromatic = float(chromatic)
 		for name, value in (coefficients or {}).items():
 			self[name] = value
 
@@ -237,6 +253,12 @@ class Aberrations(SEASerializable):
 			If a nonzero ``b`` is given for an ``m = 0`` term, or the value is
 			not a scalar or a pair.
 		"""
+		if name == CHROMATIC_TERM:
+			if np.ndim(value) != 0 or complex(value).imag:
+				raise ValueError(f"{CHROMATIC_TERM!r} is a single real coefficient in "
+								 f"metres; it has no orientation, got {value!r}.")
+			self.chromatic = float(complex(value).real)
+			return
 		n, m = self.order_and_multiplicity(name)
 		if np.ndim(value) == 0:
 			a, b = complex(value).real, complex(value).imag
@@ -275,6 +297,8 @@ class Aberrations(SEASerializable):
 		KeyError
 			If the name is not a known term.
 		"""
+		if name == CHROMATIC_TERM:
+			return complex(self.chromatic, 0.0)
 		self.order_and_multiplicity(name)
 		if name not in self.names:
 			return 0j
@@ -298,6 +322,8 @@ class Aberrations(SEASerializable):
 		------
 		None
 		"""
+		if name == CHROMATIC_TERM:
+			return bool(self.chromatic)
 		return name in self.names and self[name] != 0
 
 	def __bool__(self) -> bool:
@@ -313,7 +339,7 @@ class Aberrations(SEASerializable):
 		------
 		None
 		"""
-		return any(a or b for a, b in zip(self.real, self.imag))
+		return bool(self.chromatic) or any(a or b for a, b in zip(self.real, self.imag))
 
 	def __repr__(self) -> str:
 		"""Compact, readable summary.
@@ -327,7 +353,10 @@ class Aberrations(SEASerializable):
 		------
 		None
 		"""
-		body = ", ".join(f"{n}={self[n]:g}" for n in self.names if self[n] != 0)
+		terms = [f"{n}={self[n]:g}" for n in self.names if self[n] != 0]
+		if self.chromatic:
+			terms.append(f"{CHROMATIC_TERM}={self.chromatic:g}")
+		body = ", ".join(terms)
 		return f"Aberrations({body or 'ideal'}, convention={self.convention!r})"
 
 	def items(self):
@@ -437,6 +466,49 @@ class Aberrations(SEASerializable):
 			out[LETTER_TO_KRIVANEK[name]] = value
 		return cls(out)
 
+	def to_metadata(self) -> dict:
+		"""The set as the flat, JSON-safe mapping :meth:`from_metadata` reads.
+
+		The inverse of :meth:`from_metadata`, and the form a plain JSON writer
+		can carry: rotationally symmetric terms as a single real number,
+		oriented terms split into the ``name.a`` / ``name.b`` pair a Nion file
+		uses, and the chromatic coefficient under
+		:data:`CHROMATIC_TERM`. Complex numbers, which ``json`` cannot encode,
+		never appear.
+
+		Returns
+		-------
+		dict
+			``{name: float}`` and ``{name.a: float, name.b: float}`` entries
+			for the nonzero terms, plus ``'Cc'`` when chromatic is nonzero.
+			Empty for an ideal set.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		from_metadata : The reader this inverts.
+		as_dict : The complex-valued form, for use in Python rather than a file.
+		assemblies.Microscope.save : The JSON writer that needs this.
+
+		Examples
+		--------
+		>>> Aberrations({'C30': 1e-3, 'Cc': 1.2e-3}).to_metadata()
+		{'C30': 0.001, 'Cc': 0.0012}
+		"""
+		out = {}
+		for name, value in self.items():
+			if value.imag:
+				out[f"{name}.a"] = float(value.real)
+				out[f"{name}.b"] = float(value.imag)
+			else:
+				out[name] = float(value.real)
+		if self.chromatic:
+			out[CHROMATIC_TERM] = float(self.chromatic)
+		return out
+
 	def to_letters(self) -> dict:
 		"""Express the stored set in the letter notation.
 
@@ -495,8 +567,15 @@ class Aberrations(SEASerializable):
 		"""
 		flat = _flatten_metadata(metadata)
 		found = {}
+		chromatic = 0.0
 		for key, value in flat.items():
 			stem, _, part = key.partition('.')
+			if stem == CHROMATIC_TERM and value is not None:
+				try:
+					chromatic = float(value)
+				except (TypeError, ValueError):
+					pass
+				continue
 			if stem not in KRIVANEK_TERMS or value is None:
 				continue
 			try:
@@ -508,7 +587,7 @@ class Aberrations(SEASerializable):
 				found[stem] = (a, value)
 			else:
 				found[stem] = (value, b)
-		return cls({k: v for k, v in found.items()})
+		return cls({k: v for k, v in found.items()}, chromatic=chromatic)
 
 	# ------------------------------------------------------------- physics
 	def _polar(self, X, Y, power: float) -> tuple:
@@ -614,7 +693,7 @@ class Aberrations(SEASerializable):
 		deflection_at : The ray-side counterpart.
 		"""
 		chi = np.zeros(np.shape(X), dtype=float)
-		if not self:
+		if not self.items():			# chromatic is not a pupil function; it never reaches here
 			return chi
 		theta, phi = self._polar(X, Y, power)
 		k = 2 * np.pi / wavelength
@@ -678,7 +757,7 @@ class Aberrations(SEASerializable):
 		:math:`\theta^{n}` with :math:`n \ge 1`.
 		"""
 		zeros = np.zeros(np.shape(X), dtype=float)
-		if not self:
+		if not self.items():			# chromatic is not a pupil function; it never reaches here
 			return zeros, zeros.copy()
 		theta, phi = self._polar(X, Y, power)
 		P = abs(power)
@@ -732,7 +811,7 @@ class Aberrations(SEASerializable):
 		--------
 		>>> Aberrations({'C30': 1e-3}).phase((8, 8), 1e-6, 1e-6, 2.5e-12, 22.2)  # doctest: +SKIP
 		"""
-		if not self:
+		if not self.items():			# chromatic is not a pupil function; it never reaches here
 			return np.zeros(tuple(shape), dtype=float)
 		X, Y = self._grid(shape, dx, dy)
 		return self.phase_at(X, Y, wavelength, power)
@@ -771,7 +850,7 @@ class Aberrations(SEASerializable):
 		-------
 		deflection_at : The wavelength-free ray form.
 		"""
-		if not self:
+		if not self.items():			# chromatic is not a pupil function; it never reaches here
 			zeros = np.zeros(tuple(shape), dtype=float)
 			return zeros, zeros.copy()
 		X, Y = self._grid(shape, dx, dy)
