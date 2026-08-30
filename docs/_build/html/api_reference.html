@@ -128,6 +128,7 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens"><code class="docutils literal notranslate"><span class="pre">Lens</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.ABCD"><code class="docutils literal notranslate"><span class="pre">Lens.ABCD()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.aberration_powers"><code class="docutils literal notranslate"><span class="pre">Lens.aberration_powers()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.back_focal_distance"><code class="docutils literal notranslate"><span class="pre">Lens.back_focal_distance</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.calibrated_strength"><code class="docutils literal notranslate"><span class="pre">Lens.calibrated_strength</span></code></a></li>
@@ -136,6 +137,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.focal_power"><code class="docutils literal notranslate"><span class="pre">Lens.focal_power</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.get_C_L_from_rotation_at_I"><code class="docutils literal notranslate"><span class="pre">Lens.get_C_L_from_rotation_at_I()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.phase_shift"><code class="docutils literal notranslate"><span class="pre">Lens.phase_shift()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.principal_distance"><code class="docutils literal notranslate"><span class="pre">Lens.principal_distance</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.transfer_block"><code class="docutils literal notranslate"><span class="pre">Lens.transfer_block()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.transfer_matrix"><code class="docutils literal notranslate"><span class="pre">Lens.transfer_matrix()</span></code></a></li>
 </ul>
@@ -1991,6 +1993,11 @@ coefficient must be referenced against, and
 </dd>
 </dl>
 <dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.ABCD">
+<span class="sig-name descname"><span class="pre">ABCD</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Lens.ABCD"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.ABCD" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.aberration_powers">
 <span class="sig-name descname"><span class="pre">aberration_powers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Lens.aberration_powers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.aberration_powers" title="Link to this definition"></a></dt>
 <dd><p>Split the aberration function into frame powers and a residual.</p>
@@ -2235,6 +2242,11 @@ when an aligned C12 makes the two axes differ.</p>
 </div>
 </dd></dl>
 
+<dl class="py property">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.principal_distance">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">principal_distance</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.principal_distance" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.transfer_block">
 <span class="sig-name descname"><span class="pre">transfer_block</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'x'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'y'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'x'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Lens.transfer_block"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.transfer_block" title="Link to this definition"></a></dt>
@@ -2276,7 +2288,7 @@ both.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.transfer_matrix">
-<span class="sig-name descname"><span class="pre">transfer_matrix</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Lens.transfer_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.transfer_matrix" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">transfer_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rotation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Lens.transfer_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.transfer_matrix" title="Link to this definition"></a></dt>
 <dd><p>Transfer matrix for ray propogation.</p>
 </dd></dl>
 

@@ -4594,50 +4594,9 @@
 				<span class="n">K</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">calibration</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">+</span> <span class="p">[</span><span class="n">v</span> <span class="o">*</span> <span class="n">K</span><span class="o">**</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calibration</span><span class="p">[</span><span class="mi">1</span><span class="p">:])])</span>
 		<span class="k">return</span> <span class="n">K</span>
 
-	<span class="nd">@property</span>
-	<span class="k">def</span><span class="w"> </span><span class="nf">focal_power</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">		</span><span class="sa">r</span><span class="sd">"""The equivalent paraxial focal power ``P = -C`` (1/metres).</span>
-
-<span class="sd">		The lens's matrix maps the entrance face to the exit face; for an</span>
-<span class="sd">		on-axis parallel ray at height ``h``, the exit angle is</span>
-<span class="sd">		``x' = C*h = -P*h``. So ``P`` converts entrance pupil height into</span>
-<span class="sd">		the converging exit angle — the angle the ray actually crosses the</span>
-<span class="sd">		focus at — which is why it is the scale used by the ray- and</span>
-<span class="sd">		wave-path aberration expressions, and the quantity that composes</span>
-<span class="sd">		additively when lenses stack. Thin lens: ``1/focal_length``. Thick</span>
-<span class="sd">		lens: Brown's focusing relation ``K*sin(K*L)``.</span>
-
-<span class="sd">		This is reciprocal to :attr:`focal_length` (the EFL), but generally</span>
-<span class="sd">		**not** reciprocal to :attr:`back_focal_distance` for a thick lens</span>
-<span class="sd">		(the two differ by ``cos(K*L)``). See the Terminology page of the</span>
-<span class="sd">		docs for the full derivation.</span>
-
-<span class="sd">		Returns</span>
-<span class="sd">		-------</span>
-<span class="sd">		float</span>
-<span class="sd">			Equivalent power ``P = -C`` (1/metres); 0 for a zero-strength</span>
-<span class="sd">			lens.</span>
-
-<span class="sd">		Raises</span>
-<span class="sd">		------</span>
-<span class="sd">		None</span>
-
-<span class="sd">		Related</span>
-<span class="sd">		-------</span>
-<span class="sd">		focal_length : The EFL, ``1/focal_power``.</span>
-<span class="sd">		back_focal_distance : The exit-face-to-BFP geometry number.</span>
-<span class="sd">		aberration_kick : Consumes this as the pupil scale on the ray path.</span>
-<span class="sd">		phase_shift : Consumes this on the wave path.</span>
-<span class="sd">		"""</span>
-		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-			<span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_focal_length</span>
-			<span class="k">return</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="n">xp</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">f</span><span class="p">)</span>
-		<span class="n">K</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calibrated_strength</span>
-		<span class="k">return</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="n">K</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="n">xp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">))</span>
-
 <div class="viewcode-block" id="Lens.transfer_matrix">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Lens.transfer_matrix">[docs]</a>
-	<span class="k">def</span><span class="w"> </span><span class="nf">transfer_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">transfer_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">rotation</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">		</span><span class="sa">r</span><span class="sd">"""Transfer matrix for ray propogation.</span>
 <span class="sd">		"""</span>
 
@@ -4687,11 +4646,33 @@
 		<span class="c1">#	XY*=zeroer</span>
 		<span class="c1">#print("lens",self.name,"adds rotation",kL)</span>
 		<span class="c1"># TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)</span>
-		<span class="n">XY</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">R</span><span class="p">,</span><span class="n">XY</span><span class="p">)</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">larmor_rotation</span> <span class="o">=</span> <span class="o">-</span><span class="n">kL</span>
-		<span class="n">M</span> <span class="o">=</span> <span class="n">fix_mat_dims</span><span class="p">(</span><span class="n">XY</span><span class="p">,[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">])</span>
-		<span class="k">return</span> <span class="n">M</span></div>
+		<span class="n">M</span> <span class="o">=</span> <span class="n">fix_mat_dims</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">R</span><span class="p">,</span><span class="n">XY</span><span class="p">),[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">])</span>
+		<span class="k">if</span> <span class="n">rotation</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">M</span>
+		<span class="k">return</span> <span class="n">XY</span></div>
 
+
+	<span class="c1"># 1-axis transfer matrix, used for calculating various named lens properties</span>
+<div class="viewcode-block" id="Lens.ABCD">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Lens.ABCD">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">ABCD</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"x"</span><span class="p">,</span> <span class="s2">"xt"</span><span class="p">]]</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transfer_matrix</span><span class="p">(</span><span class="n">rotation</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="n">columns</span><span class="p">,</span> <span class="p">:][:,</span> <span class="n">columns</span><span class="p">]</span></div>
+
+
+	<span class="c1"># Terminology</span>
+	<span class="c1">#  zL    zP zE    zF	self.position: zL, position of the lens entrance plane</span>
+	<span class="c1"># __|____|  |     |		self.length: lens length, exit plane is zL, zL = self.position+self.length</span>
+	<span class="c1">#   |'-. '. |     |		"back focal distance": distance from lens exit (zE) to focal point (zF): zF-zE</span>
+	<span class="c1">#   |    '-'.     |		"principal_distance": position of principal plane (zP) relative to entrance (zL): zP-zL</span>
+	<span class="c1">#   |    |  |'.   |		"focal length": distance from principal plane (zP) to focal point (zF): zF-zP</span>
+	<span class="c1">#   |    |  |  '. |</span>
+	<span class="c1"># __|____|__|____'.</span>
+	<span class="nd">@property</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">principal_distance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">A</span><span class="p">,</span><span class="n">B</span><span class="p">,</span><span class="n">C</span><span class="p">,</span><span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ABCD</span><span class="p">()</span><span class="o">.</span><span class="n">flat</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="o">-</span><span class="p">(</span><span class="n">D</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">/</span><span class="n">C</span>
 
 	<span class="nd">@property</span>
 	<span class="k">def</span><span class="w"> </span><span class="nf">focal_length</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -4724,19 +4705,25 @@
 <span class="sd">		focal_power : Its reciprocal, ``P = -C``.</span>
 <span class="sd">		back_focal_distance : The exit-face-to-BFP geometry number.</span>
 <span class="sd">		"""</span>
-		<span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"x"</span><span class="p">,</span> <span class="s2">"xt"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">,</span> <span class="s2">"yt"</span><span class="p">]]</span>
-		<span class="n">M</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transfer_matrix</span><span class="p">()[</span><span class="n">columns</span><span class="p">,</span> <span class="p">:][:,</span> <span class="n">columns</span><span class="p">]</span>
-		<span class="n">r1</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>		<span class="c1"># parallel entering rays, finite x_1,y_1, zero xt_1,yt_1</span>
-		<span class="n">x</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">r1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">r1</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-		<span class="n">xt</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">r1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">r1</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">+</span> <span class="n">x</span> <span class="o">/</span> <span class="n">xt</span>						<span class="c1"># focuses to: ratio of x_2/xt_2</span>
 
-		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_focal_length</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">allow_diverging</span> <span class="k">else</span> <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_focal_length</span><span class="p">)</span>
-		<span class="n">K</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calibrated_strength</span>
-		<span class="k">if</span> <span class="n">K</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-			<span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">inf</span>
-		<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="n">xp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">)))</span>
+		<span class="n">A</span><span class="p">,</span><span class="n">B</span><span class="p">,</span><span class="n">C</span><span class="p">,</span><span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ABCD</span><span class="p">()</span><span class="o">.</span><span class="n">flat</span>
+		<span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="n">C</span>
+
+		<span class="c1"># TWP CODE: DO NOT DELETE: this is referenced to the entrance plane</span>
+		<span class="c1">#columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]</span>
+		<span class="c1">#M = self.transfer_matrix()[columns, :][:, columns]</span>
+		<span class="c1">#r1 = xp.matmul(M, [1, 0, 1, 0])		# parallel entering rays, finite x_1,y_1, zero xt_1,yt_1</span>
+		<span class="c1">#x = xp.sqrt(r1[0]**2 + r1[2]**2)</span>
+		<span class="c1">#xt = xp.sqrt(r1[1]**2 + r1[3]**2)</span>
+		<span class="c1">#return self.length + x / xt						# focuses to: ratio of x_2/xt_2</span>
+
+		<span class="c1"># OLD ERIC CLODE: DO NOT DELETE: should match -C, this is referenced to self.principal_plane</span>
+		<span class="c1">#if self.length == 0:</span>
+		<span class="c1">#	return self._focal_length if self.allow_diverging else abs(self._focal_length)</span>
+		<span class="c1">#K = self.calibrated_strength</span>
+		<span class="c1">#if K == 0:</span>
+		<span class="c1">#	return xp.inf</span>
+		<span class="c1">#return float(1.0 / (K * xp.sin(K * self.length)))</span>
 
 	<span class="nd">@property</span>
 	<span class="k">def</span><span class="w"> </span><span class="nf">back_focal_distance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -4779,20 +4766,65 @@
 <span class="sd">		transfer_block : Locates physical planes inside the body.</span>
 <span class="sd">		"""</span>
 
-		<span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"x"</span><span class="p">,</span> <span class="s2">"xt"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">,</span> <span class="s2">"yt"</span><span class="p">]]</span>
-		<span class="n">M</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transfer_matrix</span><span class="p">()[</span><span class="n">columns</span><span class="p">,</span> <span class="p">:][:,</span> <span class="n">columns</span><span class="p">]</span>
-		<span class="n">r1</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>		<span class="c1"># parallel entering rays, finite x_1,y_1, zero xt_1,yt_1</span>
-		<span class="n">x</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">r1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">r1</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-		<span class="n">xt</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">r1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">r1</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-		<span class="k">return</span> <span class="n">x</span> <span class="o">/</span> <span class="n">xt</span>						<span class="c1"># focuses to: ratio of x_2/xt_2</span>
+		<span class="n">A</span><span class="p">,</span><span class="n">B</span><span class="p">,</span><span class="n">C</span><span class="p">,</span><span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ABCD</span><span class="p">()</span><span class="o">.</span><span class="n">flat</span>
+		<span class="k">return</span> <span class="o">-</span><span class="n">A</span><span class="o">/</span><span class="n">C</span>
 
+		<span class="c1"># TWP CODE: DO NOT DELETE: use this to prove to yourself you get the same result.</span>
+		<span class="c1">#columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]</span>
+		<span class="c1">#M = self.transfer_matrix()[columns, :][:, columns]</span>
+		<span class="c1">#r1 = xp.matmul(M, [1, 0, 1, 0])		# parallel entering rays, finite x_1,y_1, zero xt_1,yt_1</span>
+		<span class="c1">#x = xp.sqrt(r1[0]**2 + r1[2]**2)</span>
+		<span class="c1">#xt = xp.sqrt(r1[1]**2 + r1[3]**2)</span>
+		<span class="c1">#return x / xt						# focuses to: ratio of x_2/xt_2</span>
+
+		<span class="c1"># OLD ERIC CLODE: DO NOT DELETE: should match -A/C</span>
+		<span class="c1">#if self.length == 0:</span>
+		<span class="c1">#	return self.focal_length</span>
+		<span class="c1">#K = self.calibrated_strength</span>
+		<span class="c1">#if K == 0:</span>
+		<span class="c1">#	return xp.inf</span>
+		<span class="c1">#return float(xp.cos(K * self.length) / (K * xp.sin(K * self.length)))</span>
+
+	<span class="nd">@property</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">focal_power</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The equivalent paraxial focal power ``P = -C`` (1/metres).</span>
+
+<span class="sd">		The lens's matrix maps the entrance face to the exit face; for an</span>
+<span class="sd">		on-axis parallel ray at height ``h``, the exit angle is</span>
+<span class="sd">		``x' = C*h = -P*h``. So ``P`` converts entrance pupil height into</span>
+<span class="sd">		the converging exit angle — the angle the ray actually crosses the</span>
+<span class="sd">		focus at — which is why it is the scale used by the ray- and</span>
+<span class="sd">		wave-path aberration expressions, and the quantity that composes</span>
+<span class="sd">		additively when lenses stack. Thin lens: ``1/focal_length``. Thick</span>
+<span class="sd">		lens: Brown's focusing relation ``K*sin(K*L)``.</span>
+
+<span class="sd">		This is reciprocal to :attr:`focal_length` (the EFL), but generally</span>
+<span class="sd">		**not** reciprocal to :attr:`back_focal_distance` for a thick lens</span>
+<span class="sd">		(the two differ by ``cos(K*L)``). See the Terminology page of the</span>
+<span class="sd">		docs for the full derivation.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		float</span>
+<span class="sd">			Equivalent power ``P = -C`` (1/metres); 0 for a zero-strength</span>
+<span class="sd">			lens.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		focal_length : The EFL, ``1/focal_power``.</span>
+<span class="sd">		back_focal_distance : The exit-face-to-BFP geometry number.</span>
+<span class="sd">		aberration_kick : Consumes this as the pupil scale on the ray path.</span>
+<span class="sd">		phase_shift : Consumes this on the wave path.</span>
+<span class="sd">		"""</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">focal_length</span>
+			<span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_focal_length</span>
+			<span class="k">return</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="n">xp</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">f</span><span class="p">)</span>
 		<span class="n">K</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calibrated_strength</span>
-		<span class="k">if</span> <span class="n">K</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-			<span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">inf</span>
-		<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="n">xp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">)))</span>
-
+		<span class="k">return</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="n">K</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="n">xp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">))</span>
 
 	<span class="c1"># unlike below(?), here we'll *measure* focal length at the current K=I*C and L, then adjust C and L to preserve focal length and set beam rotation (K*L) to match R in radians at this current I.</span>
 <div class="viewcode-block" id="Lens.get_C_L_from_rotation_at_I">
