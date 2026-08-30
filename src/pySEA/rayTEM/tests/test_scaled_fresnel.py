@@ -1946,15 +1946,15 @@ def test_spherical_aberration_kick_matches_the_closed_form():
 	lens = Lens(strength=np.sqrt(1 / f), aberrations={'C30': Cs})
 	r0 = np.zeros((3, 6))
 	r0[:, 0] = [0.0, 1e-4, 2e-4]
-	dx, dy, dxt, dyt = lens.aberration_kick(r0)
+	dx, dy, dxt, dyt = lens._aberration_kick(r0)
 	assert np.allclose(dxt, [-Cs * (1 / f)**4 * h**3 for h in r0[:, 0]], rtol=1e-12)
 	assert np.allclose(dyt, 0.0)
 	assert np.allclose(dx, 0.0) and np.allclose(dy, 0.0)	# a thin lens does not displace
 	# an ideal lens declares nothing at all, so aberration-free columns are
 	# bit-for-bit unchanged
-	assert Lens(strength=np.sqrt(1 / f)).aberration_kick(r0) is None
-	assert Lens(strength=0.0, aberrations={'C30': Cs}).aberration_kick(r0) is None		# no power
-	assert Drift(length=0.1).aberration_kick(r0) is None
+	assert Lens(strength=np.sqrt(1 / f))._aberration_kick(r0) is None
+	assert Lens(strength=0.0, aberrations={'C30': Cs})._aberration_kick(r0) is None		# no power
+	assert Drift(length=0.1)._aberration_kick(r0) is None
 
 	# the traced caustic matches the closed form
 	mic = _aberrated_column(Cs=Cs)
@@ -1986,7 +1986,7 @@ def test_thick_body_aberration_matches_the_perturbed_ray_equation():
 						[0, L], [h, 0.0], rtol=1e-12, atol=1e-18)
 		d_ode = (sol.y[0, -1] - A * h, sol.y[1, -1] + K * np.sin(K * L) * h)
 		r0 = np.zeros((1, 6)); r0[0, 0] = h
-		dx, dy, dxt, dyt = lens.aberration_kick(r0)
+		dx, dy, dxt, dyt = lens._aberration_kick(r0)
 		# first-order perturbation, so the residual is the second-order term and
 		# must stay small AND grow with h
 		assert abs(dx[0] / d_ode[0] - 1) < 1e-4, h
@@ -1994,14 +1994,14 @@ def test_thick_body_aberration_matches_the_perturbed_ray_equation():
 	# the thin limit is untouched: no displacement, and the impulsive kick
 	thin = Lens(strength=np.sqrt(1 / 0.045), aberrations={'C30': Cs})
 	r0 = np.zeros((2, 6)); r0[:, 0] = [1e-4, 2e-4]
-	dx, dy, dxt, dyt = thin.aberration_kick(r0)
+	dx, dy, dxt, dyt = thin._aberration_kick(r0)
 	assert np.all(dx == 0) and np.all(dy == 0)
 	assert np.allclose(dxt, [-Cs * (1 / 0.045)**4 * h**3 for h in r0[:, 0]], rtol=1e-12)
 	# distributing it is NOT the same as placing it at the entrance face: r(z)
 	# falls as the body focuses, so the entrance-face model over-estimates
 	entrance = -Cs * lens.focal_power**4 * 8e-5**3
 	r0 = np.zeros((1, 6)); r0[0, 0] = 8e-5
-	assert abs(lens.aberration_kick(r0)[2][0]) < 0.7 * abs(entrance)
+	assert abs(lens._aberration_kick(r0)[2][0]) < 0.7 * abs(entrance)
 
 
 def test_focal_surface_is_flat_without_aberration():
@@ -2080,7 +2080,7 @@ def test_ray_kick_is_the_gradient_of_the_wave_screen():
 		grad = np.gradient(chi, dx, axis=1)[n // 2, :] / k
 		r0 = np.zeros((n, 6))
 		r0[:, 0], r0[:, 2] = X[n // 2, :], Y[n // 2, :]
-		kick = lens.aberration_kick(r0)[2]			# (dx, dy, dxt, dyt)
+		kick = lens._aberration_kick(r0)[2]			# (dx, dy, dxt, dyt)
 		m = np.abs(X[n // 2, :]) < 2e-5
 		errs.append(np.abs(grad[m] - kick[m]).max())
 	assert errs[0] > 0
@@ -2799,8 +2799,8 @@ def test_coma_is_even_order_and_spherical_is_odd():
 	# a magnitude-only check would not catch.
 	r0 = np.zeros((2, 6))
 	r0[:, 0] = [1e-4, -1e-4]						# opposite edges, on the x axis
-	_, _, coma_x, coma_y = _thin(C21=1e-5).aberration_kick(r0)
-	_, _, sph_x, _ = _thin(C30=1e-3).aberration_kick(r0)
+	_, _, coma_x, coma_y = _thin(C21=1e-5)._aberration_kick(r0)
+	_, _, sph_x, _ = _thin(C30=1e-3)._aberration_kick(r0)
 	assert coma_x[0] * coma_x[1] > 0, "coma is even: both edges deflect together"
 	assert np.isclose(coma_x[0], coma_x[1], rtol=1e-12)
 	assert sph_x[0] * sph_x[1] < 0, "spherical is odd: edges deflect oppositely"

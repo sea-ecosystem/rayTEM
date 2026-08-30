@@ -80,7 +80,7 @@ symmetric and reject a nonzero `b` rather than ignoring it.
 
 **One function, two representations.** The wave multiplies by `exp(iχ)` from
 `phase_at`; rays take `(1/k)∇χ` from `deflection_at`. Same χ, so they cannot
-disagree — see `elements.Element.aberration_kick`, which only decides *where
+disagree — see `elements.Element._aberration_kick`, which only decides *where
 along the element* the kick acts, and `elements.Lens.phase_shift`.
 
 Related: `elements.Element.aberrations` (where one is attached),

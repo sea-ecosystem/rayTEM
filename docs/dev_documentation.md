@@ -78,81 +78,81 @@ On a thin lens the frame surface matches the traced one to machine precision.
 
 ## Moments, and the closure seam
 
-The covariance mode carries two moments; a nonlinear element needs more.
-Rather than hard-code where they come from, the mode splits the beam state
-from the assumption used to extend it — `moments.CovarianceBeam` holds
-`{mean, covariance, moment_closure}`, and `moments.MomentClosure` is a
-one-method interface (`moment(Sigma, indices)`) that a caller can replace.
-`GaussianMomentClosure` answers by Wick pairing at any order.
+The covariance mode carries two moments; a nonlinear element needs more. Where
+they come from is the `closure` argument of `propagate_moments` — a plain
+callable `closure(Sigma, indices) -> float`, defaulting to
+`elements._gaussian_moment`, which answers by Wick pairing at any order. The
+assumption is therefore visible at the call site and replaceable, without a
+class hierarchy standing in for one function.
 
-The nonlinear kick reaches the closure as a *polynomial*, not as per-term
-algebra: `Element.aberration_monomials` recovers it by sampling the existing
+The nonlinear kick reaches it as a *polynomial*, not as per-term algebra:
+`Element._aberration_monomials` recovers it by sampling the existing
 `deflection_at` on the unit circle and solving for the coefficients of a
 homogeneous degree-`n` form, which is legitimate precisely because a Krivanek
-term of order `n` deflects by a degree-`n` homogeneous polynomial and
-therefore carries no length scale of its own. One consequence worth stating:
-**every** order the pupil carries is now closed, rotated terms included, and
-adding a term to `KRIVANEK_TERMS` reaches this path with no algebra written by
-hand.
+term of order `n` deflects by a degree-`n` homogeneous polynomial and therefore
+carries no length scale of its own. One consequence worth stating: **every**
+order the pupil carries is closed, rotated terms included, and adding a term to
+`KRIVANEK_TERMS` reaches this path with no algebra written by hand.
 
-Three properties this buys, each of which the previous hand-derived C30
-closure lacked:
+Three properties this buys, each of which a hand-derived per-term closure
+lacked:
 
 - **Completeness.** Cross-plane terms (`<x δθ_y>`, `<δθ_x δθ_y>`) are computed,
   not dropped. They vanish for a transversely decoupled beam and are
   emphatically not negligible otherwise — through a Larmor-rotating objective
   an astigmatic source produces cross-plane terms as large as the in-plane
   ones.
-- **Positive semidefiniteness by construction.** A complete Gaussian closure is
-  the exact pushforward of a Gaussian, so `Σ'` is a real covariance for any
-  aberration strength. It is *truncation* that breaks PSD, not strength — which
-  is the argument against ever shipping a partial closure, and the reason
-  `CovarianceBeam.is_positive_semidefinite` exists as a guard on custom ones.
+- **Positive semidefiniteness by construction.** A complete Gaussian closure
+  returns the exact moments of a real distribution, so `Σ'` is a genuine
+  pushforward and a real covariance at any aberration strength. It is
+  *truncation* that breaks PSD, not strength.
 - **A retained mean shift.** An even-order aberration moves the ensemble mean
   by `<δ(r)>` while the centroid ray, which feels `δ(μ)`, does not move at all.
   `propagate_moments` takes the affine terms from an ideal ray and adds the
   aberration's contributions explicitly, so the shift is reported rather than
   absorbed into the width.
 
-**Chromatic** attaches here as the one non-geometric term, as the `'Cc'`
-entry of an element's `Aberrations` set, paired with `Source.energy_spread`
-seeding `Σ[E,E]`. Putting it *in* the set is what makes it impossible to
-forget: it serializes, suspends and copies with the Krivanek terms. Keeping it
-out of `names`/`items()` is what keeps the Krivanek machinery from ever seeing
-a term it cannot interpret — those are functions of pupil coordinate alone,
-whereas chromatic couples the pupil to the energy column, making the kick
-bilinear and so not matrix-expressible even though it is a power change. Its
-covariance term is exact rather than closed, because the only fourth moment it
-needs factorizes under the physical assumption that energy spread is
-independent of transverse position. And because it needs no round pupil, it is
-applied per axis, which makes it exact on a quadrupole too.
+**Chromatic** is the `'Cc'` entry of the same `Aberrations` set, paired with
+`Source.energy_spread` seeding `Σ[E,E]`. Putting it *in* the set is what makes
+it impossible to forget — it serializes, suspends and copies with the Krivanek
+terms, and needs no separate method on either path. Keeping it out of
+`names`/`items()` is what stops the Krivanek machinery ever seeing a term it
+cannot interpret: those are functions of pupil coordinate alone, whereas
+chromatic couples the pupil to the energy column, making the kick bilinear and
+so not matrix-expressible even though it is a power change. Its covariance term
+is exact rather than closed, because the only fourth moment it needs factorizes
+when energy spread is independent of transverse position. And because it needs
+no round pupil it is applied per axis, which makes it exact on a quadrupole too.
 
-**Pupil scale.** Everything that turns a ray height into a pupil angle goes
-through `Element._pupil_scale()`: an explicit `pupil_power`, else the scalar
-`focal_power`, else the geometric mean of a per-axis `focal_powers` pair. That
-last case is what lets an astigmatic element carry aberrations at all — a
-quadrupole states `focal_powers` and so used to resolve zero, which silently
-disabled its aberrations on *every* path. The mean is a stated reference scale,
-not a derived truth, because the Krivanek expansion assumes a round pupil;
-`Quadrapole(pupil_power=...)` states it explicitly when the coefficients were
-measured against a particular one.
+**Pupil scale.** Every aberration path converts ray height to pupil angle
+through a single `focal_power` (`θ = P r`), the Krivanek expansion being defined
+on a round pupil. A quadrupole has no such power — one axis focuses while the
+other diverges — so it used to report none and its aberrations were silently
+ignored on *every* path, ray as well as covariance. `Quadrapole.focal_power` is
+now the stated convention, the geometric mean of `|focal_powers|`; set
+`pupil_power` instead when the coefficients were measured against a particular
+scale.
 
-**Serialization.** `Aberrations`, `MomentClosure` and `CovarianceBeam` are all
-`SEASerializable`. Two things this forced: a SEA object is rebuilt by calling
-its class with *no* arguments before its state is assigned, so no constructor
-may have a required parameter; and `Microscope.save` is a hand-rolled JSON
-writer, so it needed an explicit case for a nested SEA object carrying complex
-coefficients (`Aberrations.to_metadata()`, inverted by `from_metadata`) — before
-which an aberrated column could not be written to `.json` at all. A trap worth
-knowing: sea-eco's reader routes a stored public `x` into `_x` whenever the
-object has that name, so a private method spelled `_<public attribute>` is
-silently replaced by a float on reload.
+**Reading the result.** The mode stores `.mu` and the calibrated
+`.covariance_matrix` Signal and nothing else; the reading lives in
+`postprocessing`, beside the ray mode's readers, as `beam_widths`,
+`emittance` and `resolution_ellipses`.
+
+**Serialization.** `Aberrations` is a `SEASerializable` whose coefficients are
+stored — and exposed by `as_dict()` — in the flat `name` / `name.a` / `name.b`
+form, so there are no complex numbers for a file to choke on. That is what
+`Microscope.save`'s hand-rolled JSON writer needed: before it, an aberrated
+column could not be written to `.json` at all. `from_metadata` reads the same
+form back. One trap worth knowing: sea-eco's reader routes a stored public `x`
+into `_x` whenever the object has that name, so a private method spelled
+`_<public attribute>` is silently replaced by a float on reload.
 
 The honest limit is stated where it is measured rather than buried: a cubic
 kick leaves excess kurtosis `γ₂ = 27f²`, with `f` the aberration's share of the
 angular variance, so there is no regime in which the aberration matters to Σ
-but the induced non-Gaussianity does not. `examples/08_covariancePropagation.py`
-prints `f` per element and measures the OL1–OL2 interaction residual directly.
+but the induced non-Gaussianity does not.
+`examples/08_covariancePropagation.py` prints `f` per element and measures the
+OL1–OL2 interaction residual directly.
 
 ## High-risk seams
 
@@ -178,9 +178,9 @@ first.
 - **Implementation entry points**: `elements.py` (elements, screens,
   aberration application), `assemblies.py` (sections, columns, propagation
   drivers, conjugate planes), `waveoptics.py` (paraxial and scaled-Fresnel
-  primitives), `aberrations.py` (the Krivanek model), `moments.py` (the
-  covariance state and the closure seam), `seashells.py` (serialization
-  seam).
+  primitives), `aberrations.py` (the Krivanek model, chromatic included),
+  `postprocessing.py` (the readers for every mode's result), `seashells.py`
+  (serialization seam).
 - **Focused tests**: `src/pySEA/rayTEM/tests/` — `test_scaled_fresnel.py`
   (wave engine, screens, aberrations, currents),
   `test_eight_configurations.py` (the operating states as executable

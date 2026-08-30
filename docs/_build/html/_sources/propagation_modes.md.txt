@@ -7,7 +7,7 @@ element-by-element hierarchy and the same dispatcher,
 | kind | call | what travels | stored on |
 |---|---|---|---|
 | rays | `propagate_ray()` | geometric rays `(x, x', y, y', z, E)` | `.rays`, with `.I`/`.R` alongside |
-| moments | `propagate_moments()` | mean + covariance, `Σ' = MΣMᵀ` | `.mu`, `.covariance_matrix`, `.covariance_beam` |
+| moments | `propagate_moments()` | mean + covariance, `Σ' = MΣMᵀ` | `.mu`, `.covariance_matrix` |
 | wave | `propagate_wave()` | 2D complex wavefield on a fixed grid | `.wave` (a sea-eco `Signal`) |
 | scaled wave | `propagate_wave(mode="hybrid")` | scaled-Fresnel field `ψ = U(x/s)/s` | `.wave_scaled` (a `SignalSet`) |
 
@@ -40,11 +40,10 @@ either.
 
 ### The closure is a stated assumption, not a hidden one
 
-A covariance carries only two moments; a nonlinear map needs more. What
-supplies them is a `moments.MomentClosure` object, passed to
-`propagate_moments(closure=...)` and defaulting to
-`moments.GaussianMomentClosure`, which evaluates any central moment by Wick
-pairing (Isserlis).
+A covariance carries two moments; a nonlinear map needs more. What supplies
+them is the `closure` argument of `propagate_moments` — a plain callable
+`closure(Sigma, indices) -> float`, defaulting to `elements._gaussian_moment`,
+which evaluates any central moment by Wick pairing (Isserlis).
 
 Using it does **not** make the beam Gaussian. It is exact for one aberrated
 element acting on a Gaussian beam; it becomes an approximation only when a
@@ -56,12 +55,11 @@ became. `examples/08_covariancePropagation.py` prints `f` at each aberrated
 element rather than assuming it is small.
 
 The closure is complete rather than truncated, which is why the result is
-always a physically possible covariance: it is the exact pushforward of a
-Gaussian, so positive semidefiniteness is guaranteed for any aberration
-strength. A *partial* closure — keeping the in-plane terms and dropping the
-cross-plane ones, as an earlier per-axis version did — loses that guarantee,
-and on an x-y coupled beam the dropped terms are the same size as the kept
-ones.
+always a physically possible covariance: it returns the exact moments of a real
+distribution, so the update is a genuine pushforward and positive
+semidefiniteness holds at any aberration strength. A *partial* closure — keeping
+the in-plane terms and dropping the cross-plane ones — loses that guarantee, and
+on an x-y coupled beam the dropped terms are the same size as the kept ones.
 
 ### Chromatic
 
@@ -76,9 +74,9 @@ It is declared *inside* the aberration set, as the `'Cc'` term:
 `Lens(aberrations={'C30': 4.5e-6, 'Cc': 1.2e-3})`. One declaration then carries
 everything the element does beyond its matrix — it serializes with the
 aberrations, is detached with them by `apply_aberrations=False`, and cannot be
-left behind when they are cleared. `Element.chromatic_aberration` is a
-convenience view onto it. Pair it with `Source.energy_spread`; either alone
-leaves the column achromatic.
+left behind when they are cleared, and it needs no method of its own on either
+path. `Element.chromatic_aberration` is a convenience view onto it. Pair it
+with `Source.energy_spread`; either alone leaves the column achromatic.
 
 Unlike the Krivanek terms it needs no round-pupil assumption, so it is applied
 **per axis** and is exact on an astigmatic element: a quadrupole's two powers
@@ -90,13 +88,17 @@ the geometric terms it is **exact rather than closed**.
 
 ### Reading the result
 
-`scope.covariance_beam` is a `moments.CovarianceBeam` view over the stored
-`.mu`/`.covariance_matrix`, and reports what a covariance is actually read
-for: rms widths, the signed position-angle correlations, the emittances, and
-the principal axes of the real-space, angular and transverse-momentum blocks.
-Prefer emittance to width when judging aberration damage — a width says
-nothing on its own, while emittance is invariant under ideal transport and
-grows only where something nonlinear acted.
+The mode stores exactly two things — `.mu` and `.covariance_matrix`, the latter
+a calibrated sea-eco `Signal` — and the reading is done by
+`postprocessing`, the same split the ray mode uses. Three functions take the
+covariance stack: `beam_widths` (rms sizes), `emittance` (the invariant), and
+`resolution_ellipses` (principal widths and axes of the position or angle
+block, for when the beam is not round; scale the angular result by
+`k0 = 2π/λ` for momentum widths).
+
+Prefer emittance to width when judging aberration damage — a width says nothing
+on its own, while emittance is invariant under ideal transport and grows only
+where something nonlinear acted.
 
 ## Fixed-grid wave
 

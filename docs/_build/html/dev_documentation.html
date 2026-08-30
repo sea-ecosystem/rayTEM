@@ -180,76 +180,75 @@ On a thin lens the frame surface matches the traced one to machine precision.</p
 </section>
 <section id="moments-and-the-closure-seam">
 <h2>Moments, and the closure seam<a class="headerlink" href="#moments-and-the-closure-seam" title="Link to this heading"></a></h2>
-<p>The covariance mode carries two moments; a nonlinear element needs more.
-Rather than hard-code where they come from, the mode splits the beam state
-from the assumption used to extend it — <code class="docutils literal notranslate"><span class="pre">moments.CovarianceBeam</span></code> holds
-<code class="docutils literal notranslate"><span class="pre">{mean,</span> <span class="pre">covariance,</span> <span class="pre">moment_closure}</span></code>, and <code class="docutils literal notranslate"><span class="pre">moments.MomentClosure</span></code> is a
-one-method interface (<code class="docutils literal notranslate"><span class="pre">moment(Sigma,</span> <span class="pre">indices)</span></code>) that a caller can replace.
-<code class="docutils literal notranslate"><span class="pre">GaussianMomentClosure</span></code> answers by Wick pairing at any order.</p>
-<p>The nonlinear kick reaches the closure as a <em>polynomial</em>, not as per-term
-algebra: <code class="docutils literal notranslate"><span class="pre">Element.aberration_monomials</span></code> recovers it by sampling the existing
+<p>The covariance mode carries two moments; a nonlinear element needs more. Where
+they come from is the <code class="docutils literal notranslate"><span class="pre">closure</span></code> argument of <code class="docutils literal notranslate"><span class="pre">propagate_moments</span></code> — a plain
+callable <code class="docutils literal notranslate"><span class="pre">closure(Sigma,</span> <span class="pre">indices)</span> <span class="pre">-&gt;</span> <span class="pre">float</span></code>, defaulting to
+<code class="docutils literal notranslate"><span class="pre">elements._gaussian_moment</span></code>, which answers by Wick pairing at any order. The
+assumption is therefore visible at the call site and replaceable, without a
+class hierarchy standing in for one function.</p>
+<p>The nonlinear kick reaches it as a <em>polynomial</em>, not as per-term algebra:
+<code class="docutils literal notranslate"><span class="pre">Element._aberration_monomials</span></code> recovers it by sampling the existing
 <code class="docutils literal notranslate"><span class="pre">deflection_at</span></code> on the unit circle and solving for the coefficients of a
 homogeneous degree-<code class="docutils literal notranslate"><span class="pre">n</span></code> form, which is legitimate precisely because a Krivanek
-term of order <code class="docutils literal notranslate"><span class="pre">n</span></code> deflects by a degree-<code class="docutils literal notranslate"><span class="pre">n</span></code> homogeneous polynomial and
-therefore carries no length scale of its own. One consequence worth stating:
-<strong>every</strong> order the pupil carries is now closed, rotated terms included, and
-adding a term to <code class="docutils literal notranslate"><span class="pre">KRIVANEK_TERMS</span></code> reaches this path with no algebra written by
-hand.</p>
-<p>Three properties this buys, each of which the previous hand-derived C30
-closure lacked:</p>
+term of order <code class="docutils literal notranslate"><span class="pre">n</span></code> deflects by a degree-<code class="docutils literal notranslate"><span class="pre">n</span></code> homogeneous polynomial and therefore
+carries no length scale of its own. One consequence worth stating: <strong>every</strong>
+order the pupil carries is closed, rotated terms included, and adding a term to
+<code class="docutils literal notranslate"><span class="pre">KRIVANEK_TERMS</span></code> reaches this path with no algebra written by hand.</p>
+<p>Three properties this buys, each of which a hand-derived per-term closure
+lacked:</p>
 <ul class="simple">
 <li><p><strong>Completeness.</strong> Cross-plane terms (<code class="docutils literal notranslate"><span class="pre">&lt;x</span> <span class="pre">δθ_y&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;δθ_x</span> <span class="pre">δθ_y&gt;</span></code>) are computed,
 not dropped. They vanish for a transversely decoupled beam and are
 emphatically not negligible otherwise — through a Larmor-rotating objective
 an astigmatic source produces cross-plane terms as large as the in-plane
 ones.</p></li>
-<li><p><strong>Positive semidefiniteness by construction.</strong> A complete Gaussian closure is
-the exact pushforward of a Gaussian, so <code class="docutils literal notranslate"><span class="pre">Σ'</span></code> is a real covariance for any
-aberration strength. It is <em>truncation</em> that breaks PSD, not strength — which
-is the argument against ever shipping a partial closure, and the reason
-<code class="docutils literal notranslate"><span class="pre">CovarianceBeam.is_positive_semidefinite</span></code> exists as a guard on custom ones.</p></li>
+<li><p><strong>Positive semidefiniteness by construction.</strong> A complete Gaussian closure
+returns the exact moments of a real distribution, so <code class="docutils literal notranslate"><span class="pre">Σ'</span></code> is a genuine
+pushforward and a real covariance at any aberration strength. It is
+<em>truncation</em> that breaks PSD, not strength.</p></li>
 <li><p><strong>A retained mean shift.</strong> An even-order aberration moves the ensemble mean
 by <code class="docutils literal notranslate"><span class="pre">&lt;δ(r)&gt;</span></code> while the centroid ray, which feels <code class="docutils literal notranslate"><span class="pre">δ(μ)</span></code>, does not move at all.
 <code class="docutils literal notranslate"><span class="pre">propagate_moments</span></code> takes the affine terms from an ideal ray and adds the
 aberration’s contributions explicitly, so the shift is reported rather than
 absorbed into the width.</p></li>
 </ul>
-<p><strong>Chromatic</strong> attaches here as the one non-geometric term, as the <code class="docutils literal notranslate"><span class="pre">'Cc'</span></code>
-entry of an element’s <code class="docutils literal notranslate"><span class="pre">Aberrations</span></code> set, paired with <code class="docutils literal notranslate"><span class="pre">Source.energy_spread</span></code>
-seeding <code class="docutils literal notranslate"><span class="pre">Σ[E,E]</span></code>. Putting it <em>in</em> the set is what makes it impossible to
-forget: it serializes, suspends and copies with the Krivanek terms. Keeping it
-out of <code class="docutils literal notranslate"><span class="pre">names</span></code>/<code class="docutils literal notranslate"><span class="pre">items()</span></code> is what keeps the Krivanek machinery from ever seeing
-a term it cannot interpret — those are functions of pupil coordinate alone,
-whereas chromatic couples the pupil to the energy column, making the kick
-bilinear and so not matrix-expressible even though it is a power change. Its
-covariance term is exact rather than closed, because the only fourth moment it
-needs factorizes under the physical assumption that energy spread is
-independent of transverse position. And because it needs no round pupil, it is
-applied per axis, which makes it exact on a quadrupole too.</p>
-<p><strong>Pupil scale.</strong> Everything that turns a ray height into a pupil angle goes
-through <code class="docutils literal notranslate"><span class="pre">Element._pupil_scale()</span></code>: an explicit <code class="docutils literal notranslate"><span class="pre">pupil_power</span></code>, else the scalar
-<code class="docutils literal notranslate"><span class="pre">focal_power</span></code>, else the geometric mean of a per-axis <code class="docutils literal notranslate"><span class="pre">focal_powers</span></code> pair. That
-last case is what lets an astigmatic element carry aberrations at all — a
-quadrupole states <code class="docutils literal notranslate"><span class="pre">focal_powers</span></code> and so used to resolve zero, which silently
-disabled its aberrations on <em>every</em> path. The mean is a stated reference scale,
-not a derived truth, because the Krivanek expansion assumes a round pupil;
-<code class="docutils literal notranslate"><span class="pre">Quadrapole(pupil_power=...)</span></code> states it explicitly when the coefficients were
-measured against a particular one.</p>
-<p><strong>Serialization.</strong> <code class="docutils literal notranslate"><span class="pre">Aberrations</span></code>, <code class="docutils literal notranslate"><span class="pre">MomentClosure</span></code> and <code class="docutils literal notranslate"><span class="pre">CovarianceBeam</span></code> are all
-<code class="docutils literal notranslate"><span class="pre">SEASerializable</span></code>. Two things this forced: a SEA object is rebuilt by calling
-its class with <em>no</em> arguments before its state is assigned, so no constructor
-may have a required parameter; and <code class="docutils literal notranslate"><span class="pre">Microscope.save</span></code> is a hand-rolled JSON
-writer, so it needed an explicit case for a nested SEA object carrying complex
-coefficients (<code class="docutils literal notranslate"><span class="pre">Aberrations.to_metadata()</span></code>, inverted by <code class="docutils literal notranslate"><span class="pre">from_metadata</span></code>) — before
-which an aberrated column could not be written to <code class="docutils literal notranslate"><span class="pre">.json</span></code> at all. A trap worth
-knowing: sea-eco’s reader routes a stored public <code class="docutils literal notranslate"><span class="pre">x</span></code> into <code class="docutils literal notranslate"><span class="pre">_x</span></code> whenever the
-object has that name, so a private method spelled <code class="docutils literal notranslate"><span class="pre">_&lt;public</span> <span class="pre">attribute&gt;</span></code> is
-silently replaced by a float on reload.</p>
+<p><strong>Chromatic</strong> is the <code class="docutils literal notranslate"><span class="pre">'Cc'</span></code> entry of the same <code class="docutils literal notranslate"><span class="pre">Aberrations</span></code> set, paired with
+<code class="docutils literal notranslate"><span class="pre">Source.energy_spread</span></code> seeding <code class="docutils literal notranslate"><span class="pre">Σ[E,E]</span></code>. Putting it <em>in</em> the set is what makes
+it impossible to forget — it serializes, suspends and copies with the Krivanek
+terms, and needs no separate method on either path. Keeping it out of
+<code class="docutils literal notranslate"><span class="pre">names</span></code>/<code class="docutils literal notranslate"><span class="pre">items()</span></code> is what stops the Krivanek machinery ever seeing a term it
+cannot interpret: those are functions of pupil coordinate alone, whereas
+chromatic couples the pupil to the energy column, making the kick bilinear and
+so not matrix-expressible even though it is a power change. Its covariance term
+is exact rather than closed, because the only fourth moment it needs factorizes
+when energy spread is independent of transverse position. And because it needs
+no round pupil it is applied per axis, which makes it exact on a quadrupole too.</p>
+<p><strong>Pupil scale.</strong> Every aberration path converts ray height to pupil angle
+through a single <code class="docutils literal notranslate"><span class="pre">focal_power</span></code> (<code class="docutils literal notranslate"><span class="pre">θ</span> <span class="pre">=</span> <span class="pre">P</span> <span class="pre">r</span></code>), the Krivanek expansion being defined
+on a round pupil. A quadrupole has no such power — one axis focuses while the
+other diverges — so it used to report none and its aberrations were silently
+ignored on <em>every</em> path, ray as well as covariance. <code class="docutils literal notranslate"><span class="pre">Quadrapole.focal_power</span></code> is
+now the stated convention, the geometric mean of <code class="docutils literal notranslate"><span class="pre">|focal_powers|</span></code>; set
+<code class="docutils literal notranslate"><span class="pre">pupil_power</span></code> instead when the coefficients were measured against a particular
+scale.</p>
+<p><strong>Reading the result.</strong> The mode stores <code class="docutils literal notranslate"><span class="pre">.mu</span></code> and the calibrated
+<code class="docutils literal notranslate"><span class="pre">.covariance_matrix</span></code> Signal and nothing else; the reading lives in
+<code class="docutils literal notranslate"><span class="pre">postprocessing</span></code>, beside the ray mode’s readers, as <code class="docutils literal notranslate"><span class="pre">beam_widths</span></code>,
+<code class="docutils literal notranslate"><span class="pre">emittance</span></code> and <code class="docutils literal notranslate"><span class="pre">resolution_ellipses</span></code>.</p>
+<p><strong>Serialization.</strong> <code class="docutils literal notranslate"><span class="pre">Aberrations</span></code> is a <code class="docutils literal notranslate"><span class="pre">SEASerializable</span></code> whose coefficients are
+stored — and exposed by <code class="docutils literal notranslate"><span class="pre">as_dict()</span></code> — in the flat <code class="docutils literal notranslate"><span class="pre">name</span></code> / <code class="docutils literal notranslate"><span class="pre">name.a</span></code> / <code class="docutils literal notranslate"><span class="pre">name.b</span></code>
+form, so there are no complex numbers for a file to choke on. That is what
+<code class="docutils literal notranslate"><span class="pre">Microscope.save</span></code>’s hand-rolled JSON writer needed: before it, an aberrated
+column could not be written to <code class="docutils literal notranslate"><span class="pre">.json</span></code> at all. <code class="docutils literal notranslate"><span class="pre">from_metadata</span></code> reads the same
+form back. One trap worth knowing: sea-eco’s reader routes a stored public <code class="docutils literal notranslate"><span class="pre">x</span></code>
+into <code class="docutils literal notranslate"><span class="pre">_x</span></code> whenever the object has that name, so a private method spelled
+<code class="docutils literal notranslate"><span class="pre">_&lt;public</span> <span class="pre">attribute&gt;</span></code> is silently replaced by a float on reload.</p>
 <p>The honest limit is stated where it is measured rather than buried: a cubic
 kick leaves excess kurtosis <code class="docutils literal notranslate"><span class="pre">γ₂</span> <span class="pre">=</span> <span class="pre">27f²</span></code>, with <code class="docutils literal notranslate"><span class="pre">f</span></code> the aberration’s share of the
 angular variance, so there is no regime in which the aberration matters to Σ
-but the induced non-Gaussianity does not. <code class="docutils literal notranslate"><span class="pre">examples/08_covariancePropagation.py</span></code>
-prints <code class="docutils literal notranslate"><span class="pre">f</span></code> per element and measures the OL1–OL2 interaction residual directly.</p>
+but the induced non-Gaussianity does not.
+<code class="docutils literal notranslate"><span class="pre">examples/08_covariancePropagation.py</span></code> prints <code class="docutils literal notranslate"><span class="pre">f</span></code> per element and measures the
+OL1–OL2 interaction residual directly.</p>
 </section>
 <section id="high-risk-seams">
 <h2>High-risk seams<a class="headerlink" href="#high-risk-seams" title="Link to this heading"></a></h2>
@@ -278,9 +277,9 @@ first.</p>
 <li><p><strong>Implementation entry points</strong>: <code class="docutils literal notranslate"><span class="pre">elements.py</span></code> (elements, screens,
 aberration application), <code class="docutils literal notranslate"><span class="pre">assemblies.py</span></code> (sections, columns, propagation
 drivers, conjugate planes), <code class="docutils literal notranslate"><span class="pre">waveoptics.py</span></code> (paraxial and scaled-Fresnel
-primitives), <code class="docutils literal notranslate"><span class="pre">aberrations.py</span></code> (the Krivanek model), <code class="docutils literal notranslate"><span class="pre">moments.py</span></code> (the
-covariance state and the closure seam), <code class="docutils literal notranslate"><span class="pre">seashells.py</span></code> (serialization
-seam).</p></li>
+primitives), <code class="docutils literal notranslate"><span class="pre">aberrations.py</span></code> (the Krivanek model, chromatic included),
+<code class="docutils literal notranslate"><span class="pre">postprocessing.py</span></code> (the readers for every mode’s result), <code class="docutils literal notranslate"><span class="pre">seashells.py</span></code>
+(serialization seam).</p></li>
 <li><p><strong>Focused tests</strong>: <code class="docutils literal notranslate"><span class="pre">src/pySEA/rayTEM/tests/</span></code> — <code class="docutils literal notranslate"><span class="pre">test_scaled_fresnel.py</span></code>
 (wave engine, screens, aberrations, currents),
 <code class="docutils literal notranslate"><span class="pre">test_eight_configurations.py</span></code> (the operating states as executable

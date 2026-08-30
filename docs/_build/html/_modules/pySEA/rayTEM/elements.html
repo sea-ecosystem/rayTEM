@@ -101,7 +101,6 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">SEASerializable</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.aberrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">Aberrations</span><span class="p">,</span> <span class="n">KRIVANEK_TERMS</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.moments</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMomentClosure</span><span class="p">,</span> <span class="n">_center_monomials</span><span class="p">,</span> <span class="n">_kick_moments</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">wraps</span>
@@ -392,7 +391,7 @@
 <span class="sd">	Related</span>
 <span class="sd">	-------</span>
 <span class="sd">	assemblies.Microscope.propagate_ray : One of the callers.</span>
-<span class="sd">	Element.aberration_kick : What goes quiet while suspended.</span>
+<span class="sd">	Element._aberration_kick : What goes quiet while suspended.</span>
 <span class="sd">	Element.chromatic_kick : Silenced with it, since the chromatic coefficient</span>
 <span class="sd">		lives inside the set that gets detached -- an "ideal" column has to</span>
 <span class="sd">		mean an achromatic one as well.</span>
@@ -687,7 +686,7 @@
 
 <span class="c1">#: Slices a thick medium is split into when it carries a screen. An aberration</span>
 <span class="c1">#: acts along the body, not at one plane, so the wave path integrates it the way</span>
-<span class="c1">#: :meth:Element.aberration_kick does on the ray side.</span>
+<span class="c1">#: :meth:Element._aberration_kick does on the ray side.</span>
 <span class="c1">#:</span>
 <span class="c1">#: Measured on basic_column's OL1 at 30 mrad, the wave's best-focus shift is</span>
 <span class="c1">#: converged from 2-4 slices onward (1 slice differs by 0.23 nm, everything from</span>
@@ -729,7 +728,7 @@
 
 <span class="sd">	Related</span>
 <span class="sd">	-------</span>
-<span class="sd">	Element.aberration_kick : Consumes the result on the ray path.</span>
+<span class="sd">	Element._aberration_kick : Consumes the result on the ray path.</span>
 <span class="sd">	aberrations.Aberrations : The storage class.</span>
 
 <span class="sd">	Examples</span>
@@ -802,6 +801,191 @@
 	<span class="k">return</span> <span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span><span class="p">,</span> <span class="n">residual</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_gaussian_moment</span><span class="p">(</span><span class="n">Sigma</span><span class="p">,</span> <span class="n">indices</span><span class="p">):</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""A central moment of a Gaussian ensemble, by Wick pairing.</span>
+
+<span class="sd">	A covariance carries two moments; a nonlinear kick needs more. This is the</span>
+<span class="sd">	default way of supplying them: for a centered Gaussian every odd central</span>
+<span class="sd">	moment vanishes and every even one is the sum over perfect pairings of the</span>
+<span class="sd">	indices (Isserlis),</span>
+
+<span class="sd">	.. math::</span>
+
+<span class="sd">		\langle s_i s_j s_k s_l \rangle =</span>
+<span class="sd">		\Sigma_{ij}\Sigma_{kl} + \Sigma_{ik}\Sigma_{jl} + \Sigma_{il}\Sigma_{jk}</span>
+
+<span class="sd">	and likewise at higher even degree. Evaluating it recursively -- pair the</span>
+<span class="sd">	first index with each of the others, recurse on the remainder -- answers at</span>
+<span class="sd">	any degree, so no aberration order needs algebra written by hand.</span>
+
+<span class="sd">	Using this does **not** make the beam Gaussian. It is the assumption made</span>
+<span class="sd">	at one nonlinear element, and :meth:`Element.propagate_moments` takes it as</span>
+<span class="sd">	a replaceable argument so the assumption stays visible and a different one</span>
+<span class="sd">	can be supplied: any callable with this signature will do.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	Sigma : xp.ndarray</span>
+<span class="sd">		Covariance matrix, shape ``(len(convention),)*2``.</span>
+<span class="sd">	indices : Sequence of int</span>
+<span class="sd">		Column indices of the product, with repetition; the empty sequence is</span>
+<span class="sd">		the empty product.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	float</span>
+<span class="sd">		The central moment: 1 for the empty product, 0 at odd degree.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	_kick_moments : The consumer.</span>
+<span class="sd">	Element.propagate_moments : Where a different closure would be passed in.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	Because it returns the *exact* moments of a real distribution, the</span>
+<span class="sd">	covariance update built from it is a genuine pushforward and so stays</span>
+<span class="sd">	positive semidefinite at any aberration strength. A partial or</span>
+<span class="sd">	hand-tabulated closure has no such guarantee.</span>
+
+<span class="sd">	References</span>
+<span class="sd">	----------</span>
+<span class="sd">	.. [1] L. Isserlis, Biometrika 12, 134 (1918).</span>
+<span class="sd">	"""</span>
+	<span class="n">idx</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">)</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">idx</span><span class="p">:</span>
+		<span class="k">return</span> <span class="mf">1.0</span>
+	<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span> <span class="o">%</span> <span class="mi">2</span><span class="p">:</span>
+		<span class="k">return</span> <span class="mf">0.0</span>
+	<span class="n">head</span><span class="p">,</span> <span class="n">rest</span> <span class="o">=</span> <span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">idx</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+	<span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">Sigma</span><span class="p">[</span><span class="n">head</span><span class="p">,</span> <span class="n">rest</span><span class="p">[</span><span class="n">k</span><span class="p">]])</span> <span class="o">*</span> <span class="n">_gaussian_moment</span><span class="p">(</span><span class="n">Sigma</span><span class="p">,</span> <span class="n">rest</span><span class="p">[:</span><span class="n">k</span><span class="p">]</span> <span class="o">+</span> <span class="n">rest</span><span class="p">[</span><span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:])</span>
+			   <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">rest</span><span class="p">)))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_center_monomials</span><span class="p">(</span><span class="n">monomials</span><span class="p">,</span> <span class="n">mu</span><span class="p">):</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""Rewrite an absolute-coordinate polynomial in deviations from the mean.</span>
+
+<span class="sd">	A kick is naturally written in absolute coordinates -- spherical aberration</span>
+<span class="sd">	deflects by :math:`g(x^2+y^2)x` in the pupil, not in the deviation from</span>
+<span class="sd">	wherever the centroid sits -- while every moment is central. This expands</span>
+<span class="sd">	each monomial :math:`\prod(\mu + s)` by the binomial theorem. For a</span>
+<span class="sd">	centered beam it is the identity.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	monomials : Sequence of tuple</span>
+<span class="sd">		``(coefficient, indices)`` pairs; the empty index tuple is a constant.</span>
+<span class="sd">	mu : xp.ndarray</span>
+<span class="sd">		Mean state vector, shape ``(len(convention),)``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	list of tuple</span>
+<span class="sd">		The same polynomial in central coordinates. Terms are not combined.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	Element._aberration_monomials : Produces the absolute form.</span>
+<span class="sd">	_kick_moments : Consumes the centered form.</span>
+<span class="sd">	"""</span>
+	<span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+	<span class="k">for</span> <span class="n">coef</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">monomials</span><span class="p">:</span>
+		<span class="n">coef</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">coef</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">coef</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+			<span class="k">continue</span>
+		<span class="n">idx</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">idx</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">mask</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">idx</span><span class="p">)):</span>
+			<span class="n">kept</span><span class="p">,</span> <span class="n">factor</span> <span class="o">=</span> <span class="p">[],</span> <span class="n">coef</span>
+			<span class="k">for</span> <span class="n">bit</span><span class="p">,</span> <span class="n">column</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">idx</span><span class="p">):</span>
+				<span class="k">if</span> <span class="n">mask</span> <span class="o">&amp;</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">bit</span><span class="p">):</span>
+					<span class="n">kept</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">column</span><span class="p">)</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="n">factor</span> <span class="o">*=</span> <span class="nb">float</span><span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="n">column</span><span class="p">])</span>
+			<span class="k">if</span> <span class="n">factor</span><span class="p">:</span>
+				<span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">factor</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">kept</span><span class="p">)))</span>
+	<span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_kick_moments</span><span class="p">(</span><span class="n">monomials_by_column</span><span class="p">,</span> <span class="n">Sigma</span><span class="p">,</span> <span class="n">closure</span><span class="p">):</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""Mean, cross-covariance and self-covariance of a polynomial kick.</span>
+
+<span class="sd">	Given a nonlinear kick whose component in each output column is a</span>
+<span class="sd">	polynomial in the *central* coordinates, this returns the three pieces the</span>
+<span class="sd">	covariance update needs:</span>
+
+<span class="sd">	.. math::</span>
+
+<span class="sd">		\langle\delta_c\rangle, \qquad</span>
+<span class="sd">		\mathrm{Cov}(s_a,\delta_c), \qquad</span>
+<span class="sd">		\mathrm{Cov}(\delta_c,\delta_d)</span>
+
+<span class="sd">	Every moment comes from ``closure``, so the closure assumption enters here</span>
+<span class="sd">	and nowhere else. Forming the covariances as</span>
+<span class="sd">	:math:`\langle\cdot\rangle-\langle\cdot\rangle\langle\cdot\rangle` is what</span>
+<span class="sd">	keeps an even-order aberration's mean shift reported as a shift rather than</span>
+<span class="sd">	absorbed into the width.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	monomials_by_column : dict</span>
+<span class="sd">		Output column index -&gt; sequence of ``(coefficient, indices)`` monomials</span>
+<span class="sd">		in central coordinates.</span>
+<span class="sd">	Sigma : xp.ndarray</span>
+<span class="sd">		Entrance covariance.</span>
+<span class="sd">	closure : callable</span>
+<span class="sd">		``closure(Sigma, indices) -&gt; float``, supplying the higher moments;</span>
+<span class="sd">		:func:`_gaussian_moment` is the default.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	tuple of xp.ndarray</span>
+<span class="sd">		``(delta_mean, C, D)`` -- the ensemble-mean kick, the state-kick</span>
+<span class="sd">		cross-covariance ``C[a, c] = Cov(s_a, delta_c)``, and the kick</span>
+<span class="sd">		self-covariance ``D[c, d] = Cov(delta_c, delta_d)``.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	Element._aberration_moment_pieces : Assembles these into the update.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	Every column pair is computed, so cross-plane terms are included. They</span>
+<span class="sd">	vanish for a transversely decoupled beam and are emphatically not</span>
+<span class="sd">	negligible otherwise -- through a rotating objective an astigmatic source</span>
+<span class="sd">	makes them as large as the in-plane terms.</span>
+<span class="sd">	"""</span>
+	<span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">Sigma</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+	<span class="n">delta_mean</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+	<span class="n">C</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+	<span class="n">D</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+	<span class="n">columns</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">monomials_by_column</span><span class="p">)</span>
+	<span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">:</span>
+		<span class="n">delta_mean</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">coef</span> <span class="o">*</span> <span class="n">closure</span><span class="p">(</span><span class="n">Sigma</span><span class="p">,</span> <span class="n">idx</span><span class="p">)</span>
+							<span class="k">for</span> <span class="n">coef</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">monomials_by_column</span><span class="p">[</span><span class="n">c</span><span class="p">])</span>
+	<span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">:</span>
+		<span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>					<span class="c1"># &lt;s_a&gt; is zero by construction</span>
+			<span class="n">C</span><span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">coef</span> <span class="o">*</span> <span class="n">closure</span><span class="p">(</span><span class="n">Sigma</span><span class="p">,</span> <span class="p">(</span><span class="n">a</span><span class="p">,)</span> <span class="o">+</span> <span class="n">idx</span><span class="p">)</span>
+						  <span class="k">for</span> <span class="n">coef</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">monomials_by_column</span><span class="p">[</span><span class="n">c</span><span class="p">])</span>
+	<span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">:</span>
+		<span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">:</span>
+			<span class="n">D</span><span class="p">[</span><span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">cc</span> <span class="o">*</span> <span class="n">cd</span> <span class="o">*</span> <span class="n">closure</span><span class="p">(</span><span class="n">Sigma</span><span class="p">,</span> <span class="n">ic</span> <span class="o">+</span> <span class="n">id_</span><span class="p">)</span>
+						  <span class="k">for</span> <span class="n">cc</span><span class="p">,</span> <span class="n">ic</span> <span class="ow">in</span> <span class="n">monomials_by_column</span><span class="p">[</span><span class="n">c</span><span class="p">]</span>
+						  <span class="k">for</span> <span class="n">cd</span><span class="p">,</span> <span class="n">id_</span> <span class="ow">in</span> <span class="n">monomials_by_column</span><span class="p">[</span><span class="n">d</span><span class="p">])</span> <span class="o">-</span> <span class="n">delta_mean</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">*</span> <span class="n">delta_mean</span><span class="p">[</span><span class="n">d</span><span class="p">]</span>
+	<span class="k">return</span> <span class="n">delta_mean</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">D</span>
+
+
 <div class="viewcode-block" id="Element">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Element">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Element</span><span class="p">(</span><span class="n">SealedAttributes</span><span class="p">,</span> <span class="n">SEASerializable</span><span class="p">):</span>
@@ -866,7 +1050,7 @@
 <span class="sd">		-------</span>
 <span class="sd">		aberrations.CHROMATIC_TERM : Its name inside the set.</span>
 <span class="sd">		chromatic_kick : The per-ray deflection it produces.</span>
-<span class="sd">		__chromatic_monomials : The same kick, for the covariance path.</span>
+<span class="sd">		_aberration_monomials : The same kick, for the covariance path.</span>
 
 <span class="sd">		Examples</span>
 <span class="sd">		--------</span>
@@ -917,7 +1101,7 @@
 <span class="sd">			Axial wave aberrations in Krivanek C_{n,m} notation, by default</span>
 <span class="sd">			None (ideal). Accepts an :class:aberrations.Aberrations or a</span>
 <span class="sd">			bare {name: value} mapping. Applied generically by</span>
-<span class="sd">			:meth:aberration_kick on the ray path and :meth:phase_shift on</span>
+<span class="sd">			:meth:_aberration_kick on the ray path and :meth:phase_shift on</span>
 <span class="sd">			the wave path, so no element needs per-aberration code.</span>
 <span class="sd">		screen : Signal or numpy.ndarray, optional</span>
 <span class="sd">			A screen supplied by the caller rather than generated, by default</span>
@@ -1654,93 +1838,7 @@
 		<span class="n">current</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_arriving_current</span>
 		<span class="k">return</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">current</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
 
-	<span class="k">def</span><span class="w"> </span><span class="nf">_pupil_scale</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">		</span><span class="sa">r</span><span class="sd">"""The scalar pupil scale this element's aberrations are defined against.</span>
-
-<span class="sd">		The single resolution rule, in one place, for every path that needs to</span>
-<span class="sd">		turn a ray height into a pupil angle (:math:`\theta = P r`): an</span>
-<span class="sd">		explicit :attr:`pupil_power` if the element states one, otherwise its</span>
-<span class="sd">		scalar ``focal_power``, otherwise the geometric mean of a per-axis</span>
-<span class="sd">		``focal_powers`` pair.</span>
-
-<span class="sd">		That last case is what lets an **astigmatic** element carry</span>
-<span class="sd">		aberrations at all. A quadrupole has no single focal power -- one axis</span>
-<span class="sd">		focuses while the other diverges -- so before this it resolved to zero</span>
-<span class="sd">		and its aberrations were silently ignored on every path, ray and</span>
-<span class="sd">		covariance alike. The Krivanek expansion assumes a *round* pupil, so</span>
-<span class="sd">		the geometric mean is a stated reference scale rather than a derived</span>
-<span class="sd">		truth: set :attr:`pupil_power` explicitly when the coefficients were</span>
-<span class="sd">		measured against a particular one.</span>
-
-<span class="sd">		Returns</span>
-<span class="sd">		-------</span>
-<span class="sd">		float</span>
-<span class="sd">			The pupil power in 1/metres; 0 when the element defines no pupil,</span>
-<span class="sd">			which is how a Drift stays exactly linear.</span>
-
-<span class="sd">		Raises</span>
-<span class="sd">		------</span>
-<span class="sd">		None</span>
-
-<span class="sd">		Related</span>
-<span class="sd">		-------</span>
-<span class="sd">		_pupil_scales : The per-axis pair, for physics needing no round pupil.</span>
-
-<span class="sd">		Notes</span>
-<span class="sd">		-----</span>
-<span class="sd">		Named ``_pupil_scale`` and not ``_pupil_power`` on purpose: sea-eco's</span>
-<span class="sd">		JSON reader routes a stored public ``pupil_power`` into ``_pupil_power``</span>
-<span class="sd">		whenever the object has that name (``_json_attribute_name``, the</span>
-<span class="sd">		getter-only-property convention), so a private method spelled</span>
-<span class="sd">		``_&lt;public attribute&gt;`` is silently overwritten by a float on reload.</span>
-<span class="sd">		aberrations.Aberrations.deflection_at : The consumer.</span>
-<span class="sd">		AberrationScreen.pupil_power : An element that states one explicitly.</span>
-<span class="sd">		"""</span>
-		<span class="n">explicit</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"pupil_power"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-		<span class="k">if</span> <span class="n">explicit</span><span class="p">:</span>
-			<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">explicit</span><span class="p">)</span>
-		<span class="n">scalar</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_power"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span>
-		<span class="k">if</span> <span class="n">scalar</span><span class="p">:</span>
-			<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">scalar</span><span class="p">)</span>
-		<span class="n">pair</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_powers"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-		<span class="k">if</span> <span class="n">pair</span><span class="p">:</span>
-			<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">pair</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]))))</span>
-		<span class="k">return</span> <span class="mf">0.0</span>
-
-	<span class="k">def</span><span class="w"> </span><span class="nf">_pupil_scales</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
-<span class="w">		</span><span class="sa">r</span><span class="sd">"""The per-axis pupil powers, without assuming a round pupil.</span>
-
-<span class="sd">		Chromatic aberration does not need the round-pupil assumption the</span>
-<span class="sd">		Krivanek expansion does: an off-energy electron simply sees each axis's</span>
-<span class="sd">		own power scaled, :math:`\Delta P_u = -C_c P_u^2 \delta`. So for an</span>
-<span class="sd">		astigmatic element the chromatic kick is *exact* per axis, where a</span>
-<span class="sd">		geometric aberration has to be referenced to a single stated scale.</span>
-
-<span class="sd">		Returns</span>
-<span class="sd">		-------</span>
-<span class="sd">		tuple of float</span>
-<span class="sd">			``(P_x, P_y)`` in 1/metres. Equal for a round element, opposite in</span>
-<span class="sd">			sign for a quadrupole, ``(0, 0)`` for an element with no pupil.</span>
-
-<span class="sd">		Raises</span>
-<span class="sd">		------</span>
-<span class="sd">		None</span>
-
-<span class="sd">		Related</span>
-<span class="sd">		-------</span>
-<span class="sd">		_pupil_scale : The round-pupil scalar the Krivanek terms use.</span>
-<span class="sd">		chromatic_kick, __chromatic_monomials : The consumers.</span>
-<span class="sd">		"""</span>
-		<span class="n">pair</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_powers"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-		<span class="k">if</span> <span class="n">pair</span><span class="p">:</span>
-			<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">pair</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-		<span class="n">P</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pupil_scale</span><span class="p">()</span>
-		<span class="k">return</span> <span class="n">P</span><span class="p">,</span> <span class="n">P</span>
-
-
-<div class="viewcode-block" id="Element.aberration_kick">
-<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Element.aberration_kick">[docs]</a>
-	<span class="k">def</span><span class="w"> </span><span class="nf">aberration_kick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">_aberration_kick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
 <span class="w">		</span><span class="sa">r</span><span class="sd">"""This element's **non-linear** angular kick, from its aberrations.</span>
 
 <span class="sd">		:meth:transfer_matrix can only express optics that are linear in the</span>
@@ -1828,16 +1926,17 @@
 <span class="sd">		of the matrix rather than linearized into it.</span>
 <span class="sd">		"""</span>
 		<span class="n">ab</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"aberrations"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-		<span class="n">P</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pupil_scale</span><span class="p">()</span>
+		<span class="n">P</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"pupil_power"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_power"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="n">ab</span> <span class="ow">or</span> <span class="n">P</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
 			<span class="k">return</span> <span class="kc">None</span>
 		<span class="n">x</span> <span class="o">=</span> <span class="n">r0</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)]</span>
 		<span class="n">y</span> <span class="o">=</span> <span class="n">r0</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)]</span>
+		<span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chromatic_deflection</span><span class="p">(</span><span class="n">r0</span><span class="p">)</span>
 		<span class="n">L</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="ow">or</span> <span class="mf">0.0</span>
 		<span class="k">if</span> <span class="n">L</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>							<span class="c1"># thin: one impulsive kick, exact</span>
 			<span class="n">dxt</span><span class="p">,</span> <span class="n">dyt</span> <span class="o">=</span> <span class="n">ab</span><span class="o">.</span><span class="n">deflection_at</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">P</span><span class="p">)</span>
 			<span class="n">z</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-			<span class="k">return</span> <span class="n">z</span><span class="p">,</span> <span class="n">z</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">dxt</span><span class="p">,</span> <span class="n">dyt</span>
+			<span class="k">return</span> <span class="n">z</span><span class="p">,</span> <span class="n">z</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">dxt</span> <span class="o">+</span> <span class="n">cx</span><span class="p">,</span> <span class="n">dyt</span> <span class="o">+</span> <span class="n">cy</span>
 		<span class="c1"># Thick: the perturbation is DISTRIBUTED along the body. A slice dz acts</span>
 		<span class="c1"># on the LOCAL ray height, and the rest of the body then turns that kick</span>
 		<span class="c1"># into a position offset too, so integrating is not the same as placing</span>
@@ -1861,8 +1960,7 @@
 			<span class="n">dy</span> <span class="o">=</span> <span class="n">dy</span> <span class="o">+</span> <span class="n">wi</span> <span class="o">*</span> <span class="n">ky</span> <span class="o">*</span> <span class="n">B_u</span>
 			<span class="n">dxt</span> <span class="o">=</span> <span class="n">dxt</span> <span class="o">+</span> <span class="n">wi</span> <span class="o">*</span> <span class="n">kx</span> <span class="o">*</span> <span class="n">D_u</span>
 			<span class="n">dyt</span> <span class="o">=</span> <span class="n">dyt</span> <span class="o">+</span> <span class="n">wi</span> <span class="o">*</span> <span class="n">ky</span> <span class="o">*</span> <span class="n">D_u</span>
-		<span class="k">return</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">dxt</span><span class="p">,</span> <span class="n">dyt</span></div>
-
+		<span class="k">return</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">dxt</span> <span class="o">+</span> <span class="n">cx</span><span class="p">,</span> <span class="n">dyt</span> <span class="o">+</span> <span class="n">cy</span>
 
 	<span class="k">def</span><span class="w"> </span><span class="nf">_scaled_segment</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">		</span><span class="sa">r</span><span class="sd">"""Report this element as a *segment* for the scaled wave path, if it is one.</span>
@@ -2032,19 +2130,13 @@
 		<span class="n">rf</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"yt"</span><span class="p">)]</span> <span class="o">+=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">"tilt_y"</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
 		<span class="c1"># aberration: the part of the element's optics that is NOT a matrix.</span>
 		<span class="c1"># Declared by the element, applied here, exactly as transfer_matrix is.</span>
-		<span class="n">kick</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberration_kick</span><span class="p">(</span><span class="n">rays</span><span class="p">)</span>
+		<span class="n">kick</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aberration_kick</span><span class="p">(</span><span class="n">rays</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">kick</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 			<span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">dxt</span><span class="p">,</span> <span class="n">dyt</span> <span class="o">=</span> <span class="n">kick</span>
 			<span class="n">rf</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)]</span> <span class="o">+=</span> <span class="n">dx</span>
 			<span class="n">rf</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)]</span> <span class="o">+=</span> <span class="n">dy</span>
 			<span class="n">rf</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"xt"</span><span class="p">)]</span> <span class="o">+=</span> <span class="n">dxt</span>
 			<span class="n">rf</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"yt"</span><span class="p">)]</span> <span class="o">+=</span> <span class="n">dyt</span>
-		<span class="c1"># chromatic: not a pupil aberration but an energy-dependent power, so</span>
-		<span class="c1"># it is declared and applied separately (see chromatic_kick).</span>
-		<span class="n">chromatic</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chromatic_kick</span><span class="p">(</span><span class="n">rays</span><span class="p">)</span>
-		<span class="k">if</span> <span class="n">chromatic</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-			<span class="n">rf</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"xt"</span><span class="p">)]</span> <span class="o">+=</span> <span class="n">chromatic</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-			<span class="n">rf</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"yt"</span><span class="p">)]</span> <span class="o">+=</span> <span class="n">chromatic</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
 
 		<span class="k">if</span> <span class="n">paired</span><span class="p">:</span>
 			<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">rf</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">apply_rotation</span><span class="p">(</span><span class="n">r0</span><span class="o">.</span><span class="n">R</span><span class="p">),</span><span class="bp">self</span><span class="o">.</span><span class="n">apply_intensity</span><span class="p">(</span><span class="n">r0</span><span class="o">.</span><span class="n">I</span><span class="p">,</span><span class="n">rays</span><span class="p">))</span>
@@ -2132,9 +2224,9 @@
 <span class="sd">		**analytically**. Terms linear in the ray vector (``C10``, aligned</span>
 <span class="sd">		``C12``) fold into the matrix exactly. What is left is a genuinely</span>
 <span class="sd">		nonlinear kick, and its statistics come from the kick written as a</span>
-<span class="sd">		polynomial (:meth:`_aberration_monomials`,</span>
-<span class="sd">		:meth:`_chromatic_monomials`) evaluated through a **moment closure** —</span>
-<span class="sd">		by default :class:`moments.GaussianMomentClosure`, which supplies the</span>
+<span class="sd">		polynomial (:meth:`_aberration_monomials`) evaluated through a</span>
+<span class="sd">		**moment closure** —</span>
+<span class="sd">		by default :func:`_gaussian_moment`, which supplies the</span>
 <span class="sd">		higher central moments by Isserlis' theorem. No sampling, no</span>
 <span class="sd">		integrals, and no aberration-specific algebra.</span>
 
@@ -2150,10 +2242,10 @@
 <span class="sd">			Mean state vector, shape (len(convention),).</span>
 <span class="sd">		Sigma : xp.ndarray</span>
 <span class="sd">			Covariance matrix, shape (len(convention), len(convention)).</span>
-<span class="sd">		closure : moments.MomentClosure, optional</span>
-<span class="sd">			How moments above second order are supplied to a nonlinear kick,</span>
-<span class="sd">			by default :class:`moments.GaussianMomentClosure`. An ideal</span>
-<span class="sd">			element ignores it, needing no moments it does not already carry.</span>
+<span class="sd">		closure : callable, optional</span>
+<span class="sd">			``closure(Sigma, indices) -&gt; float``, supplying the central</span>
+<span class="sd">			moments a nonlinear kick needs above the second; by default</span>
+<span class="sd">			:func:`_gaussian_moment`. An ideal element ignores it.</span>
 
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
@@ -2184,7 +2276,7 @@
 <span class="sd">		"""</span>
 		<span class="n">M</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transfer_matrix</span><span class="p">()</span>
 		<span class="n">ab</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span>
-		<span class="n">P</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pupil_scale</span><span class="p">()</span>
+		<span class="n">P</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"pupil_power"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_power"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="p">((</span><span class="n">ab</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">chromatic_aberration</span><span class="p">)</span> <span class="ow">and</span> <span class="n">P</span><span class="p">):</span>
 			<span class="n">Sigma_out</span> <span class="o">=</span> <span class="n">M</span> <span class="o">@</span> <span class="n">Sigma</span> <span class="o">@</span> <span class="n">M</span><span class="o">.</span><span class="n">T</span>
 			<span class="n">mu_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">(</span><span class="n">mu</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
@@ -2202,11 +2294,11 @@
 		<span class="k">return</span> <span class="n">mu_out</span><span class="p">,</span> <span class="n">Sigma_out</span></div>
 
 
-	<span class="k">def</span><span class="w"> </span><span class="nf">_aberration_monomials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">P</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">_aberration_monomials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">P</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">mu</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
 <span class="w">		</span><span class="sa">r</span><span class="sd">"""This element's nonlinear angular kick, written as a polynomial.</span>
 
 <span class="sd">		The ray path evaluates the kick numerically, one value per ray</span>
-<span class="sd">		(:meth:`aberration_kick`). The covariance path cannot: it has no rays,</span>
+<span class="sd">		(:meth:`_aberration_kick`). The covariance path cannot: it has no rays,</span>
 <span class="sd">		only moments, so it needs the kick as an **algebraic** object whose</span>
 <span class="sd">		moments can be taken. A Krivanek term of order ``n`` deflects by a</span>
 <span class="sd">		polynomial that is homogeneous of degree ``n`` in ``(x, y)`` — the</span>
@@ -2246,8 +2338,8 @@
 
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
-<span class="sd">		aberration_kick : The same kick, evaluated per ray.</span>
-<span class="sd">		moments._center_monomials : Converts the result to central coordinates.</span>
+<span class="sd">		_aberration_kick : The same kick, evaluated per ray.</span>
+<span class="sd">		_center_monomials : Converts the result to central coordinates.</span>
 <span class="sd">		_aberration_moment_pieces : The consumer.</span>
 
 <span class="sd">		Notes</span>
@@ -2265,6 +2357,7 @@
 <span class="sd">		"""</span>
 		<span class="n">ix</span><span class="p">,</span> <span class="n">ixt</span> <span class="o">=</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">),</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"xt"</span><span class="p">)</span>
 		<span class="n">iy</span><span class="p">,</span> <span class="n">iyt</span> <span class="o">=</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">),</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"yt"</span><span class="p">)</span>
+		<span class="n">iE</span> <span class="o">=</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"E"</span><span class="p">)</span>
 		<span class="n">ab</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span>
 		<span class="n">P</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">P</span><span class="p">)</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="n">ab</span> <span class="ow">or</span> <span class="n">P</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -2284,99 +2377,44 @@
 					<span class="n">out</span><span class="p">[</span><span class="n">ixt</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="nb">float</span><span class="p">(</span><span class="n">ax</span><span class="p">),</span> <span class="n">idx</span><span class="p">))</span>
 				<span class="k">if</span> <span class="n">ay</span><span class="p">:</span>
 					<span class="n">out</span><span class="p">[</span><span class="n">iyt</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="nb">float</span><span class="p">(</span><span class="n">ay</span><span class="p">),</span> <span class="n">idx</span><span class="p">))</span>
-		<span class="k">return</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="n">terms</span> <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">terms</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">terms</span><span class="p">}</span>
+		<span class="c1"># absolute -&gt; central, since every moment below is taken about the mean</span>
+		<span class="n">out</span> <span class="o">=</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="n">_center_monomials</span><span class="p">(</span><span class="n">terms</span><span class="p">,</span> <span class="n">mu</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">terms</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+		<span class="c1"># chromatic joins here rather than in a method of its own: it is a term</span>
+		<span class="c1"># of the same set, and it is emitted ALREADY central because its energy</span>
+		<span class="c1"># factor is a deviation by definition -- re-expanding it about mu_E</span>
+		<span class="c1"># would inject a spurious mu_E-sized term.</span>
+		<span class="n">Cc</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">ab</span><span class="o">.</span><span class="n">chromatic</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">Cc</span><span class="p">:</span>
+			<span class="n">powers</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_powers"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">P</span><span class="p">)</span>
+			<span class="n">E0</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="n">iE</span><span class="p">])</span>
+			<span class="k">if</span> <span class="n">E0</span><span class="p">:</span>
+				<span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">((</span><span class="n">ixt</span><span class="p">,</span> <span class="n">ix</span><span class="p">,</span> <span class="n">Cc</span> <span class="o">*</span> <span class="n">powers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">E0</span><span class="p">),</span>
+									<span class="p">(</span><span class="n">iyt</span><span class="p">,</span> <span class="n">iy</span><span class="p">,</span> <span class="n">Cc</span> <span class="o">*</span> <span class="n">powers</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">E0</span><span class="p">)):</span>
+					<span class="n">out</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+						<span class="p">[(</span><span class="n">k</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="n">pos</span><span class="p">]),</span> <span class="p">(</span><span class="n">iE</span><span class="p">,)),</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="p">(</span><span class="n">iE</span><span class="p">,</span> <span class="n">pos</span><span class="p">))])</span>
+		<span class="k">return</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="p">[(</span><span class="n">c</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">terms</span> <span class="k">if</span> <span class="n">c</span><span class="p">]</span> <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">terms</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+				<span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">terms</span><span class="p">)}</span>
 
-	<span class="k">def</span><span class="w"> </span><span class="nf">_chromatic_monomials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mu</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-<span class="w">		</span><span class="sa">r</span><span class="sd">"""This element's chromatic kick, as a polynomial in central coordinates.</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">_chromatic_deflection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The chromatic part of this element's kick, per ray.</span>
 
-<span class="sd">		Chromatic aberration is the one term here that is not a function of</span>
-<span class="sd">		the pupil coordinate alone: an off-energy electron is focused at a</span>
-<span class="sd">		different power, so the deflection is proportional to the *product* of</span>
-<span class="sd">		the ray height and its energy deviation. With</span>
-<span class="sd">		:math:`\delta = (E - E_0)/E_0` the fractional deviation and</span>
-<span class="sd">		:math:`C_c` the chromatic coefficient,</span>
+<span class="sd">		Chromatic is the one term in :attr:`aberrations` that is not a</span>
+<span class="sd">		function of pupil coordinate alone: an off-energy electron sees each</span>
+<span class="sd">		axis's own power scaled, :math:`\Delta P_u = -C_c P_u^2\delta`, so it</span>
+<span class="sd">		deflects by</span>
 
 <span class="sd">		.. math::</span>
 
-<span class="sd">			\Delta f = C_c\,\delta \;\Longrightarrow\;</span>
-<span class="sd">			\Delta P = -C_c P^2 \delta \;\Longrightarrow\;</span>
-<span class="sd">			\delta\theta_x = -\Delta P\,x = C_c P^2 \delta\,x</span>
+<span class="sd">			\delta\theta_x = C_c P_x^2\,\delta\,x, \qquad</span>
+<span class="sd">			\delta = (E - E_0)/E_0</span>
 
-<span class="sd">		and likewise in y. Being **bilinear** — a product of two state</span>
-<span class="sd">		components — this cannot be folded into the 6×6 transfer matrix the</span>
-<span class="sd">		way ``C10`` defocus can, even though both are "just a power change":</span>
-<span class="sd">		the power change is different for each member of the ensemble.</span>
+<span class="sd">		Because it needs no round pupil it uses the element's real per-axis</span>
+<span class="sd">		powers where it has them (``focal_powers`` on a quadrupole), which</span>
+<span class="sd">		makes it exact there rather than referenced to a stated scale.</span>
 
-<span class="sd">		The reference :math:`E_0` is the beam's own mean energy, so what this</span>
-<span class="sd">		models is chromatic **blur** from the energy *spread*. A beam</span>
-<span class="sd">		uniformly off its design energy is a defocus, not an aberration, and</span>
-<span class="sd">		is deliberately not applied here.</span>
-
-<span class="sd">		Parameters</span>
-<span class="sd">		----------</span>
-<span class="sd">		mu : xp.ndarray</span>
-<span class="sd">			Mean state vector, shape ``(len(convention),)``. Supplies both the</span>
-<span class="sd">			reference energy :math:`E_0 = \mu_E` and the beam offset, since a</span>
-<span class="sd">			displaced beam turns part of the bilinear term into one linear in</span>
-<span class="sd">			the energy deviation alone. The pupil powers come from</span>
-<span class="sd">			:meth:`_pupil_scales`, per axis.</span>
-
-<span class="sd">		Returns</span>
-<span class="sd">		-------</span>
-<span class="sd">		dict</span>
-<span class="sd">			Maps the ``xt`` and ``yt`` column indices to lists of</span>
-<span class="sd">			``(coefficient, indices)`` monomials in **central** coordinates</span>
-<span class="sd">			(deviations from ``mu``), ready for</span>
-<span class="sd">			:func:`moments._kick_moments`. Empty when the element is</span>
-<span class="sd">			achromatic, has no pupil power, or the beam carries no energy.</span>
-
-<span class="sd">		Raises</span>
-<span class="sd">		------</span>
-<span class="sd">		None</span>
-
-<span class="sd">		Related</span>
-<span class="sd">		-------</span>
-<span class="sd">		chromatic_kick : The same kick, evaluated per ray.</span>
-<span class="sd">		_aberration_monomials : The geometric counterpart.</span>
-
-<span class="sd">		Notes</span>
-<span class="sd">		-----</span>
-<span class="sd">		Unlike the geometric monomials these are emitted already centered:</span>
-<span class="sd">		the energy factor is a deviation by definition, so passing them</span>
-<span class="sd">		through :func:`moments._center_monomials` would wrongly re-expand it</span>
-<span class="sd">		about :math:`\mu_E`.</span>
-
-<span class="sd">		The resulting covariance contribution</span>
-<span class="sd">		:math:`\Delta\Sigma_{\theta\theta} = \kappa^2\sigma_\delta^2\sigma_x^2`</span>
-<span class="sd">		is **exact** rather than a closure approximation whenever the energy</span>
-<span class="sd">		spread is independent of the transverse coordinates, because the only</span>
-<span class="sd">		fourth moment it needs factorizes.</span>
-<span class="sd">		"""</span>
-		<span class="n">ix</span><span class="p">,</span> <span class="n">ixt</span> <span class="o">=</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">),</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"xt"</span><span class="p">)</span>
-		<span class="n">iy</span><span class="p">,</span> <span class="n">iyt</span> <span class="o">=</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">),</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"yt"</span><span class="p">)</span>
-		<span class="n">iE</span> <span class="o">=</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"E"</span><span class="p">)</span>
-		<span class="n">Cc</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chromatic_aberration</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
-		<span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pupil_scales</span><span class="p">()</span>
-		<span class="n">E0</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="n">iE</span><span class="p">])</span>
-		<span class="k">if</span> <span class="n">Cc</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="ow">or</span> <span class="p">(</span><span class="n">P_x</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="ow">and</span> <span class="n">P_y</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="n">E0</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
-			<span class="k">return</span> <span class="p">{}</span>
-		<span class="n">kx</span><span class="p">,</span> <span class="n">ky</span> <span class="o">=</span> <span class="n">Cc</span> <span class="o">*</span> <span class="n">P_x</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">E0</span><span class="p">,</span> <span class="n">Cc</span> <span class="o">*</span> <span class="n">P_y</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">E0</span>
-		<span class="n">out</span> <span class="o">=</span> <span class="p">{</span><span class="n">ixt</span><span class="p">:</span> <span class="p">[(</span><span class="n">kx</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="n">ix</span><span class="p">]),</span> <span class="p">(</span><span class="n">iE</span><span class="p">,)),</span> <span class="p">(</span><span class="n">kx</span><span class="p">,</span> <span class="p">(</span><span class="n">iE</span><span class="p">,</span> <span class="n">ix</span><span class="p">))],</span>
-			   <span class="n">iyt</span><span class="p">:</span> <span class="p">[(</span><span class="n">ky</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="n">iy</span><span class="p">]),</span> <span class="p">(</span><span class="n">iE</span><span class="p">,)),</span> <span class="p">(</span><span class="n">ky</span><span class="p">,</span> <span class="p">(</span><span class="n">iE</span><span class="p">,</span> <span class="n">iy</span><span class="p">))]}</span>
-		<span class="k">return</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="p">[(</span><span class="n">c</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">terms</span> <span class="k">if</span> <span class="n">c</span><span class="p">]</span> <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">terms</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
-
-<div class="viewcode-block" id="Element.chromatic_kick">
-<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Element.chromatic_kick">[docs]</a>
-	<span class="k">def</span><span class="w"> </span><span class="nf">chromatic_kick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
-<span class="w">		</span><span class="sa">r</span><span class="sd">"""This element's chromatic angular kick, per ray.</span>
-
-<span class="sd">		The ray-path companion to :meth:`_chromatic_monomials`, and the</span>
-<span class="sd">		reference the covariance closure is checked against. Each ray is</span>
-<span class="sd">		deflected by :math:`C_c P^2 \delta\,x` with</span>
-<span class="sd">		:math:`\delta = (E - E_0)/E_0` its own fractional energy deviation,</span>
-<span class="sd">		measured against the **mean energy of the incoming rays** — so a</span>
-<span class="sd">		monoenergetic bundle is unaffected, which is correct: chromatic</span>
-<span class="sd">		aberration blurs because of spread, not because of an offset.</span>
+<span class="sd">		:math:`E_0` is the mean energy of the incoming rays, so this models</span>
+<span class="sd">		chromatic **blur** from the spread. A beam uniformly off its design</span>
+<span class="sd">		energy is a defocus, not an aberration.</span>
 
 <span class="sd">		Parameters</span>
 <span class="sd">		----------</span>
@@ -2385,9 +2423,9 @@
 
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
-<span class="sd">		tuple of xp.ndarray or None</span>
-<span class="sd">			``(delta_xt, delta_yt)`` in radians, or ``None`` when the element</span>
-<span class="sd">			is achromatic, has no pupil power, or the rays carry no energy.</span>
+<span class="sd">		tuple of xp.ndarray</span>
+<span class="sd">			``(delta_xt, delta_yt)`` in radians; zeros when the element is</span>
+<span class="sd">			achromatic, has no power, or the rays carry no energy.</span>
 
 <span class="sd">		Raises</span>
 <span class="sd">		------</span>
@@ -2395,30 +2433,24 @@
 
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
-<span class="sd">		_chromatic_monomials : The same kick, as an algebraic object.</span>
-<span class="sd">		aberration_kick : The geometric counterpart.</span>
-
-<span class="sd">		Notes</span>
-<span class="sd">		-----</span>
-<span class="sd">		Applied as one impulsive kick at the element, as the fixed wave path</span>
-<span class="sd">		treats aberrations in a thick body — a first-order compromise for a</span>
-<span class="sd">		body of finite length.</span>
+<span class="sd">		aberrations.CHROMATIC_TERM : Where the coefficient is declared.</span>
+<span class="sd">		_aberration_kick : The caller, which adds this to the Krivanek part.</span>
 <span class="sd">		"""</span>
+		<span class="n">x</span> <span class="o">=</span> <span class="n">r0</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)]</span>
 		<span class="n">Cc</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chromatic_aberration</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
-		<span class="k">if</span> <span class="n">Cc</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
-			<span class="k">return</span> <span class="kc">None</span>
-		<span class="n">P_x</span><span class="p">,</span> <span class="n">P_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pupil_scales</span><span class="p">()</span>
-		<span class="k">if</span> <span class="n">P_x</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="ow">and</span> <span class="n">P_y</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
-			<span class="k">return</span> <span class="kc">None</span>
-		<span class="n">rays</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">r0</span><span class="p">)</span>
-		<span class="n">E</span> <span class="o">=</span> <span class="n">rays</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"E"</span><span class="p">)]</span>
+		<span class="n">powers</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_powers"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">powers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">P</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"pupil_power"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_power"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
+			<span class="n">powers</span> <span class="o">=</span> <span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">P</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">Cc</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">powers</span><span class="p">):</span>
+			<span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+		<span class="n">E</span> <span class="o">=</span> <span class="n">r0</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"E"</span><span class="p">)]</span>
 		<span class="n">E0</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">E</span><span class="p">))</span>
 		<span class="k">if</span> <span class="n">E0</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
-			<span class="k">return</span> <span class="kc">None</span>
-		<span class="n">delta</span> <span class="o">=</span> <span class="n">E</span> <span class="o">-</span> <span class="n">E0</span>
-		<span class="k">return</span> <span class="p">((</span><span class="n">Cc</span> <span class="o">*</span> <span class="n">P_x</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">E0</span><span class="p">)</span> <span class="o">*</span> <span class="n">delta</span> <span class="o">*</span> <span class="n">rays</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)],</span>
-				<span class="p">(</span><span class="n">Cc</span> <span class="o">*</span> <span class="n">P_y</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">E0</span><span class="p">)</span> <span class="o">*</span> <span class="n">delta</span> <span class="o">*</span> <span class="n">rays</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)])</span></div>
-
+			<span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+		<span class="n">delta</span> <span class="o">=</span> <span class="p">(</span><span class="n">E</span> <span class="o">-</span> <span class="n">E0</span><span class="p">)</span> <span class="o">/</span> <span class="n">E0</span>
+		<span class="k">return</span> <span class="p">(</span><span class="n">Cc</span> <span class="o">*</span> <span class="n">powers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">delta</span> <span class="o">*</span> <span class="n">x</span><span class="p">,</span>
+				<span class="n">Cc</span> <span class="o">*</span> <span class="n">powers</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">delta</span> <span class="o">*</span> <span class="n">r0</span><span class="p">[:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)])</span>
 
 	<span class="k">def</span><span class="w"> </span><span class="nf">_aberration_moment_pieces</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">M</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Sigma</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
 								  <span class="n">ab</span><span class="p">,</span> <span class="n">P</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">mu</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -2430,7 +2462,7 @@
 <span class="sd">		aligned ``C12`` are power changes, so</span>
 <span class="sd">		:func:`_split_quadratic_aberrations` folds them into :math:`M_l`</span>
 <span class="sd">		exactly. What is left is genuinely nonlinear, and its statistics come</span>
-<span class="sd">		from :meth:`_aberration_monomials` and :meth:`_chromatic_monomials`</span>
+<span class="sd">		from :meth:`_aberration_monomials` and :func:`_kick_moments`</span>
 <span class="sd">		(the kick as a polynomial) evaluated through ``closure`` (the moments</span>
 <span class="sd">		that polynomial needs but the beam state does not carry).</span>
 
@@ -2456,9 +2488,9 @@
 <span class="sd">			centered beam. Needed because a kick is written in absolute</span>
 <span class="sd">			coordinates while moments are central, and because chromatic</span>
 <span class="sd">			needs the reference energy.</span>
-<span class="sd">		closure : moments.MomentClosure, optional</span>
-<span class="sd">			Supplies the moments above second order, by default</span>
-<span class="sd">			:class:`moments.GaussianMomentClosure`.</span>
+<span class="sd">		closure : callable, optional</span>
+<span class="sd">			Supplies the central moments above the second, by default</span>
+<span class="sd">			:func:`_gaussian_moment`.</span>
 
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
@@ -2476,8 +2508,8 @@
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
 <span class="sd">		propagate_moments : The consumer.</span>
-<span class="sd">		aberration_monomials, _chromatic_monomials : The kick, as a polynomial.</span>
-<span class="sd">		moments._kick_moments : Where the closure is actually applied.</span>
+<span class="sd">		_aberration_monomials : The kick, as a polynomial.</span>
+<span class="sd">		_kick_moments : Where the closure is actually applied.</span>
 <span class="sd">		_split_quadratic_aberrations : Supplies the linear (power-change) part.</span>
 
 <span class="sd">		Notes</span>
@@ -2500,15 +2532,10 @@
 		<span class="n">M_l</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
 		<span class="n">M_l</span><span class="p">[</span><span class="n">ixt</span><span class="p">,</span> <span class="n">ix</span><span class="p">]</span> <span class="o">-=</span> <span class="p">(</span><span class="n">P_x</span> <span class="o">-</span> <span class="n">P</span><span class="p">)</span>
 		<span class="n">M_l</span><span class="p">[</span><span class="n">iyt</span><span class="p">,</span> <span class="n">iy</span><span class="p">]</span> <span class="o">-=</span> <span class="p">(</span><span class="n">P_y</span> <span class="o">-</span> <span class="n">P</span><span class="p">)</span>
-		<span class="n">monomials</span> <span class="o">=</span> <span class="p">{}</span>
-		<span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">terms</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aberration_monomials</span><span class="p">(</span><span class="n">P</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>		<span class="c1"># absolute -&gt; central</span>
-			<span class="n">monomials</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_center_monomials</span><span class="p">(</span><span class="n">terms</span><span class="p">,</span> <span class="n">mu</span><span class="p">))</span>
-		<span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">terms</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chromatic_monomials</span><span class="p">(</span><span class="n">mu</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>	<span class="c1"># already central</span>
-			<span class="n">monomials</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">terms</span><span class="p">)</span>
+		<span class="n">monomials</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aberration_monomials</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">mu</span><span class="p">)</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="n">monomials</span><span class="p">:</span>
 			<span class="k">return</span> <span class="n">M_l</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">)),</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
-		<span class="n">delta_mean</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">D</span> <span class="o">=</span> <span class="n">_kick_moments</span><span class="p">(</span><span class="n">monomials</span><span class="p">,</span> <span class="n">Sigma</span><span class="p">,</span>
-										<span class="n">closure</span> <span class="k">if</span> <span class="n">closure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">GaussianMomentClosure</span><span class="p">())</span>
+		<span class="n">delta_mean</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">D</span> <span class="o">=</span> <span class="n">_kick_moments</span><span class="p">(</span><span class="n">monomials</span><span class="p">,</span> <span class="n">Sigma</span><span class="p">,</span> <span class="n">closure</span> <span class="ow">or</span> <span class="n">_gaussian_moment</span><span class="p">)</span>
 		<span class="k">return</span> <span class="n">M_l</span><span class="p">,</span> <span class="n">delta_mean</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">D</span>
 
 <div class="viewcode-block" id="Element.zone_power_shift">
@@ -2545,11 +2572,11 @@
 
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
-<span class="sd">		aberration_kick : The same deflection, applied per ray.</span>
+<span class="sd">		_aberration_kick : The same deflection, applied per ray.</span>
 <span class="sd">		assemblies.Microscope.focal_surface : The frame-method consumer.</span>
 <span class="sd">		"""</span>
 		<span class="n">ab</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberrations</span>
-		<span class="n">P</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pupil_scale</span><span class="p">()</span>
+		<span class="n">P</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"pupil_power"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"focal_power"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="n">ab</span> <span class="ow">or</span> <span class="n">P</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">h</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
 			<span class="k">return</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span>
 		<span class="n">dxt_x</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">ab</span><span class="o">.</span><span class="n">deflection_at</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">h</span><span class="p">]),</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="mf">0.0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">P</span><span class="p">))</span>
@@ -2749,7 +2776,7 @@
 			<span class="c1"># It is DISTRIBUTED, not put at one plane. An aberration is a</span>
 			<span class="c1"># property of the medium, so each slice acts on the local ray</span>
 			<span class="c1"># height, and the rest of the body then focuses that kick -- which</span>
-			<span class="c1"># is exactly what the ray side integrates in aberration_kick. Doing</span>
+			<span class="c1"># is exactly what the ray side integrates in _aberration_kick. Doing</span>
 			<span class="c1"># it at the centre instead over-states the aberration badly: for</span>
 			<span class="c1"># basic_column's 10 mm OL1 the ray integral comes out at 0.12x the</span>
 			<span class="c1"># thin-lens value, so a single mid-body screen would have the wave</span>
@@ -3100,7 +3127,7 @@
 <span class="sd">			Mean state vector.</span>
 <span class="sd">		Sigma : xp.ndarray</span>
 <span class="sd">			Covariance matrix.</span>
-<span class="sd">		closure : moments.MomentClosure, optional</span>
+<span class="sd">		closure : callable, optional</span>
 <span class="sd">			Accepted for signature compatibility and unused: this element</span>
 <span class="sd">			applies no nonlinear map, so it needs no moments beyond the</span>
 <span class="sd">			second.</span>
@@ -3564,7 +3591,7 @@
 <span class="sd">			Mean state vector.</span>
 <span class="sd">		Sigma : xp.ndarray</span>
 <span class="sd">			Covariance matrix.</span>
-<span class="sd">		closure : moments.MomentClosure, optional</span>
+<span class="sd">		closure : callable, optional</span>
 <span class="sd">			Accepted for signature compatibility and unused: this element</span>
 <span class="sd">			applies no nonlinear map, so it needs no moments beyond the</span>
 <span class="sd">			second.</span>
@@ -3781,7 +3808,7 @@
 
 <span class="sd">	Methods</span>
 <span class="sd">	-------</span>
-<span class="sd">	aberration_kick(r0)</span>
+<span class="sd">	_aberration_kick(r0)</span>
 <span class="sd">		The ray path's kick, thin and impulsive (exact).</span>
 <span class="sd">	phase_shift(dimensions, wavelength, scaled, s)</span>
 <span class="sd">		The wave path's screen; quadratic terms become frame powers on the</span>
@@ -3793,7 +3820,7 @@
 
 <span class="sd">	Related</span>
 <span class="sd">	-------</span>
-<span class="sd">	Element.aberration_kick : The generic thick/thin machinery this bypasses.</span>
+<span class="sd">	Element._aberration_kick : The generic thick/thin machinery this bypasses.</span>
 <span class="sd">	Lens.aberration_powers : The same quadratic/residual split, on a lens.</span>
 <span class="sd">	assemblies.MicroscopeSection.aberrations : The section-level consumer.</span>
 
@@ -3830,12 +3857,12 @@
 		<span class="bp">self</span><span class="o">.</span><span class="n">_position</span> <span class="o">=</span> <span class="n">position</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">pupil_power</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">pupil_power</span><span class="p">)</span>
 
-<div class="viewcode-block" id="AberrationScreen.aberration_kick">
-<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.AberrationScreen.aberration_kick">[docs]</a>
-	<span class="k">def</span><span class="w"> </span><span class="nf">aberration_kick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<div class="viewcode-block" id="AberrationScreen._aberration_kick">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.AberrationScreen._aberration_kick">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">_aberration_kick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
 <span class="w">		</span><span class="sa">r</span><span class="sd">"""The plate's ray kick: one impulsive thin kick, exact.</span>
 
-<span class="sd">		Overrides :meth:`Element.aberration_kick`, which keys the pupil scale</span>
+<span class="sd">		Overrides :meth:`Element._aberration_kick`, which keys the pupil scale</span>
 <span class="sd">		off ``focal_power`` — a plate has none, so the scale comes from</span>
 <span class="sd">		:attr:`pupil_power` instead. Zero length means no thick-body</span>
 <span class="sd">		integral: the eikonal kick :math:`\Delta\theta = k^{-1}\nabla\chi`</span>
@@ -3910,7 +3937,7 @@
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
 <span class="sd">		aberrations.Aberrations.phase : Builds χ.</span>
-<span class="sd">		aberration_kick : The ray-side gradient of the same χ.</span>
+<span class="sd">		_aberration_kick : The ray-side gradient of the same χ.</span>
 <span class="sd">		"""</span>
 		<span class="kn">from</span><span class="w"> </span><span class="nn">.waveoptics</span><span class="w"> </span><span class="kn">import</span> <span class="n">axis_components</span>
 		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">grid_of</span>
@@ -4261,6 +4288,46 @@
 			<span class="n">powers</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">k</span> <span class="o">*</span> <span class="n">xp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">kL</span><span class="p">)),</span> <span class="nb">float</span><span class="p">(</span><span class="o">-</span><span class="n">k</span> <span class="o">*</span> <span class="n">xp</span><span class="o">.</span><span class="n">sinh</span><span class="p">(</span><span class="n">kL</span><span class="p">)))</span>
 		<span class="n">focus</span><span class="p">,</span> <span class="n">defocus</span> <span class="o">=</span> <span class="n">powers</span>
 		<span class="k">return</span> <span class="p">(</span><span class="n">focus</span><span class="p">,</span> <span class="n">defocus</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_axis_focuses</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)</span> <span class="k">else</span> <span class="p">(</span><span class="n">defocus</span><span class="p">,</span> <span class="n">focus</span><span class="p">)</span>
+
+	<span class="nd">@property</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">focal_power</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""The single power an aberration set on this quadrupole is scaled by.</span>
+
+<span class="sd">		A quadrupole has no focal power of its own -- one axis focuses while</span>
+<span class="sd">		the other diverges -- so :attr:`focal_powers` is the honest answer and</span>
+<span class="sd">		this is a stated convention: the geometric mean of the two magnitudes,</span>
+<span class="sd">		:math:`\sqrt{|P_x P_y|}`.</span>
+
+<span class="sd">		It exists because every aberration path converts ray height to pupil</span>
+<span class="sd">		angle through a *single* ``focal_power`` (:math:`\theta = P r`), the</span>
+<span class="sd">		Krivanek expansion being defined on a round pupil. Without this a</span>
+<span class="sd">		quadrupole reported no power at all, and its aberrations were silently</span>
+<span class="sd">		ignored on every path -- ray, moments and wave alike. Set</span>
+<span class="sd">		:attr:`pupil_power` instead when the coefficients were measured against</span>
+<span class="sd">		a particular scale; it takes precedence.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		float</span>
+<span class="sd">			The pupil scale in 1/metres; 0 for an unexcited quadrupole.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		focal_powers : The two real powers, which the *chromatic* term uses</span>
+<span class="sd">			directly because it needs no round pupil.</span>
+<span class="sd">		Lens.focal_power : The round-lens quantity this stands in for.</span>
+
+<span class="sd">		Notes</span>
+<span class="sd">		-----</span>
+<span class="sd">		This is a reference scale, not a focal length: a quadrupole does not</span>
+<span class="sd">		focus to a point and ``1 / focal_power`` means nothing here.</span>
+<span class="sd">		"""</span>
+		<span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">focal_powers</span>
+		<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">x</span> <span class="o">*</span> <span class="n">y</span><span class="p">)))</span>
 
 <div class="viewcode-block" id="Quadrapole.transfer_matrix">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Quadrapole.transfer_matrix">[docs]</a>
@@ -4683,7 +4750,7 @@
 <span class="sd">			so one measured from an instrument's metadata can be moved onto a</span>
 <span class="sd">			simulated lens unchanged. Whatever is here acts on **both** the ray</span>
 <span class="sd">			and the wave path, at every order - see</span>
-<span class="sd">			:meth:aberration_kick and :meth:phase_shift.</span>
+<span class="sd">			:meth:_aberration_kick and :meth:phase_shift.</span>
 <span class="sd">		position : float, optional</span>
 <span class="sd">			The position of the element along the z-axis, by default None</span>
 <span class="sd">		rotation : bool, optional</span>
@@ -4755,7 +4822,7 @@
 <span class="sd">		-------</span>
 <span class="sd">		focal_length : The EFL, ``1/focal_power``.</span>
 <span class="sd">		back_focal_distance : The exit-face-to-BFP geometry number.</span>
-<span class="sd">		aberration_kick : Consumes this as the pupil scale on the ray path.</span>
+<span class="sd">		_aberration_kick : Consumes this as the pupil scale on the ray path.</span>
 <span class="sd">		phase_shift : Consumes this on the wave path.</span>
 <span class="sd">		"""</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -5057,7 +5124,7 @@
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
 <span class="sd">		aberrations.Aberrations.phase_at : Builds the aberration function.</span>
-<span class="sd">		aberration_kick : The ray-side gradient of the same function.</span>
+<span class="sd">		_aberration_kick : The ray-side gradient of the same function.</span>
 <span class="sd">		"""</span>
 		<span class="kn">from</span><span class="w"> </span><span class="nn">.waveoptics</span><span class="w"> </span><span class="kn">import</span> <span class="n">quadratic_phase</span><span class="p">,</span> <span class="n">axis_components</span>
 		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">grid_of</span>
@@ -5133,7 +5200,7 @@
 
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
-<span class="sd">		aberration_kick : The ray path's distributed counterpart.</span>
+<span class="sd">		_aberration_kick : The ray path's distributed counterpart.</span>
 <span class="sd">		phase_shift : The thin-element route, which this replaces for a medium.</span>
 
 <span class="sd">		Notes</span>

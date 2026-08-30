@@ -44,8 +44,17 @@ carrying the driver's covariance `Signal`; stale OL1/column docstrings
 corrected; and example 08 re-based on a cold FEG at a 30 mrad nominal
 convergence with a corrected `Cs` and an uncorrected `Cc`, where OL1 gives
 3.32x the detector emittance, OL2 gives 0.88x (negative -- a determinant
-responds to anticorrelation), and chromatic is a live term. Held on
-`covariance_propagation`; not merged.
+responds to anticorrelation), and chromatic is a live term.
+**Simplification pass (Eric: "less is more"):** deleted `moments.py` entirely
+-- `CovarianceBeam`/`MomentClosure`/`GaussianMomentClosure` were parallel
+machinery over a covariance `Signal` that already existed. Reading moved to
+`postprocessing` beside the ray readers (one new function,
+`resolution_ellipses`); the closure became a plain callable argument; chromatic
+folded into the one kick and the one monomial method; `_pupil_scale` replaced
+by a `Quadrapole.focal_power` property; `Aberrations.to_metadata` replaced by
+`as_dict()` returning the a/b form; `aberration_kick` made private. Net over
+the whole branch: two public names added, one removed, one module deleted.
+203 tests. Held on `covariance_propagation`; not merged.
 
 ## 2026-08-30 — [Done] Analytic aberrations: zone-ABCD + covariance
 **Goal:** Aberrations enter the two remaining analytic representations: the

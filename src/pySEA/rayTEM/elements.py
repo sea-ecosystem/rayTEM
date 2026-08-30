@@ -10,7 +10,6 @@ from warnings import warn
 
 from .seashells import SEASerializable
 from .aberrations import Aberrations, KRIVANEK_TERMS
-from .moments import GaussianMomentClosure, _center_monomials, _kick_moments
 
 from copy import deepcopy
 from functools import wraps
@@ -284,7 +283,7 @@ class suspended_aberrations:
 	Related
 	-------
 	assemblies.Microscope.propagate_ray : One of the callers.
-	Element.aberration_kick : What goes quiet while suspended.
+	Element._aberration_kick : What goes quiet while suspended.
 	Element.chromatic_kick : Silenced with it, since the chromatic coefficient
 		lives inside the set that gets detached -- an "ideal" column has to
 		mean an achromatic one as well.
@@ -560,7 +559,7 @@ _SEALED = WeakSet()
 
 #: Slices a thick medium is split into when it carries a screen. An aberration
 #: acts along the body, not at one plane, so the wave path integrates it the way
-#: :meth:Element.aberration_kick does on the ray side.
+#: :meth:Element._aberration_kick does on the ray side.
 #:
 #: Measured on basic_column's OL1 at 30 mrad, the wave's best-focus shift is
 #: converged from 2-4 slices onward (1 slice differs by 0.23 nm, everything from
@@ -602,7 +601,7 @@ def _as_aberrations(value) -> Aberrations:
 
 	Related
 	-------
-	Element.aberration_kick : Consumes the result on the ray path.
+	Element._aberration_kick : Consumes the result on the ray path.
 	aberrations.Aberrations : The storage class.
 
 	Examples
@@ -675,6 +674,191 @@ def _split_quadratic_aberrations(aberrations, pupil_power:float,
 	return P_x, P_y, residual
 
 
+def _gaussian_moment(Sigma, indices):
+	r"""A central moment of a Gaussian ensemble, by Wick pairing.
+
+	A covariance carries two moments; a nonlinear kick needs more. This is the
+	default way of supplying them: for a centered Gaussian every odd central
+	moment vanishes and every even one is the sum over perfect pairings of the
+	indices (Isserlis),
+
+	.. math::
+
+		\langle s_i s_j s_k s_l \rangle =
+		\Sigma_{ij}\Sigma_{kl} + \Sigma_{ik}\Sigma_{jl} + \Sigma_{il}\Sigma_{jk}
+
+	and likewise at higher even degree. Evaluating it recursively -- pair the
+	first index with each of the others, recurse on the remainder -- answers at
+	any degree, so no aberration order needs algebra written by hand.
+
+	Using this does **not** make the beam Gaussian. It is the assumption made
+	at one nonlinear element, and :meth:`Element.propagate_moments` takes it as
+	a replaceable argument so the assumption stays visible and a different one
+	can be supplied: any callable with this signature will do.
+
+	Parameters
+	----------
+	Sigma : xp.ndarray
+		Covariance matrix, shape ``(len(convention),)*2``.
+	indices : Sequence of int
+		Column indices of the product, with repetition; the empty sequence is
+		the empty product.
+
+	Returns
+	-------
+	float
+		The central moment: 1 for the empty product, 0 at odd degree.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	_kick_moments : The consumer.
+	Element.propagate_moments : Where a different closure would be passed in.
+
+	Notes
+	-----
+	Because it returns the *exact* moments of a real distribution, the
+	covariance update built from it is a genuine pushforward and so stays
+	positive semidefinite at any aberration strength. A partial or
+	hand-tabulated closure has no such guarantee.
+
+	References
+	----------
+	.. [1] L. Isserlis, Biometrika 12, 134 (1918).
+	"""
+	idx = tuple(int(i) for i in indices)
+	if not idx:
+		return 1.0
+	if len(idx) % 2:
+		return 0.0
+	head, rest = idx[0], idx[1:]
+	return sum(float(Sigma[head, rest[k]]) * _gaussian_moment(Sigma, rest[:k] + rest[k + 1:])
+			   for k in range(len(rest)))
+
+
+def _center_monomials(monomials, mu):
+	r"""Rewrite an absolute-coordinate polynomial in deviations from the mean.
+
+	A kick is naturally written in absolute coordinates -- spherical aberration
+	deflects by :math:`g(x^2+y^2)x` in the pupil, not in the deviation from
+	wherever the centroid sits -- while every moment is central. This expands
+	each monomial :math:`\prod(\mu + s)` by the binomial theorem. For a
+	centered beam it is the identity.
+
+	Parameters
+	----------
+	monomials : Sequence of tuple
+		``(coefficient, indices)`` pairs; the empty index tuple is a constant.
+	mu : xp.ndarray
+		Mean state vector, shape ``(len(convention),)``.
+
+	Returns
+	-------
+	list of tuple
+		The same polynomial in central coordinates. Terms are not combined.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	Element._aberration_monomials : Produces the absolute form.
+	_kick_moments : Consumes the centered form.
+	"""
+	out = []
+	for coef, idx in monomials:
+		coef = float(coef)
+		if coef == 0.0:
+			continue
+		idx = tuple(int(i) for i in idx)
+		for mask in range(1 << len(idx)):
+			kept, factor = [], coef
+			for bit, column in enumerate(idx):
+				if mask & (1 << bit):
+					kept.append(column)
+				else:
+					factor *= float(mu[column])
+			if factor:
+				out.append((factor, tuple(kept)))
+	return out
+
+
+def _kick_moments(monomials_by_column, Sigma, closure):
+	r"""Mean, cross-covariance and self-covariance of a polynomial kick.
+
+	Given a nonlinear kick whose component in each output column is a
+	polynomial in the *central* coordinates, this returns the three pieces the
+	covariance update needs:
+
+	.. math::
+
+		\langle\delta_c\rangle, \qquad
+		\mathrm{Cov}(s_a,\delta_c), \qquad
+		\mathrm{Cov}(\delta_c,\delta_d)
+
+	Every moment comes from ``closure``, so the closure assumption enters here
+	and nowhere else. Forming the covariances as
+	:math:`\langle\cdot\rangle-\langle\cdot\rangle\langle\cdot\rangle` is what
+	keeps an even-order aberration's mean shift reported as a shift rather than
+	absorbed into the width.
+
+	Parameters
+	----------
+	monomials_by_column : dict
+		Output column index -> sequence of ``(coefficient, indices)`` monomials
+		in central coordinates.
+	Sigma : xp.ndarray
+		Entrance covariance.
+	closure : callable
+		``closure(Sigma, indices) -> float``, supplying the higher moments;
+		:func:`_gaussian_moment` is the default.
+
+	Returns
+	-------
+	tuple of xp.ndarray
+		``(delta_mean, C, D)`` -- the ensemble-mean kick, the state-kick
+		cross-covariance ``C[a, c] = Cov(s_a, delta_c)``, and the kick
+		self-covariance ``D[c, d] = Cov(delta_c, delta_d)``.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	Element._aberration_moment_pieces : Assembles these into the update.
+
+	Notes
+	-----
+	Every column pair is computed, so cross-plane terms are included. They
+	vanish for a transversely decoupled beam and are emphatically not
+	negligible otherwise -- through a rotating objective an astigmatic source
+	makes them as large as the in-plane terms.
+	"""
+	n = int(xp.shape(Sigma)[0])
+	delta_mean = xp.zeros(n)
+	C = xp.zeros((n, n))
+	D = xp.zeros((n, n))
+	columns = sorted(monomials_by_column)
+	for c in columns:
+		delta_mean[c] = sum(coef * closure(Sigma, idx)
+							for coef, idx in monomials_by_column[c])
+	for c in columns:
+		for a in range(n):					# <s_a> is zero by construction
+			C[a, c] = sum(coef * closure(Sigma, (a,) + idx)
+						  for coef, idx in monomials_by_column[c])
+	for c in columns:
+		for d in columns:
+			D[c, d] = sum(cc * cd * closure(Sigma, ic + id_)
+						  for cc, ic in monomials_by_column[c]
+						  for cd, id_ in monomials_by_column[d]) - delta_mean[c] * delta_mean[d]
+	return delta_mean, C, D
+
+
 class Element(SealedAttributes, SEASerializable):
 	#: Optional affine offsets an element may carry, read by :meth:propagate_ray
 	#: as getattr(self, ..., 0). Declared here rather than left implicit
@@ -737,7 +921,7 @@ class Element(SealedAttributes, SEASerializable):
 		-------
 		aberrations.CHROMATIC_TERM : Its name inside the set.
 		chromatic_kick : The per-ray deflection it produces.
-		__chromatic_monomials : The same kick, for the covariance path.
+		_aberration_monomials : The same kick, for the covariance path.
 
 		Examples
 		--------
@@ -788,7 +972,7 @@ class Element(SealedAttributes, SEASerializable):
 			Axial wave aberrations in Krivanek C_{n,m} notation, by default
 			None (ideal). Accepts an :class:aberrations.Aberrations or a
 			bare {name: value} mapping. Applied generically by
-			:meth:aberration_kick on the ray path and :meth:phase_shift on
+			:meth:_aberration_kick on the ray path and :meth:phase_shift on
 			the wave path, so no element needs per-aberration code.
 		screen : Signal or numpy.ndarray, optional
 			A screen supplied by the caller rather than generated, by default
@@ -1507,91 +1691,7 @@ class Element(SealedAttributes, SEASerializable):
 		current = self._arriving_current
 		return None if current is None else float(current)
 
-	def _pupil_scale(self) -> float:
-		r"""The scalar pupil scale this element's aberrations are defined against.
-
-		The single resolution rule, in one place, for every path that needs to
-		turn a ray height into a pupil angle (:math:`\theta = P r`): an
-		explicit :attr:`pupil_power` if the element states one, otherwise its
-		scalar ``focal_power``, otherwise the geometric mean of a per-axis
-		``focal_powers`` pair.
-
-		That last case is what lets an **astigmatic** element carry
-		aberrations at all. A quadrupole has no single focal power -- one axis
-		focuses while the other diverges -- so before this it resolved to zero
-		and its aberrations were silently ignored on every path, ray and
-		covariance alike. The Krivanek expansion assumes a *round* pupil, so
-		the geometric mean is a stated reference scale rather than a derived
-		truth: set :attr:`pupil_power` explicitly when the coefficients were
-		measured against a particular one.
-
-		Returns
-		-------
-		float
-			The pupil power in 1/metres; 0 when the element defines no pupil,
-			which is how a Drift stays exactly linear.
-
-		Raises
-		------
-		None
-
-		Related
-		-------
-		_pupil_scales : The per-axis pair, for physics needing no round pupil.
-
-		Notes
-		-----
-		Named ``_pupil_scale`` and not ``_pupil_power`` on purpose: sea-eco's
-		JSON reader routes a stored public ``pupil_power`` into ``_pupil_power``
-		whenever the object has that name (``_json_attribute_name``, the
-		getter-only-property convention), so a private method spelled
-		``_<public attribute>`` is silently overwritten by a float on reload.
-		aberrations.Aberrations.deflection_at : The consumer.
-		AberrationScreen.pupil_power : An element that states one explicitly.
-		"""
-		explicit = getattr(self, "pupil_power", None)
-		if explicit:
-			return float(explicit)
-		scalar = getattr(self, "focal_power", 0.0) or 0.0
-		if scalar:
-			return float(scalar)
-		pair = getattr(self, "focal_powers", None)
-		if pair:
-			return float(xp.sqrt(abs(float(pair[0]) * float(pair[1]))))
-		return 0.0
-
-	def _pupil_scales(self) -> tuple:
-		r"""The per-axis pupil powers, without assuming a round pupil.
-
-		Chromatic aberration does not need the round-pupil assumption the
-		Krivanek expansion does: an off-energy electron simply sees each axis's
-		own power scaled, :math:`\Delta P_u = -C_c P_u^2 \delta`. So for an
-		astigmatic element the chromatic kick is *exact* per axis, where a
-		geometric aberration has to be referenced to a single stated scale.
-
-		Returns
-		-------
-		tuple of float
-			``(P_x, P_y)`` in 1/metres. Equal for a round element, opposite in
-			sign for a quadrupole, ``(0, 0)`` for an element with no pupil.
-
-		Raises
-		------
-		None
-
-		Related
-		-------
-		_pupil_scale : The round-pupil scalar the Krivanek terms use.
-		chromatic_kick, __chromatic_monomials : The consumers.
-		"""
-		pair = getattr(self, "focal_powers", None)
-		if pair:
-			return float(pair[0]), float(pair[1])
-		P = self._pupil_scale()
-		return P, P
-
-
-	def aberration_kick(self, r0:xp.ndarray):
+	def _aberration_kick(self, r0:xp.ndarray):
 		r"""This element's **non-linear** angular kick, from its aberrations.
 
 		:meth:transfer_matrix can only express optics that are linear in the
@@ -1679,16 +1779,17 @@ class Element(SealedAttributes, SEASerializable):
 		of the matrix rather than linearized into it.
 		"""
 		ab = getattr(self, "aberrations", None)
-		P = self._pupil_scale()
+		P = getattr(self, "pupil_power", None) or (getattr(self, "focal_power", 0.0) or 0.0)
 		if not ab or P == 0:
 			return None
 		x = r0[:, columnByName("x")]
 		y = r0[:, columnByName("y")]
+		cx, cy = self._chromatic_deflection(r0)
 		L = self.length or 0.0
 		if L <= 0:							# thin: one impulsive kick, exact
 			dxt, dyt = ab.deflection_at(x, y, P)
 			z = xp.zeros_like(x)
-			return z, z.copy(), dxt, dyt
+			return z, z.copy(), dxt + cx, dyt + cy
 		# Thick: the perturbation is DISTRIBUTED along the body. A slice dz acts
 		# on the LOCAL ray height, and the rest of the body then turns that kick
 		# into a position offset too, so integrating is not the same as placing
@@ -1712,7 +1813,7 @@ class Element(SealedAttributes, SEASerializable):
 			dy = dy + wi * ky * B_u
 			dxt = dxt + wi * kx * D_u
 			dyt = dyt + wi * ky * D_u
-		return dx, dy, dxt, dyt
+		return dx, dy, dxt + cx, dyt + cy
 
 	def _scaled_segment(self):
 		r"""Report this element as a *segment* for the scaled wave path, if it is one.
@@ -1880,19 +1981,13 @@ class Element(SealedAttributes, SEASerializable):
 		rf[:,columnByName("yt")] += getattr(self,"tilt_y",0)
 		# aberration: the part of the element's optics that is NOT a matrix.
 		# Declared by the element, applied here, exactly as transfer_matrix is.
-		kick = self.aberration_kick(rays)
+		kick = self._aberration_kick(rays)
 		if kick is not None:
 			dx, dy, dxt, dyt = kick
 			rf[:,columnByName("x")] += dx
 			rf[:,columnByName("y")] += dy
 			rf[:,columnByName("xt")] += dxt
 			rf[:,columnByName("yt")] += dyt
-		# chromatic: not a pupil aberration but an energy-dependent power, so
-		# it is declared and applied separately (see chromatic_kick).
-		chromatic = self.chromatic_kick(rays)
-		if chromatic is not None:
-			rf[:,columnByName("xt")] += chromatic[0]
-			rf[:,columnByName("yt")] += chromatic[1]
 
 		if paired:
 			return Rays(rf,self.apply_rotation(r0.R),self.apply_intensity(r0.I,rays))
@@ -1971,9 +2066,9 @@ class Element(SealedAttributes, SEASerializable):
 		**analytically**. Terms linear in the ray vector (``C10``, aligned
 		``C12``) fold into the matrix exactly. What is left is a genuinely
 		nonlinear kick, and its statistics come from the kick written as a
-		polynomial (:meth:`_aberration_monomials`,
-		:meth:`_chromatic_monomials`) evaluated through a **moment closure** —
-		by default :class:`moments.GaussianMomentClosure`, which supplies the
+		polynomial (:meth:`_aberration_monomials`) evaluated through a
+		**moment closure** —
+		by default :func:`_gaussian_moment`, which supplies the
 		higher central moments by Isserlis' theorem. No sampling, no
 		integrals, and no aberration-specific algebra.
 
@@ -1989,10 +2084,10 @@ class Element(SealedAttributes, SEASerializable):
 			Mean state vector, shape (len(convention),).
 		Sigma : xp.ndarray
 			Covariance matrix, shape (len(convention), len(convention)).
-		closure : moments.MomentClosure, optional
-			How moments above second order are supplied to a nonlinear kick,
-			by default :class:`moments.GaussianMomentClosure`. An ideal
-			element ignores it, needing no moments it does not already carry.
+		closure : callable, optional
+			``closure(Sigma, indices) -> float``, supplying the central
+			moments a nonlinear kick needs above the second; by default
+			:func:`_gaussian_moment`. An ideal element ignores it.
 
 		Returns
 		-------
@@ -2023,7 +2118,7 @@ class Element(SealedAttributes, SEASerializable):
 		"""
 		M = self.transfer_matrix()
 		ab = self.aberrations
-		P = self._pupil_scale()
+		P = getattr(self, "pupil_power", None) or (getattr(self, "focal_power", 0.0) or 0.0)
 		if not ((ab or self.chromatic_aberration) and P):
 			Sigma_out = M @ Sigma @ M.T
 			mu_out = self.propagate_ray(mu.reshape(1, -1))[0]
@@ -2040,11 +2135,11 @@ class Element(SealedAttributes, SEASerializable):
 		mu_out = mu_out + (M_l - M) @ mu + delta_mean
 		return mu_out, Sigma_out
 
-	def _aberration_monomials(self, P:float) -> dict:
+	def _aberration_monomials(self, P:float, mu:xp.ndarray) -> dict:
 		r"""This element's nonlinear angular kick, written as a polynomial.
 
 		The ray path evaluates the kick numerically, one value per ray
-		(:meth:`aberration_kick`). The covariance path cannot: it has no rays,
+		(:meth:`_aberration_kick`). The covariance path cannot: it has no rays,
 		only moments, so it needs the kick as an **algebraic** object whose
 		moments can be taken. A Krivanek term of order ``n`` deflects by a
 		polynomial that is homogeneous of degree ``n`` in ``(x, y)`` — the
@@ -2084,8 +2179,8 @@ class Element(SealedAttributes, SEASerializable):
 
 		Related
 		-------
-		aberration_kick : The same kick, evaluated per ray.
-		moments._center_monomials : Converts the result to central coordinates.
+		_aberration_kick : The same kick, evaluated per ray.
+		_center_monomials : Converts the result to central coordinates.
 		_aberration_moment_pieces : The consumer.
 
 		Notes
@@ -2103,6 +2198,7 @@ class Element(SealedAttributes, SEASerializable):
 		"""
 		ix, ixt = columnByName("x"), columnByName("xt")
 		iy, iyt = columnByName("y"), columnByName("yt")
+		iE = columnByName("E")
 		ab = self.aberrations
 		P = float(P)
 		if not ab or P == 0:
@@ -2122,97 +2218,44 @@ class Element(SealedAttributes, SEASerializable):
 					out[ixt].append((float(ax), idx))
 				if ay:
 					out[iyt].append((float(ay), idx))
-		return {col: terms for col, terms in out.items() if terms}
+		# absolute -> central, since every moment below is taken about the mean
+		out = {col: _center_monomials(terms, mu) for col, terms in out.items()}
+		# chromatic joins here rather than in a method of its own: it is a term
+		# of the same set, and it is emitted ALREADY central because its energy
+		# factor is a deviation by definition -- re-expanding it about mu_E
+		# would inject a spurious mu_E-sized term.
+		Cc = float(ab.chromatic or 0.0)
+		if Cc:
+			powers = getattr(self, "focal_powers", None) or (P, P)
+			E0 = float(mu[iE])
+			if E0:
+				for col, pos, k in ((ixt, ix, Cc * powers[0]**2 / E0),
+									(iyt, iy, Cc * powers[1]**2 / E0)):
+					out.setdefault(col, []).extend(
+						[(k * float(mu[pos]), (iE,)), (k, (iE, pos))])
+		return {col: [(c, i) for c, i in terms if c] for col, terms in out.items()
+				if any(c for c, _ in terms)}
 
-	def _chromatic_monomials(self, mu:xp.ndarray) -> dict:
-		r"""This element's chromatic kick, as a polynomial in central coordinates.
+	def _chromatic_deflection(self, r0:xp.ndarray) -> tuple:
+		r"""The chromatic part of this element's kick, per ray.
 
-		Chromatic aberration is the one term here that is not a function of
-		the pupil coordinate alone: an off-energy electron is focused at a
-		different power, so the deflection is proportional to the *product* of
-		the ray height and its energy deviation. With
-		:math:`\delta = (E - E_0)/E_0` the fractional deviation and
-		:math:`C_c` the chromatic coefficient,
+		Chromatic is the one term in :attr:`aberrations` that is not a
+		function of pupil coordinate alone: an off-energy electron sees each
+		axis's own power scaled, :math:`\Delta P_u = -C_c P_u^2\delta`, so it
+		deflects by
 
 		.. math::
 
-			\Delta f = C_c\,\delta \;\Longrightarrow\;
-			\Delta P = -C_c P^2 \delta \;\Longrightarrow\;
-			\delta\theta_x = -\Delta P\,x = C_c P^2 \delta\,x
+			\delta\theta_x = C_c P_x^2\,\delta\,x, \qquad
+			\delta = (E - E_0)/E_0
 
-		and likewise in y. Being **bilinear** — a product of two state
-		components — this cannot be folded into the 6×6 transfer matrix the
-		way ``C10`` defocus can, even though both are "just a power change":
-		the power change is different for each member of the ensemble.
+		Because it needs no round pupil it uses the element's real per-axis
+		powers where it has them (``focal_powers`` on a quadrupole), which
+		makes it exact there rather than referenced to a stated scale.
 
-		The reference :math:`E_0` is the beam's own mean energy, so what this
-		models is chromatic **blur** from the energy *spread*. A beam
-		uniformly off its design energy is a defocus, not an aberration, and
-		is deliberately not applied here.
-
-		Parameters
-		----------
-		mu : xp.ndarray
-			Mean state vector, shape ``(len(convention),)``. Supplies both the
-			reference energy :math:`E_0 = \mu_E` and the beam offset, since a
-			displaced beam turns part of the bilinear term into one linear in
-			the energy deviation alone. The pupil powers come from
-			:meth:`_pupil_scales`, per axis.
-
-		Returns
-		-------
-		dict
-			Maps the ``xt`` and ``yt`` column indices to lists of
-			``(coefficient, indices)`` monomials in **central** coordinates
-			(deviations from ``mu``), ready for
-			:func:`moments._kick_moments`. Empty when the element is
-			achromatic, has no pupil power, or the beam carries no energy.
-
-		Raises
-		------
-		None
-
-		Related
-		-------
-		chromatic_kick : The same kick, evaluated per ray.
-		_aberration_monomials : The geometric counterpart.
-
-		Notes
-		-----
-		Unlike the geometric monomials these are emitted already centered:
-		the energy factor is a deviation by definition, so passing them
-		through :func:`moments._center_monomials` would wrongly re-expand it
-		about :math:`\mu_E`.
-
-		The resulting covariance contribution
-		:math:`\Delta\Sigma_{\theta\theta} = \kappa^2\sigma_\delta^2\sigma_x^2`
-		is **exact** rather than a closure approximation whenever the energy
-		spread is independent of the transverse coordinates, because the only
-		fourth moment it needs factorizes.
-		"""
-		ix, ixt = columnByName("x"), columnByName("xt")
-		iy, iyt = columnByName("y"), columnByName("yt")
-		iE = columnByName("E")
-		Cc = float(self.chromatic_aberration or 0.0)
-		P_x, P_y = self._pupil_scales()
-		E0 = float(mu[iE])
-		if Cc == 0.0 or (P_x == 0.0 and P_y == 0.0) or E0 == 0.0:
-			return {}
-		kx, ky = Cc * P_x**2 / E0, Cc * P_y**2 / E0
-		out = {ixt: [(kx * float(mu[ix]), (iE,)), (kx, (iE, ix))],
-			   iyt: [(ky * float(mu[iy]), (iE,)), (ky, (iE, iy))]}
-		return {col: [(c, i) for c, i in terms if c] for col, terms in out.items()}
-
-	def chromatic_kick(self, r0:xp.ndarray):
-		r"""This element's chromatic angular kick, per ray.
-
-		The ray-path companion to :meth:`_chromatic_monomials`, and the
-		reference the covariance closure is checked against. Each ray is
-		deflected by :math:`C_c P^2 \delta\,x` with
-		:math:`\delta = (E - E_0)/E_0` its own fractional energy deviation,
-		measured against the **mean energy of the incoming rays** — so a
-		monoenergetic bundle is unaffected, which is correct: chromatic
-		aberration blurs because of spread, not because of an offset.
+		:math:`E_0` is the mean energy of the incoming rays, so this models
+		chromatic **blur** from the spread. A beam uniformly off its design
+		energy is a defocus, not an aberration.
 
 		Parameters
 		----------
@@ -2221,9 +2264,9 @@ class Element(SealedAttributes, SEASerializable):
 
 		Returns
 		-------
-		tuple of xp.ndarray or None
-			``(delta_xt, delta_yt)`` in radians, or ``None`` when the element
-			is achromatic, has no pupil power, or the rays carry no energy.
+		tuple of xp.ndarray
+			``(delta_xt, delta_yt)`` in radians; zeros when the element is
+			achromatic, has no power, or the rays carry no energy.
 
 		Raises
 		------
@@ -2231,29 +2274,24 @@ class Element(SealedAttributes, SEASerializable):
 
 		Related
 		-------
-		_chromatic_monomials : The same kick, as an algebraic object.
-		aberration_kick : The geometric counterpart.
-
-		Notes
-		-----
-		Applied as one impulsive kick at the element, as the fixed wave path
-		treats aberrations in a thick body — a first-order compromise for a
-		body of finite length.
+		aberrations.CHROMATIC_TERM : Where the coefficient is declared.
+		_aberration_kick : The caller, which adds this to the Krivanek part.
 		"""
+		x = r0[:, columnByName("x")]
 		Cc = float(self.chromatic_aberration or 0.0)
-		if Cc == 0.0:
-			return None
-		P_x, P_y = self._pupil_scales()
-		if P_x == 0.0 and P_y == 0.0:
-			return None
-		rays = xp.asarray(r0)
-		E = rays[:, columnByName("E")]
+		powers = getattr(self, "focal_powers", None)
+		if powers is None:
+			P = getattr(self, "pupil_power", None) or (getattr(self, "focal_power", 0.0) or 0.0)
+			powers = (P, P)
+		if Cc == 0.0 or not any(powers):
+			return xp.zeros_like(x), xp.zeros_like(x)
+		E = r0[:, columnByName("E")]
 		E0 = float(xp.mean(E))
 		if E0 == 0.0:
-			return None
-		delta = E - E0
-		return ((Cc * P_x**2 / E0) * delta * rays[:, columnByName("x")],
-				(Cc * P_y**2 / E0) * delta * rays[:, columnByName("y")])
+			return xp.zeros_like(x), xp.zeros_like(x)
+		delta = (E - E0) / E0
+		return (Cc * powers[0]**2 * delta * x,
+				Cc * powers[1]**2 * delta * r0[:, columnByName("y")])
 
 	def _aberration_moment_pieces(self, M:xp.ndarray, Sigma:xp.ndarray,
 								  ab, P:float, mu:xp.ndarray=None,
@@ -2265,7 +2303,7 @@ class Element(SealedAttributes, SEASerializable):
 		aligned ``C12`` are power changes, so
 		:func:`_split_quadratic_aberrations` folds them into :math:`M_l`
 		exactly. What is left is genuinely nonlinear, and its statistics come
-		from :meth:`_aberration_monomials` and :meth:`_chromatic_monomials`
+		from :meth:`_aberration_monomials` and :func:`_kick_moments`
 		(the kick as a polynomial) evaluated through ``closure`` (the moments
 		that polynomial needs but the beam state does not carry).
 
@@ -2291,9 +2329,9 @@ class Element(SealedAttributes, SEASerializable):
 			centered beam. Needed because a kick is written in absolute
 			coordinates while moments are central, and because chromatic
 			needs the reference energy.
-		closure : moments.MomentClosure, optional
-			Supplies the moments above second order, by default
-			:class:`moments.GaussianMomentClosure`.
+		closure : callable, optional
+			Supplies the central moments above the second, by default
+			:func:`_gaussian_moment`.
 
 		Returns
 		-------
@@ -2311,8 +2349,8 @@ class Element(SealedAttributes, SEASerializable):
 		Related
 		-------
 		propagate_moments : The consumer.
-		aberration_monomials, _chromatic_monomials : The kick, as a polynomial.
-		moments._kick_moments : Where the closure is actually applied.
+		_aberration_monomials : The kick, as a polynomial.
+		_kick_moments : Where the closure is actually applied.
 		_split_quadratic_aberrations : Supplies the linear (power-change) part.
 
 		Notes
@@ -2335,15 +2373,10 @@ class Element(SealedAttributes, SEASerializable):
 		M_l = xp.array(M, dtype=float)
 		M_l[ixt, ix] -= (P_x - P)
 		M_l[iyt, iy] -= (P_y - P)
-		monomials = {}
-		for col, terms in self._aberration_monomials(P).items():		# absolute -> central
-			monomials.setdefault(col, []).extend(_center_monomials(terms, mu))
-		for col, terms in self._chromatic_monomials(mu).items():	# already central
-			monomials.setdefault(col, []).extend(terms)
+		monomials = self._aberration_monomials(P, mu)
 		if not monomials:
 			return M_l, xp.zeros(n), xp.zeros((n, n)), xp.zeros((n, n))
-		delta_mean, C, D = _kick_moments(monomials, Sigma,
-										closure if closure is not None else GaussianMomentClosure())
+		delta_mean, C, D = _kick_moments(monomials, Sigma, closure or _gaussian_moment)
 		return M_l, delta_mean, C, D
 
 	def zone_power_shift(self, h:float) -> tuple:
@@ -2378,11 +2411,11 @@ class Element(SealedAttributes, SEASerializable):
 
 		Related
 		-------
-		aberration_kick : The same deflection, applied per ray.
+		_aberration_kick : The same deflection, applied per ray.
 		assemblies.Microscope.focal_surface : The frame-method consumer.
 		"""
 		ab = self.aberrations
-		P = self._pupil_scale()
+		P = getattr(self, "pupil_power", None) or (getattr(self, "focal_power", 0.0) or 0.0)
 		if not ab or P == 0 or h == 0:
 			return 0.0, 0.0
 		dxt_x, _ = ab.deflection_at(xp.asarray([h]), xp.asarray([0.0]), float(P))
@@ -2578,7 +2611,7 @@ class Element(SealedAttributes, SEASerializable):
 			# It is DISTRIBUTED, not put at one plane. An aberration is a
 			# property of the medium, so each slice acts on the local ray
 			# height, and the rest of the body then focuses that kick -- which
-			# is exactly what the ray side integrates in aberration_kick. Doing
+			# is exactly what the ray side integrates in _aberration_kick. Doing
 			# it at the centre instead over-states the aberration badly: for
 			# basic_column's 10 mm OL1 the ray integral comes out at 0.12x the
 			# thin-lens value, so a single mid-body screen would have the wave
@@ -2912,7 +2945,7 @@ class Source(Element):
 			Mean state vector.
 		Sigma : xp.ndarray
 			Covariance matrix.
-		closure : moments.MomentClosure, optional
+		closure : callable, optional
 			Accepted for signature compatibility and unused: this element
 			applies no nonlinear map, so it needs no moments beyond the
 			second.
@@ -3349,7 +3382,7 @@ class Aperture(Element):
 			Mean state vector.
 		Sigma : xp.ndarray
 			Covariance matrix.
-		closure : moments.MomentClosure, optional
+		closure : callable, optional
 			Accepted for signature compatibility and unused: this element
 			applies no nonlinear map, so it needs no moments beyond the
 			second.
@@ -3550,7 +3583,7 @@ class AberrationScreen(Element):
 
 	Methods
 	-------
-	aberration_kick(r0)
+	_aberration_kick(r0)
 		The ray path's kick, thin and impulsive (exact).
 	phase_shift(dimensions, wavelength, scaled, s)
 		The wave path's screen; quadratic terms become frame powers on the
@@ -3562,7 +3595,7 @@ class AberrationScreen(Element):
 
 	Related
 	-------
-	Element.aberration_kick : The generic thick/thin machinery this bypasses.
+	Element._aberration_kick : The generic thick/thin machinery this bypasses.
 	Lens.aberration_powers : The same quadratic/residual split, on a lens.
 	assemblies.MicroscopeSection.aberrations : The section-level consumer.
 
@@ -3599,10 +3632,10 @@ class AberrationScreen(Element):
 		self._position = position
 		self.pupil_power = float(pupil_power)
 
-	def aberration_kick(self, r0:xp.ndarray):
+	def _aberration_kick(self, r0:xp.ndarray):
 		r"""The plate's ray kick: one impulsive thin kick, exact.
 
-		Overrides :meth:`Element.aberration_kick`, which keys the pupil scale
+		Overrides :meth:`Element._aberration_kick`, which keys the pupil scale
 		off ``focal_power`` — a plate has none, so the scale comes from
 		:attr:`pupil_power` instead. Zero length means no thick-body
 		integral: the eikonal kick :math:`\Delta\theta = k^{-1}\nabla\chi`
@@ -3674,7 +3707,7 @@ class AberrationScreen(Element):
 		Related
 		-------
 		aberrations.Aberrations.phase : Builds χ.
-		aberration_kick : The ray-side gradient of the same χ.
+		_aberration_kick : The ray-side gradient of the same χ.
 		"""
 		from .waveoptics import axis_components
 		from .seashells import grid_of
@@ -4018,6 +4051,46 @@ class Quadrapole(Element):
 			powers = (float(k * xp.sin(kL)), float(-k * xp.sinh(kL)))
 		focus, defocus = powers
 		return (focus, defocus) if self._axis_focuses('x') else (defocus, focus)
+
+	@property
+	def focal_power(self) -> float:
+		r"""The single power an aberration set on this quadrupole is scaled by.
+
+		A quadrupole has no focal power of its own -- one axis focuses while
+		the other diverges -- so :attr:`focal_powers` is the honest answer and
+		this is a stated convention: the geometric mean of the two magnitudes,
+		:math:`\sqrt{|P_x P_y|}`.
+
+		It exists because every aberration path converts ray height to pupil
+		angle through a *single* ``focal_power`` (:math:`\theta = P r`), the
+		Krivanek expansion being defined on a round pupil. Without this a
+		quadrupole reported no power at all, and its aberrations were silently
+		ignored on every path -- ray, moments and wave alike. Set
+		:attr:`pupil_power` instead when the coefficients were measured against
+		a particular scale; it takes precedence.
+
+		Returns
+		-------
+		float
+			The pupil scale in 1/metres; 0 for an unexcited quadrupole.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		focal_powers : The two real powers, which the *chromatic* term uses
+			directly because it needs no round pupil.
+		Lens.focal_power : The round-lens quantity this stands in for.
+
+		Notes
+		-----
+		This is a reference scale, not a focal length: a quadrupole does not
+		focus to a point and ``1 / focal_power`` means nothing here.
+		"""
+		x, y = self.focal_powers
+		return float(xp.sqrt(abs(x * y)))
 
 	def transfer_matrix(self) -> xp.ndarray:
 		r"""Transfer matrix for ray propagation through the quadrupole.
@@ -4419,7 +4492,7 @@ class Lens(Element):
 			so one measured from an instrument's metadata can be moved onto a
 			simulated lens unchanged. Whatever is here acts on **both** the ray
 			and the wave path, at every order - see
-			:meth:aberration_kick and :meth:phase_shift.
+			:meth:_aberration_kick and :meth:phase_shift.
 		position : float, optional
 			The position of the element along the z-axis, by default None
 		rotation : bool, optional
@@ -4491,7 +4564,7 @@ class Lens(Element):
 		-------
 		focal_length : The EFL, ``1/focal_power``.
 		back_focal_distance : The exit-face-to-BFP geometry number.
-		aberration_kick : Consumes this as the pupil scale on the ray path.
+		_aberration_kick : Consumes this as the pupil scale on the ray path.
 		phase_shift : Consumes this on the wave path.
 		"""
 		if self.length == 0:
@@ -4782,7 +4855,7 @@ class Lens(Element):
 		Related
 		-------
 		aberrations.Aberrations.phase_at : Builds the aberration function.
-		aberration_kick : The ray-side gradient of the same function.
+		_aberration_kick : The ray-side gradient of the same function.
 		"""
 		from .waveoptics import quadratic_phase, axis_components
 		from .seashells import grid_of
@@ -4857,7 +4930,7 @@ class Lens(Element):
 
 		Related
 		-------
-		aberration_kick : The ray path's distributed counterpart.
+		_aberration_kick : The ray path's distributed counterpart.
 		phase_shift : The thin-element route, which this replaces for a medium.
 
 		Notes

@@ -1340,6 +1340,76 @@ def beam_widths(covariance_matrix):
 							 covariance_matrix[:,yi,yi]], axis=-1))
 
 
+def resolution_ellipses(covariance_matrix, kind="real"):
+	r"""Principal rms widths and axes of a covariance block, per plane.
+
+	The third of the envelope-mode readers, beside :func:`beam_widths` and
+	:func:`emittance`, and the one that stops "the resolution" being quietly
+	assumed isotropic. ``sigma_x`` and ``sigma_y`` describe the *coordinate
+	system*; a beam blurred along a diagonal has no larger ``sigma_x`` than one
+	blurred evenly. The eigenvectors of the block are the beam's own axes and
+	the square roots of the eigenvalues the widths along them.
+
+	.. math::
+
+		\Sigma_{rr} = \begin{pmatrix}\sigma_x^2 & \sigma_{xy}\\
+		                             \sigma_{xy} & \sigma_y^2\end{pmatrix},
+		\qquad
+		\Sigma_{uu} = \begin{pmatrix}\sigma_{xt}^2 & \sigma_{xt,yt}\\
+		                             \sigma_{xt,yt} & \sigma_{yt}^2\end{pmatrix}
+
+	For a wavevector ``k0 = 2*pi/wavelength`` the angular widths are momentum
+	widths scaled by ``k0``, so a diffraction or spectrometer plane is read by
+	multiplying the ``'angular'`` result by it.
+
+	Parameters
+	----------
+	covariance_matrix : np.ndarray or Signal
+		Per-plane covariance matrices, shape
+		``(n_planes, len(convention), len(convention))``.
+	kind : {'real', 'angular'}, optional
+		Which block, by default ``'real'`` -- positions ``(x, y)`` against
+		angles ``(xt, yt)``.
+
+	Returns
+	-------
+	tuple of np.ndarray
+		``(widths, axes)`` with shapes ``(n_planes, 2)`` and
+		``(n_planes, 2, 2)``: rms widths ascending, and the corresponding
+		principal axes as columns.
+
+	Raises
+	------
+	ValueError
+		If ``kind`` is not ``'real'`` or ``'angular'``.
+
+	Related
+	-------
+	beam_widths : The per-axis widths this generalizes.
+	emittance : The invariant from the same covariance stack.
+
+	Notes
+	-----
+	Eigenvalues are clipped at zero before the square root, so a covariance
+	driven very slightly negative by rounding reports 0 rather than a NaN.
+
+	Examples
+	--------
+	>>> widths, axes = resolution_ellipses(scope.covariance_matrix)  # doctest: +SKIP
+	>>> widths[-1]                                                   # doctest: +SKIP
+	array([3.7e-11, 3.7e-11])
+	"""
+	if hasattr(covariance_matrix, "dimensions"):
+		covariance_matrix = covariance_matrix.data
+	if kind not in ("real", "angular"):
+		raise ValueError(f"kind must be 'real' or 'angular', not {kind!r}.")
+	names = ("x", "y") if kind == "real" else ("xt", "yt")
+	i, j = (columnByName(n) for n in names)
+	block = np.asarray(covariance_matrix)[:, [i, j], :][:, :, [i, j]]
+	values, axes = np.linalg.eigh(block)
+	return np.sqrt(np.clip(values, 0, None)), axes
+
+
 def emittance(covariance_matrix):
 	r"""RMS emittance in x and y from a stack of covariance matrices.
 
@@ -1362,6 +1432,7 @@ def emittance(covariance_matrix):
 	Related
 	-------
 	beam_widths : RMS sizes from the same covariance stack.
+	resolution_ellipses : The principal axes, when the beam is not round.
 	"""
 	# accept either the raw ndarray or the calibrated covariance Signal
 	if hasattr(covariance_matrix, "dimensions"):

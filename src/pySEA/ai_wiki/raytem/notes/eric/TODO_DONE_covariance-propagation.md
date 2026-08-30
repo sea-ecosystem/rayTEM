@@ -77,3 +77,39 @@ interaction residual is +0.45% of the summed emittance growth.
 **Not merged.** `dev` carries the first round (up to `7a10268`); everything in
 this follow-up is on `covariance_propagation` only, at Eric's direction, until
 the behaviour is confirmed.
+
+
+---
+
+## Simplification pass (Eric: "less is more")
+
+The follow-up round had accreted parallel machinery. Removed, not resized:
+
+- **`moments.py` deleted.** `CovarianceBeam`, `MomentClosure` and
+  `GaussianMomentClosure` are gone. The mode already stored a calibrated
+  covariance `Signal`; the reading now lives in `postprocessing` beside the ray
+  mode's readers, as one new function (`resolution_ellipses`) next to the
+  existing `beam_widths` and `emittance`. The three closure helpers became
+  module-level privates in `elements.py`, beside `_split_quadratic_aberrations`.
+- **The closure is a callable, not a class hierarchy.**
+  `propagate_moments(closure=...)` takes `closure(Sigma, indices) -> float`,
+  defaulting to `_gaussian_moment`. Just as replaceable, one function instead of
+  two classes plus a registration problem.
+- **One kick, not two.** `chromatic_kick` and `_chromatic_monomials` folded into
+  `_aberration_kick` and `_aberration_monomials` -- chromatic is a term of the
+  same set, so it belongs in the same declaration.
+- **`_pupil_scale`/`_pupil_scales` deleted** in favour of a
+  `Quadrapole.focal_power` property. No new concept: the existing one made to
+  work for astigmatic elements.
+- **`Aberrations.to_metadata` deleted.** `as_dict()` now returns the flat
+  `name`/`name.a`/`name.b` form, which is JSON-safe by construction and is what
+  `from_metadata` already read. One method, not two.
+- **`aberration_kick` is now `_aberration_kick`**, per Eric.
+
+Net public surface of the entire branch, measured against `dev` before any of
+this work: **two names added** (`Element.chromatic_aberration`,
+`postprocessing.resolution_ellipses`) and **one removed**
+(`aberration_kick` -> private). One module deleted. 203 tests.
+
+The structure now mirrors rays and waves exactly: elements declare the physics,
+the drivers store a calibrated Signal, postprocessing reads it.

@@ -27,9 +27,9 @@ import pytest
 sys.path.insert(1, "../../../")
 from pySEA.rayTEM import Source, Lens, Drift, MicroscopeSection, Microscope, columnByName
 from pySEA.rayTEM.aberrations import Aberrations
-from pySEA.rayTEM.elements import convention, suspended_aberrations
-from pySEA.rayTEM.moments import (CovarianceBeam, GaussianMomentClosure,
-								  MomentClosure, _center_monomials, _kick_moments)
+from pySEA.rayTEM.elements import (convention, suspended_aberrations,
+								   _center_monomials, _gaussian_moment, _kick_moments)
+from pySEA.rayTEM.postprocessing import beam_widths, emittance, resolution_ellipses
 from pySEA.rayTEM.seashells import as_ndarray
 
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -105,24 +105,16 @@ def test_gaussian_closure_reproduces_isserlis():
 	rng = np.random.default_rng(3)
 	A = rng.normal(size=(6, 6))
 	S = A @ A.T
-	g = GaussianMomentClosure()
-	assert g.moment(S, ()) == 1.0
-	assert g.moment(S, (IX,)) == 0.0
-	assert g.moment(S, (IX, IX, IX)) == 0.0
-	assert np.isclose(g.moment(S, (IX, IX)), S[IX, IX])
-	assert np.isclose(g.moment(S, (IX, IX, IX, IX)), 3 * S[IX, IX]**2)
-	assert np.isclose(g.moment(S, (IX,) * 6), 15 * S[IX, IX]**3)
+	assert _gaussian_moment(S, ()) == 1.0
+	assert _gaussian_moment(S, (IX,)) == 0.0
+	assert _gaussian_moment(S, (IX, IX, IX)) == 0.0
+	assert np.isclose(_gaussian_moment(S, (IX, IX)), S[IX, IX])
+	assert np.isclose(_gaussian_moment(S, (IX, IX, IX, IX)), 3 * S[IX, IX]**2)
+	assert np.isclose(_gaussian_moment(S, (IX,) * 6), 15 * S[IX, IX]**3)
 	# the general four-index identity, not just the diagonal case
 	i, j, k, l = IX, IXT, IY, IYT
-	assert np.isclose(g.moment(S, (i, j, k, l)),
+	assert np.isclose(_gaussian_moment(S, (i, j, k, l)),
 					  S[i, j] * S[k, l] + S[i, k] * S[j, l] + S[i, l] * S[j, k])
-
-
-def test_moment_closure_base_class_refuses_to_guess():
-	# the interface is abstract on purpose: a closure that silently returned
-	# zero would look like a working non-Gaussian model
-	with pytest.raises(NotImplementedError):
-		MomentClosure().moment(np.eye(6), (IX, IX))
 
 
 def test_center_monomials_expands_about_the_mean():
@@ -145,7 +137,7 @@ def test_kick_moments_reports_the_mean_of_an_even_order_kick():
 	# insists must be retained rather than absorbed into the width.
 	S = np.zeros((len(convention),) * 2)
 	S[IX, IX] = 4e-12
-	delta_mean, C, D = _kick_moments({IXT: [(7.0, (IX, IX))]}, S, GaussianMomentClosure())
+	delta_mean, C, D = _kick_moments({IXT: [(7.0, (IX, IX))]}, S, _gaussian_moment)
 	assert np.isclose(delta_mean[IXT], 7.0 * 4e-12)
 	assert np.isclose(C[IX, IXT], 0.0)					# <s_x s_x s_x> = 0
 	assert np.isclose(D[IXT, IXT], 7.0**2 * 2 * 4e-12**2)	# 3 s^2 - s^2
@@ -163,7 +155,7 @@ def test_aberration_monomials_reproduce_the_kick(name, coefficient):
 	# at arbitrary coordinates, at every Krivanek order and for skew terms
 	lens = Lens(focal_length=0.01, aberrations={name: coefficient})
 	P = lens.focal_power
-	monomials = lens._aberration_monomials(P)
+	monomials = lens._aberration_monomials(P, np.zeros(len(convention)))
 	rng = np.random.default_rng(11)
 	x, y = rng.normal(0, 2e-6, 400), rng.normal(0, 2e-6, 400)
 
@@ -193,15 +185,14 @@ def test_ideal_transport_is_exact_and_conserves_emittance():
 	# emittance -- a transport invariant -- must not move
 	scope = _toy()
 	scope.propagate_moments()
-	beam = scope.covariance_beam
 	mu0, S0 = scope.sections[0].elements[0].moments()
 	M = np.eye(len(convention))
 	for element in scope.sections[0]._propagation_elements():
 		M = element.transfer_matrix() @ M
-	assert np.allclose(as_ndarray(scope.covariance_matrix)[-1], M @ S0 @ M.T, rtol=1e-12)
-	eps = beam.emittance('x')
+	cov = as_ndarray(scope.covariance_matrix)
+	assert np.allclose(cov[-1], M @ S0 @ M.T, rtol=1e-12)
+	eps = emittance(cov)[:, 0]
 	assert np.allclose(eps, eps[0], rtol=1e-12)
-	assert beam.is_positive_semidefinite()
 
 
 def test_zero_aberration_strength_recovers_the_ideal_result():
@@ -292,7 +283,7 @@ def test_even_order_aberration_shifts_the_ensemble_mean():
 			mc = (traced[:, i] - traced_ideal[:, i]).mean()
 			assert np.isclose(shift, mc, rtol=0.05), (i, shift, mc)
 	# and it is the kick's ensemble average, not its value at the centroid
-	assert lens.aberration_kick(np.zeros((1, len(convention))))[2][0] == 0.0
+	assert lens._aberration_kick(np.zeros((1, len(convention))))[2][0] == 0.0
 
 
 def test_covariance_stays_symmetric_and_positive_semidefinite():
@@ -307,8 +298,8 @@ def test_covariance_stays_symmetric_and_positive_semidefinite():
 		lens = Lens(focal_length=0.02, aberrations={'C30': c30})
 		_, S_out = lens.propagate_moments(np.zeros(len(convention)), S)
 		assert np.allclose(S_out, S_out.T, atol=1e-30)
-		beam = CovarianceBeam(np.zeros(len(convention)), S_out)
-		assert beam.is_positive_semidefinite()
+		values = np.linalg.eigvalsh(0.5 * (S_out + S_out.T))
+		assert values.min() > -1e-12 * abs(values).max()
 
 
 def test_aberration_growth_scales_as_the_square_of_the_coefficient():
@@ -319,8 +310,8 @@ def test_aberration_growth_scales_as_the_square_of_the_coefficient():
 		scope.propagate_moments()
 		base = _toy()
 		base.propagate_moments()
-		return (scope.covariance_beam.emittance('x')[-1]**2
-				- base.covariance_beam.emittance('x')[-1]**2)
+		return (emittance(as_ndarray(scope.covariance_matrix))[-1, 0]**2
+				- emittance(as_ndarray(base.covariance_matrix))[-1, 0]**2)
 	small, large = growth(1e1), growth(2e1)
 	assert np.isclose(large / small, 4.0, rtol=0.02)
 
@@ -391,8 +382,8 @@ def test_chromatic_scales_with_the_energy_spread_squared():
 		base = _toy()
 		base.sections[0].elements[0].energy_spread = spread
 		base.propagate_moments()
-		return (scope.covariance_beam.emittance('x')[-1]**2
-				- base.covariance_beam.emittance('x')[-1]**2)
+		return (emittance(as_ndarray(scope.covariance_matrix))[-1, 0]**2
+				- emittance(as_ndarray(base.covariance_matrix))[-1, 0]**2)
 	assert np.isclose(growth(2e-2) / growth(1e-2), 4.0, rtol=0.02)
 
 
@@ -460,11 +451,15 @@ def test_aberrations_round_trip_through_json_and_sea(tmp_path):
 		assert np.isclose(back.chromatic, 3e-3), path
 
 
-def test_to_metadata_inverts_from_metadata():
+def test_as_dict_is_the_flat_a_b_form_and_round_trips():
+	# the storage form has no complex numbers in it, which is what lets a plain
+	# JSON writer carry an aberrated column
 	ab = Aberrations({'C30': 1e-3, 'C12': (2e-9, 3e-9), 'Cc': 1.2e-3})
-	again = Aberrations.from_metadata(ab.to_metadata())
+	assert ab.as_dict() == {'C30': 1e-3, 'C12.a': 2e-9, 'C12.b': 3e-9, 'Cc': 1.2e-3}
+	import json
+	json.dumps(ab.as_dict())
+	again = Aberrations.from_metadata(ab.as_dict())
 	assert again.as_dict() == ab.as_dict()
-	assert again.chromatic == ab.chromatic
 
 
 # ---- astigmatic elements ------------------------------------------------
@@ -475,14 +470,14 @@ def test_quadrupole_aberrations_reach_every_path():
 	from pySEA.rayTEM import Quadrapole
 	quad = Quadrapole(length=0.01, strength=30.0,
 					  aberrations={'C30': 1e-3, 'Cc': 1.2e-3})
-	assert quad._pupil_scale() > 0
+	assert quad.focal_power > 0
 	rays = np.zeros((3, len(convention)))
 	rays[:, IX] = [1e-5, 2e-5, 3e-5]
 	rays[:, IY] = 1e-5
 	rays[:, IE] = [199.9, 200.0, 200.1]
-	assert quad.aberration_kick(rays) is not None
-	assert np.any(quad.aberration_kick(rays)[2])
-	assert np.any(quad.chromatic_kick(rays)[0])
+	assert quad._aberration_kick(rays) is not None
+	assert np.any(quad._aberration_kick(rays)[2])
+	assert np.any(quad._chromatic_deflection(rays)[0])
 	assert np.any(quad.zone_power_shift(1e-5))
 	S = np.eye(len(convention)) * 1e-12
 	S[IE, IE] = 1e-4
@@ -498,98 +493,108 @@ def test_chromatic_is_per_axis_on_an_astigmatic_element():
 	# scaled, so the kick ratio is exactly (P_x/P_y)^2
 	from pySEA.rayTEM import Quadrapole
 	quad = Quadrapole(length=0.01, strength=30.0, aberrations={'Cc': 1.2e-3})
-	px, py = quad._pupil_scales()
+	px, py = quad.focal_powers
 	assert px * py < 0								# one axis focuses, one diverges
 	rays = np.zeros((2, len(convention)))
 	rays[:, IX] = rays[:, IY] = 1e-5
 	rays[:, IE] = [199.9, 200.1]
-	kx, ky = quad.chromatic_kick(rays)
+	kx, ky = quad._chromatic_deflection(rays)
 	assert np.isclose(kx[0] / ky[0], (px / py)**2)
 	# and a round lens stays symmetric
 	round_lens = Lens(focal_length=0.02, aberrations={'Cc': 1.2e-3})
-	assert np.allclose(*round_lens.chromatic_kick(rays))
+	assert np.allclose(*round_lens._chromatic_deflection(rays))
 
 
-# ---- CovarianceBeam -----------------------------------------------------
+# ---- reading the propagated covariance ----------------------------------
 
-def test_covariance_beam_reports_the_resolution_quantities():
+def test_postprocessing_reads_the_resolution_quantities():
+	# the envelope mode stores a calibrated covariance Signal, and the three
+	# postprocessing readers are how it is turned into resolution -- the same
+	# structure the ray mode uses, results on the microscope and analysis in
+	# postprocessing
 	scope = _toy()
 	scope.propagate_moments()
-	beam = scope.covariance_beam
-	i = -1
-	sx, st = beam.sigma('x')[i], beam.sigma('xt')[i]
-	c = beam.correlation('x', 'xt')[i]
-	assert np.isclose(beam.emittance('x')[i], np.sqrt(sx**2 * st**2 - c**2))
-	widths, axes = beam.real_space_ellipse(index=i)
-	assert widths[1] >= widths[0] > 0
-	assert np.allclose(axes @ axes.T, np.eye(2), atol=1e-12)
-	k0 = 2 * np.pi / beam.wavelength
-	angular, _ = beam.angular_ellipse(index=i)
-	momentum = beam.momentum_covariance(index=i)
-	assert np.isclose(np.sqrt(np.linalg.eigvalsh(momentum)[1]), k0 * angular[1])
-	assert len(beam.at(i)) == 1
+	cov = as_ndarray(scope.covariance_matrix)
+	widths, eps = beam_widths(cov), emittance(cov)
+	sx, st = widths[-1, 0], np.sqrt(cov[-1, IXT, IXT])
+	c = cov[-1, IX, IXT]
+	assert np.isclose(eps[-1, 0], np.sqrt(sx**2 * st**2 - c**2))
+	real_w, real_v = resolution_ellipses(cov, 'real')
+	assert np.all(real_w[:, 1] >= real_w[:, 0])
+	assert np.allclose(real_v[-1] @ real_v[-1].T, np.eye(2), atol=1e-12)
+	# for a round beam the principal widths are the per-axis ones
+	assert np.allclose(np.sort(real_w[-1]), np.sort(widths[-1]))
+	ang_w, _ = resolution_ellipses(cov, 'angular')
+	assert np.isclose(ang_w[-1, 1], max(np.sqrt(cov[-1, IXT, IXT]),
+										np.sqrt(cov[-1, IYT, IYT])))
 
 
-def test_covariance_beam_refuses_momentum_without_a_wavelength():
-	beam = CovarianceBeam(np.zeros(len(convention)), np.eye(len(convention)))
-	with pytest.raises(ValueError):
-		beam.momentum_covariance()
-
-
-def test_covariance_beam_rejects_mismatched_planes():
-	with pytest.raises(ValueError):
-		CovarianceBeam(np.zeros((3, len(convention))),
-					   np.zeros((2, len(convention), len(convention))))
-
-
-def test_covariance_beam_is_a_first_class_sea_object(tmp_path):
-	# it carries the calibrated covariance Signal the driver already built --
-	# not a second bare copy that could drift out of step -- and round-trips
+def test_resolution_ellipses_rejects_an_unknown_block():
 	scope = _toy()
 	scope.propagate_moments()
-	beam = scope.covariance_beam
-	assert beam.covariance is scope.covariance_matrix
-	path = str(tmp_path / "beam.sea")
-	beam.to_sea(path)
-	back = CovarianceBeam()						# a SEA object rebuilds with NO arguments
-	back.from_sea(path)
-	assert np.allclose(back._blocks(), beam._blocks())
-	assert np.allclose(back.mean, beam.mean)
-	# by name, not identity: this file's sys.path shim makes rayTEM importable
-	# as both `rayTEM` and `pySEA.rayTEM`, so the registry may hand back the
-	# class object from the other module instance
-	assert type(back.moment_closure).__name__ == 'GaussianMomentClosure'
-	assert back.moment_closure.name == 'gaussian'
-	assert np.isclose(back.emittance('x')[-1], beam.emittance('x')[-1])
-
-
-def test_empty_covariance_beam_is_inspectable():
-	# the deserializer builds one with no arguments before assigning state, so
-	# nothing on the object may assume it is populated
-	empty = CovarianceBeam()
-	assert len(empty) == 0
-	assert "empty" in repr(empty)
 	with pytest.raises(ValueError):
-		empty.sigma('x')
+		resolution_ellipses(as_ndarray(scope.covariance_matrix), 'sideways')
+
+
+def test_resolution_ellipses_finds_a_rotated_beam():
+	# the point of reporting axes rather than sigma_x/sigma_y: a beam blurred
+	# along a diagonal has no larger sigma_x than a round one of the same area
+	cov = np.zeros((1,) + (len(convention),) * 2)
+	sx, sy, rho = 3e-6, 3e-6, 0.8
+	cov[0, IX, IX] = sx**2
+	cov[0, IY, IY] = sy**2
+	cov[0, IX, IY] = cov[0, IY, IX] = rho * sx * sy
+	widths, axes = resolution_ellipses(cov, 'real')
+	assert np.isclose(widths[0, 1], sx * np.sqrt(1 + rho))
+	assert np.isclose(widths[0, 0], sx * np.sqrt(1 - rho))
+	assert np.isclose(abs(np.degrees(np.arctan2(axes[0][1, 1], axes[0][0, 1]))), 45.0)
+
+
+def test_the_covariance_is_stored_as_a_calibrated_signal():
+	# the moments mode's result is a Signal, exactly as the wave mode's is --
+	# there is no second container wrapping it
+	scope = _toy()
+	returned = scope.propagate_moments()
+	assert returned is scope.covariance_matrix
+	assert hasattr(scope.covariance_matrix, "dimensions")
+	assert [d.name for d in scope.covariance_matrix.dimensions] == ['z', 'row', 'col']
+	assert scope.covariance_matrix.metadata['components'] == list(convention)
+	assert as_ndarray(scope.covariance_matrix).shape[1:] == (len(convention),) * 2
+
+
+def test_a_different_closure_changes_the_answer():
+	# the closure is a plain callable argument, so the Gaussian assumption is
+	# visible at the call and replaceable -- a closure that returns zero for
+	# every higher moment must give a different covariance
+	scope_gauss = _toy(c30=1e5)
+	scope_gauss.propagate_moments()
+	scope_zero = _toy(c30=1e5)
+	scope_zero.propagate_moments(closure=lambda Sigma, indices: (
+		_gaussian_moment(Sigma, indices) if len(indices) <= 2 else 0.0))
+	gauss = as_ndarray(scope_gauss.covariance_matrix)[-1, IXT, IXT]
+	zero = as_ndarray(scope_zero.covariance_matrix)[-1, IXT, IXT]
+	assert gauss > zero						# the discarded moments only add area
 
 
 # ---- the example's own claims ------------------------------------------
 
 def test_example_ideal_case_conserves_emittance():
-	beam, planes = ex.propagate_case('ideal')
-	eps = beam.emittance('x')
+	scope, planes = ex.propagate_case('ideal')
+	cov = as_ndarray(scope.covariance_matrix)
+	eps = emittance(cov)[:, 0]
 	assert np.allclose(eps, eps[0], rtol=1e-6)
-	assert beam.is_positive_semidefinite()
+	for S in cov:									# still a physical covariance
+		assert np.linalg.eigvalsh(0.5 * (S + S.T)).min() > -1e-12 * abs(S).max()
 
 
 def test_example_ol2_cannot_affect_the_specimen():
 	# causality: a post-specimen element must leave the specimen plane alone
-	ideal, planes = ex.propagate_case('ideal')
-	ol2, _ = ex.propagate_case('OL2')
-	i = planes['sample']
-	assert np.isclose(ol2.emittance('x')[i], ideal.emittance('x')[i], rtol=1e-12)
-	ol1, _ = ex.propagate_case('OL1')
-	assert ol1.emittance('x')[i] > 1.5 * ideal.emittance('x')[i]
+	def eps_at(case, plane):
+		scope, planes = ex.propagate_case(case)
+		return emittance(as_ndarray(scope.covariance_matrix))[planes[plane], 0]
+	ideal = eps_at('ideal', 'sample')
+	assert np.isclose(eps_at('OL2', 'sample'), ideal, rtol=1e-12)
+	assert eps_at('OL1', 'sample') > 1.5 * ideal
 
 
 def test_example_disabling_either_objective_reproduces_the_single_case():

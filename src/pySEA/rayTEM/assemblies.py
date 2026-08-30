@@ -704,11 +704,11 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			against its own unaberrated reference. Costs nothing when
 			nothing is aberrated.
 		closure : moments.MomentClosure, optional
-			How moments above second order are supplied where a nonlinear
-			element needs them, by default
-			:class:`moments.GaussianMomentClosure`. Passed to every element,
-			so the assumption in force is chosen once, at the call, rather
-			than buried in the elements.
+			``closure(Sigma, indices) -> float``, supplying the central
+			moments a nonlinear element needs above the second, by default
+			:func:`elements._gaussian_moment`. Passed to every element, so the
+			assumption in force is chosen once, at the call, rather than
+			buried in the elements.
 		Returns
 		-------
 		xp.ndarray
@@ -740,45 +740,6 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		self.covariance_matrix = make_covariance_signal(xp.asarray(Si), self.mu[:, columnByName('z')],
 														convention, name=(self.name or 'section') + ' covariance')
 		return self.covariance_matrix
-
-	@property
-	def covariance_beam(self):
-		"""The propagated moments as a :class:`moments.CovarianceBeam`.
-
-		A **view** over ``self.mu`` and ``self.covariance_matrix``, not a
-		second copy: the beam carries the calibrated covariance ``Signal``
-		itself, so nothing is duplicated and nothing can drift out of step.
-		The driver keeps storing exactly what it always stored, and this wraps
-		it so the resolution quantities — rms widths,
-		position-angle correlations, emittance, and the principal axes of the
-		real-space and angular blocks — are available without every caller
-		re-deriving them from raw matrix entries.
-
-		Returns
-		-------
-		moments.CovarianceBeam or None
-			The beam, or ``None`` when nothing has been propagated yet.
-
-		Raises
-		------
-		None
-
-		Related
-		-------
-		propagate_moments : Produces the state this wraps.
-		moments.CovarianceBeam : What the quantities mean.
-
-		Examples
-		--------
-		>>> section.propagate_moments()                    # doctest: +SKIP
-		>>> section.covariance_beam.emittance('x')[-1]     # doctest: +SKIP
-		"""
-		from .moments import CovarianceBeam
-		if self.mu is None or self.covariance_matrix is None:
-			return None
-		source = next((e for e in (self.elements or ()) if isinstance(e, Source)), None)
-		return CovarianceBeam(self.mu, self.covariance_matrix,
-							  wavelength=getattr(source, "wavelength", None))
 
 	def propagate_wave(self, wave0=None, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, absorb:float=0.1,
@@ -2194,7 +2155,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		multipole gives it N lobes.
 
 		This traces real rays, so it sees whatever
-		:meth:`elements.Element.aberration_kick` declares. Each sampled ray is
+		:meth:`elements.Element._aberration_kick` declares. Each sampled ray is
 		followed to its closest approach to the axis, which is exact rather than
 		searched: between elements a ray is straight, so ``r²(z)`` is a quadratic
 		with a closed-form vertex.
@@ -2273,7 +2234,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		Related
 		-------
 		conjugate_planes : The paraxial answer this degenerates to.
-		elements.Element.aberration_kick : What makes the surface non-flat.
+		elements.Element._aberration_kick : What makes the surface non-flat.
 		beam_waists : The same least-confusion idea, for a whole bundle.
 
 		Examples
@@ -2782,11 +2743,11 @@ class Microscope(SealedAttributes, SEASerializable):
 			against its own unaberrated reference. Costs nothing when
 			nothing is aberrated.
 		closure : moments.MomentClosure, optional
-			How moments above second order are supplied where a nonlinear
-			element needs them, by default
-			:class:`moments.GaussianMomentClosure`. Passed to every element,
-			so the assumption in force is chosen once, at the call, rather
-			than buried in the elements.
+			``closure(Sigma, indices) -> float``, supplying the central
+			moments a nonlinear element needs above the second, by default
+			:func:`elements._gaussian_moment`. Passed to every element, so the
+			assumption in force is chosen once, at the call, rather than
+			buried in the elements.
 		Returns
 		-------
 		xp.ndarray
@@ -2809,46 +2770,6 @@ class Microscope(SealedAttributes, SEASerializable):
 		self.covariance_matrix = make_covariance_signal(xp.asarray(Ss), self.mu[:, columnByName('z')],
 														convention, name=(self.name or 'microscope') + ' covariance')
 		return self.covariance_matrix
-
-	@property
-	def covariance_beam(self):
-		"""The propagated moments as a :class:`moments.CovarianceBeam`.
-
-		A **view** over ``self.mu`` and ``self.covariance_matrix``, not a
-		second copy: the beam carries the calibrated covariance ``Signal``
-		itself, so nothing is duplicated and nothing can drift out of step.
-		The driver keeps storing exactly what it always stored, and this wraps
-		it so the resolution quantities — rms widths,
-		position-angle correlations, emittance, and the principal axes of the
-		real-space and angular blocks — are available without every caller
-		re-deriving them from raw matrix entries.
-
-		Returns
-		-------
-		moments.CovarianceBeam or None
-			The beam, or ``None`` when nothing has been propagated yet.
-
-		Raises
-		------
-		None
-
-		Related
-		-------
-		propagate_moments : Produces the state this wraps.
-		moments.CovarianceBeam : What the quantities mean.
-
-		Examples
-		--------
-		>>> scope.propagate_moments()                      # doctest: +SKIP
-		>>> scope.covariance_beam.emittance('x')[-1]       # doctest: +SKIP
-		"""
-		from .moments import CovarianceBeam
-		if self.mu is None or self.covariance_matrix is None:
-			return None
-		source = next((e for sec in (self.sections or ())
-					   for e in (sec.elements or ()) if isinstance(e, Source)), None)
-		return CovarianceBeam(self.mu, self.covariance_matrix,
-							  wavelength=getattr(source, "wavelength", None))
 
 	def propagate_wave(self, wave0=None, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, absorb:float=0.1,
@@ -3463,11 +3384,10 @@ class Microscope(SealedAttributes, SEASerializable):
 		import json
 		skip = set(self._JSON_EXCLUDE_RESULTS) | {"_arriving_current","format","sea_type","payload"}
 		def clean(v):
-			# Aberrations is a SEASerializable carrying complex coefficients, and
-			# json can encode neither. to_metadata is its flat, real-valued form,
-			# and _load_legacy_microscope_json reads it back with from_metadata.
+			# an Aberrations set stores its coefficients as a/b pairs, which is
+			# what as_dict returns and what from_metadata reads back
 			if isinstance(v,Aberrations):
-				return v.to_metadata()
+				return v.as_dict()
 			if isinstance(v,dict):
 				return {k:clean(x) for k,x in v.items() if k not in skip and x is not None}
 			if isinstance(v,(list,tuple)):

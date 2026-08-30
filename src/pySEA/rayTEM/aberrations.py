@@ -137,8 +137,10 @@ class Aberrations(SEASerializable):
 		``(d chi/dx, d chi/dy)`` on a sampled grid.
 	setdefault(name, value)
 		Set a coefficient only if it is not already nonzero.
+	as_dict()
+		The nonzero coefficients in the flat, JSON-safe ``a``/``b`` form.
 	from_metadata(metadata)
-		Read coefficients as sea-eco's swift reader stores them.
+		Read that same form back, as sea-eco's swift reader also writes it.
 	from_letters(coefficients)
 		Build from the ``C1``/``A1``/``B2`` letter notation.
 	to_letters()
@@ -412,12 +414,22 @@ class Aberrations(SEASerializable):
 		return self[name]
 
 	def as_dict(self) -> dict:
-		"""The nonzero coefficients as ``{name: complex}``.
+		"""The nonzero coefficients in the flat ``name`` / ``name.a`` / ``name.b`` form.
+
+		The storage form, and the only one this class exposes to the outside:
+		rotationally symmetric terms as a single real number, oriented terms
+		split into the ``a``/``b`` pair a Nion file uses, and the chromatic
+		coefficient under :data:`CHROMATIC_TERM`. It is exactly what
+		:meth:`from_metadata` reads, so the two round-trip, and it contains no
+		complex numbers -- which is what lets a plain JSON writer carry an
+		aberrated column.
 
 		Returns
 		-------
 		dict
-			Mapping of term name to complex coefficient.
+			``{name: float}`` and ``{name.a: float, name.b: float}`` entries
+			for the nonzero terms, plus ``'Cc'`` when chromatic is nonzero.
+			Empty for an ideal set.
 
 		Raises
 		------
@@ -425,9 +437,25 @@ class Aberrations(SEASerializable):
 
 		Related
 		-------
-		items : The same content as pairs.
+		from_metadata : Reads this form back.
+		items : The same content as complex pairs, for doing arithmetic with.
+		assemblies.Microscope.save : The JSON writer that needs this.
+
+		Examples
+		--------
+		>>> Aberrations({'C30': 1e-3, 'C12': (2e-9, 3e-9)}).as_dict()
+		{'C30': 0.001, 'C12.a': 2e-09, 'C12.b': 3e-09}
 		"""
-		return dict(self.items())
+		out = {}
+		for name, value in self.items():
+			if value.imag:
+				out[f"{name}.a"] = float(value.real)
+				out[f"{name}.b"] = float(value.imag)
+			else:
+				out[name] = float(value.real)
+		if self.chromatic:
+			out[CHROMATIC_TERM] = float(self.chromatic)
+		return out
 
 	# --------------------------------------------------------- conversions
 	@classmethod
@@ -465,49 +493,6 @@ class Aberrations(SEASerializable):
 							   f"expected one of {sorted(LETTER_TO_KRIVANEK)}.")
 			out[LETTER_TO_KRIVANEK[name]] = value
 		return cls(out)
-
-	def to_metadata(self) -> dict:
-		"""The set as the flat, JSON-safe mapping :meth:`from_metadata` reads.
-
-		The inverse of :meth:`from_metadata`, and the form a plain JSON writer
-		can carry: rotationally symmetric terms as a single real number,
-		oriented terms split into the ``name.a`` / ``name.b`` pair a Nion file
-		uses, and the chromatic coefficient under
-		:data:`CHROMATIC_TERM`. Complex numbers, which ``json`` cannot encode,
-		never appear.
-
-		Returns
-		-------
-		dict
-			``{name: float}`` and ``{name.a: float, name.b: float}`` entries
-			for the nonzero terms, plus ``'Cc'`` when chromatic is nonzero.
-			Empty for an ideal set.
-
-		Raises
-		------
-		None
-
-		Related
-		-------
-		from_metadata : The reader this inverts.
-		as_dict : The complex-valued form, for use in Python rather than a file.
-		assemblies.Microscope.save : The JSON writer that needs this.
-
-		Examples
-		--------
-		>>> Aberrations({'C30': 1e-3, 'Cc': 1.2e-3}).to_metadata()
-		{'C30': 0.001, 'Cc': 0.0012}
-		"""
-		out = {}
-		for name, value in self.items():
-			if value.imag:
-				out[f"{name}.a"] = float(value.real)
-				out[f"{name}.b"] = float(value.imag)
-			else:
-				out[name] = float(value.real)
-		if self.chromatic:
-			out[CHROMATIC_TERM] = float(self.chromatic)
-		return out
 
 	def to_letters(self) -> dict:
 		"""Express the stored set in the letter notation.
@@ -748,7 +733,7 @@ class Aberrations(SEASerializable):
 		Related
 		-------
 		phase_at : The function differentiated here.
-		elements.Element.aberration_kick : The consumer on the ray path.
+		elements.Element._aberration_kick : The consumer on the ray path.
 
 		Notes
 		-----

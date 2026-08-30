@@ -19,7 +19,7 @@ column state, and differ only in which objective carries aberrations:
 4. ``both``   -- the critical case. After OL1 the beam is provably non-Gaussian,
    but only its mean and covariance are carried forward, so OL2's update needs
    a **closure assumption**. This example states plainly that it uses
-   :class:`moments.GaussianMomentClosure` there, prints how much
+   :func:`elements._gaussian_moment` there, prints how much
    non-Gaussianity that assumption discards, and measures how far from additive
    the combined result actually is.
 
@@ -81,8 +81,8 @@ Run: ``MPLBACKEND=Agg python examples/08_covariancePropagation.py``
 
 Related
 -------
-moments.CovarianceBeam : The state and the resolution quantities reported here.
-moments.GaussianMomentClosure : The closure assumption Case 4 tests.
+postprocessing.emittance, postprocessing.resolution_ellipses : Read the result.
+elements._gaussian_moment : The closure assumption Case 4 tests.
 elements.Element.propagate_moments : The transport step.
 microscopes.basic_column : Builds the column this drives.
 """
@@ -99,7 +99,9 @@ sys.path.insert(1, "../")
 from pySEA.rayTEM.aberrations import Aberrations
 from pySEA.rayTEM.assemblies import Microscope
 from pySEA.rayTEM.microscopes.basic_column import build_basic_column
-from pySEA.rayTEM.moments import CovarianceBeam, GaussianMomentClosure
+from pySEA.rayTEM.elements import columnByName, convention, suspended_aberrations
+from pySEA.rayTEM.postprocessing import beam_widths, emittance, resolution_ellipses
+from pySEA.rayTEM.seashells import as_ndarray
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -129,44 +131,6 @@ OL2_CS, OL2_CC = 1.5e-5, 1.2e-2
 CASES = ("ideal", "OL1", "OL2", "both")
 #: Planes the tables and ellipses are read at.
 LANDMARKS = ("sample", "detector")
-
-
-def _in_example_directory(function, *args, **kwargs):
-	"""Call ``function`` with the working directory at this script's location.
-
-	:meth:`assemblies.Microscope.load_setting` resolves ``settings/<name>.json``
-	against the working directory, so a caller running from anywhere else --
-	the test suite, for one -- would not find the stored state. This is the
-	smallest fix that reuses the existing API rather than reimplementing its
-	path handling.
-
-	Parameters
-	----------
-	function : callable
-		What to call.
-	*args, **kwargs
-		Passed through.
-
-	Returns
-	-------
-	object
-		Whatever ``function`` returns.
-
-	Raises
-	------
-	Exception
-		Anything ``function`` raises; the working directory is restored first.
-
-	Related
-	-------
-	build_case : The caller.
-	"""
-	previous = os.getcwd()
-	try:
-		os.chdir(_HERE)
-		return function(*args, **kwargs)
-	finally:
-		os.chdir(previous)
 
 
 def source_angle_for(alpha:float = ALPHA_TARGET, size:float = SOURCE_SIZE) -> float:
@@ -217,7 +181,7 @@ def source_angle_for(alpha:float = ALPHA_TARGET, size:float = SOURCE_SIZE) -> fl
 	259
 	"""
 	def measured(emission):
-		scope = _in_example_directory(_state_column, size, emission)
+		scope = _state_column(size, emission)
 		return scope.convergence_angle_at(scope.get_element_position("sample"))
 	return brentq(lambda a: measured(a) - alpha, 1e-6, 1e-2, xtol=1e-12)
 
@@ -250,11 +214,18 @@ def _state_column(size:float, emission:float, energy_spread:float = ENERGY_SPREA
 
 	Notes
 	-----
-	Must be called with the working directory at this script's location; use
-	:func:`_in_example_directory`.
+	:meth:`assemblies.Microscope.load_setting` resolves ``settings/<name>.json``
+	against the working directory, so this changes into the script's own
+	directory for the load and changes back -- otherwise a caller running from
+	anywhere else, the test suite included, would not find the stored state.
 	"""
 	scope = build_basic_column()
-	scope.load_setting(COLUMN_STATE)
+	previous = os.getcwd()
+	try:									# load_setting resolves settings/ against the cwd
+		os.chdir(_HERE)
+		scope.load_setting(COLUMN_STATE)
+	finally:
+		os.chdir(previous)
 	gun = scope.sections[0].elements[0]
 	gun.size = (size, size)
 	gun.angle = (emission, emission)
@@ -310,7 +281,7 @@ def build_case(case: str, chromatic: bool = False) -> Microscope:
 	"""
 	if case not in CASES:
 		raise ValueError(f"unknown case {case!r}; expected one of {CASES}.")
-	scope = _in_example_directory(_state_column, SOURCE_SIZE, SOURCE_ANGLE)
+	scope = _state_column(SOURCE_SIZE, SOURCE_ANGLE)
 	for name, spherical, chrom in (("OL1", OL1_CS, OL1_CC), ("OL2", OL2_CS, OL2_CC)):
 		terms = {}
 		if case in (name, "both"):
@@ -322,26 +293,26 @@ def build_case(case: str, chromatic: bool = False) -> Microscope:
 	return scope
 
 
-def propagate_case(case: str, chromatic: bool = False,
-				   closure=None) -> tuple:
-	"""Propagate one configuration and return its beam and landmark planes.
+def propagate_case(case: str, chromatic: bool = False, closure=None) -> tuple:
+	"""Propagate one configuration and return its column and landmark planes.
 
 	Parameters
 	----------
 	case : {'ideal', 'OL1', 'OL2', 'both'}
-		Which objectives carry spherical aberration.
+		Which objectives carry aberrations.
 	chromatic : bool, optional
 		Whether the objectives are chromatic, by default False.
-	closure : moments.MomentClosure, optional
-		The closure to transport under, by default
-		:class:`moments.GaussianMomentClosure`. Passing an alternative here is
-		how the Case 4 assumption would be varied.
+	closure : callable, optional
+		``closure(Sigma, indices) -> float`` for the moments a nonlinear
+		element needs above the second, by default the Gaussian one. Passing
+		an alternative here is how the Case 4 assumption would be varied.
 
 	Returns
 	-------
 	tuple
-		``(beam, planes)`` — the :class:`moments.CovarianceBeam` over every
-		logged plane, and a ``{name: index}`` map for :data:`LANDMARKS`.
+		``(scope, planes)`` -- the propagated column, whose covariance is on
+		``scope.covariance_matrix`` as a calibrated ``Signal`` and whose means
+		are on ``scope.mu``, and a ``{name: index}`` map for :data:`LANDMARKS`.
 
 	Raises
 	------
@@ -351,42 +322,44 @@ def propagate_case(case: str, chromatic: bool = False,
 	Related
 	-------
 	build_case : Builds the column.
-	assemblies.Microscope.covariance_beam : The view being returned.
+	postprocessing.emittance : Reads the result.
 
 	Notes
 	-----
-	Landmark indices are found by matching the element's z against the logged
+	Landmark indices are found by matching each element's z against the logged
 	plane positions rather than by hardcoding an index, so inserting an element
 	upstream cannot silently move what is being reported.
 	"""
 	scope = build_case(case, chromatic)
 	scope.propagate_moments(closure=closure)
-	beam = scope.covariance_beam
-	z = beam.z()
+	z = scope.mu[:, columnByName('z')]
 	planes = {name: int(np.argmin(np.abs(z - scope.get_element_position(name))))
 			  for name in LANDMARKS}
-	return beam, planes
+	return scope, planes
 
 
-def resolution_report(beam: CovarianceBeam, planes: dict,
-					  reference: CovarianceBeam = None) -> str:
+def resolution_report(scope: Microscope, planes: dict,
+					  reference: Microscope = None) -> str:
 	"""The resolution quantities at the landmark planes, as a printable block.
 
-	Reports what the plan asks for and not a single probe diameter: the rms
-	widths, the signed position-angle correlations that say whether a plane is
-	a waist or a crossover, the emittances, and the principal axes of the
-	real-space and angular blocks — because a beam blurred along a diagonal has
-	no larger ``sigma_x`` than one blurred isotropically.
+	Reads the propagated covariance through the three envelope-mode helpers in
+	:mod:`postprocessing` -- :func:`postprocessing.beam_widths`,
+	:func:`postprocessing.emittance` and
+	:func:`postprocessing.resolution_ellipses` -- and the position-angle
+	correlations straight off the matrix. Not a single probe diameter: the
+	correlations say whether a plane is a waist or a crossover, the emittance
+	says how much of the width is irreducible, and the principal axes say
+	whether "the resolution" is even isotropic.
 
 	Parameters
 	----------
-	beam : moments.CovarianceBeam
-		The propagated beam.
+	scope : assemblies.Microscope
+		A propagated column.
 	planes : dict
 		``{name: index}`` from :func:`propagate_case`.
-	reference : moments.CovarianceBeam, optional
-		The ideal beam to quote growth against, by default None (no growth
-		column).
+	reference : assemblies.Microscope, optional
+		The ideal column to quote emittance growth against, by default None
+		(no growth column).
 
 	Returns
 	-------
@@ -399,40 +372,47 @@ def resolution_report(beam: CovarianceBeam, planes: dict,
 
 	Related
 	-------
-	moments.CovarianceBeam.emittance : The invariant the growth column reports.
+	postprocessing.emittance : The invariant the growth column reports.
 	emittance_budget : The attribution this feeds.
 
 	Notes
 	-----
-	Every width here is an **rms** value. The textbook chromatic and spherical
-	disc diameters are larger by a factor of two and, if quoted as full width
-	at half maximum, by a further 2.355; nothing here silently mixes the two.
+	Every width here is an **rms** value. The textbook spherical and chromatic
+	disc diameters are larger by a factor of two and, as a full width at half
+	maximum, by a further 2.355; nothing here silently mixes the two.
 	"""
+	cov = as_ndarray(scope.covariance_matrix)
+	z = scope.mu[:, columnByName('z')]
+	widths, eps = beam_widths(cov), emittance(cov)
+	real_w, real_v = resolution_ellipses(cov, 'real')
+	ang_w, _ = resolution_ellipses(cov, 'angular')
+	ix, ixt = columnByName('x'), columnByName('xt')
+	iy, iyt = columnByName('y'), columnByName('yt')
+	wavelength = scope.sections[0].elements[0].wavelength
 	lines = []
 	for name, i in planes.items():
-		single = beam.at(i)
-		rw, rv = single.real_space_ellipse(index=0)
-		aw, av = single.angular_ellipse(index=0)
-		lines.append(f"  {name} (z = {beam.z()[i] * 1e3:.4f} mm)")
-		lines.append(f"    sigma_x  {beam.sigma('x')[i]:.6e} m      "
-					 f"sigma_y  {beam.sigma('y')[i]:.6e} m")
-		lines.append(f"    sigma_xt {beam.sigma('xt')[i]:.6e} rad    "
-					 f"sigma_yt {beam.sigma('yt')[i]:.6e} rad")
-		lines.append(f"    sigma_x,xt {beam.correlation('x', 'xt')[i]:+.6e} m.rad  "
-					 f"sigma_y,yt {beam.correlation('y', 'yt')[i]:+.6e} m.rad")
+		lines.append(f"  {name} (z = {z[i] * 1e3:.4f} mm)")
+		lines.append(f"    sigma_x  {widths[i, 0]:.6e} m      "
+					 f"sigma_y  {widths[i, 1]:.6e} m")
+		lines.append(f"    sigma_xt {np.sqrt(cov[i, ixt, ixt]):.6e} rad    "
+					 f"sigma_yt {np.sqrt(cov[i, iyt, iyt]):.6e} rad")
+		lines.append(f"    sigma_x,xt {cov[i, ix, ixt]:+.6e} m.rad  "
+					 f"sigma_y,yt {cov[i, iy, iyt]:+.6e} m.rad")
 		growth = ""
 		if reference is not None:
-			growth = (f"   ({beam.emittance('x')[i] / reference.emittance('x')[i]:.4f}x "
-					  f"ideal)")
-		lines.append(f"    eps_x    {beam.emittance('x')[i]:.6e} m.rad  "
-					 f"eps_y    {beam.emittance('y')[i]:.6e} m.rad{growth}")
-		lines.append(f"    real-space principal rms  {rw[0]:.6e}, {rw[1]:.6e} m "
-					 f"(major axis {np.degrees(np.arctan2(rv[1, 1], rv[0, 1])):+.2f} deg)")
-		lines.append(f"    angular principal rms     {aw[0]:.6e}, {aw[1]:.6e} rad")
-		if beam.wavelength:
-			k0 = 2.0 * np.pi / beam.wavelength
-			lines.append(f"    momentum principal rms    {k0 * aw[0]:.6e}, "
-						 f"{k0 * aw[1]:.6e} 1/m")
+			ideal = emittance(as_ndarray(reference.covariance_matrix))
+			growth = f"   ({eps[i, 0] / ideal[i, 0]:.4f}x ideal)"
+		lines.append(f"    eps_x    {eps[i, 0]:.6e} m.rad  "
+					 f"eps_y    {eps[i, 1]:.6e} m.rad{growth}")
+		angle = np.degrees(np.arctan2(real_v[i][1, 1], real_v[i][0, 1]))
+		lines.append(f"    real-space principal rms  {real_w[i, 0]:.6e}, "
+					 f"{real_w[i, 1]:.6e} m (major axis {angle:+.2f} deg)")
+		lines.append(f"    angular principal rms     {ang_w[i, 0]:.6e}, "
+					 f"{ang_w[i, 1]:.6e} rad")
+		if wavelength:
+			k0 = 2.0 * np.pi / wavelength
+			lines.append(f"    momentum principal rms    {k0 * ang_w[i, 0]:.6e}, "
+						 f"{k0 * ang_w[i, 1]:.6e} 1/m")
 	return "\n".join(lines)
 
 
@@ -465,7 +445,7 @@ def emittance_budget(chromatic: bool = False) -> dict:
 
 	Related
 	-------
-	moments.CovarianceBeam.emittance : The quantity being differenced.
+	postprocessing.emittance : The quantity being differenced.
 	resolution_report : The per-plane detail behind these totals.
 
 	Notes
@@ -475,8 +455,8 @@ def emittance_budget(chromatic: bool = False) -> dict:
 	separating the two objectives in the first place.
 	"""
 	def eps2(case, chrom):
-		beam, planes = propagate_case(case, chrom)
-		return float(beam.emittance('x')[planes['detector']])**2
+		scope, planes = propagate_case(case, chrom)
+		return float(emittance(as_ndarray(scope.covariance_matrix))[planes['detector'], 0])**2
 
 	base = eps2('ideal', False)
 	one = eps2('OL1', False) - base
@@ -530,7 +510,7 @@ def closure_validity(case: str, chromatic: bool = False) -> dict:
 
 	Related
 	-------
-	moments.GaussianMomentClosure : The assumption being audited.
+	elements._gaussian_moment : The assumption being audited.
 	emittance_budget : The coupling term whose accuracy this bounds.
 
 	Notes
@@ -543,13 +523,10 @@ def closure_validity(case: str, chromatic: bool = False) -> dict:
 	angular spread *reduces* the angular variance, and OL2 does exactly that
 	here. Only its magnitude enters the kurtosis.
 	"""
-	from pySEA.rayTEM.elements import columnByName, suspended_aberrations
-	from pySEA.rayTEM.seashells import as_ndarray
-
 	names = {'ideal': (), 'OL1': ('OL1',), 'OL2': ('OL2',), 'both': ('OL1', 'OL2')}[case]
 	scope = build_case(case, chromatic)
 	scope.propagate_moments()
-	z = scope.covariance_beam.z()
+	z = scope.mu[:, columnByName('z')]
 	cov = as_ndarray(scope.covariance_matrix)
 	ixt = columnByName('xt')
 	out = {}
@@ -571,7 +548,7 @@ def figure(results: dict, filename: str) -> None:
 	Parameters
 	----------
 	results : dict
-		``{case: (beam, planes)}`` for every entry of :data:`CASES`.
+		``{case: (scope, planes)}`` for every entry of :data:`CASES`.
 	filename : str
 		Where to write the PNG. Its directory is created if absent.
 
@@ -611,14 +588,19 @@ def figure(results: dict, filename: str) -> None:
 	scope = build_case('ideal')
 	marks = {name: scope.get_element_position(name) * 1e3 for name in ("OL1", "OL2")}
 
-	panels = [("A: real-space width", "sigma_x (nm)", lambda b: b.sigma('x') * 1e9),
-			  ("B: angular width", "sigma_xt (mrad)", lambda b: b.sigma('xt') * 1e3),
-			  ("C: emittance", "eps_x (m.rad)", lambda b: b.emittance('x'))]
+	ixt = columnByName('xt')
+	panels = [("A: real-space width", "sigma_x (nm)",
+			   lambda c: beam_widths(c)[:, 0] * 1e9),
+			  ("B: angular width", "sigma_xt (mrad)",
+			   lambda c: np.sqrt(c[:, ixt, ixt]) * 1e3),
+			  ("C: emittance", "eps_x (m.rad)", lambda c: emittance(c)[:, 0])]
 	for ax, (title, ylab, get) in zip(axes[0], panels):
 		for case in CASES:
 			color, dash, width = styles[case]
-			beam, _ = results[case]
-			ax.plot(beam.z() * 1e3, get(beam), color=color, ls=dash, lw=width, label=case)
+			scope, _ = results[case]
+			z = scope.mu[:, columnByName('z')] * 1e3
+			ax.plot(z, get(as_ndarray(scope.covariance_matrix)),
+					color=color, ls=dash, lw=width, label=case)
 		for name, zm in marks.items():
 			ax.axvline(zm, color="0.75", lw=0.9, zorder=0)
 			ax.annotate(name, (zm, 0.02), xycoords=("data", "axes fraction"),
@@ -630,9 +612,10 @@ def figure(results: dict, filename: str) -> None:
 		ax.legend(fontsize=8)
 
 	ax = axes[0, 3]
-	growth = [results[c][0].emittance('x')[results[c][1]['detector']]
-			  / results['ideal'][0].emittance('x')[results['ideal'][1]['detector']]
-			  for c in CASES]
+	def detector_eps(case):
+		scope, planes = results[case]
+		return emittance(as_ndarray(scope.covariance_matrix))[planes['detector'], 0]
+	growth = [detector_eps(c) / detector_eps('ideal') for c in CASES]
 	ax.bar(range(len(CASES)), growth,
 		   color=[styles[c][0] for c in CASES])
 	ax.set_xticks(range(len(CASES)))
@@ -645,26 +628,20 @@ def figure(results: dict, filename: str) -> None:
 
 	def draw(ax, plane, kind, scale, unit):
 		"""Overlay every case's covariance ellipse at one plane."""
-		ideal_w = None
+		def ellipse(case):
+			scope, planes = results[case]
+			w, v = resolution_ellipses(as_ndarray(scope.covariance_matrix), kind)
+			return w[planes[plane]], v[planes[plane]]
+		ideal_w, _ = ellipse('ideal')
 		for case in CASES:
 			color, dash, width = styles[case]
-			beam, planes = results[case]
-			single = beam.at(planes[plane])
-			w, v = (single.real_space_ellipse(index=0) if kind == 'real'
-					else single.angular_ellipse(index=0))
-			if case == 'ideal':
-				ideal_w = w
+			w, v = ellipse(case)
 			t = np.linspace(0, 2 * np.pi, 361)
 			pts = v @ np.vstack([w[0] * np.cos(t), w[1] * np.sin(t)])
 			ax.plot(pts[0] * scale, pts[1] * scale, color=color, ls=dash,
 					lw=width, label=case)
-		deltas = []
-		for case in CASES[1:]:
-			beam, planes = results[case]
-			single = beam.at(planes[plane])
-			w, _ = (single.real_space_ellipse(index=0) if kind == 'real'
-					else single.angular_ellipse(index=0))
-			deltas.append(f"{case} {(w[1] / ideal_w[1] - 1.0):+.2e}")
+		deltas = [f"{case} {(ellipse(case)[0][1] / ideal_w[1] - 1.0):+.2e}"
+				  for case in CASES[1:]]
 		ax.annotate("vs ideal (major axis):\n" + "\n".join(deltas),
 					(0.02, 0.02), xycoords="axes fraction", fontsize=7, va="bottom")
 		ax.set_aspect("equal")
@@ -698,7 +675,7 @@ def run(make_figure: bool = True, figdir: str = "figs") -> dict:
 	Returns
 	-------
 	dict
-		``{'results': {case: (beam, planes)}, 'budget': ..., 'budget_chromatic': ...}``
+		``{'results': {case: (scope, planes)}, 'budget': ..., 'budget_chromatic': ...}``
 		so a caller -- or a test -- can assert on the same numbers that were
 		printed.
 
@@ -711,8 +688,7 @@ def run(make_figure: bool = True, figdir: str = "figs") -> dict:
 	emittance_budget : The attribution printed at the end.
 	resolution_report : The per-configuration blocks.
 	"""
-	closure = GaussianMomentClosure()
-	results = {case: propagate_case(case, False, closure) for case in CASES}
+	results = {case: propagate_case(case) for case in CASES}
 	reference = results['ideal'][0]
 
 	alpha = build_case('ideal')
@@ -728,13 +704,11 @@ def run(make_figure: bool = True, figdir: str = "figs") -> dict:
 		  f"Cc = {OL2_CC * 1e3:.2f} mm (not)")
 	print(f"closed forms at this alpha:  Cs*a^3 = {OL1_CS * alpha**3 * 1e9:.3f} nm, "
 		  f"Cc*a*dE/E = {OL1_CC * alpha * (ENERGY_SPREAD / 200.0) * 1e9:.3f} nm")
-	print(f"closure in force at every nonlinear element: {closure.name}")
+	print("closure in force at every nonlinear element: Gaussian (Isserlis)")
 	for case in CASES:
-		beam, planes = results[case]
+		scope, planes = results[case]
 		print(f"\n=== {case} ===")
-		print(resolution_report(beam, planes, reference if case != 'ideal' else None))
-		print(f"    covariance positive semidefinite everywhere: "
-			  f"{beam.is_positive_semidefinite()}")
+		print(resolution_report(scope, planes, reference if case != 'ideal' else None))
 
 	print("\n=== closure validity ===")
 	for case in ('OL1', 'OL2', 'both'):
@@ -772,9 +746,11 @@ def run(make_figure: bool = True, figdir: str = "figs") -> dict:
 		print("  this axis. It does not undo OL1 -- the distribution is still more")
 		print("  distorted -- which is precisely why 'more aberration' and 'worse")
 		print("  emittance' are not the same statement.")
+	def detector_eps(case):
+		scope, planes = results[case]
+		return emittance(as_ndarray(scope.covariance_matrix))[planes['detector'], 0]
 	ideal_eps = np.sqrt(budget['ideal'])
-	worst = max(CASES, key=lambda c: results[c][0].emittance('x')[results[c][1]['detector']])
-	worst_eps = results[worst][0].emittance('x')[results[worst][1]['detector']]
+	worst_eps = max(detector_eps(c) for c in CASES)
 	f_ol1 = closure_validity('OL1')['OL1']['f']
 	print(f"\n  Note the two measures disagree about magnitude, and both are right:")
 	print(f"  OL1's aberration is a {f_ol1:.1e} share of the angular VARIANCE, yet the")

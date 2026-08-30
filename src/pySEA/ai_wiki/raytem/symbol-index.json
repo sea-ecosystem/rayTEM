@@ -13,7 +13,7 @@
     "name": "AberrationScreen",
     "qualname": "AberrationScreen",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3514,
+    "source_lineno": 3547,
     "signature": "class AberrationScreen",
     "doc": "A zero-thickness pure aberration plate."
   },
@@ -130,7 +130,7 @@
     "name": "Aperture",
     "qualname": "Aperture",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3165,
+    "source_lineno": 3198,
     "signature": "class Aperture",
     "doc": "Aperture element class. An aperture MASKS the beam: rays outside the"
   },
@@ -283,7 +283,7 @@
     "name": "check_lengths",
     "qualname": "check_lengths",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3645,
+    "source_lineno": 3565,
     "signature": "check_lengths(section)",
     "doc": ""
   },
@@ -319,7 +319,7 @@
     "name": "columnByName",
     "qualname": "columnByName",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 33,
+    "source_lineno": 32,
     "signature": "columnByName(name)",
     "doc": ""
   },
@@ -370,19 +370,10 @@
   },
   {
     "kind": "class",
-    "name": "CovarianceBeam",
-    "qualname": "CovarianceBeam",
-    "path": "src/pySEA/rayTEM/moments.py",
-    "source_lineno": 372,
-    "signature": "class CovarianceBeam",
-    "doc": "A beam described by its first two moments, and the resolution they imply."
-  },
-  {
-    "kind": "class",
     "name": "Dipole",
     "qualname": "Dipole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4180,
+    "source_lineno": 4253,
     "signature": "class Dipole",
     "doc": ""
   },
@@ -418,7 +409,7 @@
     "name": "Drift",
     "qualname": "Drift",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3438,
+    "source_lineno": 3471,
     "signature": "class Drift",
     "doc": "Drift element class for free-space propagation."
   },
@@ -526,7 +517,7 @@
     "name": "Element",
     "qualname": "Element",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 678,
+    "source_lineno": 862,
     "signature": "class Element",
     "doc": ""
   },
@@ -544,7 +535,7 @@
     "name": "emittance",
     "qualname": "emittance",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1343,
+    "source_lineno": 1413,
     "signature": "emittance(covariance_matrix)",
     "doc": "RMS emittance in x and y from a stack of covariance matrices."
   },
@@ -697,7 +688,7 @@
     "name": "fix_mat_dims",
     "qualname": "fix_mat_dims",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 36,
+    "source_lineno": 35,
     "signature": "fix_mat_dims(m, columnNames)",
     "doc": ""
   },
@@ -706,7 +697,7 @@
     "name": "fix_ray_dims",
     "qualname": "fix_ray_dims",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 43,
+    "source_lineno": 42,
     "signature": "fix_ray_dims(rays, columnNames)",
     "doc": ""
   },
@@ -738,15 +729,6 @@
     "doc": "Build a Gaussian amplitude field centered on the grid."
   },
   {
-    "kind": "class",
-    "name": "GaussianMomentClosure",
-    "qualname": "GaussianMomentClosure",
-    "path": "src/pySEA/rayTEM/moments.py",
-    "source_lineno": 129,
-    "signature": "class GaussianMomentClosure",
-    "doc": "Close moments by Isserlis' theorem, as for a centered Gaussian."
-  },
-  {
     "kind": "function",
     "name": "grid_of",
     "qualname": "grid_of",
@@ -760,7 +742,7 @@
     "name": "Gun",
     "qualname": "Gun",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3113,
+    "source_lineno": 3146,
     "signature": "class Gun",
     "doc": "A Source by its microscope name."
   },
@@ -859,7 +841,7 @@
     "name": "Lens",
     "qualname": "Lens",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4401,
+    "source_lineno": 4474,
     "signature": "class Lens",
     "doc": "Lens element class for round lenses / symmetric focusing. https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example or Brown1983 page 105"
   },
@@ -931,7 +913,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3744,
+    "source_lineno": 3664,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -940,7 +922,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3574,
+    "source_lineno": 3494,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -1183,7 +1165,7 @@
     "name": "Microscope",
     "qualname": "Microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 959,
+    "source_lineno": 920,
     "signature": "class Microscope",
     "doc": "Microscope class represents a whole microscope, and is comprised of multiple MicroscopeSections. propagation through a Microscope results in propagation through individual MicroscopeSections"
   },
@@ -1222,15 +1204,6 @@
     "source_lineno": 245,
     "signature": "minima_from_1D()",
     "doc": ""
-  },
-  {
-    "kind": "class",
-    "name": "MomentClosure",
-    "qualname": "MomentClosure",
-    "path": "src/pySEA/rayTEM/moments.py",
-    "source_lineno": 51,
-    "signature": "class MomentClosure",
-    "doc": "How a nonlinear map obtains moments the beam state does not store."
   },
   {
     "kind": "class",
@@ -1354,7 +1327,7 @@
     "name": "Prism",
     "qualname": "Prism",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4972,
+    "source_lineno": 5045,
     "signature": "class Prism",
     "doc": ""
   },
@@ -1471,7 +1444,7 @@
     "name": "Quadrapole",
     "qualname": "Quadrapole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3701,
+    "source_lineno": 3734,
     "signature": "class Quadrapole",
     "doc": ""
   },
@@ -1516,7 +1489,7 @@
     "name": "Rays",
     "qualname": "Rays",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 50,
+    "source_lineno": 49,
     "signature": "class Rays",
     "doc": ""
   },
@@ -1579,7 +1552,7 @@
     "name": "repair",
     "qualname": "repair",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3659,
+    "source_lineno": 3579,
     "signature": "repair(section, combine_drifts)",
     "doc": "Close gaps and overlaps in a section's element list, in place."
   },
@@ -1591,6 +1564,15 @@
     "source_lineno": 2323,
     "signature": "resample_screen(data, dx_src, dy_src, shape, dx, dy)",
     "doc": "Resample a supplied screen onto the grid actually being propagated."
+  },
+  {
+    "kind": "function",
+    "name": "resolution_ellipses",
+    "qualname": "resolution_ellipses",
+    "path": "src/pySEA/rayTEM/postprocessing.py",
+    "source_lineno": 1343,
+    "signature": "resolution_ellipses(covariance_matrix, kind)",
+    "doc": "Principal rms widths and axes of a covariance block, per plane."
   },
   {
     "kind": "function",
@@ -1651,7 +1633,7 @@
     "name": "roundjson",
     "qualname": "roundjson",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3556,
+    "source_lineno": 3476,
     "signature": "roundjson(jdict)",
     "doc": ""
   },
@@ -1723,7 +1705,7 @@
     "name": "SealedAttributes",
     "qualname": "SealedAttributes",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 365,
+    "source_lineno": 364,
     "signature": "class SealedAttributes",
     "doc": "Refuses attribute names the class does not have, once built."
   },
@@ -1813,7 +1795,7 @@
     "name": "Source",
     "qualname": "Source",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2689,
+    "source_lineno": 2722,
     "signature": "class Source",
     "doc": "Source element class. Source element can be put in a MicroscopeSection and then propagating \"through\" the section will mean the starting rays r0 are generated by the Source (instead of requiring the user pass in starting rays)"
   },
@@ -1831,7 +1813,7 @@
     "name": "suspended_aberrations",
     "qualname": "suspended_aberrations",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 239,
+    "source_lineno": 238,
     "signature": "class suspended_aberrations",
     "doc": "Context manager that temporarily detaches elements' aberrations."
   },
@@ -1885,8 +1867,17 @@
     "name": "test_a_chromatic_only_set_produces_no_pupil_deflection",
     "qualname": "test_a_chromatic_only_set_produces_no_pupil_deflection",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 439,
+    "source_lineno": 430,
     "signature": "test_a_chromatic_only_set_produces_no_pupil_deflection()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_a_different_closure_changes_the_answer",
+    "qualname": "test_a_different_closure_changes_the_answer",
+    "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
+    "source_lineno": 565,
+    "signature": "test_a_different_closure_changes_the_answer()",
     "doc": ""
   },
   {
@@ -1939,7 +1930,7 @@
     "name": "test_aberrated_covariance_matches_monte_carlo_rays",
     "qualname": "test_aberrated_covariance_matches_monte_carlo_rays",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 220,
+    "source_lineno": 211,
     "signature": "test_aberrated_covariance_matches_monte_carlo_rays()",
     "doc": ""
   },
@@ -1948,7 +1939,7 @@
     "name": "test_aberration_growth_scales_as_the_square_of_the_coefficient",
     "qualname": "test_aberration_growth_scales_as_the_square_of_the_coefficient",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 314,
+    "source_lineno": 305,
     "signature": "test_aberration_growth_scales_as_the_square_of_the_coefficient()",
     "doc": ""
   },
@@ -1957,7 +1948,7 @@
     "name": "test_aberration_monomials_reproduce_the_kick",
     "qualname": "test_aberration_monomials_reproduce_the_kick",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 160,
+    "source_lineno": 152,
     "signature": "test_aberration_monomials_reproduce_the_kick(name, coefficient)",
     "doc": ""
   },
@@ -1975,7 +1966,7 @@
     "name": "test_aberrations_round_trip_through_json_and_sea",
     "qualname": "test_aberrations_round_trip_through_json_and_sea",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 446,
+    "source_lineno": 437,
     "signature": "test_aberrations_round_trip_through_json_and_sea(tmp_path)",
     "doc": ""
   },
@@ -2020,7 +2011,7 @@
     "name": "test_an_ideal_reference_run_is_achromatic",
     "qualname": "test_an_ideal_reference_run_is_achromatic",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 399,
+    "source_lineno": 390,
     "signature": "test_an_ideal_reference_run_is_achromatic()",
     "doc": ""
   },
@@ -2094,6 +2085,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 2338,
     "signature": "test_apply_aberrations_false_gives_the_ideal_result_on_every_path()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_as_dict_is_the_flat_a_b_form_and_round_trips",
+    "qualname": "test_as_dict_is_the_flat_a_b_form_and_round_trips",
+    "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
+    "source_lineno": 454,
+    "signature": "test_as_dict_is_the_flat_a_b_form_and_round_trips()",
     "doc": ""
   },
   {
@@ -2254,7 +2254,7 @@
     "name": "test_center_monomials_expands_about_the_mean",
     "qualname": "test_center_monomials_expands_about_the_mean",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 128,
+    "source_lineno": 120,
     "signature": "test_center_monomials_expands_about_the_mean()",
     "doc": ""
   },
@@ -2281,7 +2281,7 @@
     "name": "test_chromatic_angular_variance_matches_the_closed_form",
     "qualname": "test_chromatic_angular_variance_matches_the_closed_form",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 346,
+    "source_lineno": 337,
     "signature": "test_chromatic_angular_variance_matches_the_closed_form()",
     "doc": ""
   },
@@ -2290,7 +2290,7 @@
     "name": "test_chromatic_is_carried_by_the_aberration_set",
     "qualname": "test_chromatic_is_carried_by_the_aberration_set",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 424,
+    "source_lineno": 415,
     "signature": "test_chromatic_is_carried_by_the_aberration_set()",
     "doc": ""
   },
@@ -2299,7 +2299,7 @@
     "name": "test_chromatic_is_per_axis_on_an_astigmatic_element",
     "qualname": "test_chromatic_is_per_axis_on_an_astigmatic_element",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 496,
+    "source_lineno": 491,
     "signature": "test_chromatic_is_per_axis_on_an_astigmatic_element()",
     "doc": ""
   },
@@ -2308,7 +2308,7 @@
     "name": "test_chromatic_matches_a_monte_carlo_ray_reference",
     "qualname": "test_chromatic_matches_a_monte_carlo_ray_reference",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 365,
+    "source_lineno": 356,
     "signature": "test_chromatic_matches_a_monte_carlo_ray_reference()",
     "doc": ""
   },
@@ -2317,7 +2317,7 @@
     "name": "test_chromatic_needs_both_a_spread_and_a_coefficient",
     "qualname": "test_chromatic_needs_both_a_spread_and_a_coefficient",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 330,
+    "source_lineno": 321,
     "signature": "test_chromatic_needs_both_a_spread_and_a_coefficient()",
     "doc": ""
   },
@@ -2326,7 +2326,7 @@
     "name": "test_chromatic_scales_with_the_energy_spread_squared",
     "qualname": "test_chromatic_scales_with_the_energy_spread_squared",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 386,
+    "source_lineno": 377,
     "signature": "test_chromatic_scales_with_the_energy_spread_squared()",
     "doc": ""
   },
@@ -2335,7 +2335,7 @@
     "name": "test_chromatic_survives_a_round_trip",
     "qualname": "test_chromatic_survives_a_round_trip",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 410,
+    "source_lineno": 401,
     "signature": "test_chromatic_survives_a_round_trip(tmp_path)",
     "doc": ""
   },
@@ -2431,42 +2431,6 @@
   },
   {
     "kind": "function",
-    "name": "test_covariance_beam_is_a_first_class_sea_object",
-    "qualname": "test_covariance_beam_is_a_first_class_sea_object",
-    "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 545,
-    "signature": "test_covariance_beam_is_a_first_class_sea_object(tmp_path)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "test_covariance_beam_refuses_momentum_without_a_wavelength",
-    "qualname": "test_covariance_beam_refuses_momentum_without_a_wavelength",
-    "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 533,
-    "signature": "test_covariance_beam_refuses_momentum_without_a_wavelength()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "test_covariance_beam_rejects_mismatched_planes",
-    "qualname": "test_covariance_beam_rejects_mismatched_planes",
-    "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 539,
-    "signature": "test_covariance_beam_rejects_mismatched_planes()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "test_covariance_beam_reports_the_resolution_quantities",
-    "qualname": "test_covariance_beam_reports_the_resolution_quantities",
-    "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 515,
-    "signature": "test_covariance_beam_reports_the_resolution_quantities()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
     "name": "test_covariance_matrix_is_a_signal",
     "qualname": "test_covariance_matrix_is_a_signal",
     "path": "src/pySEA/rayTEM/tests/test_wave_and_envelope.py",
@@ -2479,7 +2443,7 @@
     "name": "test_covariance_stays_symmetric_and_positive_semidefinite",
     "qualname": "test_covariance_stays_symmetric_and_positive_semidefinite",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 298,
+    "source_lineno": 289,
     "signature": "test_covariance_stays_symmetric_and_positive_semidefinite()",
     "doc": ""
   },
@@ -2506,7 +2470,7 @@
     "name": "test_cross_plane_closure_terms_appear_when_the_beam_is_coupled",
     "qualname": "test_cross_plane_closure_terms_appear_when_the_beam_is_coupled",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 242,
+    "source_lineno": 233,
     "signature": "test_cross_plane_closure_terms_appear_when_the_beam_is_coupled()",
     "doc": ""
   },
@@ -2593,15 +2557,6 @@
   },
   {
     "kind": "function",
-    "name": "test_empty_covariance_beam_is_inspectable",
-    "qualname": "test_empty_covariance_beam_is_inspectable",
-    "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 566,
-    "signature": "test_empty_covariance_beam_is_inspectable()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
     "name": "test_entrance_plane_equivalence_on_target_grid",
     "qualname": "test_entrance_plane_equivalence_on_target_grid",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -2632,7 +2587,7 @@
     "name": "test_even_order_aberration_shifts_the_ensemble_mean",
     "qualname": "test_even_order_aberration_shifts_the_ensemble_mean",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 267,
+    "source_lineno": 258,
     "signature": "test_even_order_aberration_shifts_the_ensemble_mean()",
     "doc": ""
   },
@@ -2659,7 +2614,7 @@
     "name": "test_example_budget_is_dominated_by_ol1_and_nearly_additive",
     "qualname": "test_example_budget_is_dominated_by_ol1_and_nearly_additive",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 605,
+    "source_lineno": 610,
     "signature": "test_example_budget_is_dominated_by_ol1_and_nearly_additive()",
     "doc": ""
   },
@@ -2668,7 +2623,7 @@
     "name": "test_example_chromatic_is_a_live_term_at_this_aperture",
     "qualname": "test_example_chromatic_is_a_live_term_at_this_aperture",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 624,
+    "source_lineno": 629,
     "signature": "test_example_chromatic_is_a_live_term_at_this_aperture()",
     "doc": ""
   },
@@ -2677,7 +2632,7 @@
     "name": "test_example_closure_validity_is_small_enough_to_justify_the_closure",
     "qualname": "test_example_closure_validity_is_small_enough_to_justify_the_closure",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 631,
+    "source_lineno": 636,
     "signature": "test_example_closure_validity_is_small_enough_to_justify_the_closure()",
     "doc": ""
   },
@@ -2686,7 +2641,7 @@
     "name": "test_example_disabling_either_objective_reproduces_the_single_case",
     "qualname": "test_example_disabling_either_objective_reproduces_the_single_case",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 595,
+    "source_lineno": 600,
     "signature": "test_example_disabling_either_objective_reproduces_the_single_case()",
     "doc": ""
   },
@@ -2695,7 +2650,7 @@
     "name": "test_example_ideal_case_conserves_emittance",
     "qualname": "test_example_ideal_case_conserves_emittance",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 578,
+    "source_lineno": 581,
     "signature": "test_example_ideal_case_conserves_emittance()",
     "doc": ""
   },
@@ -2704,7 +2659,7 @@
     "name": "test_example_ol2_cannot_affect_the_specimen",
     "qualname": "test_example_ol2_cannot_affect_the_specimen",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 585,
+    "source_lineno": 590,
     "signature": "test_example_ol2_cannot_affect_the_specimen()",
     "doc": ""
   },
@@ -2713,7 +2668,7 @@
     "name": "test_example_runs_at_the_stated_operating_point",
     "qualname": "test_example_runs_at_the_stated_operating_point",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 612,
+    "source_lineno": 617,
     "signature": "test_example_runs_at_the_stated_operating_point()",
     "doc": ""
   },
@@ -2911,7 +2866,7 @@
     "name": "test_ideal_transport_is_exact_and_conserves_emittance",
     "qualname": "test_ideal_transport_is_exact_and_conserves_emittance",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 190,
+    "source_lineno": 182,
     "signature": "test_ideal_transport_is_exact_and_conserves_emittance()",
     "doc": ""
   },
@@ -2929,7 +2884,7 @@
     "name": "test_kick_moments_reports_the_mean_of_an_even_order_kick",
     "qualname": "test_kick_moments_reports_the_mean_of_an_even_order_kick",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 142,
+    "source_lineno": 134,
     "signature": "test_kick_moments_reports_the_mean_of_an_even_order_kick()",
     "doc": ""
   },
@@ -3012,15 +2967,6 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 1791,
     "signature": "test_mid_element_hybrid_leaves_the_common_case_alone()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "test_moment_closure_base_class_refuses_to_guess",
-    "qualname": "test_moment_closure_base_class_refuses_to_guess",
-    "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 121,
-    "signature": "test_moment_closure_base_class_refuses_to_guess()",
     "doc": ""
   },
   {
@@ -3124,6 +3070,15 @@
   },
   {
     "kind": "function",
+    "name": "test_postprocessing_reads_the_resolution_quantities",
+    "qualname": "test_postprocessing_reads_the_resolution_quantities",
+    "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
+    "source_lineno": 510,
+    "signature": "test_postprocessing_reads_the_resolution_quantities()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_propagate_dispatcher_routes_to_each_mode",
     "qualname": "test_propagate_dispatcher_routes_to_each_mode",
     "path": "src/pySEA/rayTEM/tests/test_wave_and_envelope.py",
@@ -3145,7 +3100,7 @@
     "name": "test_quadrupole_aberrations_reach_every_path",
     "qualname": "test_quadrupole_aberrations_reach_every_path",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 472,
+    "source_lineno": 467,
     "signature": "test_quadrupole_aberrations_reach_every_path()",
     "doc": ""
   },
@@ -3210,6 +3165,24 @@
     "path": "src/pySEA/rayTEM/tests/test_wave_and_envelope.py",
     "source_lineno": 21,
     "signature": "test_relativistic_wavelength_rejects_nonpositive()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_resolution_ellipses_finds_a_rotated_beam",
+    "qualname": "test_resolution_ellipses_finds_a_rotated_beam",
+    "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
+    "source_lineno": 539,
+    "signature": "test_resolution_ellipses_finds_a_rotated_beam()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_resolution_ellipses_rejects_an_unknown_block",
+    "qualname": "test_resolution_ellipses_rejects_an_unknown_block",
+    "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
+    "source_lineno": 532,
+    "signature": "test_resolution_ellipses_rejects_an_unknown_block()",
     "doc": ""
   },
   {
@@ -3439,6 +3412,15 @@
   },
   {
     "kind": "function",
+    "name": "test_the_covariance_is_stored_as_a_calibrated_signal",
+    "qualname": "test_the_covariance_is_stored_as_a_calibrated_signal",
+    "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
+    "source_lineno": 553,
+    "signature": "test_the_covariance_is_stored_as_a_calibrated_signal()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_the_wave_carries_current_too",
     "qualname": "test_the_wave_carries_current_too",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -3525,15 +3507,6 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 205,
     "signature": "test_thin_lens_scaled_matches_focal_phase()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "test_to_metadata_inverts_from_metadata",
-    "qualname": "test_to_metadata_inverts_from_metadata",
-    "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 463,
-    "signature": "test_to_metadata_inverts_from_metadata()",
     "doc": ""
   },
   {
@@ -3658,7 +3631,7 @@
     "name": "test_zero_aberration_strength_recovers_the_ideal_result",
     "qualname": "test_zero_aberration_strength_recovers_the_ideal_result",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
-    "source_lineno": 207,
+    "source_lineno": 198,
     "signature": "test_zero_aberration_strength_recovers_the_ideal_result()",
     "doc": ""
   },

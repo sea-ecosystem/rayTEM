@@ -10,42 +10,42 @@
 |   `Element.__init__(self, name, kind)` | 103 |
 |   `Element.transfer_matrix(self)` | 107 |
 |   `Element.propagate_moments` — analytic aberrations and the closure seam (2026-08-30) | 111 |
-|   `Element.chromatic_aberration`, `chromatic_kick`, `_chromatic_monomials` (2026-08-30) | 162 |
-|   `Element._pupil_scale` / `_pupil_scales` (2026-08-30) | 216 |
-|   `Element.propagate_ray(self, r0, z, z0)` | 232 |
-|   `Element.phase_shift(self, dimensions, wavelength, scaled=False, s=1.0)` | 238 |
-|   `Element._scaled_segment(self)` | 302 |
-|   `Element.propagate_wave(self, signal, mode='fixed', s_min=1e-3, log=None, absorb=0.1, crossover='flat', rotate=False)` | 313 |
-|   `Element.propagate(self, *args, kind='ray', **kwargs)` | 349 |
-| Source | 358 |
-|   `Source.__init__(self, name, size, np_xy, angle, na_xy, position)` | 362 |
-|   `Source.rays(self)` | 369 |
-|   `Source.propagate_ray(self, r0, **kwargs)` | 373 |
-|   `Source.wave(self, mode='fixed')` / `Source._aperture_wave(self, radius)` | 377 |
-| Aperture | 391 |
-|   `Aperture.__init__(self, name, radius, calibration, position)` | 395 |
-|   `Aperture.propagate_ray(self, r0, z, z0)` | 399 |
-|   `Aperture.propagate_wave(self, signal, mode='fixed', ...)` | 403 |
-| Drift | 419 |
-|   `Drift.__init__(self, name, length, calibration, position)` | 423 |
-|   `Drift.transfer_matrix(self)` | 427 |
-| Quadrapole | 433 |
-|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 437 |
-|   `Quadrapole.transfer_matrix(self)` | 441 |
-| AberrationScreen | 488 |
-| Dipole | 508 |
-|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 512 |
-|   `Dipole.transfer_matrix(self)` | 516 |
-|   `Dipole.propagate_ray(self, r0, z, z0)` | 520 |
-| Lens | 526 |
-|   `Lens.__init__(self, name, length, strength, calibration, position)` | 549 |
-|   `Lens.transfer_matrix(self)` | 557 |
-|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 564 |
-| Prism | 570 |
-|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 574 |
-|   `Prism.focus_matrix(self)` | 578 |
-|   `Prism.bending_matrix(self, s)` | 582 |
-|   `Prism.transfer_matrix(self)` | 586 |
+|   `Element.chromatic_aberration`, `chromatic_kick`, `_chromatic_monomials` (2026-08-30) | 166 |
+|   `Quadrapole.focal_power` (2026-08-30) | 220 |
+|   `Element.propagate_ray(self, r0, z, z0)` | 237 |
+|   `Element.phase_shift(self, dimensions, wavelength, scaled=False, s=1.0)` | 243 |
+|   `Element._scaled_segment(self)` | 307 |
+|   `Element.propagate_wave(self, signal, mode='fixed', s_min=1e-3, log=None, absorb=0.1, crossover='flat', rotate=False)` | 318 |
+|   `Element.propagate(self, *args, kind='ray', **kwargs)` | 354 |
+| Source | 363 |
+|   `Source.__init__(self, name, size, np_xy, angle, na_xy, position)` | 367 |
+|   `Source.rays(self)` | 374 |
+|   `Source.propagate_ray(self, r0, **kwargs)` | 378 |
+|   `Source.wave(self, mode='fixed')` / `Source._aperture_wave(self, radius)` | 382 |
+| Aperture | 396 |
+|   `Aperture.__init__(self, name, radius, calibration, position)` | 400 |
+|   `Aperture.propagate_ray(self, r0, z, z0)` | 404 |
+|   `Aperture.propagate_wave(self, signal, mode='fixed', ...)` | 408 |
+| Drift | 424 |
+|   `Drift.__init__(self, name, length, calibration, position)` | 428 |
+|   `Drift.transfer_matrix(self)` | 432 |
+| Quadrapole | 438 |
+|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 442 |
+|   `Quadrapole.transfer_matrix(self)` | 446 |
+| AberrationScreen | 493 |
+| Dipole | 513 |
+|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 517 |
+|   `Dipole.transfer_matrix(self)` | 521 |
+|   `Dipole.propagate_ray(self, r0, z, z0)` | 525 |
+| Lens | 531 |
+|   `Lens.__init__(self, name, length, strength, calibration, position)` | 554 |
+|   `Lens.transfer_matrix(self)` | 562 |
+|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 569 |
+| Prism | 575 |
+|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 579 |
+|   `Prism.focus_matrix(self)` | 583 |
+|   `Prism.bending_matrix(self, s)` | 587 |
+|   `Prism.transfer_matrix(self)` | 591 |
 <!-- END AUTO-GENERATED TOC -->
 
 # elements.py
@@ -124,10 +124,14 @@ through a replaceable closure:
   scale of its own. **Every order through C56 is covered, rotated terms
   included**; a new entry in `KRIVANEK_TERMS` reaches this path with no algebra
   written by hand. (The earlier version closed only C30, by hand.)
-- `moments._center_monomials` rewrites that in deviations from the mean;
-  `moments._kick_moments` turns it into `(delta_mean, C, D)` by asking
-  `moments.MomentClosure.moment(Sigma, indices)` for every higher moment.
-  `GaussianMomentClosure` answers by Wick pairing at any order.
+  It also emits the chromatic term, already centred, so there is one kick
+  polynomial rather than two methods.
+- `_center_monomials` rewrites the Krivanek part in deviations from the mean;
+  `_kick_moments` turns the whole thing into `(delta_mean, C, D)` by asking the
+  `closure(Sigma, indices)` callable for every higher moment.
+  `_gaussian_moment` is the default and answers by Wick pairing at any order.
+  All three are module-level privates in `elements.py`, beside
+  `_split_quadratic_aberrations` — the same kind of thing, in the same place.
 - `_aberration_moment_pieces` returns a **4-tuple** `(M_l, delta_mean, C, D)`
   — the extra element is the ensemble-mean kick.
 
@@ -213,21 +217,22 @@ though it is "just a power change" — the power change differs per electron.
   it exact, where a Krivanek term has to be referenced to a single stated
   scale.
 
-### `Element._pupil_scale` / `_pupil_scales` (2026-08-30)
+### `Quadrapole.focal_power` (2026-08-30)
 
-One resolution rule for "what pupil scale are this element's aberrations
-defined against": explicit `pupil_power`, else scalar `focal_power`, else the
-geometric mean of `focal_powers`. That last case is the fix for a real silent
-bug — a `Quadrapole` states `focal_powers` (plural) and so resolved **zero**,
-which disabled its aberrations on every path, ray as well as covariance, with
-no error. `Quadrapole` now also accepts `aberrations` and `pupil_power`.
+Every aberration path converts ray height to pupil angle through a single
+`focal_power`. A quadrupole has none — one axis focuses, the other diverges —
+so it reported zero and its aberrations were **silently ignored on every
+path**, ray as well as covariance, with no error. `Quadrapole.focal_power` is
+now the stated convention, `sqrt(|Px·Py|)`, and `Quadrapole` accepts
+`aberrations` and `pupil_power`. Chromatic does not use it: it needs no round
+pupil, so it reads `focal_powers` per axis and is exact there.
 
-**Do not rename these back to `_pupil_power`.** sea-eco's JSON reader
-(`_json_attribute_name`) routes a stored public `pupil_power` into the backing
-name `_pupil_power` whenever the object has that attribute — so a private
-method spelled `_<public attribute>` is silently overwritten by a float on
-reload, and the next call raises `TypeError: 'float' object is not callable`.
-The same trap applies to any future private helper in this repository.
+A trap met on the way: this was first a helper named `_pupil_power`, and
+sea-eco's JSON reader (`_json_attribute_name`) routes a stored public
+`pupil_power` into the backing name `_pupil_power` whenever the object has that
+attribute — so the method was replaced by a float on reload and the next call
+raised `TypeError: 'float' object is not callable`. Never name a private helper
+`_<public attribute>` in this repository.
 
 ### `Element.propagate_ray(self, r0, z, z0)`
 
@@ -492,7 +497,7 @@ just an aberration function χ. Because a plate has no focal power of its
 own, the Krivanek coefficients take an explicit `pupil_power` (1/f of the
 optic whose pupil this is) to convert plate positions into pupil angles;
 `pupil_power = 0` is transparent. Ray path: one exact thin eikonal kick
-(overriding `Element.aberration_kick`, which would otherwise key off a
+(overriding `Element._aberration_kick`, which would otherwise key off a
 nonexistent `focal_power`). Wave path: the whole χ as one screen on the
 fixed grid; on the scaled path the quadratic terms (C10, aligned C12) are
 absorbed as frame powers via the shared module-level helper
@@ -530,7 +535,7 @@ Round (symmetric) magnetic lens. The dominant optic in TEM columns. A thick lens
 **Three focal quantities** (2026-08-30, the settled naming):
 `focal_power = −C = K·sin(KL)` is the equivalent power — a parallel ray at
 height `h` crosses the focus at exactly `θ = focal_power·h`, so it is the
-pupil scale every aberration consumes (`aberration_kick`, `phase_shift`,
+pupil scale every aberration consumes (`_aberration_kick`, `phase_shift`,
 `aberration_powers`) and the power that composes additively.
 `focal_length = 1/focal_power` is the conventional EFL (rear-principal-plane
 referenced; thin lenses keep the stored `_focal_length` with

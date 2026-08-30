@@ -1497,6 +1497,79 @@
 
 
 
+<div class="viewcode-block" id="resolution_ellipses">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.postprocessing.resolution_ellipses">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">resolution_ellipses</span><span class="p">(</span><span class="n">covariance_matrix</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"real"</span><span class="p">):</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""Principal rms widths and axes of a covariance block, per plane.</span>
+
+<span class="sd">	The third of the envelope-mode readers, beside :func:`beam_widths` and</span>
+<span class="sd">	:func:`emittance`, and the one that stops "the resolution" being quietly</span>
+<span class="sd">	assumed isotropic. ``sigma_x`` and ``sigma_y`` describe the *coordinate</span>
+<span class="sd">	system*; a beam blurred along a diagonal has no larger ``sigma_x`` than one</span>
+<span class="sd">	blurred evenly. The eigenvectors of the block are the beam's own axes and</span>
+<span class="sd">	the square roots of the eigenvalues the widths along them.</span>
+
+<span class="sd">	.. math::</span>
+
+<span class="sd">		\Sigma_{rr} = \begin{pmatrix}\sigma_x^2 &amp; \sigma_{xy}\\</span>
+<span class="sd">		                             \sigma_{xy} &amp; \sigma_y^2\end{pmatrix},</span>
+<span class="sd">		\qquad</span>
+<span class="sd">		\Sigma_{uu} = \begin{pmatrix}\sigma_{xt}^2 &amp; \sigma_{xt,yt}\\</span>
+<span class="sd">		                             \sigma_{xt,yt} &amp; \sigma_{yt}^2\end{pmatrix}</span>
+
+<span class="sd">	For a wavevector ``k0 = 2*pi/wavelength`` the angular widths are momentum</span>
+<span class="sd">	widths scaled by ``k0``, so a diffraction or spectrometer plane is read by</span>
+<span class="sd">	multiplying the ``'angular'`` result by it.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	covariance_matrix : np.ndarray or Signal</span>
+<span class="sd">		Per-plane covariance matrices, shape</span>
+<span class="sd">		``(n_planes, len(convention), len(convention))``.</span>
+<span class="sd">	kind : {'real', 'angular'}, optional</span>
+<span class="sd">		Which block, by default ``'real'`` -- positions ``(x, y)`` against</span>
+<span class="sd">		angles ``(xt, yt)``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	tuple of np.ndarray</span>
+<span class="sd">		``(widths, axes)`` with shapes ``(n_planes, 2)`` and</span>
+<span class="sd">		``(n_planes, 2, 2)``: rms widths ascending, and the corresponding</span>
+<span class="sd">		principal axes as columns.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	ValueError</span>
+<span class="sd">		If ``kind`` is not ``'real'`` or ``'angular'``.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	beam_widths : The per-axis widths this generalizes.</span>
+<span class="sd">	emittance : The invariant from the same covariance stack.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	Eigenvalues are clipped at zero before the square root, so a covariance</span>
+<span class="sd">	driven very slightly negative by rounding reports 0 rather than a NaN.</span>
+
+<span class="sd">	Examples</span>
+<span class="sd">	--------</span>
+<span class="sd">	&gt;&gt;&gt; widths, axes = resolution_ellipses(scope.covariance_matrix)  # doctest: +SKIP</span>
+<span class="sd">	&gt;&gt;&gt; widths[-1]                                                   # doctest: +SKIP</span>
+<span class="sd">	array([3.7e-11, 3.7e-11])</span>
+<span class="sd">	"""</span>
+	<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">covariance_matrix</span><span class="p">,</span> <span class="s2">"dimensions"</span><span class="p">):</span>
+		<span class="n">covariance_matrix</span> <span class="o">=</span> <span class="n">covariance_matrix</span><span class="o">.</span><span class="n">data</span>
+	<span class="k">if</span> <span class="n">kind</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"real"</span><span class="p">,</span> <span class="s2">"angular"</span><span class="p">):</span>
+		<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"kind must be 'real' or 'angular', not </span><span class="si">{</span><span class="n">kind</span><span class="si">!r}</span><span class="s2">."</span><span class="p">)</span>
+	<span class="n">names</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">)</span> <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"real"</span> <span class="k">else</span> <span class="p">(</span><span class="s2">"xt"</span><span class="p">,</span> <span class="s2">"yt"</span><span class="p">)</span>
+	<span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="o">=</span> <span class="p">(</span><span class="n">columnByName</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">names</span><span class="p">)</span>
+	<span class="n">block</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">covariance_matrix</span><span class="p">)[:,</span> <span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">],</span> <span class="p">:][:,</span> <span class="p">:,</span> <span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]]</span>
+	<span class="n">values</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">)),</span> <span class="n">axes</span></div>
+
+
+
 <div class="viewcode-block" id="emittance">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.postprocessing.emittance">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">emittance</span><span class="p">(</span><span class="n">covariance_matrix</span><span class="p">):</span>
@@ -1521,6 +1594,7 @@
 <span class="sd">	Related</span>
 <span class="sd">	-------</span>
 <span class="sd">	beam_widths : RMS sizes from the same covariance stack.</span>
+<span class="sd">	resolution_ellipses : The principal axes, when the beam is not round.</span>
 <span class="sd">	"""</span>
 	<span class="c1"># accept either the raw ndarray or the calibrated covariance Signal</span>
 	<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">covariance_matrix</span><span class="p">,</span> <span class="s2">"dimensions"</span><span class="p">):</span>

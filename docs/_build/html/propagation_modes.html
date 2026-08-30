@@ -125,7 +125,7 @@ element-by-element hierarchy and the same dispatcher,
 <tr class="row-odd"><td><p>moments</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">propagate_moments()</span></code></p></td>
 <td><p>mean + covariance, <code class="docutils literal notranslate"><span class="pre">Σ'</span> <span class="pre">=</span> <span class="pre">MΣMᵀ</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">.mu</span></code>, <code class="docutils literal notranslate"><span class="pre">.covariance_matrix</span></code>, <code class="docutils literal notranslate"><span class="pre">.covariance_beam</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.mu</span></code>, <code class="docutils literal notranslate"><span class="pre">.covariance_matrix</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>wave</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">propagate_wave()</span></code></p></td>
@@ -165,11 +165,10 @@ covered, rotated terms included — there is no per-aberration code on this path
 either.</p>
 <section id="the-closure-is-a-stated-assumption-not-a-hidden-one">
 <h3>The closure is a stated assumption, not a hidden one<a class="headerlink" href="#the-closure-is-a-stated-assumption-not-a-hidden-one" title="Link to this heading"></a></h3>
-<p>A covariance carries only two moments; a nonlinear map needs more. What
-supplies them is a <code class="docutils literal notranslate"><span class="pre">moments.MomentClosure</span></code> object, passed to
-<code class="docutils literal notranslate"><span class="pre">propagate_moments(closure=...)</span></code> and defaulting to
-<code class="docutils literal notranslate"><span class="pre">moments.GaussianMomentClosure</span></code>, which evaluates any central moment by Wick
-pairing (Isserlis).</p>
+<p>A covariance carries two moments; a nonlinear map needs more. What supplies
+them is the <code class="docutils literal notranslate"><span class="pre">closure</span></code> argument of <code class="docutils literal notranslate"><span class="pre">propagate_moments</span></code> — a plain callable
+<code class="docutils literal notranslate"><span class="pre">closure(Sigma,</span> <span class="pre">indices)</span> <span class="pre">-&gt;</span> <span class="pre">float</span></code>, defaulting to <code class="docutils literal notranslate"><span class="pre">elements._gaussian_moment</span></code>,
+which evaluates any central moment by Wick pairing (Isserlis).</p>
 <p>Using it does <strong>not</strong> make the beam Gaussian. It is exact for one aberrated
 element acting on a Gaussian beam; it becomes an approximation only when a
 <em>second</em> nonlinear element acts on what the first one distorted. That
@@ -179,12 +178,11 @@ same number that says the aberration matters says how non-Gaussian the beam
 became. <code class="docutils literal notranslate"><span class="pre">examples/08_covariancePropagation.py</span></code> prints <code class="docutils literal notranslate"><span class="pre">f</span></code> at each aberrated
 element rather than assuming it is small.</p>
 <p>The closure is complete rather than truncated, which is why the result is
-always a physically possible covariance: it is the exact pushforward of a
-Gaussian, so positive semidefiniteness is guaranteed for any aberration
-strength. A <em>partial</em> closure — keeping the in-plane terms and dropping the
-cross-plane ones, as an earlier per-axis version did — loses that guarantee,
-and on an x-y coupled beam the dropped terms are the same size as the kept
-ones.</p>
+always a physically possible covariance: it returns the exact moments of a real
+distribution, so the update is a genuine pushforward and positive
+semidefiniteness holds at any aberration strength. A <em>partial</em> closure — keeping
+the in-plane terms and dropping the cross-plane ones — loses that guarantee, and
+on an x-y coupled beam the dropped terms are the same size as the kept ones.</p>
 </section>
 <section id="chromatic">
 <h3>Chromatic<a class="headerlink" href="#chromatic" title="Link to this heading"></a></h3>
@@ -198,9 +196,9 @@ change differs per electron.</p>
 <code class="docutils literal notranslate"><span class="pre">Lens(aberrations={'C30':</span> <span class="pre">4.5e-6,</span> <span class="pre">'Cc':</span> <span class="pre">1.2e-3})</span></code>. One declaration then carries
 everything the element does beyond its matrix — it serializes with the
 aberrations, is detached with them by <code class="docutils literal notranslate"><span class="pre">apply_aberrations=False</span></code>, and cannot be
-left behind when they are cleared. <code class="docutils literal notranslate"><span class="pre">Element.chromatic_aberration</span></code> is a
-convenience view onto it. Pair it with <code class="docutils literal notranslate"><span class="pre">Source.energy_spread</span></code>; either alone
-leaves the column achromatic.</p>
+left behind when they are cleared, and it needs no method of its own on either
+path. <code class="docutils literal notranslate"><span class="pre">Element.chromatic_aberration</span></code> is a convenience view onto it. Pair it
+with <code class="docutils literal notranslate"><span class="pre">Source.energy_spread</span></code>; either alone leaves the column achromatic.</p>
 <p>Unlike the Krivanek terms it needs no round-pupil assumption, so it is applied
 <strong>per axis</strong> and is exact on an astigmatic element: a quadrupole’s two powers
 have opposite signs and each gets its own <code class="docutils literal notranslate"><span class="pre">ΔP_u</span> <span class="pre">=</span> <span class="pre">−C_c</span> <span class="pre">P_u²</span> <span class="pre">δ</span></code>.</p>
@@ -210,13 +208,16 @@ the geometric terms it is <strong>exact rather than closed</strong>.</p>
 </section>
 <section id="reading-the-result">
 <h3>Reading the result<a class="headerlink" href="#reading-the-result" title="Link to this heading"></a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">scope.covariance_beam</span></code> is a <code class="docutils literal notranslate"><span class="pre">moments.CovarianceBeam</span></code> view over the stored
-<code class="docutils literal notranslate"><span class="pre">.mu</span></code>/<code class="docutils literal notranslate"><span class="pre">.covariance_matrix</span></code>, and reports what a covariance is actually read
-for: rms widths, the signed position-angle correlations, the emittances, and
-the principal axes of the real-space, angular and transverse-momentum blocks.
-Prefer emittance to width when judging aberration damage — a width says
-nothing on its own, while emittance is invariant under ideal transport and
-grows only where something nonlinear acted.</p>
+<p>The mode stores exactly two things — <code class="docutils literal notranslate"><span class="pre">.mu</span></code> and <code class="docutils literal notranslate"><span class="pre">.covariance_matrix</span></code>, the latter
+a calibrated sea-eco <code class="docutils literal notranslate"><span class="pre">Signal</span></code> — and the reading is done by
+<code class="docutils literal notranslate"><span class="pre">postprocessing</span></code>, the same split the ray mode uses. Three functions take the
+covariance stack: <code class="docutils literal notranslate"><span class="pre">beam_widths</span></code> (rms sizes), <code class="docutils literal notranslate"><span class="pre">emittance</span></code> (the invariant), and
+<code class="docutils literal notranslate"><span class="pre">resolution_ellipses</span></code> (principal widths and axes of the position or angle
+block, for when the beam is not round; scale the angular result by
+<code class="docutils literal notranslate"><span class="pre">k0</span> <span class="pre">=</span> <span class="pre">2π/λ</span></code> for momentum widths).</p>
+<p>Prefer emittance to width when judging aberration damage — a width says nothing
+on its own, while emittance is invariant under ideal transport and grows only
+where something nonlinear acted.</p>
 </section>
 </section>
 <section id="fixed-grid-wave">
