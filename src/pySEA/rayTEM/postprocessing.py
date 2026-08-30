@@ -818,6 +818,10 @@ def findPlanes2(rays):
 	#return {"x":{"diff":{"z":Zdx,"M":Mdx},"image":{"z":Zix,"M":Mix}},
 	#		"y":{"diff":{"z":Zdy,"M":Mdy},"image":{"z":Ziy,"M":Miy}}}
 
+# TWP TODO: find groups (not just pairs) of diffraction rays, measure bundle diameter (out-of-focus-ness of diffraction spots) and bundle separation (magnification of out-of-focus diffraction image)
+def diffraction_bundles_at_z(z,rays):
+	pass
+
 def zFromFractional(zs,z): # e.g. 1.2 is 20% of the distance through element index 1
 	i,di=int(z),z-int(z) # 1.2 --> i=1, and di=0.2
 	z0=zs[i] ; z1=zs[i+1]

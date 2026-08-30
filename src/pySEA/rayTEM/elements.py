@@ -77,6 +77,19 @@ class Rays():
 		return Rays(out,self.R[meta],self.I[meta])
 	def __setitem__(self, key, value):
 		self.rays[key]=value
+	@property
+	def x(self):
+		return self.rays[:,columnByName('x')]
+	@property
+	def xt(self):
+		return self.rays[:,columnByName('xt')]
+	@property
+	def y(self):
+		return self.rays[:,columnByName('y')]
+	@property
+	def y(self):
+		return self.rays[:,columnByName('yt')]
+
 
 """General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional"""
 
