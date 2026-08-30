@@ -675,7 +675,8 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		return self.rays
 
 	def propagate_moments(self, mu0:xp.ndarray=None, Sigma0:xp.ndarray=None,
-						   z: float = None, apply_aberrations:bool=True):
+						   z: float = None, apply_aberrations:bool=True,
+						   closure=None):
 		"""Propagate beam moments (mean + covariance) through every element.
 
 		The envelope-mode analog of :meth:`propagate_ray`: transports a mean state
@@ -701,6 +702,12 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			element ideal, which is how an aberrated result is compared
 			against its own unaberrated reference. Costs nothing when
 			nothing is aberrated.
+		closure : moments.MomentClosure, optional
+			How moments above second order are supplied where a nonlinear
+			element needs them, by default
+			:class:`moments.GaussianMomentClosure`. Passed to every element,
+			so the assumption in force is chosen once, at the call, rather
+			than buried in the elements.
 		Returns
 		-------
 		xp.ndarray
@@ -714,7 +721,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		"""
 		if not apply_aberrations:
 			with suspended_aberrations(list(self.elements or ()) + [self]):
-				return self.propagate_moments(mu0, Sigma0, z=z)
+				return self.propagate_moments(mu0, Sigma0, z=z, closure=closure)
 		if mu0 is None or Sigma0 is None:
 			if isinstance(self.elements[0], Source):
 				mu0, Sigma0 = self.elements[0].moments()
@@ -722,7 +729,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 				raise UserWarning("First element is not a Source, and no (mu0, Sigma0) provided to propagate_moments. Please provide initial moments or ensure first element is a Source.")
 		mui=[mu0] ; Si=[Sigma0]
 		for ele in self._propagation_elements():
-			mu, S = ele.propagate_moments(mui[-1], Si[-1])
+			mu, S = ele.propagate_moments(mui[-1], Si[-1], closure=closure)
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
 				mui.append(mu) ; Si.append(S)
 			else:
@@ -732,6 +739,44 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		self.covariance_matrix = make_covariance_signal(xp.asarray(Si), self.mu[:, columnByName('z')],
 														convention, name=(self.name or 'section') + ' covariance')
 		return self.covariance_matrix
+
+	@property
+	def covariance_beam(self):
+		"""The propagated moments as a :class:`moments.CovarianceBeam`.
+
+		A **view** over ``self.mu`` and ``self.covariance_matrix``, not a
+		second copy: the driver keeps storing exactly what it always stored,
+		and this wraps it so the resolution quantities — rms widths,
+		position-angle correlations, emittance, and the principal axes of the
+		real-space and angular blocks — are available without every caller
+		re-deriving them from raw matrix entries.
+
+		Returns
+		-------
+		moments.CovarianceBeam or None
+			The beam, or ``None`` when nothing has been propagated yet.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		propagate_moments : Produces the state this wraps.
+		moments.CovarianceBeam : What the quantities mean.
+
+		Examples
+		--------
+		>>> section.propagate_moments()                    # doctest: +SKIP
+		>>> section.covariance_beam.emittance('x')[-1]     # doctest: +SKIP
+		"""
+		from .seashells import as_ndarray
+		from .moments import CovarianceBeam
+		if self.mu is None or self.covariance_matrix is None:
+			return None
+		source = next((e for e in (self.elements or ()) if isinstance(e, Source)), None)
+		return CovarianceBeam(self.mu, as_ndarray(self.covariance_matrix),
+							  wavelength=getattr(source, "wavelength", None))
 
 	def propagate_wave(self, wave0=None, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, absorb:float=0.1,
@@ -2711,7 +2756,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		return self.rays
 
 	def propagate_moments(self, mu0:xp.ndarray=None, Sigma0:xp.ndarray=None, z: float = None,
-						   apply_aberrations:bool=True):
+						   apply_aberrations:bool=True, closure=None):
 		"""Propagate beam moments through every section, chaining across boundaries.
 
 		Envelope-mode analog of :meth:`propagate_ray`. Each section's exit moments
@@ -2734,6 +2779,12 @@ class Microscope(SealedAttributes, SEASerializable):
 			element ideal, which is how an aberrated result is compared
 			against its own unaberrated reference. Costs nothing when
 			nothing is aberrated.
+		closure : moments.MomentClosure, optional
+			How moments above second order are supplied where a nonlinear
+			element needs them, by default
+			:class:`moments.GaussianMomentClosure`. Passed to every element,
+			so the assumption in force is chosen once, at the call, rather
+			than buried in the elements.
 		Returns
 		-------
 		xp.ndarray
@@ -2742,12 +2793,12 @@ class Microscope(SealedAttributes, SEASerializable):
 		"""
 		if not apply_aberrations:
 			with suspended_aberrations(self._all_elements()):
-				return self.propagate_moments(mu0, Sigma0, z=z)
+				return self.propagate_moments(mu0, Sigma0, z=z, closure=closure)
 		from .seashells import make_covariance_signal, as_ndarray
 		mu=mu0 ; S=Sigma0
 		mus=[] ; Ss=[]
 		for s in self.sections:
-			s.propagate_moments(mu0=mu, Sigma0=S, z=z)
+			s.propagate_moments(mu0=mu, Sigma0=S, z=z, closure=closure)
 			cov = as_ndarray(s.covariance_matrix)		# raw (n_planes, 6, 6) for chaining
 			for k in range(len(cov)):
 				mus.append(s.mu[k]) ; Ss.append(cov[k])
@@ -2756,6 +2807,45 @@ class Microscope(SealedAttributes, SEASerializable):
 		self.covariance_matrix = make_covariance_signal(xp.asarray(Ss), self.mu[:, columnByName('z')],
 														convention, name=(self.name or 'microscope') + ' covariance')
 		return self.covariance_matrix
+
+	@property
+	def covariance_beam(self):
+		"""The propagated moments as a :class:`moments.CovarianceBeam`.
+
+		A **view** over ``self.mu`` and ``self.covariance_matrix``, not a
+		second copy: the driver keeps storing exactly what it always stored,
+		and this wraps it so the resolution quantities — rms widths,
+		position-angle correlations, emittance, and the principal axes of the
+		real-space and angular blocks — are available without every caller
+		re-deriving them from raw matrix entries.
+
+		Returns
+		-------
+		moments.CovarianceBeam or None
+			The beam, or ``None`` when nothing has been propagated yet.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		propagate_moments : Produces the state this wraps.
+		moments.CovarianceBeam : What the quantities mean.
+
+		Examples
+		--------
+		>>> scope.propagate_moments()                      # doctest: +SKIP
+		>>> scope.covariance_beam.emittance('x')[-1]       # doctest: +SKIP
+		"""
+		from .seashells import as_ndarray
+		from .moments import CovarianceBeam
+		if self.mu is None or self.covariance_matrix is None:
+			return None
+		source = next((e for sec in (self.sections or ())
+					   for e in (sec.elements or ()) if isinstance(e, Source)), None)
+		return CovarianceBeam(self.mu, as_ndarray(self.covariance_matrix),
+							  wavelength=getattr(source, "wavelength", None))
 
 	def propagate_wave(self, wave0=None, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, absorb:float=0.1,
