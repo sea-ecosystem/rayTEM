@@ -2,18 +2,38 @@
 
 Newest entries at top.
 
-## 2026-08-30 — [Under Construction] Covariance propagation + aberration resolution example
+## 2026-08-30 — [Done] Covariance propagation + aberration resolution example
 **Goal:** A moments-only beam model good enough to answer, quantitatively,
 how much of the column's final resolution comes from the source emittance,
 from OL1, from OL2, from the two together, and from chromatic spread.
 **Why:** The covariance mode can now carry aberrations, but the Gaussian
 closure is hard-coded and invisible, there is no chromatic coupling at all,
 and nothing reports resolution as an ellipse rather than a single width.
-- [ ] explicit MomentClosure / GaussianMomentClosure / CovarianceBeam
-- [ ] chromatic: source energy spread + element C_c + bilinear covariance term
-- [ ] resolution quantities (emittance, Sigma_rr / Sigma_uu eigen-analysis)
-- [ ] example 08: four cases + chromatic overlay
-- [ ] tests + docs + wiki
+- [x] explicit MomentClosure / GaussianMomentClosure / CovarianceBeam
+- [x] chromatic: source energy spread + element C_c + bilinear covariance term
+- [x] resolution quantities (emittance, Sigma_rr / Sigma_uu eigen-analysis)
+- [x] example 08: four cases + chromatic overlay
+- [x] tests + docs + wiki
+**Outcome:** New `moments.py` separates the beam state (`CovarianceBeam`) from
+the assumption used to extend it (`MomentClosure` /
+`GaussianMomentClosure`, any central moment by Wick pairing at any order).
+The nonlinear kick reaches it as a polynomial recovered from the existing
+`deflection_at` (`Element.aberration_monomials`), so every Krivanek order
+through C56 now closes — rotated terms included — where before only C30 did,
+by hand. Chromatic is new physics: `Element.chromatic_aberration` +
+`Source.energy_spread`, bilinear in (x, E) and therefore not
+matrix-expressible, with an *exact* covariance term rather than a closed one.
+Three defects fixed along the way: the ensemble mean was taken from the
+centroid ray (losing an even-order aberration's mean shift into the width);
+the per-axis closure dropped cross-plane terms that match the retained ones in
+size on a coupled beam; and `apply_aberrations=False` left chromatic running.
+`examples/08_covariancePropagation.py` answers the study question on
+`basic_column`: OL1 spherical multiplies the detector emittance 9.71x, OL2
+1.26x, both 9.76x — additive to +0.45%, and that residual IS the OL1-OL2
+coupling. The aberration is a 1e-4 share of the angular variance yet 10x in
+emittance, because emittance is a determinant. Decision point: Gaussian
+closure is sufficient here (excess kurtosis discarded = 1.6e-6). 194/194;
+docs + wiki synced; site rebuilt.
 
 ## 2026-08-30 — [Done] Analytic aberrations: zone-ABCD + covariance
 **Goal:** Aberrations enter the two remaining analytic representations: the
