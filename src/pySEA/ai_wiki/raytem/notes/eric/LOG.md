@@ -2,6 +2,18 @@
 
 Newest entries at top.
 
+## 2026-08-30 — [Under Construction] Aperture masking + rotation rename
+**Goal:** Ray-path apertures become true masks (blocked rays get I = 0,
+geometry untouched); `skew` becomes `rotation` (roll about z) with the
+Larmor bookkeeping moved to `larmor_rotation`.
+**Why:** Masking is faithful for crossover fitting, plotting, and
+resolution (the rescale compresses emittance and mislabels pupil zones for
+aberrations, and Thomas's own comment documents its one-aperture limit);
+"skew" suggests shear when the element is simply rotated.
+- [ ] rotation rename
+- [ ] aperture mask + plotting truncation
+- [ ] ex07/tests/docs adapted
+
 ## 2026-08-30 — [Done] Three-name focal API
 **Goal:** `focal_power` / `focal_length` (EFL, reciprocal pair) /
 `back_focal_distance` (signed −A/C, the measured exit-face quantity), plus
