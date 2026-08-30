@@ -586,32 +586,38 @@ def figure(results: dict, filename: str) -> None:
 	styles = {'ideal': ("0.25", "-", 3.2), 'OL1': ("tab:blue", "--", 2.2),
 			  'OL2': ("tab:orange", "-.", 1.8), 'both': ("tab:red", ":", 1.4)}
 	scope = build_case('ideal')
-	marks = {name: scope.get_element_position(name) * 1e3 for name in ("OL1", "OL2")}
+	marks = {name: scope.get_element_position(name) for name in ("OL1", "OL2")}
 
-	ixt = columnByName('xt')
-	# These three panels overlay FOUR configurations of a derived quantity, so
-	# they are drawn explicitly rather than through Signal.show(): a single
-	# Signal drawing itself is the right tool for one dataset (see panel F, and
-	# examples/04), not for a multi-case comparison that needs a shared axis,
-	# per-case linestyles and one legend.
-	panels = [("A: real-space width", "sigma_x (nm)",
-			   lambda c: beam_widths(c)[:, 0] * 1e9),
-			  ("B: angular width", "sigma_xt (mrad)",
-			   lambda c: np.sqrt(c[:, ixt, ixt]) * 1e3),
-			  ("C: emittance", "eps_x (m.rad)", lambda c: emittance(c)[:, 0])]
+	ix, ixt = columnByName('x'), columnByName('xt')
+	# sigma_x(z) and sigma_xt(z) ARE slices of the stored covariance Signal, so
+	# they draw themselves on their own calibrated z axis. plot_type=None is a
+	# workaround: the plane-z axis is unstructured (the logged planes are not
+	# evenly spaced), and sea-eco's matplotlib backend currently forces a
+	# scatter for that -- see the sea-eco note
+	# TODO_ACTIVE_matplotlib-plotspec-kind. Non-uniform spacing is no obstacle
+	# to a line; once that is fixed this becomes display_type='line'.
+	# Emittance is not a slice -- it is a determinant over the block -- so it
+	# is drawn from the array the same helper returns.
+	panels = [("A: real-space width", None, lambda c: c[:, ix, ix] ** 0.5),
+			  ("B: angular width", None, lambda c: c[:, ixt, ixt] ** 0.5),
+			  ("C: emittance", "eps_x (m.rad)", None)]
 	for ax, (title, ylab, get) in zip(axes[0], panels):
 		for case in CASES:
 			color, dash, width = styles[case]
 			scope, _ = results[case]
-			z = scope.mu[:, columnByName('z')] * 1e3
-			ax.plot(z, get(as_ndarray(scope.covariance_matrix)),
-					color=color, ls=dash, lw=width, label=case)
+			if get is not None:
+				get(scope.covariance_matrix).show(ax=ax, plot_type=None, color=color,
+												  ls=dash, lw=width, label=case)
+			else:
+				ax.plot(scope.mu[:, columnByName('z')],
+						emittance(as_ndarray(scope.covariance_matrix))[:, 0],
+						color=color, ls=dash, lw=width, label=case)
+				ax.set_ylabel(ylab)
+				ax.set_xlabel("z (m)")
 		for name, zm in marks.items():
 			ax.axvline(zm, color="0.75", lw=0.9, zorder=0)
 			ax.annotate(name, (zm, 0.02), xycoords=("data", "axes fraction"),
 						fontsize=8, color="0.4", rotation=90)
-		ax.set_xlabel("z (mm)")
-		ax.set_ylabel(ylab)
 		ax.set_title(title)
 		ax.set_yscale("log")
 		ax.legend(fontsize=8)
