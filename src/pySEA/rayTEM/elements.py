@@ -265,6 +265,10 @@ class suspended_aberrations:
 		The elements being managed.
 	suspend : bool
 		Whether this context detaches anything.
+	_saved : list of tuple
+		``(element, aberrations, chromatic_aberration)`` per managed element
+		while the context is open, the last being ``None`` for anything that
+		has no chromatic coefficient (a section); empty otherwise.
 
 	Methods
 	-------
@@ -281,6 +285,8 @@ class suspended_aberrations:
 	-------
 	assemblies.Microscope.propagate_ray : One of the callers.
 	Element.aberration_kick : What goes quiet while suspended.
+	Element.chromatic_kick : Silenced with it, since an "ideal" column has to
+		mean an achromatic one as well.
 
 	Notes
 	-----
@@ -327,8 +333,13 @@ class suspended_aberrations:
 		if not self.suspend:
 			return self
 		for e in self.elements:
-			self._saved.append((e, getattr(e, "aberrations", None)))
+			# a section carries aberrations but no chromatic coefficient, so the
+			# chromatic half is recorded as None and skipped for those
+			chromatic = getattr(e, "chromatic_aberration", None)
+			self._saved.append((e, getattr(e, "aberrations", None), chromatic))
 			e.aberrations = None
+			if chromatic is not None:
+				e.chromatic_aberration = 0.0	# "ideal" has to mean achromatic too
 		return self
 
 	def __exit__(self, *exc) -> bool:
@@ -348,8 +359,10 @@ class suspended_aberrations:
 		------
 		None
 		"""
-		for e, ab in self._saved:
+		for e, ab, cc in self._saved:
 			e.aberrations = ab
+			if cc is not None:
+				e.chromatic_aberration = cc
 		self._saved = []
 		return False
 
@@ -693,6 +706,17 @@ class Element(SealedAttributes, SEASerializable):
 	#: pupil to the beam's *energy* column, which makes it a different kind
 	#: of term (bilinear, so it cannot live in the transfer matrix). 0 means
 	#: achromatic, which is every element until someone says otherwise.
+	#: For a round magnetic lens C_c is of order f and always positive -
+	#: there is no round-lens achromat. Two caveats on the *value*: it is
+	#: referenced to the NON-relativistic fractional deviation (E - E0)/E0
+	#: that the E column carries directly, and a coefficient quoted against
+	#: the relativistically corrected potential is larger by about 10% at
+	#: 200 kV; and only the beam's own energy spread reaches it, so lens-
+	#: current ripple and high-tension instability - the other two terms of
+	#: the usual chromatic budget - have to be folded into
+	#: :attr:`Source.energy_spread` by hand if they are wanted.
+	#: Read by elements resolving a scalar ``focal_power``; a Quadrapole
+	#: states ``focal_powers`` per axis and is not chromatic yet.
 	chromatic_aberration = 0.0
 
 	def __init__(self, name:str='', kind:str=None,
@@ -4242,17 +4266,27 @@ class Lens(Element):
 			The position of the element along the z-axis, by default None
 		rotation : bool, optional
 			if set to False, lens rotation for finite-thickness lenses is overridden and turned off.
+		chromatic_aberration : float, optional
+			Chromatic aberration coefficient C_c in metres, by default 0
+			(achromatic). Stated as a constructor argument rather than left to
+			:attr:Element.chromatic_aberration alone so a chromatic lens
+			survives a ``.json`` reload, which rebuilds elements from their
+			constructor arguments only. See that attribute for what the
+			coefficient must be referenced against, and
+			:meth:Element.chromatic_monomials for what it does.
 		"""
 	def __init__(self, name:str='', length:float=0.,
 				 strength:float=0, calibration:float=None, focal_length:float=None,
 				 aberrations:dict=None,
 				 position:float=None,
-				 allow_diverging:bool=False) -> SEASerializable:
+				 allow_diverging:bool=False,
+				 chromatic_aberration:float=0.0) -> SEASerializable:
 		
 		if length == 0: kind = 'Thin lens'
 		else:		   kind = 'QLens'
 
 		super().__init__(name=name,kind=kind)
+		self.chromatic_aberration = chromatic_aberration	# stated here so it survives a JSON reload
 		self._position = position
 		self.length = length
 		self.strength = strength
