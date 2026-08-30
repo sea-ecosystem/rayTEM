@@ -181,7 +181,20 @@
 		<span class="n">meta</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">keys</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
 		<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">out</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">[</span><span class="n">meta</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">I</span><span class="p">[</span><span class="n">meta</span><span class="p">])</span>
 	<span class="k">def</span><span class="w"> </span><span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-		<span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">=</span><span class="n">value</span></div>
+		<span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">=</span><span class="n">value</span>
+	<span class="nd">@property</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">x</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)]</span>
+	<span class="nd">@property</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">xt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s1">'xt'</span><span class="p">)]</span>
+	<span class="nd">@property</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">y</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s1">'y'</span><span class="p">)]</span>
+	<span class="nd">@property</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">y</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s1">'yt'</span><span class="p">)]</span></div>
+
 
 
 <span class="sd">"""General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional"""</span>
