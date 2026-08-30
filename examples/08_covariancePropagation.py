@@ -1,68 +1,80 @@
 """Covariance propagation through the standard column, and where the resolution goes.
 
-This example never traces a ray. It starts from a beam described only by its
-first two moments — a mean state and a covariance over
-``convention = ["x","xt","y","yt","z","E"]`` — transports those moments through
+This example never traces a ray for its answer. It starts from a beam described
+only by its first two moments -- a mean state and a covariance over
+``convention = ["x","xt","y","yt","z","E"]`` -- transports those moments through
 ``basic_column``, and asks a question a single probe diameter cannot answer:
 **how much of the final resolution is set by the source, how much by the
-pre-specimen objective, how much by the post-specimen objective, and how much
-appears only when both are aberrated?**
+pre-specimen objective, how much by the post-specimen objective, how much is
+chromatic, and how much appears only when both objectives are aberrated?**
 
-The four aberration configurations share one source boundary condition and
-differ only in which objective carries aberrations:
+The four aberration configurations share one source boundary condition and one
+column state, and differ only in which objective carries aberrations:
 
-1. ``ideal``  — both objectives perfect. The baseline, and the exactness check.
-2. ``OL1``    — pre-specimen spherical aberration only.
-3. ``OL2``    — post-specimen spherical aberration only. Its input has never
-   passed through a nonlinear element, so it is the clean test of the
-   covariance-aberration machinery.
-4. ``both``   — the critical case. After OL1 the beam is provably non-Gaussian,
+1. ``ideal``  -- both objectives perfect. The baseline, and the exactness check.
+2. ``OL1``    -- pre-specimen aberrations only.
+3. ``OL2``    -- post-specimen aberrations only. Its input has never passed
+   through a nonlinear element, so it is the clean test of the covariance
+   machinery.
+4. ``both``   -- the critical case. After OL1 the beam is provably non-Gaussian,
    but only its mean and covariance are carried forward, so OL2's update needs
    a **closure assumption**. This example states plainly that it uses
-   :class:`moments.GaussianMomentClosure` there, and measures how far from
-   additive the combined result actually is.
+   :class:`moments.GaussianMomentClosure` there, prints how much
+   non-Gaussianity that assumption discards, and measures how far from additive
+   the combined result actually is.
 
-Each configuration runs twice, achromatic and chromatic, so the chromatic share
-of the budget is separable from the geometric share.
+Each runs twice, achromatic and chromatic, so the chromatic share separates
+from the geometric share.
+
+**The operating point.** The column is loaded in its stored
+``high-convergent-image`` state, whose nominal (aberration-free)
+semi-convergence angle at the specimen is exactly 30 mrad -- the same alpha
+``examples/06`` and ``examples/07`` work at. That angle is only sensible for an
+**aberration-corrected** objective, and that is the point: at 30 mrad an
+uncorrected millimetre-scale ``Cs`` would swamp everything and the four cases
+would be a formality. With ``Cs`` corrected to micrometres, spherical and
+chromatic land within a factor of two of each other and of the source, which is
+the regime where the question is worth asking -- and it is the regime a real
+corrected instrument is in, where ``Cc`` is uncorrected and becomes the limit.
+
+**The source is a cold field emitter**, stated once in :data:`SOURCE_SIZE`,
+:data:`SOURCE_ANGLE` and :data:`ENERGY_SPREAD`: a few-nm virtual source and a
+few tenths of an eV. The emission half-angle is not guessed -- it is solved so
+the specimen-plane convergence is exactly :data:`ALPHA_TARGET`, because alpha
+here is set by the column's demagnification of the source fan, and a source
+size chosen without re-solving would silently change the operating point.
 
 **The measure that matters is emittance, not width.** A width says nothing on
-its own — a beam is wide at the detector because it was focused at the
+its own -- a beam is wide at the detector because it was focused at the
 specimen. The rms emittance ``eps = sqrt(sigma_x^2 sigma_xt^2 - sigma_x,xt^2)``
 is the phase-space area, invariant under any ideal linear transport and
 *raised* by a nonlinear one. It is therefore both the sharpest check that the
 ideal column is behaving and the sharpest signal that an aberration has done
 something no downstream lens can undo. Because each nonlinear element adds its
-own area, ``eps^2`` growth is very nearly a budget that sums — and the amount by
-which it fails to sum is exactly the OL1-OL2 coupling.
-
-Why this source: the stored column's gun is a thermionic-scale 2.5 um emitter,
-whose emittance swamps any objective aberration and would make all four cases
-identical. A field-emission virtual source (tens of nm) at the same angle puts
-the column in the regime the question is actually asked in — an uncorrected
-200 kV probe at ~10 mrad, where spherical aberration is the limit. The source
-is stated once, in :data:`SOURCE_SIZE` / :data:`SOURCE_ANGLE` /
-:data:`ENERGY_SPREAD`, and is identical across every configuration.
+own area, ``eps^2`` growth is very nearly a budget that sums -- and the amount
+by which it fails to sum is exactly the OL1-OL2 coupling.
 
 What is printed: a per-configuration block giving, at the specimen and at the
 detector, the rms widths, the position-angle correlation, the emittance and its
 growth over ideal, and the principal axes of the real-space and angular
-ellipses; then an emittance budget attributing ``eps^2`` growth to OL1
-spherical, OL2 spherical, chromatic, and a non-additive remainder.
+ellipses; then the closure-validity numbers; then an emittance budget
+attributing ``eps^2`` growth to OL1 spherical, OL2 spherical, chromatic, and a
+non-additive remainder.
 
 What is plotted (panels A-E):
 
-A. ``sigma_x(z)`` and ``sigma_y(z)`` through the column, all configurations.
-B. ``sigma_xt(z)`` and ``sigma_yt(z)``.
-C. ``eps_x(z)`` and ``eps_y(z)`` — flat for the ideal column, stepping up at
-   each aberrated element and then flat again through the linear transport
-   between them. That staircase is the diagnostic: a step means an element
-   added phase-space area, and a slope between steps would mean a bug.
+A. ``sigma_x(z)`` through the column, all configurations.
+B. ``sigma_xt(z)``.
+C. ``eps_x(z)`` -- flat for the ideal column, stepping up at each aberrated
+   element and then flat again through the linear transport between them. That
+   staircase is the diagnostic: a step means an element added phase-space area,
+   and a slope between steps would mean a bug.
+C2. Emittance growth at the detector, by configuration.
 D. Real-space covariance ellipses at the specimen and the detector.
-E. Angular ellipses at the same planes, labelled with the momentum widths
-   ``k0 * sigma`` they correspond to.
+E. Angular ellipses at the same planes.
 
-OL1 and OL2 are marked on A-C so any emittance step can be read off against
-the element that produced it.
+OL1 and OL2 are marked on A-C so any emittance step can be read off against the
+element that produced it.
 
 Run: ``MPLBACKEND=Agg python examples/08_covariancePropagation.py``
 (writes ``figs/``; add ``--no-figure`` to print the tables only).
@@ -81,6 +93,7 @@ import os
 import sys
 
 import numpy as np
+from scipy.optimize import brentq
 
 sys.path.insert(1, "../")
 from pySEA.rayTEM.aberrations import Aberrations
@@ -88,22 +101,29 @@ from pySEA.rayTEM.assemblies import Microscope
 from pySEA.rayTEM.microscopes.basic_column import build_basic_column
 from pySEA.rayTEM.moments import CovarianceBeam, GaussianMomentClosure
 
-#: Virtual source rms size (m). A field-emission scale emitter, chosen so the
-#: objective aberrations are visible against the source emittance rather than
-#: buried under it -- see the module docstring.
-SOURCE_SIZE = 25e-9
-#: Source rms half-angle (rad), as the stored column states it.
-SOURCE_ANGLE = 1e-4
-#: Source rms energy spread in **kilovolts**, matching the E column. 0.6 eV is
-#: a Schottky field emitter; a thermionic gun is two to five times this.
-ENERGY_SPREAD = 0.6e-3
+_HERE = os.path.dirname(os.path.abspath(__file__))
 
-#: Pre-specimen objective: spherical aberration (m) and chromatic coefficient
-#: (m). Both are of order the 3 mm focal length, as they are for a round
-#: magnetic lens -- there is no round-lens corrector here.
-OL1_CS, OL1_CC = 1.0e-3, 1.2e-3
-#: Post-specimen objective, of order its own 10 mm focal length.
-OL2_CS, OL2_CC = 1.0e-2, 1.2e-2
+#: The stored column state this study runs in: a convergent probe at
+#: :data:`ALPHA_TARGET`, solved by ``examples/07`` and saved through the
+#: column's own settings mechanism.
+COLUMN_STATE = "basic_column - high-convergent-image"
+#: Nominal (aberration-free) semi-convergence half-angle at the specimen (rad).
+ALPHA_TARGET = 30e-3
+
+#: Cold-field-emitter virtual source rms size (m).
+SOURCE_SIZE = 3e-9
+#: Source rms energy spread in **kilovolts**, matching the E column. 3e-4 kV is
+#: 0.3 eV -- a cold FEG. A Schottky emitter is two to three times this, a
+#: thermionic gun ten.
+ENERGY_SPREAD = 3e-4
+
+#: Pre-specimen objective, on a 3 mm focal length. ``C30`` is **corrected** to
+#: micrometres, which is what makes a 30 mrad aperture sensible; ``Cc`` is not,
+#: because a spherical corrector does not touch it -- which is exactly why
+#: chromatic is a live term in a corrected instrument.
+OL1_CS, OL1_CC = 4.5e-6, 1.2e-3
+#: Post-specimen objective, on a 10 mm focal length.
+OL2_CS, OL2_CC = 1.5e-5, 1.2e-2
 
 #: The four aberration configurations, in the order they are reported.
 CASES = ("ideal", "OL1", "OL2", "both")
@@ -111,23 +131,163 @@ CASES = ("ideal", "OL1", "OL2", "both")
 LANDMARKS = ("sample", "detector")
 
 
-def build_case(case: str, chromatic: bool = False) -> Microscope:
-	"""A standard column with one aberration configuration applied.
+def _in_example_directory(function, *args, **kwargs):
+	"""Call ``function`` with the working directory at this script's location.
 
-	Every configuration starts from the same stored column and the same source
-	boundary condition; only the objectives' aberration content differs. The
-	aberration sets are constructed fresh per lens on purpose --
-	``Aberrations`` objects are attached by reference, so handing one instance
-	to both objectives would make them share a single mutable coefficient set.
+	:meth:`assemblies.Microscope.load_setting` resolves ``settings/<name>.json``
+	against the working directory, so a caller running from anywhere else --
+	the test suite, for one -- would not find the stored state. This is the
+	smallest fix that reuses the existing API rather than reimplementing its
+	path handling.
+
+	Parameters
+	----------
+	function : callable
+		What to call.
+	*args, **kwargs
+		Passed through.
+
+	Returns
+	-------
+	object
+		Whatever ``function`` returns.
+
+	Raises
+	------
+	Exception
+		Anything ``function`` raises; the working directory is restored first.
+
+	Related
+	-------
+	build_case : The caller.
+	"""
+	previous = os.getcwd()
+	try:
+		os.chdir(_HERE)
+		return function(*args, **kwargs)
+	finally:
+		os.chdir(previous)
+
+
+def source_angle_for(alpha:float = ALPHA_TARGET, size:float = SOURCE_SIZE) -> float:
+	"""Emission half-angle giving a specimen-plane convergence of ``alpha``.
+
+	The convergence angle at the specimen is the column's demagnification of
+	the source fan, so it depends on the source the fan is emitted from. The
+	stored state was solved for the column's own 2.5 um gun; swapping in a
+	few-nm cold field emitter shrinks the fan and with it alpha. Rather than
+	quietly accept a different operating point -- or hardcode a number that
+	rots the moment a lens moves -- this solves for the emission angle that
+	restores it.
+
+	Parameters
+	----------
+	alpha : float, optional
+		Target semi-convergence half-angle at the specimen (rad), by default
+		:data:`ALPHA_TARGET`.
+	size : float, optional
+		Virtual source rms size (m), by default :data:`SOURCE_SIZE`.
+
+	Returns
+	-------
+	float
+		The emission half-angle in radians.
+
+	Raises
+	------
+	ValueError
+		From ``brentq`` if the target is not bracketed by the search range,
+		which means the column cannot reach that convergence at all.
+
+	Related
+	-------
+	build_case : Uses this to configure the gun.
+	assemblies.Microscope.convergence_angle_at : What is being solved against.
+
+	Notes
+	-----
+	Alpha is linear in the emission angle here, because the condenser aperture
+	is not the limiting stop for a source this small -- so the solve converges
+	immediately and is really just a division. It is written as a solve anyway
+	so that it stays correct if the aperture ever does bite.
+
+	Examples
+	--------
+	>>> round(source_angle_for() * 1e6)                     # doctest: +SKIP
+	259
+	"""
+	def measured(emission):
+		scope = _in_example_directory(_state_column, size, emission)
+		return scope.convergence_angle_at(scope.get_element_position("sample"))
+	return brentq(lambda a: measured(a) - alpha, 1e-6, 1e-2, xtol=1e-12)
+
+
+def _state_column(size:float, emission:float, energy_spread:float = ENERGY_SPREAD) -> Microscope:
+	"""The stored column state with the cold-FEG gun applied.
+
+	Parameters
+	----------
+	size : float
+		Virtual source rms size (m).
+	emission : float
+		Emission half-angle (rad).
+	energy_spread : float, optional
+		Source rms energy spread (kV), by default :data:`ENERGY_SPREAD`.
+
+	Returns
+	-------
+	assemblies.Microscope
+		An unpropagated, ideal column in the stored state.
+
+	Raises
+	------
+	FileNotFoundError
+		If the stored state is missing from ``examples/settings/``.
+
+	Related
+	-------
+	build_case : Adds the aberrations on top of this.
+
+	Notes
+	-----
+	Must be called with the working directory at this script's location; use
+	:func:`_in_example_directory`.
+	"""
+	scope = build_basic_column()
+	scope.load_setting(COLUMN_STATE)
+	gun = scope.sections[0].elements[0]
+	gun.size = (size, size)
+	gun.angle = (emission, emission)
+	gun.energy_spread = energy_spread
+	return scope
+
+
+#: Emission half-angle (rad) that puts the specimen-plane convergence at
+#: :data:`ALPHA_TARGET` for a :data:`SOURCE_SIZE` virtual source. Solved once.
+SOURCE_ANGLE = source_angle_for()
+
+
+def build_case(case: str, chromatic: bool = False) -> Microscope:
+	"""A standard column in the study state with one aberration configuration.
+
+	Every configuration starts from the same stored column state and the same
+	source boundary condition; only the objectives' aberration content
+	differs. The sets are constructed fresh per lens on purpose -- an
+	``Aberrations`` object is attached by reference, so handing one instance to
+	both objectives would make them share a single mutable set.
+
+	The chromatic coefficient rides *inside* the aberration set, under the name
+	``'Cc'``, so one declaration carries everything each objective does beyond
+	its transfer matrix.
 
 	Parameters
 	----------
 	case : {'ideal', 'OL1', 'OL2', 'both'}
-		Which objectives carry spherical aberration.
+		Which objectives carry aberrations.
 	chromatic : bool, optional
-		Whether the objectives also carry their chromatic coefficients, by
+		Whether those objectives also carry their chromatic coefficients, by
 		default False. The source energy spread is seeded either way, so an
-		achromatic run and a chromatic one differ only in ``C_c``.
+		achromatic run and a chromatic one differ only in ``Cc``.
 
 	Returns
 	-------
@@ -142,7 +302,7 @@ def build_case(case: str, chromatic: bool = False) -> Microscope:
 	Related
 	-------
 	CASES : The configurations.
-	elements.Element.chromatic_aberration : What ``chromatic`` switches on.
+	aberrations.CHROMATIC_TERM : The ``'Cc'`` entry this sets.
 
 	Examples
 	--------
@@ -150,18 +310,15 @@ def build_case(case: str, chromatic: bool = False) -> Microscope:
 	"""
 	if case not in CASES:
 		raise ValueError(f"unknown case {case!r}; expected one of {CASES}.")
-	scope = build_basic_column()
-	gun = scope.sections[0].elements[0]
-	gun.size = (SOURCE_SIZE, SOURCE_SIZE)
-	gun.angle = (SOURCE_ANGLE, SOURCE_ANGLE)
-	gun.energy_spread = ENERGY_SPREAD
-	if case in ("OL1", "both"):
-		scope["OL1"].aberrations = Aberrations({'C30': OL1_CS})
-	if case in ("OL2", "both"):
-		scope["OL2"].aberrations = Aberrations({'C30': OL2_CS})
-	if chromatic:
-		scope["OL1"].chromatic_aberration = OL1_CC
-		scope["OL2"].chromatic_aberration = OL2_CC
+	scope = _in_example_directory(_state_column, SOURCE_SIZE, SOURCE_ANGLE)
+	for name, spherical, chrom in (("OL1", OL1_CS, OL1_CC), ("OL2", OL2_CS, OL2_CC)):
+		terms = {}
+		if case in (name, "both"):
+			terms['C30'] = spherical
+		if chromatic:
+			terms['Cc'] = chrom
+		if terms:
+			scope[name].aberrations = Aberrations(terms)
 	return scope
 
 
@@ -437,10 +594,13 @@ def figure(results: dict, filename: str) -> None:
 	backend.
 
 	The ellipse panels carry an annotation giving each case's fractional
-	deviation from ideal, because on this column the widths differ by parts in
-	:math:`10^4` and the outlines would otherwise sit on top of one another and
-	read as a plotting failure rather than as the result it is: aberration
-	moves the emittance, not the width.
+	deviation from ideal, because the angular outlines differ by parts in
+	:math:`10^6` and would otherwise sit on top of one another and read as a
+	plotting failure rather than as the result they are. The real-space
+	outlines at this aperture differ by a factor of several and need no such
+	help -- which is itself the point: what an aberration does to the *width*
+	depends entirely on where you look, while what it does to the emittance
+	does not.
 	"""
 	import matplotlib.pyplot as plt
 
@@ -518,8 +678,8 @@ def figure(results: dict, filename: str) -> None:
 		draw(axes[1, col + 2], plane, 'angular', 1e3, "mrad")
 		axes[1, col + 2].set_title(f"E{col + 1}: angular ellipse at {plane}")
 
-	fig.suptitle("covariance propagation through basic_column: "
-				 "aberration moves the emittance, not the width")
+	fig.suptitle(f"covariance propagation through basic_column at "
+				 f"{ALPHA_TARGET * 1e3:.0f} mrad: where the resolution goes")
 	fig.tight_layout()
 	fig.savefig(filename, dpi=140, bbox_inches="tight")
 	plt.close(fig)
@@ -555,10 +715,19 @@ def run(make_figure: bool = True, figdir: str = "figs") -> dict:
 	results = {case: propagate_case(case, False, closure) for case in CASES}
 	reference = results['ideal'][0]
 
-	print(f"source: {SOURCE_SIZE * 1e9:.1f} nm rms, {SOURCE_ANGLE * 1e3:.3f} mrad rms, "
+	alpha = build_case('ideal')
+	alpha = alpha.convergence_angle_at(alpha.get_element_position('sample'))
+	print(f"column state: {COLUMN_STATE!r}, nominal alpha at the specimen "
+		  f"{alpha * 1e3:.3f} mrad")
+	print(f"source: cold FEG, {SOURCE_SIZE * 1e9:.1f} nm rms virtual size, "
+		  f"{SOURCE_ANGLE * 1e6:.1f} urad emission, "
 		  f"{ENERGY_SPREAD * 1e3:.2f} eV rms energy spread")
-	print(f"OL1: Cs = {OL1_CS * 1e3:.2f} mm, Cc = {OL1_CC * 1e3:.2f} mm   "
-		  f"OL2: Cs = {OL2_CS * 1e3:.2f} mm, Cc = {OL2_CC * 1e3:.2f} mm")
+	print(f"OL1 (f = 3 mm):  Cs = {OL1_CS * 1e6:.2f} um (corrected), "
+		  f"Cc = {OL1_CC * 1e3:.2f} mm (not)")
+	print(f"OL2 (f = 10 mm): Cs = {OL2_CS * 1e6:.2f} um (corrected), "
+		  f"Cc = {OL2_CC * 1e3:.2f} mm (not)")
+	print(f"closed forms at this alpha:  Cs*a^3 = {OL1_CS * alpha**3 * 1e9:.3f} nm, "
+		  f"Cc*a*dE/E = {OL1_CC * alpha * (ENERGY_SPREAD / 200.0) * 1e9:.3f} nm")
 	print(f"closure in force at every nonlinear element: {closure.name}")
 	for case in CASES:
 		beam, planes = results[case]
@@ -588,17 +757,31 @@ def run(make_figure: bool = True, figdir: str = "figs") -> dict:
 	print(f"  OL1 and OL2 together   {budget['both']:.6e}")
 	print(f"  non-additive remainder {budget['coupling']:+.6e}   "
 		  f"({budget['coupling'] / budget['sum'] * 100:+.3f} % of the sum)")
+	share = abs(budget['coupling']) / max(abs(budget['sum']), 1e-300) * 100
 	print("\n  The remainder is the OL1-OL2 coupling: it is what the Gaussian")
-	print("  closure at OL2 is being asked to supply, since OL1 has already made")
-	print("  the distribution non-Gaussian. It is small here, so on this column")
-	print("  the combined degradation IS very nearly additive and IS dominated by")
-	print(f"  OL1 ({budget['OL1'] / budget['sum'] * 100:.1f} % of the summed growth) -- but that is a")
-	print("  measured result, not an assumption.")
-	print("\n  Note the two measures disagree about magnitude, and both are right:")
-	print("  the aberration is a ~1e-4 share of the angular VARIANCE yet multiplies")
-	print("  the EMITTANCE by ~10. Emittance is a determinant, so it responds to the")
-	print("  part of the kick that is uncorrelated with position -- precisely the part")
-	print("  no downstream lens can focus away. A width would have hidden this.")
+	print("  closure at OL2 is asked to supply, since OL1 has already made the")
+	print(f"  distribution non-Gaussian. At {share:.2f} % of the summed growth the")
+	print("  combined degradation is very nearly additive here -- a measured")
+	print("  result, not an assumption, and one that Eq. 27 of the plan says may")
+	print("  not be assumed in general.")
+	if budget['OL2'] < 0:
+		print("\n  Note OL2's contribution is NEGATIVE. That is physical, not a sign")
+		print("  error: the projected emittance is a determinant, so a kick that")
+		print("  anticorrelates with the position-angle correlation already present")
+		print("  at that plane REDUCES the phase-space area the beam projects onto")
+		print("  this axis. It does not undo OL1 -- the distribution is still more")
+		print("  distorted -- which is precisely why 'more aberration' and 'worse")
+		print("  emittance' are not the same statement.")
+	ideal_eps = np.sqrt(budget['ideal'])
+	worst = max(CASES, key=lambda c: results[c][0].emittance('x')[results[c][1]['detector']])
+	worst_eps = results[worst][0].emittance('x')[results[worst][1]['detector']]
+	f_ol1 = closure_validity('OL1')['OL1']['f']
+	print(f"\n  Note the two measures disagree about magnitude, and both are right:")
+	print(f"  OL1's aberration is a {f_ol1:.1e} share of the angular VARIANCE, yet the")
+	print(f"  worst case multiplies the detector EMITTANCE by {worst_eps / ideal_eps:.2f}.")
+	print("  Emittance is a determinant, so it responds to the part of the kick that")
+	print("  is uncorrelated with position -- precisely the part no downstream lens")
+	print("  can focus away. A width alone would have hidden this.")
 
 	if make_figure:
 		out = os.path.join(figdir, "08_covariance_propagation.png")

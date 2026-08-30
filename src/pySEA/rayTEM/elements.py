@@ -1659,13 +1659,18 @@ class Element(SealedAttributes, SEASerializable):
 		:math:L \to 0 limit is the thin kick. The integral is Simpson over 64
 		intervals.
 
-		This matters on a real objective. OL1 in basic_column is 10 mm thick
-		with :math:KL = 1.30, and putting the whole aberration at its entrance
-		face over-estimates the exit angle by **3.3x**: :math:r(z) falls as the
-		body focuses, and the kick from each slice is then itself focused by the
-		rest of the body. Both effects reduce it, and the weight
-		:math:D(L-z) = \cos K(L-z) is what makes the factor 0.31 rather than
-		the 0.51 that :math:\int\cos^3 alone would suggest.
+		How much this matters is set by :math:KL, and by nothing else.
+		basic_column's OL1 has an 80 um bore, so :math:KL = 0.164 and the
+		distributed kick differs from one applied entirely at the entrance
+		face by only 0.4% -- the body is nearly thin, and the integral is
+		bookkeeping. The mechanism is not: :math:r(z) falls as the body
+		focuses, the kick from each slice is then itself focused by the rest
+		of the body, and the weight :math:D(L-z) = \cos K(L-z) carries what
+		is left to the exit. Lengthen the same lens to a 4 mm bore
+		(:math:KL = 1.36) and the two answers differ by 30%, in the *other*
+		direction, because past :math:KL = \pi/2 the weight changes sign.
+		Any figure quoted for a particular column is a statement about that
+		column's :math:KL, not about thick lenses in general.
 
 		The paraxial planes from
 		:meth:assemblies.Microscope.conjugate_planes are unaffected by this by

@@ -58,10 +58,11 @@ def build_objective_section(alpha: float = 30e-3, voltage: float = 200,
 
 		Note the angle is the ray's **total** deflection, not its x component:
 		OL1 is thick, so it also rotates the ray by its Larmor angle
-		(``KL = 1.30`` rad here). A collimated ray at 240 µm leaves the body at
-		30.000 mrad total, of which only 8.08 mrad is in x — the rest has been
-		rotated into y. Reading ``xt`` alone under-reports the convergence by
-		``cos(KL)``.
+		(``KL = 0.164`` rad for the 80 µm bore used here). A collimated ray at
+		240 µm leaves the body at 30.000 mrad total, of which 29.599 mrad is
+		in x — the rest has been rotated into y. Reading ``xt`` alone
+		under-reports the convergence by ``cos(KL)``, which is 1.3% here and
+		grows quickly with the bore.
 	voltage : float, optional
 		Accelerating voltage in kilovolts, by default 200.
 	n_rays : int, optional

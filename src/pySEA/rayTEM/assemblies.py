@@ -746,8 +746,10 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		"""The propagated moments as a :class:`moments.CovarianceBeam`.
 
 		A **view** over ``self.mu`` and ``self.covariance_matrix``, not a
-		second copy: the driver keeps storing exactly what it always stored,
-		and this wraps it so the resolution quantities — rms widths,
+		second copy: the beam carries the calibrated covariance ``Signal``
+		itself, so nothing is duplicated and nothing can drift out of step.
+		The driver keeps storing exactly what it always stored, and this wraps
+		it so the resolution quantities — rms widths,
 		position-angle correlations, emittance, and the principal axes of the
 		real-space and angular blocks — are available without every caller
 		re-deriving them from raw matrix entries.
@@ -771,12 +773,11 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		>>> section.propagate_moments()                    # doctest: +SKIP
 		>>> section.covariance_beam.emittance('x')[-1]     # doctest: +SKIP
 		"""
-		from .seashells import as_ndarray
 		from .moments import CovarianceBeam
 		if self.mu is None or self.covariance_matrix is None:
 			return None
 		source = next((e for e in (self.elements or ()) if isinstance(e, Source)), None)
-		return CovarianceBeam(self.mu, as_ndarray(self.covariance_matrix),
+		return CovarianceBeam(self.mu, self.covariance_matrix,
 							  wavelength=getattr(source, "wavelength", None))
 
 	def propagate_wave(self, wave0=None, mode:Literal['fixed','scaled','hybrid']='fixed',
@@ -2814,8 +2815,10 @@ class Microscope(SealedAttributes, SEASerializable):
 		"""The propagated moments as a :class:`moments.CovarianceBeam`.
 
 		A **view** over ``self.mu`` and ``self.covariance_matrix``, not a
-		second copy: the driver keeps storing exactly what it always stored,
-		and this wraps it so the resolution quantities — rms widths,
+		second copy: the beam carries the calibrated covariance ``Signal``
+		itself, so nothing is duplicated and nothing can drift out of step.
+		The driver keeps storing exactly what it always stored, and this wraps
+		it so the resolution quantities — rms widths,
 		position-angle correlations, emittance, and the principal axes of the
 		real-space and angular blocks — are available without every caller
 		re-deriving them from raw matrix entries.
@@ -2839,13 +2842,12 @@ class Microscope(SealedAttributes, SEASerializable):
 		>>> scope.propagate_moments()                      # doctest: +SKIP
 		>>> scope.covariance_beam.emittance('x')[-1]       # doctest: +SKIP
 		"""
-		from .seashells import as_ndarray
 		from .moments import CovarianceBeam
 		if self.mu is None or self.covariance_matrix is None:
 			return None
 		source = next((e for sec in (self.sections or ())
 					   for e in (sec.elements or ()) if isinstance(e, Source)), None)
-		return CovarianceBeam(self.mu, as_ndarray(self.covariance_matrix),
+		return CovarianceBeam(self.mu, self.covariance_matrix,
 							  wavelength=getattr(source, "wavelength", None))
 
 	def propagate_wave(self, wave0=None, mode:Literal['fixed','scaled','hybrid']='fixed',

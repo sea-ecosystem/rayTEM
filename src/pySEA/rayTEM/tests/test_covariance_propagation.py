@@ -542,6 +542,37 @@ def test_covariance_beam_rejects_mismatched_planes():
 					   np.zeros((2, len(convention), len(convention))))
 
 
+def test_covariance_beam_is_a_first_class_sea_object(tmp_path):
+	# it carries the calibrated covariance Signal the driver already built --
+	# not a second bare copy that could drift out of step -- and round-trips
+	scope = _toy()
+	scope.propagate_moments()
+	beam = scope.covariance_beam
+	assert beam.covariance is scope.covariance_matrix
+	path = str(tmp_path / "beam.sea")
+	beam.to_sea(path)
+	back = CovarianceBeam()						# a SEA object rebuilds with NO arguments
+	back.from_sea(path)
+	assert np.allclose(back._blocks(), beam._blocks())
+	assert np.allclose(back.mean, beam.mean)
+	# by name, not identity: this file's sys.path shim makes rayTEM importable
+	# as both `rayTEM` and `pySEA.rayTEM`, so the registry may hand back the
+	# class object from the other module instance
+	assert type(back.moment_closure).__name__ == 'GaussianMomentClosure'
+	assert back.moment_closure.name == 'gaussian'
+	assert np.isclose(back.emittance('x')[-1], beam.emittance('x')[-1])
+
+
+def test_empty_covariance_beam_is_inspectable():
+	# the deserializer builds one with no arguments before assigning state, so
+	# nothing on the object may assume it is populated
+	empty = CovarianceBeam()
+	assert len(empty) == 0
+	assert "empty" in repr(empty)
+	with pytest.raises(ValueError):
+		empty.sigma('x')
+
+
 # ---- the example's own claims ------------------------------------------
 
 def test_example_ideal_case_conserves_emittance():
@@ -558,7 +589,7 @@ def test_example_ol2_cannot_affect_the_specimen():
 	i = planes['sample']
 	assert np.isclose(ol2.emittance('x')[i], ideal.emittance('x')[i], rtol=1e-12)
 	ol1, _ = ex.propagate_case('OL1')
-	assert ol1.emittance('x')[i] > 5 * ideal.emittance('x')[i]
+	assert ol1.emittance('x')[i] > 1.5 * ideal.emittance('x')[i]
 
 
 def test_example_disabling_either_objective_reproduces_the_single_case():
@@ -573,9 +604,28 @@ def test_example_disabling_either_objective_reproduces_the_single_case():
 
 def test_example_budget_is_dominated_by_ol1_and_nearly_additive():
 	budget = ex.emittance_budget()
-	assert budget['OL1'] > 100 * budget['OL2']
-	assert abs(budget['coupling']) < 0.05 * budget['sum']
+	assert abs(budget['OL1']) > 10 * abs(budget['OL2'])		# the pre-specimen lens dominates
+	assert abs(budget['coupling']) < 0.05 * abs(budget['sum'])
 	assert np.isclose(budget['both'], budget['sum'] + budget['coupling'])
+
+
+def test_example_runs_at_the_stated_operating_point():
+	# the whole configuration hangs on a 30 mrad nominal convergence: the
+	# corrected Cs, the live chromatic term, and the balance between them are
+	# only sensible there, so the emission angle is solved rather than guessed
+	scope = ex.build_case('ideal')
+	alpha = scope.convergence_angle_at(scope.get_element_position('sample'))
+	assert np.isclose(alpha, ex.ALPHA_TARGET, rtol=1e-6)
+	gun = scope.sections[0].elements[0]
+	assert gun.size[0] == ex.SOURCE_SIZE
+	assert gun.energy_spread == ex.ENERGY_SPREAD
+
+
+def test_example_chromatic_is_a_live_term_at_this_aperture():
+	# a corrected Cs and an uncorrected Cc is the real regime; chromatic must
+	# be comparable to spherical here, not a rounding error
+	budget = ex.emittance_budget(chromatic=True)
+	assert budget['chromatic'] > 0.05 * abs(budget['OL1'])
 
 
 def test_example_closure_validity_is_small_enough_to_justify_the_closure():

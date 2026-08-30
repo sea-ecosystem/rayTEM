@@ -45,8 +45,10 @@ from typing import Sequence, Literal
 
 import numpy as xp
 
+from .seashells import SEASerializable, as_ndarray
 
-class MomentClosure:
+
+class MomentClosure(SEASerializable):
 	"""How a nonlinear map obtains moments the beam state does not store.
 
 	A covariance beam carries only a mean and a covariance. Pushing it through
@@ -367,7 +369,7 @@ def _kick_moments(monomials_by_column:dict, Sigma:xp.ndarray,
 	return delta_mean, C, D
 
 
-class CovarianceBeam:
+class CovarianceBeam(SEASerializable):
 	r"""A beam described by its first two moments, and the resolution they imply.
 
 	The moments mode's answer to :class:`elements.Rays`: where a ray table
@@ -453,16 +455,24 @@ class CovarianceBeam:
 	>>> beam.sigma('x')[-1], beam.emittance('x')[-1]       # doctest: +SKIP
 	"""
 
-	def __init__(self, mean:xp.ndarray, covariance:xp.ndarray,
+	def __init__(self, mean=None, covariance=None,
 				 moment_closure:MomentClosure=None, wavelength:float=None):
 		"""Store the state, the closure it was produced under, and the wavelength.
 
+		Every argument defaults to ``None`` because a SEA object is rebuilt by
+		calling its class with **no arguments** and then assigning the recorded
+		state; a required argument here would make the beam unreadable from a
+		``.sea`` file.
+
 		Parameters
 		----------
-		mean : xp.ndarray
-			Mean state, one plane or many.
-		covariance : xp.ndarray
-			Covariance, matching ``mean``.
+		mean : xp.ndarray, optional
+			Mean state, one plane or many, by default None (an empty beam).
+		covariance : Signal or xp.ndarray, optional
+			Covariance, matching ``mean``. A calibrated sea-eco ``Signal`` --
+			what :meth:`assemblies.Microscope.propagate_moments` already
+			stores -- is kept as-is, so the beam carries the calibrated object
+			rather than a second bare copy of it. A raw array is accepted too.
 		moment_closure : MomentClosure, optional
 			The closure in force, by default :class:`GaussianMomentClosure`.
 		wavelength : float, optional
@@ -477,17 +487,42 @@ class CovarianceBeam:
 		ValueError
 			If ``mean`` and ``covariance`` disagree about the number of planes.
 		"""
-		mean = xp.atleast_2d(xp.asarray(mean, dtype=float))
-		covariance = xp.asarray(covariance, dtype=float)
-		if covariance.ndim == 2:
-			covariance = covariance[None, ...]
-		if len(mean) != len(covariance):
-			raise ValueError(f"mean has {len(mean)} planes but covariance has "
-							 f"{len(covariance)}; they must describe the same planes.")
-		self.mean = mean
+		self.mean = None if mean is None else xp.atleast_2d(xp.asarray(mean, dtype=float))
 		self.covariance = covariance
 		self.moment_closure = moment_closure if moment_closure is not None else GaussianMomentClosure()
 		self.wavelength = wavelength
+		if self.mean is not None and covariance is not None and len(self.mean) != len(self._blocks()):
+			raise ValueError(f"mean has {len(self.mean)} planes but covariance has "
+							 f"{len(self._blocks())}; they must describe the same planes.")
+
+	def _blocks(self) -> xp.ndarray:
+		"""The covariance as a plain ``(n_planes, n, n)`` array.
+
+		:attr:`covariance` may be a calibrated ``Signal`` (the normal case, so
+		the beam carries the object the driver built) or a bare array. Every
+		numeric accessor goes through here so neither form leaks into the
+		arithmetic.
+
+		Returns
+		-------
+		xp.ndarray
+			Shape ``(n_planes,) + (len(convention),) * 2``; a single plane is
+			promoted to one.
+
+		Raises
+		------
+		ValueError
+			If the beam carries no covariance.
+
+		Related
+		-------
+		seashells.as_ndarray : Unwraps the Signal.
+		"""
+		if self.covariance is None:
+			raise ValueError("this CovarianceBeam carries no covariance; build it from a "
+							 "propagated column (scope.covariance_beam) or pass one in.")
+		blocks = xp.asarray(as_ndarray(self.covariance), dtype=float)
+		return blocks[None, ...] if blocks.ndim == 2 else blocks
 
 	def __len__(self) -> int:
 		"""The number of planes carried.
@@ -501,7 +536,7 @@ class CovarianceBeam:
 		------
 		None
 		"""
-		return len(self.mean)
+		return 0 if self.mean is None else len(self.mean)
 
 	def __repr__(self) -> str:
 		"""Plane count, closure, and the final rms widths.
@@ -515,7 +550,10 @@ class CovarianceBeam:
 		------
 		None
 		"""
-		return (f"CovarianceBeam({len(self)} planes, closure={self.moment_closure.name}, "
+		closure = getattr(self.moment_closure, 'name', 'none')
+		if not len(self) or self.covariance is None:
+			return f"CovarianceBeam(empty, closure={closure})"
+		return (f"CovarianceBeam({len(self)} planes, closure={closure}, "
 				f"final sigma_x={self.sigma('x')[-1]:.3e} m, "
 				f"sigma_xt={self.sigma('xt')[-1]:.3e} rad)")
 
@@ -593,7 +631,7 @@ class CovarianceBeam:
 		slightly negative by rounding reports 0 rather than a NaN.
 		"""
 		i = self._index(name)
-		return xp.sqrt(xp.clip(self.covariance[:, i, i], 0.0, None))
+		return xp.sqrt(xp.clip(self._blocks()[:, i, i], 0.0, None))
 
 	def correlation(self, a:str, b:str) -> xp.ndarray:
 		r"""One covariance entry, per plane.
@@ -624,7 +662,7 @@ class CovarianceBeam:
 		:math:`\sigma_{x,xt}^2` would be wrong, and it is signed — the sign
 		says whether the beam is converging or diverging.
 		"""
-		return self.covariance[:, self._index(a), self._index(b)]
+		return self._blocks()[:, self._index(a), self._index(b)]
 
 	def emittance(self, axis:Literal['x','y']='x') -> xp.ndarray:
 		r"""Transverse rms emittance, per plane.
@@ -674,7 +712,7 @@ class CovarianceBeam:
 		if axis not in ('x', 'y'):
 			raise ValueError(f"axis must be 'x' or 'y', not {axis!r}.")
 		from .postprocessing import emittance as _emittance		# lazy: it imports elements
-		return _emittance(self.covariance)[:, 0 if axis == 'x' else 1]
+		return _emittance(self._blocks())[:, 0 if axis == 'x' else 1]
 
 	def _block_ellipse(self, names:Sequence[str], index) -> tuple:
 		"""Principal widths and axes of a 2x2 covariance block.
@@ -710,7 +748,7 @@ class CovarianceBeam:
 		before the root.
 		"""
 		i, j = self._index(names[0]), self._index(names[1])
-		sub = self.covariance[:, [i, j], :][:, :, [i, j]]
+		sub = self._blocks()[:, [i, j], :][:, :, [i, j]]
 		if index is not None:
 			sub = sub[index][None, ...]
 		values, vectors = xp.linalg.eigh(sub)
@@ -836,7 +874,7 @@ class CovarianceBeam:
 							 "constructing the CovarianceBeam.")
 		ixt, iyt = self._index('xt'), self._index('yt')
 		k0 = 2.0 * xp.pi / float(self.wavelength)
-		block = self.covariance[:, [ixt, iyt], :][:, :, [ixt, iyt]] * k0**2
+		block = self._blocks()[:, [ixt, iyt], :][:, :, [ixt, iyt]] * k0**2
 		return block[index] if index is not None else block
 
 	def is_positive_semidefinite(self, tol:float=1e-12) -> bool:
@@ -872,7 +910,7 @@ class CovarianceBeam:
 		differ by many orders of magnitude, so an absolute floor would be
 		meaningless for one of them.
 		"""
-		for S in self.covariance:
+		for S in self._blocks():
 			values = xp.linalg.eigvalsh(0.5 * (S + S.T))
 			scale = float(xp.max(xp.abs(values))) or 1.0
 			if float(xp.min(values)) < -tol * scale:
@@ -901,5 +939,5 @@ class CovarianceBeam:
 		-------
 		__len__ : The number of planes available.
 		"""
-		return CovarianceBeam(self.mean[index], self.covariance[index],
+		return CovarianceBeam(self.mean[index], self._blocks()[index],
 							  self.moment_closure, self.wavelength)

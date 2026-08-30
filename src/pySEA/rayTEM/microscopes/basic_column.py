@@ -16,7 +16,7 @@ coherent wavefunction), and every element sits at a plausible physical z:
    stigmator after OL2.
 4. **P** — projector section: PL1–PL4 (f = 25/40/60/80 mm), each with a pre
    and post dipole pair, a 30 cm camera drift, and a zero-length named
-   ``detector`` plane at the very end (total column ≈ 1.3 m).
+   ``detector`` plane at the very end (total column ≈ 0.777 m).
 
 Lens strengths are derived from focal lengths through the thick-lens relation
 ``1/f = K·sin(K·L)`` (the form used by ``Lens.transfer_matrix``), so each lens
@@ -172,7 +172,7 @@ def build_basic_column(voltage: float = 200.0) -> Microscope:
 	transverse size on a 20 µm / 256² grid.
 
 	Every lens is a thin 0.08 mm bore; focal lengths are C1 = 45 mm,
-	C2 = 30 mm, C3 = 90 mm, OL1 = 2 mm, OL2 = 10 mm, PL1–PL4 = 25/40/60/80 mm.
+	C2 = 30 mm, C3 = 90 mm, OL1 = 3 mm, OL2 = 10 mm, PL1–PL4 = 25/40/60/80 mm.
 	Layout (drifts in mm): gun — 50 — C1 — 50 — CA — 10 — 50 — C2 — 50 — C3 —
 	250 — OL1 — 6 (sample halfway across the gap) — OL2 — 50 —
 	PL1 — 50 — PL2 — 50 — PL3 — 50 — PL4 — 100 — detector. Each lens keeps its
