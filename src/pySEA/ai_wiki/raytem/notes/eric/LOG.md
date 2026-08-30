@@ -2,6 +2,23 @@
 
 Newest entries at top.
 
+## 2026-08-30 — [Done] Backlog a+b: waveoptics wiki refresh; sibling merges
+**Goal:** Bring wiki/waveoptics.md up to date with the hybrid engine, and
+land the sibling-repo branches on their mains.
+**Why:** The page predated the mid-restoration handoff fixes and never
+documented the body walker; sea-eco's JSON round-trip fixes and fifth-order
+abb_C sat 4 ahead / 38 behind main.
+**Outcome:** waveoptics.md gains the pending-marker handoff rules and a
+propagate_quadratic_segment_hybrid section (in-body crossover logging, the
+z_end − B/D exit projection). sea-eco: main merged into the branch (LOG
+union), tests compared before/after — 19 failures PRE-EXIST on main (15
+notebook-parse + 4 code: backgrounds/pipeline_graph_model/tree_html),
+untouched by the merge, which adds 2 passing round-trip tests; main
+fast-forwarded. sea-ecosystem: the branch's only net diff was auto-generated
+index stamps — regenerated fresh on main instead. NOTE: the push proxy
+refuses ref deletions, so the stale claude/raytem-beam-propagation-3mi4up
+branches on sea-eco and sea-ecosystem need a GitHub-UI delete.
+
 ## 2026-08-30 — [Done] Aperture masking + rotation rename
 **Goal:** Ray-path apertures become true masks (blocked rays get I = 0,
 geometry untouched); `skew` becomes `rotation` (roll about z) with the
