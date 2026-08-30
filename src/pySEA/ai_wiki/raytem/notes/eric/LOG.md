@@ -2,6 +2,19 @@
 
 Newest entries at top.
 
+## 2026-08-30 — [Under Construction] Covariance propagation + aberration resolution example
+**Goal:** A moments-only beam model good enough to answer, quantitatively,
+how much of the column's final resolution comes from the source emittance,
+from OL1, from OL2, from the two together, and from chromatic spread.
+**Why:** The covariance mode can now carry aberrations, but the Gaussian
+closure is hard-coded and invisible, there is no chromatic coupling at all,
+and nothing reports resolution as an ellipse rather than a single width.
+- [ ] explicit MomentClosure / GaussianMomentClosure / CovarianceBeam
+- [ ] chromatic: source energy spread + element C_c + bilinear covariance term
+- [ ] resolution quantities (emittance, Sigma_rr / Sigma_uu eigen-analysis)
+- [ ] example 08: four cases + chromatic overlay
+- [ ] tests + docs + wiki
+
 ## 2026-08-30 — [Done] Analytic aberrations: zone-ABCD + covariance
 **Goal:** Aberrations enter the two remaining analytic representations: the
 frame/ABCD plane machinery (zone-modified blocks -> closed-form focal
