@@ -399,6 +399,10 @@ def findPlanes(rays,axis="xy"):
 	if axis=="xy" or axis=="yx":
 		return findPlanes(rays,axis='x') | findPlanes(rays,axis='y')
 	R = rays.R
+	# per-ray intensity, if the caller passed a Rays object: dead (masked)
+	# rays must not report planes -- an aperture selects the pupil zone, and
+	# with aberrations the ghost pair's crossing is the WRONG focal plane
+	I = getattr(rays, "I", None)
 	rays = convert_to_rotating_reference_frame(rays)
 	global warned
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
@@ -418,28 +422,54 @@ def findPlanes(rays,axis="xy"):
 
 	# diffraction ray is the first ray emitted at zero angle (nonzero position!)
 	# image ray is the first ray emitted from zero at non-zero angle
+	# ALL candidates are collected (in scan order, so with nothing masked the
+	# first two are chosen and behavior is bit-for-bit the old first-two);
+	# per interval the first two candidates STILL ALIVE stand in when a
+	# masking aperture killed the original pair
 	n_rays = len(rays[0])
+	diffCands=[] ; imageCands=[]
 	for r in range(n_rays):
-		# diff X first ray is: zero angle x and y, nonzero x, zero y
-		if len(diffRays)==0 and rays[0,r,x]!=0 and rays[0,r,xt]==0:
-				diffRays.append(r)
-				for rr in range(n_rays):
-					if np.all(rays[0,r]==-rays[0,rr]):
-						diffRays.append(rr)
-						break
-		# second is same, but opposite x position. TWP 20260317 edit: or, just a different x position?? changing all "==-" to "!="
-		if len(diffRays)==1 and rays[0,r,x]!=0 and rays[0,r,xt]==0 and \
-				rays[0,r,x]!=rays[0,diffRays[0],x]: # TWP 20260317 edit: or, just a different x position?? changing all "==-" to "!="
-					diffRays.append(r)
-		# image X first ray is: nonzero angle x, zero angle y, zero x, zero y
-		if len(imageRays)==0 and rays[0,r,xt]!=0 and rays[0,r,x]==0:
-				imageRays.append(r)
-		# second is same, but opposite x angle
-		if len(imageRays)==1 and rays[0,r,xt]!=0 and \
-			rays[0,r,x]==0 and rays[0,r,xt]!=rays[0,imageRays[0],xt]:
-					imageRays.append(r)
-		if len(diffRays)==2 and len(imageRays)==2:
-				break
+		if rays[0,r,x]!=0 and rays[0,r,xt]==0:
+			diffCands.append(r)
+		if rays[0,r,xt]!=0 and rays[0,r,x]==0:
+			imageCands.append(r)
+
+	def live_pair(cands, col, i):
+		"""First two candidates alive at plane ``i`` with distinct seeds.
+
+		Parameters
+		----------
+		cands : list of int
+			Candidate ray indices, in scan order.
+		col : int
+			Ray column whose plane-0 value must differ within the pair
+			(position for the parallel family, angle for the axial one).
+		i : int
+			Plane index the pair must have survived to (``I[i] > 0``).
+
+		Returns
+		-------
+		list of int or None
+			``[a, b]``, or ``None`` when fewer than two live distinct
+			candidates remain — no plane is detectable from beam that
+			still exists.
+
+		Raises
+		------
+		None
+		"""
+		first = None
+		for r in cands:
+			if I is not None and not I[i, r] > 0:
+				continue
+			if first is None:
+				first = r
+			elif rays[0,r,col] != rays[0,first,col]:
+				return [first, r]
+		return None
+
+	diffRays  = live_pair(diffCands,  x,  0) or diffCands[:1]
+	imageRays = live_pair(imageCands, xt, 0) or imageCands[:1]
 	#if len(diffRays)!=2 or len(imageRays)!=2:
 		#print("WARNING: diffraction and/or image rays could not be inferred by findPlanes(). no planes found")
 	if len(diffRays)<2 and "diff" not in warned:
@@ -489,6 +519,14 @@ def findPlanes(rays,axis="xy"):
 		return (ya-yb)/(ta-tb)
 
 	for i in range(1,len(rays)):
+		# per interval, plane detection only trusts rays that STILL CARRY
+		# INTENSITY at its end: a masked (dead) tracer must not report a
+		# plane for beam that no longer exists, and with aberrations the
+		# aperture selects the pupil zone -- a ghost pair's crossing is the
+		# wrong focal plane. Reselection walks the candidate lists, so with
+		# nothing masked the pair (and the result) is the old first-two.
+		diffRays  = live_pair(diffCands,  x,  i) or []
+		imageRays = live_pair(imageCands, xt, i) or []
 		if len(diffRays)>=2:
 			# CHECK DIFFRACTION: where originally-parallel rays cross
 			(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,diffRays,x]

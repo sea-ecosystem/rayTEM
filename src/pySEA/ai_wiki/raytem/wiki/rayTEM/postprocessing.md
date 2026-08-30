@@ -7,16 +7,16 @@
 |   `plot3D(r1, filename, elev, azi, roll)` | 49 |
 |   `plotSliceSeries(rays, N, M, filename)` | 55 |
 |   `findPlanes(rays, axes)` | 59 |
-|   `findPlanes1(rays)` | 78 |
-|   `findPlanes1(rays)` | 82 |
-|   `zFromFractional(zs, z)` | 86 |
-|   `update_microscope_with_settings(microscope, settings)` | 92 |
-|   `error_dz(microscope, settings, targets)` | 96 |
-|   `error_magnification(microscope, settings, targets)` | 106 |
-|   `error_diameter(microscope, settings, targets, absolute)` | 112 |
-|   `error_angles(microscope, settings, targets, absolute)` | 116 |
-|   `fitForCrossover(section, r0, targets, modifiable, axis, prefer, ignoreSigns, filename)` | 120 |
-|   `measureAtZ(z, rays, section)` | 144 |
+|   `findPlanes1(rays)` | 80 |
+|   `findPlanes1(rays)` | 84 |
+|   `zFromFractional(zs, z)` | 88 |
+|   `update_microscope_with_settings(microscope, settings)` | 94 |
+|   `error_dz(microscope, settings, targets)` | 98 |
+|   `error_magnification(microscope, settings, targets)` | 108 |
+|   `error_diameter(microscope, settings, targets, absolute)` | 114 |
+|   `error_angles(microscope, settings, targets, absolute)` | 118 |
+|   `fitForCrossover(section, r0, targets, modifiable, axis, prefer, ignoreSigns, filename)` | 122 |
+|   `measureAtZ(z, rays, section)` | 146 |
 <!-- END AUTO-GENERATED TOC -->
 
 # postprocessing.py
@@ -60,7 +60,9 @@ Renders an N×M grid of scatter plots showing the transverse (x, y) beam cross-s
 
 The primary plane-detection function used throughout the codebase. Detects image and diffraction planes in both x and y independently.
 
-**Ray identification:** automatically finds the two "diffraction rays" in x (zero angle, nonzero x, zero y, zero yt) and the two "image rays" in x (nonzero xt, zero yt, zero x, zero y), and analogously for y. If these four pairs cannot be found, prints a diagnostic warning and returns an empty structure.
+**Ray identification:** automatically finds the "diffraction ray" candidates in x (zero angle, nonzero x) and the "image ray" candidates (nonzero xt, zero x), and analogously for y. If a pair cannot be found, prints a diagnostic warning and returns an empty structure.
+
+**Dead rays do not vote (2026-08-30):** when the input is a `Rays` object, plane detection only trusts rays that still carry intensity — per interval, a crossing counts only if both tracer rays are alive (`I > 0`) at the interval's end, reselecting the first two live same-signature candidates when a masking aperture killed the original pair. With nothing masked the pair is the old first-two, bit for bit. The physical stake is aberrated columns: an aperture selects the pupil zone, and a ghost pair reports the *cut* zone's crossing — the wrong focal plane (pinned by `test_findplanes_ignores_dead_rays`). When every candidate is dead there is no beam, and no plane is reported. Plain ndarray input (no `I`) keeps the old behavior.
 
 **Plane detection loop:** for each consecutive pair of ray-history entries:
 - **Diffraction plane:** where the two diffraction rays cross (their positions converge from opposite sides). Uses `whereRaysCross` on the diffraction ray pair.

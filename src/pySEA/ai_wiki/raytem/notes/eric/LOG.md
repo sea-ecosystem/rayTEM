@@ -2,7 +2,7 @@
 
 Newest entries at top.
 
-## 2026-08-30 — [Under Construction] findPlanes ignores dead rays
+## 2026-08-30 — [Done] findPlanes ignores dead rays
 **Goal:** Plane detection only trusts rays that still carry intensity: per
 interval, a crossing counts only if both tracer rays are alive, reselecting
 among same-signature live candidates when a masked aperture killed the
@@ -11,8 +11,16 @@ original pair.
 beam that no longer exists — with aberrations, that is the WRONG focal
 plane (the aperture selects the pupil zone; the ghost pair reports the cut
 zone's z).
-- [ ] intensity-aware findPlanes (unchanged bit-for-bit when nothing masked)
-- [ ] test: aberrated lens + aperture -> plane follows the LIVE pupil zone
+- [x] intensity-aware findPlanes (unchanged bit-for-bit when nothing masked)
+- [x] test: aberrated lens + aperture -> plane follows the LIVE pupil zone
+**Outcome:** findPlanes collects full candidate lists and per interval uses
+the first two LIVE same-signature candidates (I > 0 at the interval end);
+plain-array input (no I) keeps the old behavior exactly, and with nothing
+masked the pair is the old first-two bit-for-bit (159/159, incl. the hash
+tests). New test: ideal lens — cutting the outer zone doesn't move the
+plane; C30 lens — the detected plane moves downstream to the live inner
+zone; all candidates cut — no plane reported. Thomas's fitting paths are
+unaffected when nothing is masked, and now correct when something is.
 
 ## 2026-08-30 — [Done] Backlog a+b: waveoptics wiki refresh; sibling merges
 **Goal:** Bring wiki/waveoptics.md up to date with the hybrid engine, and

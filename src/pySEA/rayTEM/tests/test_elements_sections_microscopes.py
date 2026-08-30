@@ -619,3 +619,46 @@ def test_aperture_masks_rays():
 	tf = m["A2"].transmitted_fraction(rays[i_a1])
 	assert 0 < tf <= 1
 	assert m["A1"].transmitted_fraction(rays[0] * 0) == 1.0
+
+
+def test_findplanes_ignores_dead_rays():
+	"""Plane detection only trusts rays that still carry intensity.
+
+	With spherical aberration, parallel rays at different heights cross at
+	different z (the focal surface) -- and an aperture selects which zone
+	carries beam. The detected diffraction plane must follow the LIVE zone:
+	ghost (masked, I = 0) tracers reporting the cut zone's crossing was the
+	bug. Ideal optics are insensitive (all parallel rays share one crossing),
+	and with nothing masked the tracer pair is the old first-two, bit for
+	bit. When the aperture kills every candidate, no plane is reported at
+	all -- there is no beam to have one.
+	"""
+	def build(radius, c30):
+		from pySEA.rayTEM.aberrations import Aberrations
+		lens = Lens(name="L", strength=np.sqrt(1 / 0.02))
+		if c30:
+			lens.aberrations = Aberrations({'C30': c30})
+		sec = MicroscopeSection(name="S", elements=[
+			Source(voltage=200, size=(40e-6, 40e-6), np_xy=(5, 5),
+				   angle=(0.0, 0.0), na_xy=(1, 1)),
+			Drift(length=0.01),
+			Aperture(name="A", radius=radius),
+			Drift(length=0.01),
+			lens,
+			Drift(length=0.03)])
+		m = Microscope(sections=[sec])
+		m.propagate_ray()
+		return findPlanes(m.rays, axis="x")["x"]["diff"]["z"]
+	# ideal lens: cutting the outer zone must not move the plane
+	z_open  = build(radius=1.0,   c30=0.0)
+	z_cut   = build(radius=25e-6, c30=0.0)
+	assert len(z_open) == 1 and len(z_cut) == 1
+	assert np.isclose(z_cut[0], z_open[0], atol=1e-9)
+	# aberrated lens: outer rays cross EARLIER (spherical), so masking them
+	# must move the detected plane DOWNSTREAM to the live inner zone
+	za_open = build(radius=1.0,   c30=2.0)
+	za_cut  = build(radius=25e-6, c30=2.0)
+	assert len(za_open) == 1 and len(za_cut) == 1
+	assert za_cut[0] > za_open[0] + 1e-4
+	# everything masked: no beam, no plane
+	assert build(radius=1e-9, c30=0.0) == []
