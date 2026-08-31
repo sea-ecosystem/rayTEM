@@ -41,12 +41,10 @@ Run: python examples/06_aberratedObjective.py   (writes figures/)
 import os, numpy as np, matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.colors import PowerNorm
 from pySEA.rayTEM import Source, Drift, Lens, MicroscopeSection, Microscope
 from pySEA.rayTEM.aberrations import Aberrations
 from pySEA.rayTEM.microscopes.objective_section import build_objective_section
-from pySEA.rayTEM.seashells import read_scaled_wavefield
-from pySEA.rayTEM import waveoptics as wo
+from pySEA.rayTEM.seashells import read_wavefield
 
 ALPHA, C30, F_OL = 30e-3, 4.5e-6, 3e-3	# F_OL follows basic_column's OL1 (f = 3 mm EFL)
 N_WAVE, N_PLANES = 256, 80
@@ -74,61 +72,34 @@ def scope(c30, **kw):
 	return m
 
 
-def wave_cross_section(c30, z_lo, z_hi, x_half, z_at, n_x=400):
-	"""|psi(x, y=0, z)| across the focal window, on a common x grid.
+def focal_window(c30, z_lo, z_hi):
+	"""Propagate the objective with the focal window densely sampled.
 
 	Parameters
 	----------
 	c30 : float
-		Spherical aberration coefficient (metres).
+		Spherical aberration coefficient (metres); 0 for an ideal objective.
 	z_lo, z_hi : float
-		Window bounds (metres).
-	x_half : float
-		Half-width of the common transverse grid (metres).
-	z_at : float
-		The plane whose native-grid line-out is returned alongside (metres).
-	n_x : int, optional
-		Samples across it, by default 400.
+		Window bounds (metres); ``N_PLANES`` planes are logged across them.
 
 	Returns
 	-------
-	tuple
-		``(z, x, intensity, native)`` with ``intensity`` shaped
-		``(len(z), n_x)`` and ``native`` the ``(x, I, z)`` line-out at ``z_at``
-		on its own grid. Intensities are in
-		absolute units — the caller decides how to normalize, because the two
-		panels need different things: a cross-section wants each plane scaled
-		to its own peak (or the focus swamps everything), while the focal
-		line-out must keep the ideal peak as its reference or the Strehl loss
-		is hidden.
+	Microscope
+		The propagated column, ready for :meth:`Microscope.show` (the
+		cross-section) and :meth:`Microscope.wavefield_at` (the focal
+		line-out on its native, picometre grid).
+
+	Notes
+	-----
+	:meth:`Microscope.subdivided` cuts the drifts at the requested absolute z,
+	which is what puts a logged plane on each sample of the window. It cuts
+	only UNNAMED drifts -- the focus here sits inside the 3 mm drift ahead of
+	the specimen, so the ``sample`` marker survives, the lengths stay positive
+	and z stays monotonic.
 	"""
-	# Microscope.subdivided cuts the drifts at the requested absolute z, which
-	# is what puts a logged plane on each sample of the focal window. It cuts
-	# only UNNAMED drifts -- the focus here sits inside the 3 mm drift ahead of
-	# the specimen, so the `sample` marker survives, the lengths stay positive
-	# and z stays monotonic. Splitting the named marker by hand instead (as an
-	# earlier version did) inserted a negative-length drift to walk back to the
-	# focus and deleted the marker on the way.
 	m = scope(c30).subdivided(list(np.linspace(z_lo, z_hi, N_PLANES)))
 	m.propagate_wave(mode="hybrid", absorb=0.0)
-	x = np.linspace(-x_half, x_half, n_x)
-	zs, rows, native = [], [], None
-	for plane in m._wave_scaled_planes:
-		U, dxi, deta, lam, s, R, tau, z = read_scaled_wavefield(plane)
-		if not (z_lo - 1e-12 <= z <= z_hi + 1e-12):
-			continue
-		psi, dx, dy = wo.reconstruct_physical_wave(U, dxi, deta, lam, s, R)
-		row = np.abs(psi[psi.shape[0] // 2, :])
-		xs = (np.arange(row.size) - row.size // 2) * dx
-		if native is None or abs(z - z_at) < abs(native[2] - z_at):
-			# keep the focal plane on its NATIVE grid: at the focus the physical
-			# pixel is picometres, and resampling it onto the cross-section's
-			# common grid would misreport the peak the Strehl is measured from
-			native = (xs, row ** 2, z)
-		zs.append(z)
-		rows.append(np.interp(x, xs, row, left=0.0, right=0.0))
-	I = np.asarray(rows) ** 2
-	return np.asarray(zs), x, I, native
+	return m
 
 
 # ---- the focal window, from the ideal ray crossover ----------------------
@@ -169,26 +140,20 @@ for k, (m, lbl) in enumerate(((ideal, "A   rays, ideal objective"),
 	ax.set_ylabel(f"x  —  {2*X_HALF*1e12:.0f} pm across the panel")
 
 # ---- C, D: the same window, in the wave ---------------------------------
-panels = []
-for c30 in (0.0, C30):
-	panels.append(wave_cross_section(c30, Z_LO, Z_HI, X_HALF, Z_PAR))
-for k, ((zs, xs, I, _nat), lbl) in enumerate(zip(panels,
+# The shared cross-section renderer already does what these panels need: each
+# plane peak-normalized (the focus is orders of magnitude brighter than the
+# converging beam), and |psi| rather than |psi|^2 -- which IS the power-1/2
+# stretch, so no `norm` is called for. `zlims` windows it: planes outside the
+# focal window are dropped before the common transverse grid is built, so the
+# panel is sized by the focus and not by the far end of the column.
+columns = [focal_window(c30, Z_LO, Z_HI) for c30 in (0.0, C30)]
+for k, (m, lbl) in enumerate(zip(columns,
 		("C   wave, ideal objective", f"D   wave, C30 = {C30*1e6:g} " + r"$\mu$m"))):
 	ax = fig.add_subplot(gs[1, k])
-	z_edges = np.concatenate([[zs[0]], (zs[:-1] + zs[1:]) / 2, [zs[-1]]])
-	x_edges = np.linspace(xs[0], xs[-1], xs.size + 1)
-	# each plane to its own peak: the focus is orders of magnitude brighter than
-	# the converging beam, so a shared scale would show a dot and nothing else
-	norm = I / I.max(axis=1, keepdims=True)
-	# a power stretch, not linear: the focus is orders of magnitude brighter
-	# than the converging beam, and the structure worth seeing is in the wings
-	ax.pcolormesh(z_edges, x_edges * 1e12, norm.T, cmap="magma", shading="flat",
-					norm=PowerNorm(0.5, vmin=0, vmax=1))
+	m.show(kind="wave-hybrid", plt_ax=ax, regenerate=False, conjugates=False,
+		   zlims=(Z_LO, Z_HI), ylims=(-X_HALF, X_HALF), title=lbl)
 	ax.axvline(Z_PAR, color="w", lw=1.0, ls=":", alpha=0.7)
-	ax.set_xlim(Z_LO, Z_HI)
-	ax.set_title(lbl)
 	ax.set_xlabel(f"z  —  {(Z_HI-Z_LO)*1e9:.0f} nm across the panel")
-	ax.set_ylabel("x (pm)")
 
 # ---- E: the focal surface -----------------------------------------------
 axE = fig.add_subplot(gs[2, 0])
@@ -236,8 +201,13 @@ axE.text(0.03, 0.04,
 # ---- F: the focus, as a Strehl loss -------------------------------------
 axF = fig.add_subplot(gs[2, 1])
 ref = None
-for (_zs, _xs, _I, (xn, In, zn)), c30, c in zip(panels, (0.0, C30),
-												("tab:blue", "tab:red")):
+for m, c30, c in zip(columns, (0.0, C30), ("tab:blue", "tab:red")):
+	# the focal plane on its NATIVE grid -- at the focus the physical pixel is
+	# picometres, and the cross-section's common grid would misreport the peak
+	# the Strehl is measured from
+	_psi, _dx, _dy, _lam, _zn = read_wavefield(m.wavefield_at(Z_PAR))
+	In = np.abs(_psi[_psi.shape[0] // 2, :]) ** 2
+	xn = (np.arange(In.size) - In.size // 2) * _dx
 	if ref is None:
 		ref = In.max()							# normalise BOTH to the ideal peak,
 	line = In / ref								# or the Strehl loss is hidden

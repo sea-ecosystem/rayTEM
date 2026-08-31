@@ -75,8 +75,7 @@ import numpy as np
 from scipy.optimize import brentq
 
 sys.path.insert(1, "../")
-from pySEA.rayTEM.assemblies import Microscope, load_microscope, _scaled_wave_cross_section
-from pySEA.rayTEM.postprocessing import convert_to_rotating_reference_frame
+from pySEA.rayTEM.assemblies import Microscope, load_microscope
 from pySEA.rayTEM.elements import columnByName, convention
 from pySEA.rayTEM.microscopes.basic_column import solve_strength_for_focal_length
 
@@ -715,19 +714,13 @@ def ray_over_wave_figure(scope: Microscope, title: str, filename: str) -> list:
 	import matplotlib.pyplot as plt
 	dense = scope.subdivided(4e-3)
 	dense.propagate(kind="wave-hybrid")
-	r0 = wave_matched_rays(scope)
-	rays = dense.propagate_ray(r0=r0)
-	rot = convert_to_rotating_reference_frame(rays)
+	dense.propagate_ray(r0=wave_matched_rays(scope))
 	fig, ax = plt.subplots(figsize=(13, 5))
-	_scaled_wave_cross_section(dense._wave_scaled_planes, ax,
-							   named_positions=dense.named_positions,
-							   crossovers=dense.crossovers, title=title)
-	zs = rays[:, 0, columnByName('z')] * 1e3
+	# both renderers work in metres, so the rays land on the wave they match
+	dense.show(kind="wave-hybrid", plt_ax=ax, title=title,
+			   conjugates=False, regenerate=False)
 	ylim = ax.get_ylim()
-	xcol = rot[:, :, columnByName('x')] * 1e6
-	for j in range(xcol.shape[1]):
-		ax.plot(zs, xcol[:, j], lw=0.5, alpha=0.6, color="deepskyblue")
-	ax.set_ylim(ylim)
+	dense.show(kind="ray", plt_ax=ax, ylims=ylim, regenerate=False, overlays=False)
 	fig.tight_layout()
 	fig.savefig(filename, dpi=140)
 	plt.close(fig)

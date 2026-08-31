@@ -12,8 +12,64 @@ from matplotlib.cm import plasma as cmap
 # Basic 2D plotting (along z, and in whatever axis you have chosen)
 # TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
 # For now, plot2D assumes it is given unrotated-reference-frame rays, and should likely call convert_to_rotating_reference_frame.
-def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,title=None,plt_ax=None):
-	planes = findPlanes(r1,axis=axis)
+def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,title=None,plt_ax=None,planes:bool=True):
+	"""Draw the ray diagram: one transverse coordinate against z.
+
+	Rays are converted to the rotating (Larmor) frame first, so a column with
+	thick lenses reads as a plane figure rather than a spiral. Dead rays --
+	those an aperture has already killed -- stop being drawn where their
+	intensity goes to zero. Conjugate (image/diffraction) planes found in the
+	traced family, named z positions, and section spans are annotated on top.
+
+	Parameters
+	----------
+	r1 : ndarray
+		Ray array, shape ``(n_planes, n_rays, len(convention))``, optionally
+		carrying an ``.I`` intensity attribute.
+	axis : {'x', 'y'}, optional
+		Transverse coordinate to plot, by default ``'x'``.
+	filename : str, optional
+		Save here instead of showing (ignored when ``plt_ax`` is given).
+	zpts : Mapping, optional
+		``{label: z}`` positions to mark (dotted), by default none.
+	sections : Mapping, optional
+		``{label: (z1, z2)}`` spans to shade, by default none.
+	xlims, ylims : Sequence, optional
+		Axis limits (``xlims`` is the z range), by default auto.
+	title : str, optional
+		Axis title.
+	plt_ax : matplotlib axis, optional
+		Draw into an existing axis instead of creating a figure.
+	planes : bool, optional
+		Annotate the conjugate planes found by :func:`findPlanes`, by default
+		True. Pass False when compositing onto a panel that already carries
+		its own plane overlays -- see :meth:`Microscope.show`.
+
+	Returns
+	-------
+	None
+		Draws into ``plt_ax``, or shows/saves a new figure.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	Microscope.show : The usual caller.
+	findPlanes : Supplies the conjugate-plane annotations.
+	convert_to_rotating_reference_frame : The frame the rays are drawn in.
+
+	Notes
+	-----
+	Everything is in metres -- the same units as the wave cross-section, so
+	the two composite onto one axis.
+
+	Examples
+	--------
+	>>> plot2D(scope.rays, plt_ax=ax, planes=False)		# doctest: +SKIP
+	"""
+	conjugates = findPlanes(r1,axis=axis)
 	# masked (dead) rays stop being drawn at the plane where their intensity
 	# hits zero -- an aperture kills them there, and plotting their ghost
 	# trajectories onward would show beam that no longer exists
@@ -37,13 +93,13 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 	# add all image/diffraction planes
 	ct=0 ; zs=r1[:,0,j]
 	#print(planes)
-	nplanes=len(planes[axis]["diff"]["z"])+len(planes[axis]["image"]["z"])+len(zpts)
+	nplanes=len(conjugates[axis]["diff"]["z"])+len(conjugates[axis]["image"]["z"])+len(zpts)
 	if ylims is None:
 		ylims = [ np.nanmin(Y) , np.nanmax(Y) ]
-	for imdiff in ["diff","image"]:
-		Z=planes[axis][imdiff]["z"]
-		M=planes[axis][imdiff]["M"]
-		R=planes[axis][imdiff]["R"]
+	for imdiff in (["diff","image"] if planes else []):
+		Z=conjugates[axis][imdiff]["z"]
+		M=conjugates[axis][imdiff]["M"]
+		R=conjugates[axis][imdiff]["R"]
 		#print("PLANES",imdiff,Z,M,R)
 		for m,z,r in zip(M,Z,R):
 			#print("ADD PLANE",Z,imdiff)

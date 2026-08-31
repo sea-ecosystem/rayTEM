@@ -1052,7 +1052,17 @@ def test_show_scaled_wave_kinds():
 	fig, ax = plt.subplots()
 	mic.show(kind="wave-scaled", plt_ax=ax)
 	assert len(ax.collections) > 0				# the pcolormesh
-	assert ax.get_xlabel() == "z (mm)"
+	# SI, like every other renderer, so a ray diagram composites onto it
+	assert ax.get_xlabel() == "z (m)"
+	assert ax.get_ylabel() == "x (m)"
+	plt.close(fig)
+	# zlims is a window, not a zoom: planes outside it are dropped before the
+	# common transverse grid is built, and ylims sets that grid's extent
+	fig, ax = plt.subplots()
+	mic.show(kind="wave-scaled", regenerate=False, plt_ax=ax,
+			 zlims=(15e-3, 25e-3), ylims=(-1e-5, 1e-5))
+	assert ax.get_xlim() == pytest.approx((15e-3, 25e-3))
+	assert ax.get_ylim() == pytest.approx((-1e-5, 1e-5))
 	plt.close(fig)
 	# per-plane by z (metres): delegates to the reconstructed Signal's .show()
 	fig, ax = plt.subplots()

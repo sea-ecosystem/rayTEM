@@ -596,24 +596,20 @@ def figure(results: dict, filename: str) -> None:
 	# scatter for that -- see the sea-eco note
 	# TODO_ACTIVE_matplotlib-plotspec-kind. Non-uniform spacing is no obstacle
 	# to a line; once that is fixed this becomes display_type='line'.
-	# Emittance is not a slice -- it is a determinant over the block -- so it
-	# is drawn from the array the same helper returns.
-	panels = [("A: real-space width", None, lambda c: c[:, ix, ix] ** 0.5),
-			  ("B: angular width", None, lambda c: c[:, ixt, ixt] ** 0.5),
-			  ("C: emittance", "eps_x (m.rad)", None)]
-	for ax, (title, ylab, get) in zip(axes[0], panels):
+	# Emittance is a determinant rather than a slice, but every term in that
+	# determinant IS a slice of the same Signal, and elementwise algebra keeps
+	# the z calibration -- so eps_x = sqrt(<xx><x't'> - <xx'>^2) draws itself
+	# through the same renderer as A and B.
+	panels = [("A: real-space width", lambda c: c[:, ix, ix] ** 0.5),
+			  ("B: angular width", lambda c: c[:, ixt, ixt] ** 0.5),
+			  ("C: emittance", lambda c: (c[:, ix, ix] * c[:, ixt, ixt]
+										  - c[:, ix, ixt] ** 2) ** 0.5)]
+	for ax, (title, get) in zip(axes[0], panels):
 		for case in CASES:
 			color, dash, width = styles[case]
 			scope, _ = results[case]
-			if get is not None:
-				get(scope.covariance_matrix).show(ax=ax, plot_type=None, color=color,
-												  ls=dash, lw=width, label=case)
-			else:
-				ax.plot(scope.mu[:, columnByName('z')],
-						emittance(as_ndarray(scope.covariance_matrix))[:, 0],
-						color=color, ls=dash, lw=width, label=case)
-				ax.set_ylabel(ylab)
-				ax.set_xlabel("z (m)")
+			get(scope.covariance_matrix).show(ax=ax, plot_type=None, color=color,
+											  ls=dash, lw=width, label=case)
 		for name, zm in marks.items():
 			ax.axvline(zm, color="0.75", lw=0.9, zorder=0)
 			ax.annotate(name, (zm, 0.02), xycoords=("data", "axes fraction"),

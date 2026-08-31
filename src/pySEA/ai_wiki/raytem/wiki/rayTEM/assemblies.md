@@ -32,9 +32,9 @@
 |   `Microscope.conjugate_planes(axis='x', method='frame', reference=None, x0=1e-6, theta0=1e-6)` | 223 |
 |   `Microscope.beam_waists(axis='x', sigma0=None)` | 254 |
 |   `Microscope.subdivided(zpts)` | 293 |
-|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 337 |
-|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 342 |
-|   `Microscope.save(self, filename)` | 346 |
+|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 359 |
+|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 364 |
+|   `Microscope.save(self, filename)` | 368 |
 <!-- END AUTO-GENERATED TOC -->
 
 # assemblies.py
@@ -312,6 +312,28 @@ pattern as `kind='wave'`/`'moments'`. `zpts=` propagates a temporary
 `subdivided` copy and plots from it (a float `plane` joins the cut set so that
 plane is logged exactly rather than snapping to the nearest existing one),
 leaving this object's own result alone.
+
+**Everything draws in metres.** The cross-section, `plot2D`, and the overlay
+helpers all use SI on both axes, which is what lets them composite: draw the
+wave panel, then `show(kind='ray', plt_ax=ax, overlays=False)` puts the rays
+on the wave they match (`overlays=False` suppresses the ray diagram's own
+element/section/conjugate-plane annotations so the wave panel's are not
+doubled — `examples/07_eightConfigurations.py`).
+
+On the cross-section `zlims`/`ylims` are **windows, not zooms**: planes
+outside `zlims` are dropped and the common transverse grid is built across
+`ylims`, *before* resampling. Windowing after the fact would keep only a
+handful of the 600 samples, so a focal window a few Airy radii wide would come
+out in blocks (`examples/06_aberratedObjective.py` panels C/D).
+
+**Overlay helpers.** `show_elements(ax, ...)` and `show_planes(ax,
+planes='crossovers'|'image'|'diff'|'all', ...)` annotate *any* axis whose x is
+z in metres — the optics, and the planes they produce. Both go through
+`_annotate_positions`, which skips positions outside the axis's current x
+limits (an off-window label still counts towards a tight bounding box, and one
+element a metre from a nanometre-wide focal window blows the saved figure up).
+`show_elements` labels at the top, `show_planes` at the bottom, so the two
+compose without colliding.
 
 **Where `crossovers` come from** (they are not searched for numerically): in a
 converging frame the reference curvature evolves as `R(z) = R₀ + Δz`, so the

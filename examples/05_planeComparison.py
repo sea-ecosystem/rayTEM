@@ -600,16 +600,18 @@ def _(AIM_AT, APERTURE_RADIUS, analytic, scaled_wave_cross_section,
 	# the same renderer Microscope.show uses for kind='wave-hybrid', so the
 	# reference rays below are overlaid on the canonical cross-section rather
 	# than on a second, hand-built copy of it
-	scaled_wave_cross_section(wave_planes, ax, crossovers=crossovers)
+	# the crossovers get their own labelled overlay below, alongside the two
+	# families they are being compared against, so the renderer draws none
+	scaled_wave_cross_section(wave_planes, ax)
 
 	_m = zr <= z_max + 1e-12
 	for _j in (0, 1):
-		ax.plot(zr[_m] * 1e3, rays_x[_m, _j] * 1e6, "-", color="#66ff99", lw=1.0,
+		ax.plot(zr[_m], rays_x[_m, _j], "-", color="#66ff99", lw=1.0,
 				alpha=0.9,
 				label=f"ray: parallel in at ±{APERTURE_RADIUS*1e6:g} µm "
 					  "(probes A → diffraction)" if _j == 0 else None)
 	for _j in (2, 3):
-		ax.plot(zr[_m] * 1e3, rays_x[_m, _j] * 1e6, "--", color="#66ff99", lw=1.0,
+		ax.plot(zr[_m], rays_x[_m, _j], "--", color="#66ff99", lw=1.0,
 				alpha=0.95,
 				label=f"ray: (0,0) → ({AIM_AT}, ±{APERTURE_RADIUS*1e6:g} µm), "
 					  f"θ=±{theta_aim*1e6:.0f} µrad (probes B → image)"
@@ -620,26 +622,22 @@ def _(AIM_AT, APERTURE_RADIUS, analytic, scaled_wave_cross_section,
 						  (analytic["image"], "magenta", "analytic B=0 (image)")]:
 		for _i, _z in enumerate(np.asarray(_zs)):
 			if _z <= z_max + 1e-12:
-				ax.axvline(_z * 1e3, color=_c, ls="-", lw=1.0, alpha=0.8,
+				ax.axvline(_z, color=_c, ls="-", lw=1.0, alpha=0.8,
 						   label=_lbl if _i == 0 else None)
 	for _zs, _c, _lbl in [(ray["diff"], "cyan", "ray findPlanes (diffraction)"),
 						  (ray["image"], "magenta", "ray findPlanes (image)")]:
 		for _i, _z in enumerate(np.asarray(_zs)):
 			if _z <= z_max + 1e-12:
-				ax.plot([_z * 1e3] * 2, [_yl, _yl + 0.12 * (_yh - _yl)], color=_c,
+				ax.plot([_z] * 2, [_yl, _yl + 0.12 * (_yh - _yl)], color=_c,
 						lw=3.0, alpha=0.9, label=_lbl if _i == 0 else None)
-				ax.plot([_z * 1e3] * 2, [_yh - 0.12 * (_yh - _yl), _yh], color=_c,
+				ax.plot([_z] * 2, [_yh - 0.12 * (_yh - _yl), _yh], color=_c,
 						lw=3.0, alpha=0.9)
 	for _i, _z in enumerate(np.asarray(crossovers)):
 		if _z <= z_max + 1e-12:
-			ax.axvline(_z * 1e3, color="yellow", ls="-.", lw=1.0, alpha=0.85,
+			ax.axvline(_z, color="yellow", ls="-.", lw=1.0, alpha=0.85,
 					   label="wave frame (s=0)" if _i == 0 else None)
 
-	for _name, _z in scope.named_positions.items():
-		if _name and "_D" not in _name and _z <= z_max + 1e-12:
-			ax.axvline(_z * 1e3, color="w", lw=0.5, ls="--", alpha=0.3)
-			ax.text(_z * 1e3, _yh * 0.97, _name, color="w", rotation=90,
-					ha="right", va="top", fontsize=7)
+	scope.show_elements(ax, alpha=0.3, lw=0.5)
 
 	ax.set_title("Special planes: analytic matrix vs ray trace vs wave frame\n"
 				 "basic_column trimmed past PL4, |ψ(x, 0, z)| (each plane peak-normalized)")

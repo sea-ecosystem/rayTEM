@@ -3,20 +3,20 @@
 |---------|------|
 | Overview | 25 |
 | Module-level functions | 37 |
-|   `plot2D(r1, axis, filename, zpts, sections, xlims, ylims, title, plt_ax)` | 39 |
-|   `plot3D(r1, filename, elev, azi, roll)` | 49 |
-|   `plotSliceSeries(rays, N, M, filename)` | 55 |
-|   `findPlanes(rays, axes)` | 59 |
-|   `findPlanes1(rays)` | 80 |
-|   `findPlanes1(rays)` | 84 |
-|   `zFromFractional(zs, z)` | 88 |
-|   `update_microscope_with_settings(microscope, settings)` | 94 |
-|   `error_dz(microscope, settings, targets)` | 98 |
-|   `error_magnification(microscope, settings, targets)` | 108 |
-|   `error_diameter(microscope, settings, targets, absolute)` | 114 |
-|   `error_angles(microscope, settings, targets, absolute)` | 118 |
-|   `fitForCrossover(section, r0, targets, modifiable, axis, prefer, ignoreSigns, filename)` | 122 |
-|   `measureAtZ(z, rays, section)` | 146 |
+|   `plot2D(r1, axis, filename, zpts, sections, xlims, ylims, title, plt_ax, planes)` | 39 |
+|   `plot3D(r1, filename, elev, azi, roll)` | 51 |
+|   `plotSliceSeries(rays, N, M, filename)` | 57 |
+|   `findPlanes(rays, axes)` | 61 |
+|   `findPlanes1(rays)` | 82 |
+|   `findPlanes1(rays)` | 86 |
+|   `zFromFractional(zs, z)` | 90 |
+|   `update_microscope_with_settings(microscope, settings)` | 96 |
+|   `error_dz(microscope, settings, targets)` | 100 |
+|   `error_magnification(microscope, settings, targets)` | 110 |
+|   `error_diameter(microscope, settings, targets, absolute)` | 116 |
+|   `error_angles(microscope, settings, targets, absolute)` | 120 |
+|   `fitForCrossover(section, r0, targets, modifiable, axis, prefer, ignoreSigns, filename)` | 124 |
+|   `measureAtZ(z, rays, section)` | 148 |
 <!-- END AUTO-GENERATED TOC -->
 
 # postprocessing.py
@@ -36,13 +36,15 @@
 
 ## Module-level functions
 
-### `plot2D(r1, axis, filename, zpts, sections, xlims, ylims, title, plt_ax)`
+### `plot2D(r1, axis, filename, zpts, sections, xlims, ylims, title, plt_ax, planes)`
 
 Standard ray diagram: plots all rays as colored lines in z vs. lateral position (default `axis="x"`). Uses the plasma colormap to distinguish rays.
 
 Automatically calls `findPlanes` and draws vertical lines at all detected image and diffraction planes, annotated with the plane type and magnification. Additional named z-positions can be passed via `zpts` (a `{label: z}` dict).
 
 If `sections` is provided (a `{name: (z_start, z_end)}` dict), each section is shaded with a semi-transparent background color. This is how `Microscope.show()` distinguishes its sections.
+
+`planes=False` suppresses the `findPlanes` annotations. Both axes are in metres, so passing `plt_ax` composites the ray diagram onto a wave cross-section drawn by `Microscope.show(kind='wave-hybrid')`; there `planes=False` (reached as `show(kind='ray', overlays=False)`) keeps the wave panel's own overlays from being doubled.
 
 Saves to file if `filename` is given; otherwise calls `plt.show()`. If `plt_ax` is provided, draws into that axes object and returns without saving or showing — this is the embedded-in-existing-figure mode used by `Microscope.show()`.
 

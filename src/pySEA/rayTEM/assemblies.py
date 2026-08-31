@@ -86,9 +86,76 @@ def _stack_scaled_wavefields(planes, name="scaled wave"):
 									  s=ss, R=Rs, tau=taus, z=zs, tags=tags, name=name)
 
 
+def _annotate_positions(ax, positions, label=None, color="w", ls="--", lw=0.6,
+						alpha=0.6, at:Literal['top','bottom']='top', ha="right",
+						fontsize=7):
+	r"""Draw labelled vertical markers at a set of z positions.
+
+	The one primitive behind :meth:`Microscope.show_elements` and
+	:meth:`Microscope.show_planes`. Kept separate so both draw identically and
+	neither has to know where the other puts its text.
+
+	Parameters
+	----------
+	ax : matplotlib axis
+		Axis to draw into. Its current y limits fix where the labels sit, so
+		call this **after** whatever sets the scale.
+	positions : Mapping or Sequence or None
+		``{label: z}`` to draw each with its own name, or a sequence of z to
+		draw them all with ``label``. ``None`` or empty draws nothing.
+		Positions outside the axis's current x limits are skipped.
+	label : str, optional
+		Text for a sequence of positions, by default None (no text).
+	color, ls, lw, alpha, fontsize
+		Matplotlib line and text styling.
+	at : {'top', 'bottom'}, optional
+		Which end of the axis the text sits at, by default ``'top'``.
+	ha : str, optional
+		Horizontal alignment of the rotated text, by default ``'right'``.
+
+	Returns
+	-------
+	None
+		Draws into ``ax``.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	Microscope.show_elements, Microscope.show_planes : The public callers.
+
+	Notes
+	-----
+	Positions are in **metres**, like every other coordinate the drawing code
+	handles, so a marker lands correctly on any axis drawn in SI.
+	"""
+	if positions is None or len(positions) == 0:
+		return
+	items = (positions.items() if hasattr(positions, "items")
+			 else [(label, z) for z in positions])
+	# a marker outside the visible z range is not just invisible: its label
+	# still counts towards a tight bounding box, and one element a metre away
+	# from a nanometre-wide focal window blows the saved figure up
+	z_lo, z_hi = ax.get_xlim()
+	items = [(n, z) for n, z in items if z_lo <= float(z) <= z_hi]
+	lo, hi = ax.get_ylim()
+	y = hi - 0.05 * (hi - lo) if at == 'top' else lo + 0.05 * (hi - lo)
+	va = 'top' if at == 'top' else 'bottom'
+	for name, z in items:
+		if name is not None and not str(name):		# unnamed elements share one blank key
+			continue
+		ax.axvline(float(z), color=color, ls=ls, lw=lw, alpha=alpha)
+		if name:
+			ax.text(float(z), y, str(name), color=color, rotation=90,
+					ha=ha, va=va, fontsize=fontsize)
+
+
 def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None,
 							   image_planes=None, title=None,
-							   coordinates:Literal['physical','scaled']='physical'):
+							   coordinates:Literal['physical','scaled']='physical',
+							   zlims=None, ylims=None):
 	r"""Draw the |ψ(x, y=0, z)| cross-section of a scaled-wave run into an axis.
 
 	The wave analog of the geometric ray diagram: each logged plane is
@@ -126,6 +193,15 @@ def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None
 		on: one grid for the whole run, in which the zooming frame keeps the
 		internal structure resolved everywhere. The two are the same data,
 		and switching between them is the point of the scaled representation.
+	zlims : Sequence[float], optional
+		``(z_lo, z_hi)`` in metres. Planes outside are **dropped before** the
+		common x grid is built, so windowing on a focus gives a panel a few
+		Airy radii across rather than one sized by the detector plane.
+	ylims : Sequence[float], optional
+		Transverse limits in metres, by default the full extent of the planes
+		that survive ``zlims``. Like ``zlims`` this is a window rather than a
+		zoom: the common transverse grid is built across it, so the samples
+		land where the panel is.
 
 	Returns
 	-------
@@ -156,38 +232,41 @@ def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None
 		# view is the same rows against the (single, run-wide) xi grid
 		recon.append((z if z is not None else 0.0, psi,
 					  dx if coordinates == 'physical' else dxi))
+	if zlims is not None:
+		lo, hi = float(min(zlims)), float(max(zlims))
+		recon = [r for r in recon if lo - 1e-12 <= r[0] <= hi + 1e-12]
+		if not recon:
+			raise ValueError(f"No logged plane lies in zlims {tuple(zlims)}; "
+							 "subdivide the column across that window first.")
 	recon.sort(key=lambda r: r[0])
 	zs = xp.array([r[0] for r in recon])
-	z_edges = xp.concatenate([[zs[0] - 1e-4], (zs[:-1] + zs[1:]) / 2, [zs[-1] + 1e-4]]) * 1e3
+	z_edges = xp.concatenate([[zs[0] - 1e-4], (zs[:-1] + zs[1:]) / 2, [zs[-1] + 1e-4]])
 	n = recon[0][1].shape[1]
-	half = max(abs(r[2]) * n / 2 for r in recon)
+	# ylims windows the grid the rows are resampled onto, not just the view:
+	# otherwise a window a few Airy radii wide keeps only a handful of the 600
+	# samples spread across the whole beam, and the caustic turns to blocks
+	half = (max(abs(float(y)) for y in ylims) if ylims is not None
+			else max(abs(r[2]) * n / 2 for r in recon))
 	x_common = xp.linspace(-half, half, 600)
 	prof = xp.zeros((len(recon), x_common.size))
 	for i, (z, psi, dx) in enumerate(recon):
 		x = (xp.arange(n) - n // 2) * dx
 		row = xp.abs(psi[psi.shape[0] // 2, :])
 		prof[i] = xp.interp(x_common, x, row / row.max(), left=0, right=0)
-	x_edges = xp.linspace(-half, half, x_common.size + 1) * 1e6
+	x_edges = xp.linspace(-half, half, x_common.size + 1)
 	ax.pcolormesh(z_edges, x_edges, prof.T, cmap="magma", shading="flat")
-	ax.set_xlabel("z (mm)")
-	ax.set_ylabel("x (µm)" if coordinates == 'physical' else "ξ = x/s (µm)")
-	if named_positions:
-		for label, zp in named_positions.items():
-			if not label:			# unnamed elements share one blank key; skip them
-				continue
-			ax.axvline(zp * 1e3, color="w", lw=0.6, ls="--", alpha=0.6)
-			ax.text(zp * 1e3, half * 1e6 * 0.95, label, color="w", rotation=90,
-					ha="right", va="top", fontsize=7)
-	if crossovers is not None and len(crossovers):
-		for zc in crossovers:
-			ax.axvline(zc * 1e3, color="cyan", lw=0.8, ls=":", alpha=0.9)
-			ax.text(zc * 1e3, -half * 1e6 * 0.95, "crossover", color="cyan",
-					rotation=90, ha="right", va="bottom", fontsize=7)
-	if image_planes is not None and len(image_planes):
-		for zi in image_planes:
-			ax.axvline(zi * 1e3, color="magenta", lw=0.8, ls="-.", alpha=0.9)
-			ax.text(zi * 1e3, -half * 1e6 * 0.95, "image", color="magenta",
-					rotation=90, ha="left", va="bottom", fontsize=7)
+	if zlims is not None:
+		ax.set_xlim(float(min(zlims)), float(max(zlims)))
+	if ylims is not None:
+		ax.set_ylim(float(min(ylims)), float(max(ylims)))
+	ax.set_xlabel("z (m)")
+	ax.set_ylabel("x (m)" if coordinates == 'physical' else "ξ = x/s (m)")
+	_annotate_positions(ax, named_positions, color="w", ls="--", lw=0.6,
+						alpha=0.6, at="top")
+	_annotate_positions(ax, crossovers, label="crossover", color="cyan", ls=":",
+						lw=0.8, alpha=0.9, at="bottom")
+	_annotate_positions(ax, image_planes, label="image", color="magenta",
+						ls="-.", lw=0.8, alpha=0.9, at="bottom", ha="left")
 	if title:
 		ax.set_title(title)
 
@@ -3189,10 +3268,124 @@ class Microscope(SealedAttributes, SEASerializable):
 	def named_sections(self):
 		return { s.name+" ("+str(i)+")":[s.position,s.position+s.length] for i,s in enumerate(self.sections) }
 
+	def show_elements(self, ax, color="w", ls="--", lw=0.6, alpha=0.6,
+					  at:Literal['top','bottom']='top', fontsize=7) -> None:
+		r"""Overlay this column's named element positions on an existing axis.
+
+		The companion to :meth:`show` for building composite figures: draw a
+		panel however you like — a wave cross-section, a ray diagram, a
+		quantity against z — then call this to mark where the optics are.
+		Unnamed elements (drifts, and the split pieces
+		:meth:`subdivided` makes) are skipped, so the labels stay readable.
+
+		Parameters
+		----------
+		ax : matplotlib axis
+			Axis to draw into, whose x axis is z in **metres**. Call this after
+			whatever sets the y scale, since the label position is taken from
+			the current limits.
+		color, ls, lw, alpha, fontsize
+			Matplotlib line and text styling. The defaults suit a dark image;
+			pass ``color='0.4'`` over a light background.
+		at : {'top', 'bottom'}, optional
+			Which end of the axis the labels sit at, by default ``'top'``.
+
+		Returns
+		-------
+		None
+			Draws into ``ax``.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		show_planes : The same, for conjugate planes and crossovers.
+		named_positions : The positions drawn.
+		show : Draws the panel this annotates.
+
+		Examples
+		--------
+		>>> scope.show(kind='wave-hybrid', plt_ax=ax)        # doctest: +SKIP
+		>>> scope.show_elements(ax)                          # doctest: +SKIP
+		"""
+		_annotate_positions(ax, self.named_positions, color=color, ls=ls, lw=lw,
+							alpha=alpha, at=at, fontsize=fontsize)
+
+	def show_planes(self, ax, planes:Literal['crossovers','image','diff','all']='all',
+					axis:str="x", color=None, alpha=0.9, lw=0.8,
+					at:Literal['top','bottom']='bottom', fontsize=7) -> None:
+		r"""Overlay conjugate planes and wave crossovers on an existing axis.
+
+		The other half of the composite-figure pair with
+		:meth:`show_elements`. Where that marks the *optics*, this marks the
+		planes they produce: the image and diffraction planes from
+		:meth:`conjugate_planes`, and the crossovers a scaled-wave run
+		found for itself.
+
+		Parameters
+		----------
+		ax : matplotlib axis
+			Axis to draw into, whose x axis is z in **metres**.
+		planes : {'crossovers', 'image', 'diff', 'all'}, optional
+			Which families to draw, by default ``'all'``. ``'crossovers'``
+			needs a completed scaled-wave run; the other two are traced on
+			demand and cost one reference propagation on a copy.
+		axis : str, optional
+			Transverse axis for :meth:`conjugate_planes`, by default ``'x'``.
+		color : str, optional
+			Override the per-family colour (cyan for crossovers and
+			diffraction, magenta for image), by default None.
+		alpha, lw, fontsize
+			Matplotlib styling.
+		at : {'top', 'bottom'}, optional
+			Which end the labels sit at, by default ``'bottom'`` — the
+			opposite end from :meth:`show_elements`, so the two compose
+			without colliding.
+
+		Returns
+		-------
+		None
+			Draws into ``ax``.
+
+		Raises
+		------
+		ValueError
+			If ``planes`` is not one of the documented values.
+
+		Related
+		-------
+		show_elements : The element half of the pair.
+		conjugate_planes : Where the image and diffraction planes come from.
+		crossovers : The wave run's own focal planes.
+
+		Examples
+		--------
+		>>> scope.show(kind='wave-hybrid', plt_ax=ax)              # doctest: +SKIP
+		>>> scope.show_planes(ax, planes='crossovers')             # doctest: +SKIP
+		"""
+		if planes not in ('crossovers', 'image', 'diff', 'all'):
+			raise ValueError(f"planes must be 'crossovers', 'image', 'diff' or 'all', "
+							 f"not {planes!r}.")
+		families = []
+		if planes in ('crossovers', 'all'):
+			families.append(("crossover", getattr(self, "crossovers", None), "cyan", ":"))
+		if planes in ('image', 'diff', 'all'):
+			conjugate = self.conjugate_planes(axis=axis)
+			if planes in ('diff', 'all'):
+				families.append(("diffraction", conjugate.get("diff"), "cyan", "-."))
+			if planes in ('image', 'all'):
+				families.append(("image", conjugate.get("image"), "magenta", "-."))
+		for name, zs, default_color, ls in families:
+			_annotate_positions(ax, zs, label=name, color=color or default_color,
+								ls=ls, lw=lw, alpha=alpha, at=at, fontsize=fontsize)
+
 	def show(self, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray",
 			 filename=None, title=None, ylims=None, zlims=None, regenerate=True, plt_ax=None,
 			 plane:int|float|str=None, zpts=None, conjugates:bool=True,
-			 coordinates:Literal['physical','scaled']='physical'):
+			 coordinates:Literal['physical','scaled']='physical',
+			 overlays:bool=True):
 		r"""Visualize a propagation result.
 
 		``kind="ray"`` draws the usual ray diagram (with element/plane overlays).
@@ -3217,7 +3410,11 @@ class Microscope(SealedAttributes, SEASerializable):
 		title : str, optional
 			Plot title.
 		ylims, zlims : sequence, optional
-			Axis limits for the ray diagram (``kind='ray'`` only).
+			Axis limits in metres, for the ray diagram and the scaled
+			cross-section. On the cross-section ``zlims`` is a genuine
+			**window**, not a zoom: planes outside it are dropped before the
+			common transverse grid is built, so a focal window is sized by
+			the focus rather than by the detector.
 		regenerate : bool, optional
 			Re-propagate before plotting, by default ``True``.
 		plt_ax : matplotlib axis, optional
@@ -3239,6 +3436,11 @@ class Microscope(SealedAttributes, SEASerializable):
 			existing one. The copy is propagated on the spot and discarded —
 			this object's own stored result is never touched (so ``regenerate``
 			does not apply to it).
+		overlays : bool, optional
+			Ray diagram only: annotate elements, sections, and conjugate
+			planes, by default True. Pass False when drawing rays *onto* a
+			panel that already carries those overlays -- a wave cross-section,
+			for instance -- so they are not doubled.
 		conjugates : bool, optional
 			Scaled cross-section only: also annotate the **image** planes from
 			:meth:`conjugate_planes` (magenta dash-dot) alongside the wave
@@ -3274,6 +3476,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		>>> scope.show(kind='wave-hybrid', plane='sample')       # doctest: +SKIP
 		>>> scope.show(kind='wave-hybrid', plane=scope.crossovers[0])  # doctest: +SKIP
 		>>> scope.show(kind='wave-hybrid', coordinates='scaled')  # doctest: +SKIP
+		>>> scope.show(kind='ray', plt_ax=ax, overlays=False)     # doctest: +SKIP
 		"""
 		if zpts is not None and kind not in ("wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"):
 			raise ValueError(f"zpts is only supported for the scaled wave kinds, not {kind!r}; "
@@ -3282,11 +3485,13 @@ class Microscope(SealedAttributes, SEASerializable):
 		if kind in ("ray","rays"):
 			if self.rays is None or regenerate:
 				self.propagate_ray()
-			sections = self.named_sections
 			if zlims is None:
 				zs = self.rays[:,0,columnByName("z")]
 				zlims = [ xp.amin(zs),xp.amax(zs) ]
-			plot2D(self.rays, zpts=self.named_positions, sections=sections, filename=filename, title=title, ylims=ylims, xlims=zlims,plt_ax=plt_ax)
+			plot2D(self.rays, zpts=self.named_positions if overlays else "",
+				   sections=self.named_sections if overlays else None,
+				   planes=overlays, filename=filename, title=title,
+				   ylims=ylims, xlims=zlims, plt_ax=plt_ax)
 			return
 		# --- delegate to the result Signal's own .show() (sea_eco renders <=2D) ---
 		import matplotlib.pyplot as plt
@@ -3339,6 +3544,7 @@ class Microscope(SealedAttributes, SEASerializable):
 					named_positions=scope.named_positions,
 					crossovers=getattr(scope, "crossovers", None),
 					image_planes=images, coordinates=coordinates,
+					zlims=zlims, ylims=ylims,
 					title=title or (self.name or 'microscope') + f" {mode} wave |ψ(x, 0, z)|")
 			else:
 				if isinstance(plane, (int, xp.integer)) and not isinstance(plane, bool):
