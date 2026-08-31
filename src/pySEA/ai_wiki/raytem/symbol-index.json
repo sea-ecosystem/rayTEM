@@ -238,7 +238,7 @@
     "name": "beam_widths",
     "qualname": "beam_widths",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1368,
+    "source_lineno": 1373,
     "signature": "beam_widths(covariance_matrix)",
     "doc": "RMS beam half-widths in x and y from a stack of covariance matrices."
   },
@@ -283,7 +283,7 @@
     "name": "check_lengths",
     "qualname": "check_lengths",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3800,
+    "source_lineno": 3810,
     "signature": "check_lengths(section)",
     "doc": ""
   },
@@ -292,7 +292,7 @@
     "name": "closest_plane",
     "qualname": "closest_plane",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 980,
+    "source_lineno": 985,
     "signature": "closest_plane(microscope, z_target, plane_type, regenerate)",
     "doc": ""
   },
@@ -364,7 +364,7 @@
     "name": "convert_to_rotating_reference_frame",
     "qualname": "convert_to_rotating_reference_frame",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 412,
+    "source_lineno": 417,
     "signature": "convert_to_rotating_reference_frame(rays)",
     "doc": "Rotate rays into the beam's rotating (Larmor) reference frame."
   },
@@ -472,7 +472,7 @@
     "name": "dz_focus_to",
     "qualname": "dz_focus_to",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 924,
+    "source_lineno": 929,
     "signature": "dz_focus_to(vals, setKeys, cases, microscope, plotting)",
     "doc": ""
   },
@@ -535,7 +535,7 @@
     "name": "emittance",
     "qualname": "emittance",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1469,
+    "source_lineno": 1474,
     "signature": "emittance(covariance_matrix)",
     "doc": "RMS emittance in x and y from a stack of covariance matrices."
   },
@@ -544,7 +544,7 @@
     "name": "error_angles",
     "qualname": "error_angles",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1068,
+    "source_lineno": 1073,
     "signature": "error_angles(microscope, settings, targets, absolute)",
     "doc": ""
   },
@@ -553,7 +553,7 @@
     "name": "error_at_plane",
     "qualname": "error_at_plane",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 999,
+    "source_lineno": 1004,
     "signature": "error_at_plane(microscope, settings, targets, absolute, include_z)",
     "doc": ""
   },
@@ -562,7 +562,7 @@
     "name": "error_at_position",
     "qualname": "error_at_position",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1032,
+    "source_lineno": 1037,
     "signature": "error_at_position(microscope, settings, targets, absolute)",
     "doc": ""
   },
@@ -571,7 +571,7 @@
     "name": "error_diameter",
     "qualname": "error_diameter",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1054,
+    "source_lineno": 1059,
     "signature": "error_diameter(microscope, settings, targets, absolute)",
     "doc": ""
   },
@@ -580,7 +580,7 @@
     "name": "error_dz",
     "qualname": "error_dz",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 958,
+    "source_lineno": 963,
     "signature": "error_dz(microscope, settings, targets)",
     "doc": ""
   },
@@ -607,7 +607,7 @@
     "name": "findPlanes",
     "qualname": "findPlanes",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 454,
+    "source_lineno": 459,
     "signature": "findPlanes(rays, axis)",
     "doc": ""
   },
@@ -616,7 +616,7 @@
     "name": "findPlanes1",
     "qualname": "findPlanes1",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 632,
+    "source_lineno": 637,
     "signature": "findPlanes1(rays)",
     "doc": ""
   },
@@ -625,7 +625,7 @@
     "name": "findPlanes2",
     "qualname": "findPlanes2",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 780,
+    "source_lineno": 785,
     "signature": "findPlanes2(rays)",
     "doc": ""
   },
@@ -634,7 +634,7 @@
     "name": "findPlanes4",
     "qualname": "findPlanes4",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 265,
+    "source_lineno": 270,
     "signature": "findPlanes4(rays, axes)",
     "doc": ""
   },
@@ -679,7 +679,7 @@
     "name": "fitForCrossover",
     "qualname": "fitForCrossover",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1091,
+    "source_lineno": 1096,
     "signature": "fitForCrossover(section, r0, targets, modifiable, axis, prefer, ignoreSigns, filename)",
     "doc": ""
   },
@@ -751,7 +751,7 @@
     "name": "helper_focus_to",
     "qualname": "helper_focus_to",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 894,
+    "source_lineno": 899,
     "signature": "helper_focus_to(microscope, initializeAt, focusTo, plotting)",
     "doc": ""
   },
@@ -904,7 +904,7 @@
     "name": "load_guesses",
     "qualname": "load_guesses",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1356,
+    "source_lineno": 1361,
     "signature": "load_guesses(guess_file)",
     "doc": ""
   },
@@ -913,7 +913,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3899,
+    "source_lineno": 3909,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -922,7 +922,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3729,
+    "source_lineno": 3739,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -1120,7 +1120,7 @@
     "name": "measureAtZ",
     "qualname": "measureAtZ",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1267,
+    "source_lineno": 1272,
     "signature": "measureAtZ(z, rays, I, R, section, live_only)",
     "doc": "Measure the outermost ray's state at an arbitrary z position."
   },
@@ -1165,7 +1165,7 @@
     "name": "Microscope",
     "qualname": "Microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1012,
+    "source_lineno": 1017,
     "signature": "class Microscope",
     "doc": "Microscope class represents a whole microscope, and is comprised of multiple MicroscopeSections. propagation through a Microscope results in propagation through individual MicroscopeSections"
   },
@@ -1174,7 +1174,7 @@
     "name": "MicroscopeSection",
     "qualname": "MicroscopeSection",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 274,
+    "source_lineno": 279,
     "signature": "class MicroscopeSection",
     "doc": "MicroscopeSection class represents a portion of a microscope, and contains multiple Elements. propagation through a Section results in propagation through individual Elements."
   },
@@ -1283,7 +1283,7 @@
     "qualname": "plot2D",
     "path": "src/pySEA/rayTEM/postprocessing.py",
     "source_lineno": 15,
-    "signature": "plot2D(r1, axis, filename, zpts, sections, xlims, ylims, title, plt_ax, planes)",
+    "signature": "plot2D(r1, axis, filename, zpts, sections, xlims, ylims, title, plt_ax, planes, xlabel, ylabel)",
     "doc": "Draw the ray diagram: one transverse coordinate against z."
   },
   {
@@ -1291,7 +1291,7 @@
     "name": "plot3D",
     "qualname": "plot3D",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 169,
+    "source_lineno": 174,
     "signature": "plot3D(r1, filename, elev, azi, roll)",
     "doc": ""
   },
@@ -1309,7 +1309,7 @@
     "name": "plotSliceSeries",
     "qualname": "plotSliceSeries",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 224,
+    "source_lineno": 229,
     "signature": "plotSliceSeries(rays, N, M, filename)",
     "doc": ""
   },
@@ -1552,7 +1552,7 @@
     "name": "repair",
     "qualname": "repair",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3814,
+    "source_lineno": 3824,
     "signature": "repair(section, combine_drifts)",
     "doc": "Close gaps and overlaps in a section's element list, in place."
   },
@@ -1570,7 +1570,7 @@
     "name": "resolution_ellipses",
     "qualname": "resolution_ellipses",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1399,
+    "source_lineno": 1404,
     "signature": "resolution_ellipses(covariance_matrix, kind)",
     "doc": "Principal rms widths and axes of a covariance block, per plane."
   },
@@ -1633,7 +1633,7 @@
     "name": "roundjson",
     "qualname": "roundjson",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3711,
+    "source_lineno": 3721,
     "signature": "roundjson(jdict)",
     "doc": ""
   },
@@ -1741,7 +1741,7 @@
     "name": "setkeys_to_settables_dict",
     "qualname": "setkeys_to_settables_dict",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 887,
+    "source_lineno": 892,
     "signature": "setkeys_to_settables_dict(vals, setKeys)",
     "doc": ""
   },
@@ -3892,7 +3892,7 @@
     "name": "zFromFractional",
     "qualname": "zFromFractional",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 877,
+    "source_lineno": 882,
     "signature": "zFromFractional(zs, z)",
     "doc": ""
   }

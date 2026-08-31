@@ -12,7 +12,7 @@ from matplotlib.cm import plasma as cmap
 # Basic 2D plotting (along z, and in whatever axis you have chosen)
 # TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
 # For now, plot2D assumes it is given unrotated-reference-frame rays, and should likely call convert_to_rotating_reference_frame.
-def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,title=None,plt_ax=None,planes:bool=True):
+def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,title=None,plt_ax=None,planes:bool=True,xlabel:str=None,ylabel:str=None):
 	"""Draw the ray diagram: one transverse coordinate against z.
 
 	Rays are converted to the rotating (Larmor) frame first, so a column with
@@ -44,6 +44,9 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 		Annotate the conjugate planes found by :func:`findPlanes`, by default
 		True. Pass False when compositing onto a panel that already carries
 		its own plane overlays -- see :meth:`Microscope.show`.
+	xlabel, ylabel : str, optional
+		Axis labels, by default ``"z (m)"`` and ``"<axis> (m)"`` -- supplied
+		here rather than set afterwards, as ``Signal.show`` takes them.
 
 	Returns
 	-------
@@ -130,6 +133,8 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 		ax.set_xlim(xlims)
 	ax.set_ylim(ylims)
 
+	ax.set_xlabel("z (m)" if xlabel is None else xlabel)
+	ax.set_ylabel(f"{axis} (m)" if ylabel is None else ylabel)
 	if title is not None:
 		ax.set_title(title)
 

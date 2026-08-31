@@ -155,7 +155,7 @@ def _annotate_positions(ax, positions, label=None, color="w", ls="--", lw=0.6,
 def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None,
 							   image_planes=None, title=None,
 							   coordinates:Literal['physical','scaled']='physical',
-							   zlims=None, ylims=None):
+							   zlims=None, ylims=None, xlabel=None, ylabel=None):
 	r"""Draw the |ψ(x, y=0, z)| cross-section of a scaled-wave run into an axis.
 
 	The wave analog of the geometric ray diagram: each logged plane is
@@ -202,6 +202,10 @@ def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None
 		that survive ``zlims``. Like ``zlims`` this is a window rather than a
 		zoom: the common transverse grid is built across it, so the samples
 		land where the panel is.
+	xlabel, ylabel : str, optional
+		Axis labels, by default ``"z (m)"`` and the transverse coordinate --
+		supplied here rather than set afterwards, as ``Signal.show`` takes
+		them.
 
 	Returns
 	-------
@@ -259,8 +263,9 @@ def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None
 		ax.set_xlim(float(min(zlims)), float(max(zlims)))
 	if ylims is not None:
 		ax.set_ylim(float(min(ylims)), float(max(ylims)))
-	ax.set_xlabel("z (m)")
-	ax.set_ylabel("x (m)" if coordinates == 'physical' else "ξ = x/s (m)")
+	ax.set_xlabel("z (m)" if xlabel is None else xlabel)
+	ax.set_ylabel(("x (m)" if coordinates == 'physical' else "ξ = x/s (m)")
+				  if ylabel is None else ylabel)
 	_annotate_positions(ax, named_positions, color="w", ls="--", lw=0.6,
 						alpha=0.6, at="top")
 	_annotate_positions(ax, crossovers, label="crossover", color="cyan", ls=":",
@@ -3385,7 +3390,7 @@ class Microscope(SealedAttributes, SEASerializable):
 			 filename=None, title=None, ylims=None, zlims=None, regenerate=True, plt_ax=None,
 			 plane:int|float|str=None, zpts=None, conjugates:bool=True,
 			 coordinates:Literal['physical','scaled']='physical',
-			 overlays:bool=True):
+			 overlays:bool=True, xlabel:str=None, ylabel:str=None):
 		r"""Visualize a propagation result.
 
 		``kind="ray"`` draws the usual ray diagram (with element/plane overlays).
@@ -3436,6 +3441,10 @@ class Microscope(SealedAttributes, SEASerializable):
 			existing one. The copy is propagated on the spot and discarded —
 			this object's own stored result is never touched (so ``regenerate``
 			does not apply to it).
+		xlabel, ylabel : str, optional
+			Axis labels for the ray diagram and the scaled cross-section, by
+			default the coordinate and its unit. Supplied here rather than set
+			afterwards, as the result Signals' own ``.show()`` takes them.
 		overlays : bool, optional
 			Ray diagram only: annotate elements, sections, and conjugate
 			planes, by default True. Pass False when drawing rays *onto* a
@@ -3491,7 +3500,8 @@ class Microscope(SealedAttributes, SEASerializable):
 			plot2D(self.rays, zpts=self.named_positions if overlays else "",
 				   sections=self.named_sections if overlays else None,
 				   planes=overlays, filename=filename, title=title,
-				   ylims=ylims, xlims=zlims, plt_ax=plt_ax)
+				   ylims=ylims, xlims=zlims, plt_ax=plt_ax,
+				   xlabel=xlabel, ylabel=ylabel)
 			return
 		# --- delegate to the result Signal's own .show() (sea_eco renders <=2D) ---
 		import matplotlib.pyplot as plt
@@ -3544,7 +3554,7 @@ class Microscope(SealedAttributes, SEASerializable):
 					named_positions=scope.named_positions,
 					crossovers=getattr(scope, "crossovers", None),
 					image_planes=images, coordinates=coordinates,
-					zlims=zlims, ylims=ylims,
+					zlims=zlims, ylims=ylims, xlabel=xlabel, ylabel=ylabel,
 					title=title or (self.name or 'microscope') + f" {mode} wave |ψ(x, 0, z)|")
 			else:
 				if isinstance(plane, (int, xp.integer)) and not isinstance(plane, bool):

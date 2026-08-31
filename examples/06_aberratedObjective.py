@@ -51,59 +51,10 @@ N_WAVE, N_PLANES = 256, 80
 LAM = 2.5078e-12
 
 
-def scope(c30, **kw):
-	"""Build the objective section, optionally aberrated.
-
-	Parameters
-	----------
-	c30 : float
-		Spherical aberration coefficient (metres); 0 for an ideal objective.
-	**kw
-		Forwarded to :func:`build_objective_section`.
-
-	Returns
-	-------
-	Microscope
-		The objective section, not yet propagated.
-	"""
-	m = build_objective_section(alpha=ALPHA, wave_shape=(N_WAVE, N_WAVE), **kw)
-	if c30:
-		m["OL1"].aberrations = Aberrations({'C30': c30})
-	return m
-
-
-def focal_window(c30, z_lo, z_hi):
-	"""Propagate the objective with the focal window densely sampled.
-
-	Parameters
-	----------
-	c30 : float
-		Spherical aberration coefficient (metres); 0 for an ideal objective.
-	z_lo, z_hi : float
-		Window bounds (metres); ``N_PLANES`` planes are logged across them.
-
-	Returns
-	-------
-	Microscope
-		The propagated column, ready for :meth:`Microscope.show` (the
-		cross-section) and :meth:`Microscope.wavefield_at` (the focal
-		line-out on its native, picometre grid).
-
-	Notes
-	-----
-	:meth:`Microscope.subdivided` cuts the drifts at the requested absolute z,
-	which is what puts a logged plane on each sample of the window. It cuts
-	only UNNAMED drifts -- the focus here sits inside the 3 mm drift ahead of
-	the specimen, so the ``sample`` marker survives, the lengths stay positive
-	and z stays monotonic.
-	"""
-	m = scope(c30).subdivided(list(np.linspace(z_lo, z_hi, N_PLANES)))
-	m.propagate_wave(mode="hybrid", absorb=0.0)
-	return m
-
-
 # ---- the focal window, from the ideal ray crossover ----------------------
-ideal, aberrated = scope(0.0), scope(C30)
+ideal = build_objective_section(alpha=ALPHA, wave_shape=(N_WAVE, N_WAVE))
+aberrated = build_objective_section(alpha=ALPHA, wave_shape=(N_WAVE, N_WAVE))
+aberrated["OL1"].aberrations = Aberrations({'C30': C30})
 for m in (ideal, aberrated):
 	m.propagate_ray()
 Z_PAR = float(ideal.conjugate_planes(axis="x")["diff"][0])
@@ -130,14 +81,11 @@ gs = fig.add_gridspec(3, 2, hspace=0.38, wspace=0.26)
 for k, (m, lbl) in enumerate(((ideal, "A   rays, ideal objective"),
 								(aberrated, f"B   rays, C30 = {C30*1e6:g} " + r"$\mu$m"))):
 	ax = fig.add_subplot(gs[0, k])
-	m.show(kind="ray", plt_ax=ax, regenerate=False, conjugates=False, title=lbl)
-	for t in ax.texts:
-		t.set_visible(False)
-	ax.set_xlim(Z_LO, Z_HI)
-	ax.set_ylim(-X_HALF, X_HALF)
+	m.show(kind="ray", plt_ax=ax, regenerate=False, title=lbl, overlays=False,
+		   zlims=(Z_LO, Z_HI), ylims=(-X_HALF, X_HALF),
+		   xlabel=f"z  —  {(Z_HI-Z_LO)*1e9:.0f} nm across the panel",
+		   ylabel=f"x  —  {2*X_HALF*1e12:.0f} pm across the panel")
 	ax.axvline(Z_PAR, color="0.3", lw=1.0, ls=":")
-	ax.set_xlabel(f"z  —  {(Z_HI-Z_LO)*1e9:.0f} nm across the panel")
-	ax.set_ylabel(f"x  —  {2*X_HALF*1e12:.0f} pm across the panel")
 
 # ---- C, D: the same window, in the wave ---------------------------------
 # The shared cross-section renderer already does what these panels need: each
@@ -146,14 +94,22 @@ for k, (m, lbl) in enumerate(((ideal, "A   rays, ideal objective"),
 # stretch, so no `norm` is called for. `zlims` windows it: planes outside the
 # focal window are dropped before the common transverse grid is built, so the
 # panel is sized by the focus and not by the far end of the column.
-columns = [focal_window(c30, Z_LO, Z_HI) for c30 in (0.0, C30)]
+# subdivided() cuts the drifts at the requested absolute z, which is what puts
+# a logged plane on each sample of the window. It cuts only UNNAMED drifts --
+# the focus sits inside the 3 mm drift ahead of the specimen, so the `sample`
+# marker survives, the lengths stay positive and z stays monotonic.
+columns = [m.subdivided(list(np.linspace(Z_LO, Z_HI, N_PLANES)))
+		   for m in (ideal, aberrated)]
+for m in columns:
+	m.propagate_wave(mode="hybrid", absorb=0.0)
 for k, (m, lbl) in enumerate(zip(columns,
 		("C   wave, ideal objective", f"D   wave, C30 = {C30*1e6:g} " + r"$\mu$m"))):
 	ax = fig.add_subplot(gs[1, k])
 	m.show(kind="wave-hybrid", plt_ax=ax, regenerate=False, conjugates=False,
-		   zlims=(Z_LO, Z_HI), ylims=(-X_HALF, X_HALF), title=lbl)
+		   zlims=(Z_LO, Z_HI), ylims=(-X_HALF, X_HALF), title=lbl,
+		   xlabel=f"z  —  {(Z_HI-Z_LO)*1e9:.0f} nm across the panel",
+		   ylabel=f"x  —  {2*X_HALF*1e12:.0f} pm across the panel")
 	ax.axvline(Z_PAR, color="w", lw=1.0, ls=":", alpha=0.7)
-	ax.set_xlabel(f"z  —  {(Z_HI-Z_LO)*1e9:.0f} nm across the panel")
 
 # ---- E: the focal surface -----------------------------------------------
 axE = fig.add_subplot(gs[2, 0])
