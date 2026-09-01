@@ -433,8 +433,10 @@ def test_diffraction_rays():
 	microscope = MicroscopeSection(elements=elements)
 	microscope.propagate_ray()
 	ret = diffraction_bundles_at_z(5,microscope.rays)
-	microscope.show(title=str(ret))
-test_diffraction_rays()
+	#microscope.show(title=str(ret))
+	assert ret["bundle_size"]['x'] == 1.1493823309657483
+	assert ret["bundle_spread"]['x'] == 4.732795911827746
+#test_diffraction_rays()
 
 def test_rotated_quadrupole():
 	"""A rotated quadrupole couples the planes; pi/2 swaps them exactly."""
