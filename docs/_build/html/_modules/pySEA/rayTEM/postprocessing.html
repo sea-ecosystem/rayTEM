@@ -111,7 +111,7 @@
 	<span class="c1"># hits zero -- an aperture kills them there, and plotting their ghost</span>
 	<span class="c1"># trajectories onward would show beam that no longer exists</span>
 	<span class="n">I</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span> <span class="s2">"I"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-	<span class="n">r1</span> <span class="o">=</span> <span class="n">convert_to_rotating_reference_frame</span><span class="p">(</span><span class="n">r1</span><span class="p">)</span>
+	<span class="n">r1</span> <span class="o">=</span> <span class="n">r1</span><span class="o">.</span><span class="n">convert_to_rotating_reference_frame</span><span class="p">()</span>
 	<span class="k">if</span> <span class="n">plt_ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 		<span class="n">fig</span><span class="p">,</span><span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
 	<span class="k">else</span><span class="p">:</span>
@@ -454,49 +454,6 @@
 	<span class="k">return</span> <span class="n">returnable</span></div>
 
 
-<span class="c1"># TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)</span>
-<span class="c1"># This function provides easy return to the rotated reference frame</span>
-<div class="viewcode-block" id="convert_to_rotating_reference_frame">
-<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.postprocessing.convert_to_rotating_reference_frame">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">convert_to_rotating_reference_frame</span><span class="p">(</span><span class="n">rays</span><span class="p">):</span>
-<span class="w">	</span><span class="sd">"""Rotate rays into the beam's rotating (Larmor) reference frame.</span>
-
-<span class="sd">	Cumulative rotation ``R`` is read from the supplied :class:`Rays` object.</span>
-<span class="sd">	Each ray at each plane is</span>
-<span class="sd">	rotated by its accumulated angle so that image/diffraction-plane detection can</span>
-<span class="sd">	operate in the unrotated frame.</span>
-
-<span class="sd">	Parameters</span>
-<span class="sd">	----------</span>
-<span class="sd">	rays : Rays</span>
-<span class="sd">		Geometric rays, shape ``(n_planes, n_rays, len(convention))``.</span>
-
-<span class="sd">	Returns</span>
-<span class="sd">	-------</span>
-<span class="sd">	np.ndarray</span>
-<span class="sd">		Rays rotated into the rotating reference frame, same shape as ``rays``.</span>
-
-<span class="sd">	Related</span>
-<span class="sd">	-------</span>
-<span class="sd">	findPlanes : Calls this before detecting planes.</span>
-<span class="sd">	Lens.transfer_matrix : Source of the accumulated rotation.</span>
-<span class="sd">	"""</span>
-	<span class="n">R</span> <span class="o">=</span> <span class="n">rays</span><span class="o">.</span><span class="n">R</span>
-	<span class="n">nl</span><span class="p">,</span><span class="n">nr</span><span class="p">,</span><span class="n">nc</span> <span class="o">=</span> <span class="n">rays</span><span class="o">.</span><span class="n">shape</span>
-	<span class="n">converted</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">rays</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-	<span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nl</span><span class="p">):</span>
-		<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nr</span><span class="p">):</span>
-			<span class="n">Rv</span> <span class="o">=</span> <span class="n">R</span><span class="p">[</span><span class="n">l</span><span class="p">,</span><span class="n">r</span><span class="p">]</span>
-			<span class="n">C</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">Rv</span><span class="p">)</span>
-			<span class="n">S</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">Rv</span><span class="p">)</span>
-			<span class="n">M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([[</span><span class="n">C</span><span class="p">,</span><span class="n">S</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="o">-</span><span class="n">S</span><span class="p">,</span><span class="n">C</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">C</span><span class="p">,</span><span class="n">S</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">-</span><span class="n">S</span><span class="p">,</span><span class="n">C</span><span class="p">]])</span>
-			<span class="n">M</span> <span class="o">=</span> <span class="n">fix_mat_dims</span><span class="p">(</span><span class="n">M</span><span class="p">,[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">])</span>
-			<span class="n">converted</span><span class="p">[</span><span class="n">l</span><span class="p">,</span><span class="n">r</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">M</span><span class="p">,</span><span class="n">rays</span><span class="p">[</span><span class="n">l</span><span class="p">,</span><span class="n">r</span><span class="p">,:])</span>
-	<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">converted</span><span class="p">,</span><span class="n">I</span><span class="o">=</span><span class="n">rays</span><span class="o">.</span><span class="n">I</span><span class="p">,</span><span class="n">R</span><span class="o">=</span><span class="n">R</span><span class="o">*</span><span class="mi">0</span><span class="p">)</span></div>
-
-
-
-
 <span class="c1"># Returns a dict for each axis, image vs diffraction planes, and the magnification and z position (NOTE: Z IS IN FRACTIONAL COORDINATES: 4.2 = 20% of the way through the 4th element)</span>
 <span class="n">warned</span> <span class="o">=</span> <span class="p">[]</span>
 <span class="c1"># TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)</span>
@@ -511,7 +468,7 @@
 	<span class="c1"># rays must not report planes -- an aperture selects the pupil zone, and</span>
 	<span class="c1"># with aberrations the ghost pair's crossing is the WRONG focal plane</span>
 	<span class="n">I</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span> <span class="s2">"I"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-	<span class="n">rays</span> <span class="o">=</span> <span class="n">convert_to_rotating_reference_frame</span><span class="p">(</span><span class="n">rays</span><span class="p">)</span>
+	<span class="n">rays</span> <span class="o">=</span> <span class="n">rays</span><span class="o">.</span><span class="n">convert_to_rotating_reference_frame</span><span class="p">()</span>
 	<span class="k">global</span> <span class="n">warned</span>
 	<span class="c1"># Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays</span>
 	<span class="n">diffRays</span><span class="o">=</span><span class="p">[]</span> <span class="p">;</span> <span class="n">imageRays</span><span class="o">=</span><span class="p">[]</span>

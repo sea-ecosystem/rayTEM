@@ -119,7 +119,7 @@
 <span class="c1"># The columnByName function is used universally, so additional geometric columns can be added</span>
 <span class="c1"># (or reordered) without every Element needing to be updated.</span>
 
-<span class="n">convention</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">,</span><span class="s2">"z"</span><span class="p">,</span><span class="s2">"E"</span><span class="p">]</span>
+<span class="n">convention</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">,</span><span class="s2">"z"</span><span class="p">,</span><span class="s2">"E"</span><span class="p">]</span> <span class="c1"># TODO: should z be in the rays matrix? i *think* we want path_length in the rays matrix (since this is the phase of an electron), but right now we use z to denote the plane position. if we switch to path_length, we MUST ALSO implement z as a Rays object attribute (like R or I) which denotes the z position of the planes in the rays matrix. I have already started implementing this (propagate_rays needs to track a list of z values), but left it commented out</span>
 <span class="c1"># given a keyword, return the column associated. r0[:,columnByName('x')] should return every ray's x position</span>
 <div class="viewcode-block" id="columnByName">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.columnByName">[docs]</a>
@@ -150,11 +150,12 @@
 <div class="viewcode-block" id="Rays">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Rays">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Rays</span><span class="p">():</span>
-	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rays</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">R</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">I</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span><span class="n">z</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rays</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">R</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">I</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span><span class="n">reference_frame</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s2">"stationary"</span><span class="p">):</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">rays</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">rays</span><span class="p">)</span>
 		<span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>							<span class="c1"># indices: n_planes,n_rays,xyxtyt or n_rays,xyxtyt or just xyxtyt</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">R</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">R</span><span class="p">),</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>	<span class="c1"># indices: n_planes,n_rays or just n_rays</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">I</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">I</span><span class="p">),</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">reference_frame</span> <span class="o">=</span> <span class="n">reference_frame</span>
 		<span class="c1">#self.z = z												# indices: n_planes, or just a float</span>
 	<span class="k">def</span><span class="w"> </span><span class="nf">__array__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 		<span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
@@ -221,7 +222,47 @@
 		<span class="n">rays</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 		<span class="n">rays</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">columnByName</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)]</span><span class="o">=</span><span class="n">xs</span> <span class="p">;</span> <span class="n">rays</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">columnByName</span><span class="p">(</span><span class="s1">'y'</span><span class="p">)]</span><span class="o">=</span><span class="n">ys</span> <span class="p">;</span> <span class="n">rays</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">columnByName</span><span class="p">(</span><span class="s1">'z'</span><span class="p">)]</span><span class="o">=</span><span class="n">z</span>
 		<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span><span class="n">I</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">I</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">R</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">[</span><span class="n">i</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="Rays.convert_to_rotating_reference_frame">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Rays.convert_to_rotating_reference_frame">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">convert_to_rotating_reference_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="c1"># TODO NEEDS A WARNING IF YOU TRY TO PASS IT AN ALREADY-ROTATED REFERENCE FRAME</span>
+<span class="w">		</span><span class="sd">"""Ray propagation follows a fixed reference plane (solenoids rotate the beam). This function returns a new Rays object with the rays in a rotating (Larmor) reference frame.</span>
+
+<span class="sd">		Cumulative rotation ``R`` is read from the supplied :class:`Rays` object.</span>
+<span class="sd">		Each ray at each plane is</span>
+<span class="sd">		rotated by its accumulated angle so that image/diffraction-plane detection can</span>
+<span class="sd">		operate in the unrotated frame.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		rays : Rays</span>
+<span class="sd">			Geometric rays, shape ``(n_planes, n_rays, len(convention))``.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		np.ndarray</span>
+<span class="sd">			Rays rotated into the rotating reference frame, same shape as ``rays``.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		findPlanes : Calls this before detecting planes.</span>
+<span class="sd">		Lens.transfer_matrix : Source of the accumulated rotation.</span>
+<span class="sd">		"""</span>
+		<span class="n">R</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span>
+		<span class="n">nl</span><span class="p">,</span><span class="n">nr</span><span class="p">,</span><span class="n">nc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span>
+		<span class="n">converted</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nl</span><span class="p">):</span>
+			<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nr</span><span class="p">):</span>
+				<span class="n">Rv</span> <span class="o">=</span> <span class="n">R</span><span class="p">[</span><span class="n">l</span><span class="p">,</span><span class="n">r</span><span class="p">]</span>
+				<span class="n">C</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">Rv</span><span class="p">)</span>
+				<span class="n">S</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">Rv</span><span class="p">)</span>
+				<span class="n">M</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([[</span><span class="n">C</span><span class="p">,</span><span class="n">S</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="o">-</span><span class="n">S</span><span class="p">,</span><span class="n">C</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">C</span><span class="p">,</span><span class="n">S</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">-</span><span class="n">S</span><span class="p">,</span><span class="n">C</span><span class="p">]])</span>
+				<span class="n">M</span> <span class="o">=</span> <span class="n">fix_mat_dims</span><span class="p">(</span><span class="n">M</span><span class="p">,[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">])</span>
+				<span class="n">converted</span><span class="p">[</span><span class="n">l</span><span class="p">,</span><span class="n">r</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">M</span><span class="p">,</span><span class="bp">self</span><span class="p">[</span><span class="n">l</span><span class="p">,</span><span class="n">r</span><span class="p">,:])</span>
+		<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">converted</span><span class="p">,</span><span class="n">I</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">I</span><span class="p">,</span><span class="n">R</span><span class="o">=</span><span class="n">R</span><span class="p">,</span><span class="n">reference_frame</span><span class="o">=</span><span class="s2">"rotating"</span><span class="p">)</span></div>
 </div>
+
 
 
 <span class="sd">"""General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional"""</span>

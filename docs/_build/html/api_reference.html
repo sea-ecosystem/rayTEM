@@ -161,6 +161,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays"><code class="docutils literal notranslate"><span class="pre">Rays</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.E"><code class="docutils literal notranslate"><span class="pre">Rays.E</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.at_z"><code class="docutils literal notranslate"><span class="pre">Rays.at_z()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.convert_to_rotating_reference_frame"><code class="docutils literal notranslate"><span class="pre">Rays.convert_to_rotating_reference_frame()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.copy"><code class="docutils literal notranslate"><span class="pre">Rays.copy()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.x"><code class="docutils literal notranslate"><span class="pre">Rays.x</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.xt"><code class="docutils literal notranslate"><span class="pre">Rays.xt</span></code></a></li>
@@ -330,7 +331,6 @@
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.waveoptics.transverse_coordinates"><code class="docutils literal notranslate"><span class="pre">transverse_coordinates()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.beam_widths"><code class="docutils literal notranslate"><span class="pre">beam_widths()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.closest_plane"><code class="docutils literal notranslate"><span class="pre">closest_plane()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.convert_to_rotating_reference_frame"><code class="docutils literal notranslate"><span class="pre">convert_to_rotating_reference_frame()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.diffraction_bundles_at_z"><code class="docutils literal notranslate"><span class="pre">diffraction_bundles_at_z()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.dz_focus_to"><code class="docutils literal notranslate"><span class="pre">dz_focus_to()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.emittance"><code class="docutils literal notranslate"><span class="pre">emittance()</span></code></a></li>
@@ -2576,7 +2576,7 @@ SLAC-75 (1983), p. 46.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.elements.</span></span><span class="sig-name descname"><span class="pre">Rays</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rays</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">R</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">I</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Rays"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Rays" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.elements.</span></span><span class="sig-name descname"><span class="pre">Rays</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rays</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">R</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">I</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference_frame</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'stationary'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Rays"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Rays" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <dl class="py property">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.E">
@@ -2587,6 +2587,36 @@ SLAC-75 (1983), p. 46.</p>
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.at_z">
 <span class="sig-name descname"><span class="pre">at_z</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">z</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Rays.at_z"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Rays.at_z" title="Link to this definition"></a></dt>
 <dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.convert_to_rotating_reference_frame">
+<span class="sig-name descname"><span class="pre">convert_to_rotating_reference_frame</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Rays.convert_to_rotating_reference_frame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Rays.convert_to_rotating_reference_frame" title="Link to this definition"></a></dt>
+<dd><p>Ray propagation follows a fixed reference plane (solenoids rotate the beam). This function returns a new Rays object with the rays in a rotating (Larmor) reference frame.</p>
+<p>Cumulative rotation <code class="docutils literal notranslate"><span class="pre">R</span></code> is read from the supplied <a class="reference internal" href="#pySEA.rayTEM.elements.Rays" title="pySEA.rayTEM.elements.Rays"><code class="xref py py-class docutils literal notranslate"><span class="pre">Rays</span></code></a> object.
+Each ray at each plane is
+rotated by its accumulated angle so that image/diffraction-plane detection can
+operate in the unrotated frame.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>rays</strong> (<a class="reference internal" href="#pySEA.rayTEM.elements.Rays" title="pySEA.rayTEM.elements.Rays"><em>Rays</em></a>) – Geometric rays, shape <code class="docutils literal notranslate"><span class="pre">(n_planes,</span> <span class="pre">n_rays,</span> <span class="pre">len(convention))</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Rays rotated into the rotating reference frame, same shape as <code class="docutils literal notranslate"><span class="pre">rays</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">findPlanes</span></code></dt><dd><p>Calls this before detecting planes.</p>
+</dd>
+<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.transfer_matrix" title="pySEA.rayTEM.elements.Lens.transfer_matrix"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Lens.transfer_matrix</span></code></a></dt><dd><p>Source of the accumulated rotation.</p>
+</dd>
+</dl>
+</div>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.copy">
@@ -6935,36 +6965,6 @@ the position coordinates).</p>
 <dt class="sig sig-object py" id="pySEA.rayTEM.postprocessing.closest_plane">
 <span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.postprocessing.</span></span><span class="sig-name descname"><span class="pre">closest_plane</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">microscope</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z_target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plane_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">regenerate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/postprocessing.html#closest_plane"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.postprocessing.closest_plane" title="Link to this definition"></a></dt>
 <dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pySEA.rayTEM.postprocessing.convert_to_rotating_reference_frame">
-<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.postprocessing.</span></span><span class="sig-name descname"><span class="pre">convert_to_rotating_reference_frame</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rays</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/postprocessing.html#convert_to_rotating_reference_frame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.postprocessing.convert_to_rotating_reference_frame" title="Link to this definition"></a></dt>
-<dd><p>Rotate rays into the beam’s rotating (Larmor) reference frame.</p>
-<p>Cumulative rotation <code class="docutils literal notranslate"><span class="pre">R</span></code> is read from the supplied <code class="xref py py-class docutils literal notranslate"><span class="pre">Rays</span></code> object.
-Each ray at each plane is
-rotated by its accumulated angle so that image/diffraction-plane detection can
-operate in the unrotated frame.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>rays</strong> (<a class="reference internal" href="#pySEA.rayTEM.elements.Rays" title="pySEA.rayTEM.elements.Rays"><em>Rays</em></a>) – Geometric rays, shape <code class="docutils literal notranslate"><span class="pre">(n_planes,</span> <span class="pre">n_rays,</span> <span class="pre">len(convention))</span></code>.</p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Rays rotated into the rotating reference frame, same shape as <code class="docutils literal notranslate"><span class="pre">rays</span></code>.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>np.ndarray</p>
-</dd>
-</dl>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<dl class="simple">
-<dt><a class="reference internal" href="#pySEA.rayTEM.postprocessing.findPlanes" title="pySEA.rayTEM.postprocessing.findPlanes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">findPlanes</span></code></a></dt><dd><p>Calls this before detecting planes.</p>
-</dd>
-<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">Lens.transfer_matrix</span></code></dt><dd><p>Source of the accumulated rotation.</p>
-</dd>
-</dl>
-</div>
-</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pySEA.rayTEM.postprocessing.diffraction_bundles_at_z">
