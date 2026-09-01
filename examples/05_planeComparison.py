@@ -46,7 +46,6 @@ def _():
 	from pySEA.rayTEM import waveoptics as wo
 	from pySEA.rayTEM.assemblies import load_microscope
 	from pySEA.rayTEM.elements import columnByName, convention
-	from pySEA.rayTEM.postprocessing import convert_to_rotating_reference_frame
 	from pySEA.rayTEM.seashells import read_scaled_wavefield
 
 	APERTURE_RADIUS = 5e-6		# m — sets the parallel reference rays too
@@ -56,7 +55,7 @@ def _():
 	AIM_AT = "C1"				# image rays leave (0,0) and reach +-aperture here
 	return (AIM_AT, APERTURE_RADIUS, DZ_DENSE, Drift, Lens, MicroscopeSection,
 			Microscope, Quadrapole, TAIL, TRIM_AFTER, columnByName,
-			convert_to_rotating_reference_frame, convention, load_microscope, np,
+			convention, load_microscope, np,
 			os, plt, read_scaled_wavefield, wo)
 
 
@@ -308,8 +307,7 @@ def _(mo):
 
 
 @app.cell
-def _(AIM_AT, APERTURE_RADIUS, DZ_DENSE, columnByName,
-	  convert_to_rotating_reference_frame, convention, np,
+def _(AIM_AT, APERTURE_RADIUS, DZ_DENSE, columnByName, convention, np,
 	  read_scaled_wavefield, scope, wo, z_max):
 	def reference_rays(scope):
 		"""Trace the four reference rays at their **true** physical scale.
@@ -344,7 +342,7 @@ def _(AIM_AT, APERTURE_RADIUS, DZ_DENSE, columnByName,
 		r0[0, xi] = APERTURE_RADIUS ; r0[1, xi] = -APERTURE_RADIUS
 		r0[2, ti] = theta_aim ; r0[3, ti] = -theta_aim
 		dense.propagate_ray(r0=r0)
-		rot = convert_to_rotating_reference_frame(dense.rays)
+		rot = dense.rays.convert_to_rotating_reference_frame()
 		return dense.rays[:, 0, columnByName("z")], rot[:, :, xi], theta_aim
 
 	def wave_cross_section(scope, z_max):

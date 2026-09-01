@@ -13,3 +13,4 @@ elements_sections_microscopes_*
 examples/figs/*
 examples/settings/old/*
 docs/_build/doctrees/
+*-v[0-9]*.[0-9]*.py

@@ -28,7 +28,7 @@ from weakref import WeakSet
 # The columnByName function is used universally, so additional geometric columns can be added
 # (or reordered) without every Element needing to be updated.
 
-convention = ["x","xt","y","yt","z","E"]
+convention = ["x","xt","y","yt","z","E"] # TODO: should z be in the rays matrix? i *think* we want path_length in the rays matrix (since this is the phase of an electron), but right now we use z to denote the plane position. if we switch to path_length, we MUST ALSO implement z as a Rays object attribute (like R or I) which denotes the z position of the planes in the rays matrix. I have already started implementing this (propagate_rays needs to track a list of z values), but left it commented out
 # given a keyword, return the column associated. r0[:,columnByName('x')] should return every ray's x position
 def columnByName(name):
 	return convention.index(name)
@@ -48,11 +48,12 @@ def fix_ray_dims(rays,columnNames):
 
 # Rays object contains an array with n_planes,n_rays,xyxtytetc indices (all rays at all points in the column) or n_rays,xyxtytetc indices (a set of rays at a given point in the column), and tracks current and rotation parameters. if we did matrix operations on rays (as arrays) previously, we should still be able to do that
 class Rays():
-	def __init__(self, rays:xp.ndarray, R:float, I:float,z:float=0):
+	def __init__(self, rays:xp.ndarray, R:float, I:float,reference_frame:str="stationary"):
 		self.rays = xp.asarray(rays)
 		shape = self.rays.shape[:-1]							# indices: n_planes,n_rays,xyxtyt or n_rays,xyxtyt or just xyxtyt
 		self.R = xp.broadcast_to(xp.asarray(R),shape).copy()	# indices: n_planes,n_rays or just n_rays
 		self.I = xp.broadcast_to(xp.asarray(I),shape).copy()
+		self.reference_frame = reference_frame
 		#self.z = z												# indices: n_planes, or just a float
 	def __array__(self, dtype=None):
 		return xp.asarray(self.rays, dtype=dtype)
@@ -114,6 +115,43 @@ class Rays():
 		rays = self.rays[i].copy()
 		rays[...,columnByName('x')]=xs ; rays[...,columnByName('y')]=ys ; rays[...,columnByName('z')]=z
 		return Rays(rays,I=self.I[i],R=self.R[i])
+
+	def convert_to_rotating_reference_frame(self): # TODO NEEDS A WARNING IF YOU TRY TO PASS IT AN ALREADY-ROTATED REFERENCE FRAME
+		"""Ray propagation follows a fixed reference plane (solenoids rotate the beam). This function returns a new Rays object with the rays in a rotating (Larmor) reference frame.
+
+		Cumulative rotation ``R`` is read from the supplied :class:`Rays` object.
+		Each ray at each plane is
+		rotated by its accumulated angle so that image/diffraction-plane detection can
+		operate in the unrotated frame.
+
+		Parameters
+		----------
+		rays : Rays
+			Geometric rays, shape ``(n_planes, n_rays, len(convention))``.
+
+		Returns
+		-------
+		np.ndarray
+			Rays rotated into the rotating reference frame, same shape as ``rays``.
+
+		Related
+		-------
+		findPlanes : Calls this before detecting planes.
+		Lens.transfer_matrix : Source of the accumulated rotation.
+		"""
+		R = self.R
+		nl,nr,nc = self.shape
+		converted = xp.zeros(self.shape)
+		for l in range(nl):
+			for r in range(nr):
+				Rv = R[l,r]
+				C = xp.cos(Rv)
+				S = xp.sin(Rv)
+				M = xp.asarray([[C,S,0,0],[-S,C,0,0],[0,0,C,S],[0,0,-S,C]])
+				M = fix_mat_dims(M,["x","y","xt","yt"])
+				converted[l,r,:] = xp.matmul(M,self[l,r,:])
+		return Rays(converted,I=self.I,R=R,reference_frame="rotating")
+
 
 """General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional"""
 

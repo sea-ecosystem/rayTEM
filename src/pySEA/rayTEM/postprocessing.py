@@ -18,7 +18,7 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 	# hits zero -- an aperture kills them there, and plotting their ghost
 	# trajectories onward would show beam that no longer exists
 	I = getattr(r1, "I", None)
-	r1 = convert_to_rotating_reference_frame(r1)
+	r1 = r1.convert_to_rotating_reference_frame()
 	if plt_ax is None:
 		fig,ax = plt.subplots()
 	else:
@@ -351,46 +351,6 @@ def findPlanes4(rays,axes="x"):
 
 	return returnable
 
-# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
-# This function provides easy return to the rotated reference frame
-def convert_to_rotating_reference_frame(rays):
-	"""Rotate rays into the beam's rotating (Larmor) reference frame.
-
-	Cumulative rotation ``R`` is read from the supplied :class:`Rays` object.
-	Each ray at each plane is
-	rotated by its accumulated angle so that image/diffraction-plane detection can
-	operate in the unrotated frame.
-
-	Parameters
-	----------
-	rays : Rays
-		Geometric rays, shape ``(n_planes, n_rays, len(convention))``.
-
-	Returns
-	-------
-	np.ndarray
-		Rays rotated into the rotating reference frame, same shape as ``rays``.
-
-	Related
-	-------
-	findPlanes : Calls this before detecting planes.
-	Lens.transfer_matrix : Source of the accumulated rotation.
-	"""
-	R = rays.R
-	nl,nr,nc = rays.shape
-	converted = np.zeros(rays.shape)
-	for l in range(nl):
-		for r in range(nr):
-			Rv = R[l,r]
-			C = np.cos(Rv)
-			S = np.sin(Rv)
-			M = np.asarray([[C,S,0,0],[-S,C,0,0],[0,0,C,S],[0,0,-S,C]])
-			M = fix_mat_dims(M,["x","y","xt","yt"])
-			converted[l,r,:] = np.matmul(M,rays[l,r,:])
-	return Rays(converted,I=rays.I,R=R*0)
-
-
-
 # Returns a dict for each axis, image vs diffraction planes, and the magnification and z position (NOTE: Z IS IN FRACTIONAL COORDINATES: 4.2 = 20% of the way through the 4th element)
 warned = []
 # TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
@@ -403,7 +363,7 @@ def findPlanes(rays,axis="xy"):
 	# rays must not report planes -- an aperture selects the pupil zone, and
 	# with aberrations the ghost pair's crossing is the WRONG focal plane
 	I = getattr(rays, "I", None)
-	rays = convert_to_rotating_reference_frame(rays)
+	rays = rays.convert_to_rotating_reference_frame()
 	global warned
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
 	diffRays=[] ; imageRays=[]
