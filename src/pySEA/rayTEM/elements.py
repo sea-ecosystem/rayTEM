@@ -49,16 +49,15 @@ def fix_ray_dims(rays,columnNames):
 # Rays object contains an array with n_planes,n_rays,xyxtytetc indices (all rays at all points in the column) or n_rays,xyxtytetc indices (a set of rays at a given point in the column), and tracks current and rotation parameters. if we did matrix operations on rays (as arrays) previously, we should still be able to do that
 # Intensity is tracked per-ray (masked rays are zeroed), and per-plane (tracking the total beam intensity as apertures reduce the total intensity). mean(I_per_ray) for a given plane should yield similar result (but not exactly) to I_per_plane, since I_per_plane will use the smooth Aperture.transmitted_fraction() (non-stepped function for intensity, as rays cross the aperture edge).
 class Rays():
-	def __init__(self, rays:xp.ndarray, R:float, I_per_ray:float,reference_frame:str="stationary",I_at_planes:float=1):
+	def __init__(self, rays:xp.ndarray, R:float, I_per_ray:float,reference_frame:str="stationary",I_per_plane:float=1):
 		self.rays = xp.asarray(rays)
 		shape = self.rays.shape[:-1]							# indices: n_planes,n_rays,xyxtyt or n_rays,xyxtyt or just xyxtyt
 		self.R = xp.broadcast_to(xp.asarray(R),shape).copy()	# indices: n_planes,n_rays or just n_rays
 		self.I_per_ray = xp.broadcast_to(xp.asarray(I_per_ray),shape).copy()
 		self.reference_frame = reference_frame
-		if len(shape)==2 and isinstance(I_at_planes,(float,int)):
-			self.I_at_planes = [ I_at_planes ]*shape[0]
-		else:
-			self.I_at_planes = I_at_planes
+		self.I_per_plane = xp.asarray(I_per_plane).copy()
+		if self.rays.ndim == 3:
+			self.I_per_plane = xp.broadcast_to(self.I_per_plane,len(self.rays)).copy()
 
 		#self.z = z												# indices: n_planes, or just a float
 	def __array__(self, dtype=None):
@@ -66,9 +65,9 @@ class Rays():
 	def __getattr__(self, key):
 		return getattr(self.rays, key)
 	def __str__(self):
-		return "\n".join([ k+": "+str(getattr(self,k)) for k in ["rays","R","I_per_ray"] ])
+		return "\n".join([ k+": "+str(getattr(self,k)) for k in ["rays","R","I_per_ray","I_per_plane"] ])
 	def copy(self):
-		return Rays(self.rays.copy(),self.R.copy(),self.I_per_ray.copy())
+		return Rays(self.rays.copy(),self.R.copy(),self.I_per_ray.copy(),I_per_plane=self.I_per_plane.copy())
 	def __len__(self):
 		return len(self.rays)
 	def __getitem__(self, key):
@@ -84,7 +83,8 @@ class Rays():
 		if not isinstance(coord,slice) or any(v is not None for v in (coord.start,coord.stop,coord.step)):
 			return out
 		meta = tuple(keys[:-1])
-		return Rays(out,self.R[meta],self.I_per_ray[meta])
+		I_per_plane = self.I_per_plane[keys[0]] if self.rays.ndim==3 else self.I_per_plane
+		return Rays(out,self.R[meta],self.I_per_ray[meta],I_per_plane=I_per_plane)
 	def __setitem__(self, key, value):
 		self.rays[key]=value
 
@@ -120,7 +120,7 @@ class Rays():
 		ys = interp(z,zs[i],zs[i+1],yi,yf)
 		rays = self.rays[i].copy()
 		rays[...,columnByName('x')]=xs ; rays[...,columnByName('y')]=ys ; rays[...,columnByName('z')]=z
-		return Rays(rays,I_per_ray=self.I_per_ray[i],R=self.R[i])
+		return Rays(rays,I_per_ray=self.I_per_ray[i],R=self.R[i],I_per_plane=self.I_per_plane[i])
 
 	def convert_to_rotating_reference_frame(self): # TODO NEEDS A WARNING IF YOU TRY TO PASS IT AN ALREADY-ROTATED REFERENCE FRAME
 		"""Ray propagation follows a fixed reference plane (solenoids rotate the beam). This function returns a new Rays object with the rays in a rotating (Larmor) reference frame.
@@ -158,7 +158,7 @@ class Rays():
 				M = xp.asarray([[C,S,0,0],[-S,C,0,0],[0,0,C,S],[0,0,-S,C]])
 				M = fix_mat_dims(M,["x","y","xt","yt"])
 				converted[l,r,:] = xp.matmul(M,self[l,r,:])
-		return Rays(converted,I_per_ray=self.I_per_ray,R=R,reference_frame="rotating")
+		return Rays(converted,I_per_ray=self.I_per_ray,R=R,reference_frame="rotating",I_per_plane=self.I_per_plane)
 
 
 """General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional"""
@@ -2798,7 +2798,7 @@ class Source(Element):
 		array=fix_ray_dims(array,["x","y","xt","yt"])
 		if self.voltage is not None:					# beam energy (keV) rides in the E column when defined
 			array[:,columnByName("E")] = self.voltage
-		return Rays(array,R=xp.zeros(len(array)),I_per_ray=xp.full(len(array),self.beam_current/len(array)))
+		return Rays(array,R=xp.zeros(len(array)),I_per_ray=xp.full(len(array),self.beam_current/len(array)),I_per_plane=self.beam_current)
 
 	# dummy propagation in case someone tries to propagate through since this is technically an element
 	def propagate_ray(self, r0:xp.ndarray | Rays, **kwargs) -> xp.ndarray:
@@ -3153,48 +3153,58 @@ class Aperture(Element):
 	# number of apertures; the cost is that the transmitted current becomes a
 	# SAMPLED estimate, quantized in units of I_total/n_rays.
 	# 2026-09-01: *must* have a smooth total-beam-intensity function though. i see transmitted_fraction, but it requires passing rays at the aperture plane, and the aperture element doesn't know its rays. adding a "total intensity"
-	def propagate_ray(self, r0:xp.ndarray | Rays,
-					  z:float=None, z0:float=0) -> xp.ndarray:
-		"""Pass rays through geometrically unchanged; the mask acts on I.
+	# 2026-09-01: while trying to implement ^^^, it became apparent that if MicroscopeSection is handling intensity, then we don't even need to do anything here! editing intensity here was overwritten by MicroscopeSection's intensity code!
+	#def propagate_ray(self, r0:xp.ndarray | Rays,
+	#				  z:float=None, z0:float=0) -> xp.ndarray:
+	#	"""Pass rays through geometrically unchanged; the mask acts on I.
 
-		Overrides :meth:`Element.propagate_ray` (the aperture has no ray
-		matrix). Coordinates are untouched — blocked rays become *ghosts*
-		that keep propagating with zero intensity (see
-		:meth:`apply_intensity`), which keeps array shapes stable, keeps the
-		plotted trajectories honest up to the aperture plane, and lets every
-		current read stay ``sum(I)``.
+	#	Overrides :meth:`Element.propagate_ray` (the aperture has no ray
+	#	matrix). Coordinates are untouched — blocked rays become *ghosts*
+	#	that keep propagating with zero intensity (see
+	#	:meth:`apply_intensity`), which keeps array shapes stable, keeps the
+	#	plotted trajectories honest up to the aperture plane, and lets every
+	#	current read stay ``sum(I)``.
 
-		Parameters
-		----------
-		r0 : xp.ndarray or Rays
-			Rays arriving at the aperture plane, shape
-			``(n_rays, len(convention))``.
-		z : float, optional
-			Unused (zero-length element), by default ``None``.
-		z0 : float, optional
-			Unused, by default 0.
+	#	Parameters
+	#	----------
+	#	r0 : xp.ndarray or Rays
+	#		Rays arriving at the aperture plane, shape
+	#		``(n_rays, len(convention))``.
+	#	z : float, optional
+	#		Unused (zero-length element), by default ``None``.
+	#	z0 : float, optional
+	#		Unused, by default 0.
 
-		Returns
-		-------
-		xp.ndarray or Rays
-			The rays, geometrically unchanged; a ``Rays`` input comes back
-			paired with its masked intensity.
+	#	Returns
+	#	-------
+	#	xp.ndarray or Rays
+	#		The rays, geometrically unchanged; a ``Rays`` input comes back
+	#		paired with its masked intensity.
 
-		Raises
-		------
-		None
+	#	Raises
+	#	------
+	#	None
 
-		Related
-		-------
-		apply_intensity : Where the mask actually acts.
-		phase_shift : The wave path's identical transmission mask.
-		"""
-		paired = isinstance(r0,Rays)
-		rays = xp.asarray(r0)
-		rf = xp.zeros(rays.shape)+rays
-		if paired:
-			return Rays(rf,r0.R,self.apply_intensity(r0.I_per_ray,rays))
-		return rf
+	#	Related
+	#	-------
+	#	apply_intensity : Where the mask actually acts.
+	#	phase_shift : The wave path's identical transmission mask.
+	#	"""
+	#	#paired = isinstance(r0,Rays)
+	#	return r0.copy()
+	#	rays = xp.asarray(r0)
+	#	rf = xp.zeros(rays.shape)+rays
+	#	return Rays(rays=rf)
+	#	#if not paired: # matrix-only
+	#	#	return rf
+	#	print(r0,r0.shape)
+	#	# Rays object
+	#	I_pr  = self.apply_intensity(r0.I_per_ray,rays)
+	#	I_pp = xp.concatenate((r0.I_per_plane,[self.transmitted_fraction(r0[-1])]))
+	#	print("NEW I_pp",I_pp)
+	#	return Rays(rays=rf,R=r0.R, I_per_ray=I_pr, I_per_plane = I_pp )
+	#		# 	def __init__(self, rays:xp.ndarray, R:float, I_per_ray:float,reference_frame:str="stationary",I_at_planes:float=1):
+	#	return rf
 
 	def apply_intensity(self, I:xp.ndarray, r0:xp.ndarray) -> xp.ndarray:
 		"""Zero the intensity of rays outside the aperture radius (the MASK).
@@ -3272,7 +3282,8 @@ class Aperture(Element):
 		ymax = xp.amax(xp.abs(r0[:,columnByName("y")]))
 		scale_x = 1.0 if xmax < self.radius else self.radius / xmax
 		scale_y = 1.0 if ymax < self.radius else self.radius / ymax
-		return float(scale_x * scale_y)
+		SHAPE_FACTOR = xp.pi/4 # pi/4 is a shape factor: square grid of rays to round
+		return float(scale_x * scale_y)*SHAPE_FACTOR
 
 	def propagate_moments(self, mu:xp.ndarray, Sigma:xp.ndarray, closure=None) -> tuple:
 		"""Pass moments through unchanged (aperture is treated as non-truncating here).

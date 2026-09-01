@@ -620,6 +620,24 @@ def test_focal_properties_round_trip():
 		assert getattr(back["FL"], prop) == pytest.approx(getattr(m["FL"], prop))
 	assert back["FL"].focal_length == pytest.approx(0.03)
 
+def test_aperture_current_types():
+	for n,toll,tolu in [ [9,1.14,1.15], [90,1.025,1.03], [900,1.001,1.003] ]:
+		sec = MicroscopeSection(name="S", elements=[
+		Source(voltage=200, size=(10e-6, 10e-6), np_xy=(n, n),
+			angle=(0.0, 0.0), na_xy=(1, 1), beam_current=1e-9),
+		Drift(length=0.01),
+		Aperture(name="A1", radius=6e-6),
+		Drift(length=0.01),
+		Aperture(name="A2", radius=3e-6),
+		Drift(length=0.01)])
+		m = Microscope(sections=[sec])
+		m.propagate_ray()
+		#print(m.rays.I_per_plane)
+		I_pp = m.rays.I_per_plane
+		I_pr = np.sum(m.rays.I_per_ray,axis=1)
+		#print(I_pp,I_pr,I_pp/I_pr)
+		assert toll < np.amax(I_pp/I_pr) < tolu
+#test_aperture_current_types()
 
 def test_aperture_masks_rays():
 	"""An aperture is a true mask: blocked rays carry I = 0 onward,
@@ -636,6 +654,10 @@ def test_aperture_masks_rays():
 		Drift(length=0.01)])
 	m = Microscope(sections=[sec])
 	rays = np.asarray(m.propagate_ray())
+
+	I_pp = m.rays.I_per_plane
+	I_pr = np.sum(m.rays.I_per_ray,axis=1)
+	print(I_pp,I_pr,I_pp/I_pr)
 	I = np.asarray(m.I)
 	r_at = np.hypot(rays[0, :, 0], rays[0, :, 2])	# parallel fan: radii constant
 	# geometry is untouched everywhere (drifts aside, transverse coords const)
@@ -656,10 +678,10 @@ def test_aperture_masks_rays():
 	assert np.isclose(float(I[-1].sum()), frac * 1e-9, rtol=1e-12)
 	assert np.isclose(m.beam_current, frac * 1e-9, rtol=1e-12)
 	# the smooth fitting estimate exists and brackets sensibly
-	tf = m["A2"].transmitted_fraction(rays[i_a1])
+	tf = m["A2"].transmitted_fraction(rays[i_a1]) / (np.pi/4) # TWP added shape factor for transmitted_fraction, removing it here
 	assert 0 < tf <= 1
-	assert m["A1"].transmitted_fraction(rays[0] * 0) == 1.0
-
+	assert m["A1"].transmitted_fraction(rays[0] * 0) / (np.pi/4) == 1.0
+#test_aperture_masks_rays()
 
 def test_findplanes_ignores_dead_rays():
 	"""Plane detection only trusts rays that still carry intensity.

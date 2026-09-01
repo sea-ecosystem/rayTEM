@@ -585,8 +585,8 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		return els
 
 	def propagate_ray(self, r0:xp.ndarray=None,
-					   I0:xp.ndarray=None, R0:xp.ndarray=None,
-					   z: float = None,
+					   I0_per_ray:xp.ndarray=None, I0_per_plane:xp.ndarray=None,
+					   I_initial:float=None, R0:xp.ndarray=None, z: float = None,
 					   verbose=False, apply_aberrations:bool=True):
 		"""Propagate rays through every element in the section, bottom-up.
 
@@ -629,7 +629,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		"""
 		if not apply_aberrations:
 			with suspended_aberrations(list(self.elements or ()) + [self]):
-				return self.propagate_ray(r0, I0, R0, z=z, verbose=verbose)
+				return self.propagate_ray(r0=r0, I0_per_ray=I0_per_ray, I0_per_plane=I0_per_plane, I_initial=I_initial, R0=R0, z=z, verbose=verbose)
 		#print("Section r0",r0)
 		if r0 is None:
 			if isinstance(self.elements[0], Source):
@@ -637,20 +637,25 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			else:
 				raise UserWarning("First element is not a Source, and no r0 provided to propagate_ray. Please provide initial rays or ensure first element is a Source.")
 		if isinstance(r0,Rays):
-			I0 = r0.I_per_ray if I0 is None else I0
+			I0_per_ray = r0.I_per_ray if I0_per_ray is None else I0_per_ray
+			I0_per_plane = r0.I_per_plane if I0_per_plane is None else I0_per_plane
 			R0 = r0.R if R0 is None else R0
 			r0 = xp.asarray(r0)
 		n_rays = len(r0)
-		if I0 is None:
+		if I0_per_ray is None:
 			# Seed in AMPS, shared over the rays, so I.sum() is the current at
 			# every plane and an aperture reduces it just by scaling. Sections
 			# with no Source of their own inherit I0 from the previous section.
 			current = getattr(self.elements[0], "beam_current", None)
-			I0 = (xp.full(n_rays, float(current) / n_rays) if current is not None
+			I0_per_ray = (xp.full(n_rays, float(current) / n_rays) if current is not None
 				  else xp.ones(n_rays))
+		if I0_per_plane is None:
+			I0_per_plane = float(xp.sum(I0_per_ray))
+		if I_initial is None:
+			I_initial = I0_per_plane
 		if R0 is None:
 			R0 = xp.zeros(n_rays)
-		ri = [ r0 ] ; Ii = [ I0 ] ; Ri = [ R0 ] #; zi = [ self.position ]
+		ri = [ r0 ] ; Ii_pr = [ I0_per_ray ] ; Ri = [ R0 ] ; Ii_pp = [ I0_per_plane ] #; zi = [ self.position ]
 		for i,ele in enumerate(self._propagation_elements()):
 			if verbose:
 				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
@@ -659,18 +664,19 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			# The element is told the current ARRIVING at it, so Element.beam_current
 			# can be a derived read rather than a second place a current is stated.
 			# Recorded on the element, so it is saved with .I and .rays.
-			ele._arriving_current = float(xp.sum(Ii[-1]))
-			ele_I  = ele.apply_intensity(Ii[-1], ri[-1])
+			ele._arriving_current = float(xp.sum(Ii_pr[-1]))
+			ele_I_pr  = ele.apply_intensity(Ii_pr[-1], ri[-1])
+			ele_I_pp = xp.minimum(Ii_pp[-1], I_initial * ele.transmitted_fraction(ri[-1])) if ele.kind == "Aperture" else Ii_pp[-1]
 			ele_ri = ele.propagate_ray(ri[-1], z=z)
 			ele_R  = ele.apply_rotation(Ri[-1])
 			#ele_ri[...,-2] += ele.position # TWP 2025/08/27 - do not add distance. drift already should update z
 			#print(ele_ri.shape,r0.shape)
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
-				ri.append(ele_ri[:,:]) ; Ii.append(ele_I) ; Ri.append(ele_R)
+				ri.append(ele_ri[:,:]) ; Ii_pr.append(ele_I_pr) ; Ii_pp.append(ele_I_pp) ; Ri.append(ele_R)
 				#zi.append( self.position+ele.position+getattr(ele,"length",0) )
 			else:
-				ri[-1]=ele_ri[:,:] ; Ii[-1]=ele_I ; Ri[-1]=ele_R
-		self.rays = Rays(xp.asarray(ri),R=xp.asarray(Ri),I_per_ray=xp.asarray(Ii)) #,z=xp.asarray(zi))
+				ri[-1]=ele_ri[:,:] ; Ii_pr[-1]=ele_I_pr ; Ii_pp[-1]=ele_I_pp ; Ri[-1]=ele_R
+		self.rays = Rays(xp.asarray(ri),R=xp.asarray(Ri),I_per_ray=xp.asarray(Ii_pr),I_per_plane=xp.asarray(Ii_pp)) #,z=xp.asarray(zi))
 		self.I = self.rays.I_per_ray
 		self.R = self.rays.R
 		return self.rays
@@ -2738,18 +2744,20 @@ class Microscope(SealedAttributes, SEASerializable):
 		if not apply_aberrations:
 			with suspended_aberrations(self._all_elements()):
 				return self.propagate_ray(r0, z=z, verbose=verbose)
-		r=r0 ; I=None ; R=None #; print("Microscope r0",r0)# starting rays/intensity/rotation fed into section.propagate
-		rs=[] ; Is=[] ; Rs=[] #; zs=[]
+		r=r0 ; I_pr=None ; I_pp=None ; I_initial=None ; R=None #; print("Microscope r0",r0)# starting rays/intensity/rotation fed into section.propagate
+		rs=[] ; Is_pr=[] ; Is_pp=[] ; Rs=[] #; zs=[]
 		for n,s in enumerate(self.sections):
 			#print("section",s)
-			r1 = s.propagate_ray(z=z,r0=r,I0=I,R0=R,verbose=verbose) # r1 is shape nthElement,nthRay,xythetaetc
+			r1 = s.propagate_ray(z=z,r0=r,I0_per_ray=I_pr,I0_per_plane=I_pp,I_initial=I_initial,R0=R,verbose=verbose) # r1 is shape nthElement,nthRay,xythetaetc
+			if I_initial is None:
+				I_initial = r1.I_per_plane[0]
 			#print(r1.shape)
 			for k in range(len(r1)):
 				#r[:,columnByName('z')]#+=s.position
-				rs.append(xp.asarray(r1[k])) ; Is.append(r1.I_per_ray[k]) ; Rs.append(r1.R[k]) #; zs.append(r1.z[k])
+				rs.append(xp.asarray(r1[k])) ; Is_pr.append(r1.I_per_ray[k]) ; Is_pp.append(r1.I_per_plane[k]) ; Rs.append(r1.R[k]) #; zs.append(r1.z[k])
 			#print(r1[-1,0,:])
-			r=xp.asarray(r1[-1]) ; I=r1.I_per_ray[-1] ; R=r1.R[-1] # rays/intensity/rotation fed into subsequent section are those exiting this section
-		self.rays = Rays(xp.asarray(rs),R=xp.asarray(Rs),I_per_ray=xp.asarray(Is)) #,z=zs)
+			r=xp.asarray(r1[-1]) ; I_pr=r1.I_per_ray[-1] ; I_pp=r1.I_per_plane[-1] ; R=r1.R[-1] # rays/intensity/rotation fed into subsequent section are those exiting this section
+		self.rays = Rays(xp.asarray(rs),R=xp.asarray(Rs),I_per_ray=xp.asarray(Is_pr),I_per_plane=xp.asarray(Is_pp)) #,z=zs)
 		self.I = self.rays.I_per_ray
 		self.R = self.rays.R
 		#print(self.rays.shape)
