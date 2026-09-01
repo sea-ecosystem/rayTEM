@@ -89,7 +89,7 @@
            <div itemprop="articleBody">
              
   <h1>Source code for pySEA.rayTEM.postprocessing</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">columnByName</span><span class="p">,</span><span class="n">fix_mat_dims</span><span class="p">,</span><span class="n">Drift</span><span class="p">,</span><span class="n">Source</span>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">columnByName</span><span class="p">,</span><span class="n">fix_mat_dims</span><span class="p">,</span><span class="n">Drift</span><span class="p">,</span><span class="n">Source</span><span class="p">,</span><span class="n">Rays</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="n">minimize</span><span class="p">,</span><span class="n">brute</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
@@ -492,7 +492,7 @@
 			<span class="n">M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([[</span><span class="n">C</span><span class="p">,</span><span class="n">S</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="o">-</span><span class="n">S</span><span class="p">,</span><span class="n">C</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">C</span><span class="p">,</span><span class="n">S</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">-</span><span class="n">S</span><span class="p">,</span><span class="n">C</span><span class="p">]])</span>
 			<span class="n">M</span> <span class="o">=</span> <span class="n">fix_mat_dims</span><span class="p">(</span><span class="n">M</span><span class="p">,[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">])</span>
 			<span class="n">converted</span><span class="p">[</span><span class="n">l</span><span class="p">,</span><span class="n">r</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">M</span><span class="p">,</span><span class="n">rays</span><span class="p">[</span><span class="n">l</span><span class="p">,</span><span class="n">r</span><span class="p">,:])</span>
-	<span class="k">return</span> <span class="n">converted</span></div>
+	<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">converted</span><span class="p">,</span><span class="n">I</span><span class="o">=</span><span class="n">rays</span><span class="o">.</span><span class="n">I</span><span class="p">,</span><span class="n">R</span><span class="o">=</span><span class="n">R</span><span class="o">*</span><span class="mi">0</span><span class="p">)</span></div>
 
 
 
@@ -937,6 +937,17 @@
 <div class="viewcode-block" id="diffraction_bundles_at_z">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.postprocessing.diffraction_bundles_at_z">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">diffraction_bundles_at_z</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">rays</span><span class="p">):</span>
+	<span class="c1"># step 1, infer bundled rays (all rays emitted at the same angle, but from different positions)</span>
+	<span class="n">bundles</span> <span class="o">=</span> <span class="p">{}</span>
+	<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">len</span><span class="p">(</span><span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span> <span class="c1"># whichelement,whichray,xyxtyt...</span>
+		<span class="n">xt</span><span class="p">,</span><span class="n">yt</span> <span class="o">=</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">xt</span><span class="p">[</span><span class="n">r</span><span class="p">]</span> <span class="p">;</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">yt</span><span class="p">[</span><span class="n">r</span><span class="p">]</span>
+		<span class="n">k</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">xt</span><span class="p">)</span><span class="o">+</span><span class="s2">","</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">yt</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">bundles</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+			<span class="n">bundles</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="n">bundles</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+	<span class="c1"># step 2, get ray positions at z:</span>
+
+
 	<span class="k">pass</span></div>
 
 
