@@ -47,22 +47,28 @@ def fix_ray_dims(rays,columnNames):
 	return new
 
 # Rays object contains an array with n_planes,n_rays,xyxtytetc indices (all rays at all points in the column) or n_rays,xyxtytetc indices (a set of rays at a given point in the column), and tracks current and rotation parameters. if we did matrix operations on rays (as arrays) previously, we should still be able to do that
+# Intensity is tracked per-ray (masked rays are zeroed), and per-plane (tracking the total beam intensity as apertures reduce the total intensity). mean(I_per_ray) for a given plane should yield similar result (but not exactly) to I_per_plane, since I_per_plane will use the smooth Aperture.transmitted_fraction() (non-stepped function for intensity, as rays cross the aperture edge).
 class Rays():
-	def __init__(self, rays:xp.ndarray, R:float, I:float,reference_frame:str="stationary"):
+	def __init__(self, rays:xp.ndarray, R:float, I_per_ray:float,reference_frame:str="stationary",I_at_planes:float=1):
 		self.rays = xp.asarray(rays)
 		shape = self.rays.shape[:-1]							# indices: n_planes,n_rays,xyxtyt or n_rays,xyxtyt or just xyxtyt
 		self.R = xp.broadcast_to(xp.asarray(R),shape).copy()	# indices: n_planes,n_rays or just n_rays
-		self.I = xp.broadcast_to(xp.asarray(I),shape).copy()
+		self.I_per_ray = xp.broadcast_to(xp.asarray(I_per_ray),shape).copy()
 		self.reference_frame = reference_frame
+		if len(shape)==2 and isinstance(I_at_planes,(float,int)):
+			self.I_at_planes = [ I_at_planes ]*shape[0]
+		else:
+			self.I_at_planes = I_at_planes
+
 		#self.z = z												# indices: n_planes, or just a float
 	def __array__(self, dtype=None):
 		return xp.asarray(self.rays, dtype=dtype)
 	def __getattr__(self, key):
 		return getattr(self.rays, key)
 	def __str__(self):
-		return "\n".join([ k+": "+str(getattr(self,k)) for k in ["rays","R","I"] ])
+		return "\n".join([ k+": "+str(getattr(self,k)) for k in ["rays","R","I_per_ray"] ])
 	def copy(self):
-		return Rays(self.rays.copy(),self.R.copy(),self.I.copy())
+		return Rays(self.rays.copy(),self.R.copy(),self.I_per_ray.copy())
 	def __len__(self):
 		return len(self.rays)
 	def __getitem__(self, key):
@@ -78,7 +84,7 @@ class Rays():
 		if not isinstance(coord,slice) or any(v is not None for v in (coord.start,coord.stop,coord.step)):
 			return out
 		meta = tuple(keys[:-1])
-		return Rays(out,self.R[meta],self.I[meta])
+		return Rays(out,self.R[meta],self.I_per_ray[meta])
 	def __setitem__(self, key, value):
 		self.rays[key]=value
 
@@ -114,7 +120,7 @@ class Rays():
 		ys = interp(z,zs[i],zs[i+1],yi,yf)
 		rays = self.rays[i].copy()
 		rays[...,columnByName('x')]=xs ; rays[...,columnByName('y')]=ys ; rays[...,columnByName('z')]=z
-		return Rays(rays,I=self.I[i],R=self.R[i])
+		return Rays(rays,I_per_ray=self.I_per_ray[i],R=self.R[i])
 
 	def convert_to_rotating_reference_frame(self): # TODO NEEDS A WARNING IF YOU TRY TO PASS IT AN ALREADY-ROTATED REFERENCE FRAME
 		"""Ray propagation follows a fixed reference plane (solenoids rotate the beam). This function returns a new Rays object with the rays in a rotating (Larmor) reference frame.
@@ -152,7 +158,7 @@ class Rays():
 				M = xp.asarray([[C,S,0,0],[-S,C,0,0],[0,0,C,S],[0,0,-S,C]])
 				M = fix_mat_dims(M,["x","y","xt","yt"])
 				converted[l,r,:] = xp.matmul(M,self[l,r,:])
-		return Rays(converted,I=self.I,R=R,reference_frame="rotating")
+		return Rays(converted,I_per_ray=self.I_per_ray,R=R,reference_frame="rotating")
 
 
 """General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional"""
@@ -1829,7 +1835,7 @@ class Element(SealedAttributes, SEASerializable):
 			rf[:,columnByName("yt")] += chromatic[1]
 
 		if paired:
-			return Rays(rf,self.apply_rotation(r0.R),self.apply_intensity(r0.I,rays))
+			return Rays(rf,self.apply_rotation(r0.R),self.apply_intensity(r0.I_per_ray,rays))
 		return rf
 
 	def apply_intensity(self, I:xp.ndarray, r0:xp.ndarray) -> xp.ndarray:
@@ -2792,7 +2798,7 @@ class Source(Element):
 		array=fix_ray_dims(array,["x","y","xt","yt"])
 		if self.voltage is not None:					# beam energy (keV) rides in the E column when defined
 			array[:,columnByName("E")] = self.voltage
-		return Rays(array,R=xp.zeros(len(array)),I=xp.full(len(array),self.beam_current/len(array)))
+		return Rays(array,R=xp.zeros(len(array)),I_per_ray=xp.full(len(array),self.beam_current/len(array)))
 
 	# dummy propagation in case someone tries to propagate through since this is technically an element
 	def propagate_ray(self, r0:xp.ndarray | Rays, **kwargs) -> xp.ndarray:
@@ -3129,7 +3135,7 @@ class Aperture(Element):
 	#	m = xp.eye(4) # drift tube updates x from xθ and y from yθ
 	#	return fix_mat_dims(m,["x","xt","y","yt"])
 
-	# TWO WAYS TO IMPLEMENT AN APERTURE:
+	# TWP: TWO WAYS TO IMPLEMENT AN APERTURE:
 	# 1) set the intensity of any rays "outside" the aperture to zero. this is fine for plotting and we can capture beam current by looking at how many rays are zeroed out. *BUT*, this will be problematic during fitting, as rays which "pop" into and out of view will yield an intensity vs [whatever] function with step edges.
 	# def propagate_ray(self, r0:xp.ndarray,
 	#				  z:float=None, z0:float=0) -> xp.ndarray:
@@ -3138,7 +3144,7 @@ class Aperture(Element):
 	#	rf[radii>self.radius,columnByName("I")]=0
 	#	return rf
 	# 2) aperture can rescale all rays based on the outer ray's position, or the area covered by the rays. we can thus calculate reductions in beam current based on the aperture's reduction in intensity (area cropped out). we're effectively pretending the originating rays were less divergent or something, which is actually sort of what we see IRL; you can't tell the divergence of the beam from the gun because the VOA masks out a bunch of it. This will only work for one aperture in the system though (otherwise second aperture undoes the scaling of the first one? or should we only allow the aperture to scale-down, so if the first aperture scales down, second scales down further (second is smaller), or first scale down, second leaves it alone (second is larger, we'd be able to see our first aperture in the CCD for example). and how do we handle apertures of different shapes??
-	# 2026-08-30: option 1 (masking) is now the implementation. The rescale
+	# 2026-08-30 ERH: option 1 (masking) is now the implementation. The rescale
 	# (option 2) had the one-aperture limitation described above, compressed
 	# the survivors' emittance instead of truncating the distribution (finite
 	# sources), and relabeled outer rays inward so downstream aberrations
@@ -3146,6 +3152,7 @@ class Aperture(Element):
 	# laminar (point-source) fan. Masking composes correctly across any
 	# number of apertures; the cost is that the transmitted current becomes a
 	# SAMPLED estimate, quantized in units of I_total/n_rays.
+	# 2026-09-01: *must* have a smooth total-beam-intensity function though. i see transmitted_fraction, but it requires passing rays at the aperture plane, and the aperture element doesn't know its rays. adding a "total intensity"
 	def propagate_ray(self, r0:xp.ndarray | Rays,
 					  z:float=None, z0:float=0) -> xp.ndarray:
 		"""Pass rays through geometrically unchanged; the mask acts on I.
@@ -3186,7 +3193,7 @@ class Aperture(Element):
 		rays = xp.asarray(r0)
 		rf = xp.zeros(rays.shape)+rays
 		if paired:
-			return Rays(rf,r0.R,self.apply_intensity(r0.I,rays))
+			return Rays(rf,r0.R,self.apply_intensity(r0.I_per_ray,rays))
 		return rf
 
 	def apply_intensity(self, I:xp.ndarray, r0:xp.ndarray) -> xp.ndarray:
@@ -4622,16 +4629,18 @@ class Lens(Element):
 		print(self.name,I,R)
 		def FR(C,L):
 			new = Lens(strength = I, calibration = C, length = L)
-			columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
-			M = new.transfer_matrix()[columns,:][:,columns]
-			r0 = [1,0,1,0] # parallel starting ray
-			r1 = xp.matmul(M,r0)
-			x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
-			f = x/xt # f = x/theta
-			rot = new.larmor_rotation
-			return f,rot
+			return new.focal_length, new.larmor_rotation
+			#columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
+			#M = new.transfer_matrix()[columns,:][:,columns]
+			#r0 = [1,0,1,0] # parallel starting ray
+			#r1 = xp.matmul(M,r0)
+			#x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
+			#f = x/xt # f = x/theta
+			#rot = new.larmor_rotation
+			#return f,rot
 		f0,_ = FR(self.calibration,self.length)	# initial focal length
 		print("currently focuses to",f0)
+
 		def dz(vals):
 			f,rot = FR(*vals)
 			return ((f-f0)/f0)**2 + ((R-rot)/R)**2

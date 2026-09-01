@@ -12,12 +12,13 @@ from matplotlib.cm import plasma as cmap
 # Basic 2D plotting (along z, and in whatever axis you have chosen)
 # TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
 # For now, plot2D assumes it is given unrotated-reference-frame rays, and should likely call convert_to_rotating_reference_frame.
-def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,title=None,plt_ax=None):
+def plot2D(r1,axis="x",filename=None, zpts="",sections=None, xlims=None,ylims=None, title=None,plt_ax=None, aperture_handling="rescale"):
 	planes = findPlanes(r1,axis=axis)
-	# masked (dead) rays stop being drawn at the plane where their intensity
-	# hits zero -- an aperture kills them there, and plotting their ghost
-	# trajectories onward would show beam that no longer exists
-	I = getattr(r1, "I", None)
+	# two options for plotting the beam through an aperture:
+	# "rescale": historically used, beam was rescaled by elements.py > Aperture > propagate_ray, so we could simply plot rescaled rays.
+	# "ghosting": masked (dead) rays stop being drawn at the plane where their intensity hits zero.
+	# If you use too-few rays (or wish to see a continously-rescaled beam, as opposed to step-functions as rays cross the aperture border), then you should use "rescale". I have made this the default to preserve historical behavior (and for sensible plotting when using the minimal number of rays required for plane finding)
+	I = getattr(r1, "I_per_ray", None)
 	r1 = r1.convert_to_rotating_reference_frame()
 	if plt_ax is None:
 		fig,ax = plt.subplots()
@@ -362,7 +363,7 @@ def findPlanes(rays,axis="xy"):
 	# per-ray intensity, if the caller passed a Rays object: dead (masked)
 	# rays must not report planes -- an aperture selects the pupil zone, and
 	# with aberrations the ghost pair's crossing is the WRONG focal plane
-	I = getattr(rays, "I", None)
+	I = getattr(rays, "I_per_ray", None)
 	rays = rays.convert_to_rotating_reference_frame()
 	global warned
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
@@ -1266,8 +1267,8 @@ def measureAtZ(z,rays=None,I=None,R=None,section=None,live_only=False):
 		if section.rays is None:
 			section.propagate_ray()
 		rays = section.rays
-	if hasattr(rays,"I"):
-		I = rays.I if I is None else I
+	if hasattr(rays,"I_per_ray"):
+		I = rays.I_per_ray if I is None else I
 		R = rays.R if R is None else R
 	if section is not None:
 		if I is None:

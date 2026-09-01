@@ -637,7 +637,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			else:
 				raise UserWarning("First element is not a Source, and no r0 provided to propagate_ray. Please provide initial rays or ensure first element is a Source.")
 		if isinstance(r0,Rays):
-			I0 = r0.I if I0 is None else I0
+			I0 = r0.I_per_ray if I0 is None else I0
 			R0 = r0.R if R0 is None else R0
 			r0 = xp.asarray(r0)
 		n_rays = len(r0)
@@ -670,8 +670,8 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 				#zi.append( self.position+ele.position+getattr(ele,"length",0) )
 			else:
 				ri[-1]=ele_ri[:,:] ; Ii[-1]=ele_I ; Ri[-1]=ele_R
-		self.rays = Rays(xp.asarray(ri),R=xp.asarray(Ri),I=xp.asarray(Ii)) #,z=xp.asarray(zi))
-		self.I = self.rays.I
+		self.rays = Rays(xp.asarray(ri),R=xp.asarray(Ri),I_per_ray=xp.asarray(Ii)) #,z=xp.asarray(zi))
+		self.I = self.rays.I_per_ray
 		self.R = self.rays.R
 		return self.rays
 
@@ -2746,11 +2746,11 @@ class Microscope(SealedAttributes, SEASerializable):
 			#print(r1.shape)
 			for k in range(len(r1)):
 				#r[:,columnByName('z')]#+=s.position
-				rs.append(xp.asarray(r1[k])) ; Is.append(r1.I[k]) ; Rs.append(r1.R[k]) #; zs.append(r1.z[k])
+				rs.append(xp.asarray(r1[k])) ; Is.append(r1.I_per_ray[k]) ; Rs.append(r1.R[k]) #; zs.append(r1.z[k])
 			#print(r1[-1,0,:])
-			r=xp.asarray(r1[-1]) ; I=r1.I[-1] ; R=r1.R[-1] # rays/intensity/rotation fed into subsequent section are those exiting this section
-		self.rays = Rays(xp.asarray(rs),R=xp.asarray(Rs),I=xp.asarray(Is)) #,z=zs)
-		self.I = self.rays.I
+			r=xp.asarray(r1[-1]) ; I=r1.I_per_ray[-1] ; R=r1.R[-1] # rays/intensity/rotation fed into subsequent section are those exiting this section
+		self.rays = Rays(xp.asarray(rs),R=xp.asarray(Rs),I_per_ray=xp.asarray(Is)) #,z=zs)
+		self.I = self.rays.I_per_ray
 		self.R = self.rays.R
 		#print(self.rays.shape)
 		self._planes = None
