@@ -151,16 +151,15 @@
 <div class="viewcode-block" id="Rays">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Rays">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Rays</span><span class="p">():</span>
-	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rays</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">R</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">I_per_ray</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span><span class="n">reference_frame</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s2">"stationary"</span><span class="p">,</span><span class="n">I_at_planes</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rays</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">R</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">I_per_ray</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span><span class="n">reference_frame</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s2">"stationary"</span><span class="p">,</span><span class="n">I_per_plane</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">rays</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">rays</span><span class="p">)</span>
 		<span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>							<span class="c1"># indices: n_planes,n_rays,xyxtyt or n_rays,xyxtyt or just xyxtyt</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">R</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">R</span><span class="p">),</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>	<span class="c1"># indices: n_planes,n_rays or just n_rays</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">I_per_ray</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">I_per_ray</span><span class="p">),</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">reference_frame</span> <span class="o">=</span> <span class="n">reference_frame</span>
-		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span><span class="o">==</span><span class="mi">2</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">I_at_planes</span><span class="p">,(</span><span class="nb">float</span><span class="p">,</span><span class="nb">int</span><span class="p">)):</span>
-			<span class="bp">self</span><span class="o">.</span><span class="n">I_at_planes</span> <span class="o">=</span> <span class="p">[</span> <span class="n">I_at_planes</span> <span class="p">]</span><span class="o">*</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-		<span class="k">else</span><span class="p">:</span>
-			<span class="bp">self</span><span class="o">.</span><span class="n">I_at_planes</span> <span class="o">=</span> <span class="n">I_at_planes</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">I_per_plane</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">I_per_plane</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">I_per_plane</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">I_per_plane</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">))</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
 		<span class="c1">#self.z = z												# indices: n_planes, or just a float</span>
 	<span class="k">def</span><span class="w"> </span><span class="nf">__array__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -168,11 +167,11 @@
 	<span class="k">def</span><span class="w"> </span><span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
 		<span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
 	<span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-		<span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">([</span> <span class="n">k</span><span class="o">+</span><span class="s2">": "</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">k</span><span class="p">))</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"rays"</span><span class="p">,</span><span class="s2">"R"</span><span class="p">,</span><span class="s2">"I_per_ray"</span><span class="p">]</span> <span class="p">])</span>
+		<span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">([</span> <span class="n">k</span><span class="o">+</span><span class="s2">": "</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">k</span><span class="p">))</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"rays"</span><span class="p">,</span><span class="s2">"R"</span><span class="p">,</span><span class="s2">"I_per_ray"</span><span class="p">,</span><span class="s2">"I_per_plane"</span><span class="p">]</span> <span class="p">])</span>
 <div class="viewcode-block" id="Rays.copy">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Rays.copy">[docs]</a>
 	<span class="k">def</span><span class="w"> </span><span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-		<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span><span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span><span class="bp">self</span><span class="o">.</span><span class="n">I_per_ray</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span></div>
+		<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span><span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span><span class="bp">self</span><span class="o">.</span><span class="n">I_per_ray</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span><span class="n">I_per_plane</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">I_per_plane</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span></div>
 
 	<span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 		<span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">)</span>
@@ -189,7 +188,8 @@
 		<span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span><span class="nb">slice</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="p">(</span><span class="n">coord</span><span class="o">.</span><span class="n">start</span><span class="p">,</span><span class="n">coord</span><span class="o">.</span><span class="n">stop</span><span class="p">,</span><span class="n">coord</span><span class="o">.</span><span class="n">step</span><span class="p">)):</span>
 			<span class="k">return</span> <span class="n">out</span>
 		<span class="n">meta</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">keys</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-		<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">out</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">[</span><span class="n">meta</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">I_per_ray</span><span class="p">[</span><span class="n">meta</span><span class="p">])</span>
+		<span class="n">I_per_plane</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">I_per_plane</span><span class="p">[</span><span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="o">.</span><span class="n">ndim</span><span class="o">==</span><span class="mi">3</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">I_per_plane</span>
+		<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">out</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">[</span><span class="n">meta</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">I_per_ray</span><span class="p">[</span><span class="n">meta</span><span class="p">],</span><span class="n">I_per_plane</span><span class="o">=</span><span class="n">I_per_plane</span><span class="p">)</span>
 	<span class="k">def</span><span class="w"> </span><span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">=</span><span class="n">value</span>
 
@@ -227,7 +227,7 @@
 		<span class="n">ys</span> <span class="o">=</span> <span class="n">interp</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">zs</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">zs</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">],</span><span class="n">yi</span><span class="p">,</span><span class="n">yf</span><span class="p">)</span>
 		<span class="n">rays</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 		<span class="n">rays</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">columnByName</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)]</span><span class="o">=</span><span class="n">xs</span> <span class="p">;</span> <span class="n">rays</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">columnByName</span><span class="p">(</span><span class="s1">'y'</span><span class="p">)]</span><span class="o">=</span><span class="n">ys</span> <span class="p">;</span> <span class="n">rays</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">columnByName</span><span class="p">(</span><span class="s1">'z'</span><span class="p">)]</span><span class="o">=</span><span class="n">z</span>
-		<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span><span class="n">I_per_ray</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">I_per_ray</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">R</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">[</span><span class="n">i</span><span class="p">])</span></div>
+		<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span><span class="n">I_per_ray</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">I_per_ray</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">R</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">I_per_plane</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">I_per_plane</span><span class="p">[</span><span class="n">i</span><span class="p">])</span></div>
 
 
 <div class="viewcode-block" id="Rays.convert_to_rotating_reference_frame">
@@ -268,7 +268,7 @@
 				<span class="n">M</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([[</span><span class="n">C</span><span class="p">,</span><span class="n">S</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="o">-</span><span class="n">S</span><span class="p">,</span><span class="n">C</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">C</span><span class="p">,</span><span class="n">S</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">-</span><span class="n">S</span><span class="p">,</span><span class="n">C</span><span class="p">]])</span>
 				<span class="n">M</span> <span class="o">=</span> <span class="n">fix_mat_dims</span><span class="p">(</span><span class="n">M</span><span class="p">,[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">])</span>
 				<span class="n">converted</span><span class="p">[</span><span class="n">l</span><span class="p">,</span><span class="n">r</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">M</span><span class="p">,</span><span class="bp">self</span><span class="p">[</span><span class="n">l</span><span class="p">,</span><span class="n">r</span><span class="p">,:])</span>
-		<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">converted</span><span class="p">,</span><span class="n">I_per_ray</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">I_per_ray</span><span class="p">,</span><span class="n">R</span><span class="o">=</span><span class="n">R</span><span class="p">,</span><span class="n">reference_frame</span><span class="o">=</span><span class="s2">"rotating"</span><span class="p">)</span></div>
+		<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">converted</span><span class="p">,</span><span class="n">I_per_ray</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">I_per_ray</span><span class="p">,</span><span class="n">R</span><span class="o">=</span><span class="n">R</span><span class="p">,</span><span class="n">reference_frame</span><span class="o">=</span><span class="s2">"rotating"</span><span class="p">,</span><span class="n">I_per_plane</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">I_per_plane</span><span class="p">)</span></div>
 </div>
 
 
@@ -2989,7 +2989,7 @@
 		<span class="n">array</span><span class="o">=</span><span class="n">fix_ray_dims</span><span class="p">(</span><span class="n">array</span><span class="p">,[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">])</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">voltage</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>					<span class="c1"># beam energy (keV) rides in the E column when defined</span>
 			<span class="n">array</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"E"</span><span class="p">)]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">voltage</span>
-		<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">array</span><span class="p">,</span><span class="n">R</span><span class="o">=</span><span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">)),</span><span class="n">I_per_ray</span><span class="o">=</span><span class="n">xp</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">),</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_current</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">)))</span></div>
+		<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">array</span><span class="p">,</span><span class="n">R</span><span class="o">=</span><span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">)),</span><span class="n">I_per_ray</span><span class="o">=</span><span class="n">xp</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">),</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_current</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">)),</span><span class="n">I_per_plane</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_current</span><span class="p">)</span></div>
 
 
 	<span class="c1"># dummy propagation in case someone tries to propagate through since this is technically an element</span>
@@ -3369,51 +3369,58 @@
 	<span class="c1"># number of apertures; the cost is that the transmitted current becomes a</span>
 	<span class="c1"># SAMPLED estimate, quantized in units of I_total/n_rays.</span>
 	<span class="c1"># 2026-09-01: *must* have a smooth total-beam-intensity function though. i see transmitted_fraction, but it requires passing rays at the aperture plane, and the aperture element doesn't know its rays. adding a "total intensity"</span>
-<div class="viewcode-block" id="Aperture.propagate_ray">
-<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Aperture.propagate_ray">[docs]</a>
-	<span class="k">def</span><span class="w"> </span><span class="nf">propagate_ray</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r0</span><span class="p">:</span><span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">Rays</span><span class="p">,</span>
-					  <span class="n">z</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">z0</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">		</span><span class="sd">"""Pass rays through geometrically unchanged; the mask acts on I.</span>
+	<span class="c1"># 2026-09-01: while trying to implement ^^^, it became apparent that if MicroscopeSection is handling intensity, then we don't even need to do anything here! editing intensity here was overwritten by MicroscopeSection's intensity code!</span>
+	<span class="c1">#def propagate_ray(self, r0:xp.ndarray | Rays,</span>
+	<span class="c1">#				  z:float=None, z0:float=0) -&gt; xp.ndarray:</span>
+	<span class="c1">#	"""Pass rays through geometrically unchanged; the mask acts on I.</span>
 
-<span class="sd">		Overrides :meth:`Element.propagate_ray` (the aperture has no ray</span>
-<span class="sd">		matrix). Coordinates are untouched — blocked rays become *ghosts*</span>
-<span class="sd">		that keep propagating with zero intensity (see</span>
-<span class="sd">		:meth:`apply_intensity`), which keeps array shapes stable, keeps the</span>
-<span class="sd">		plotted trajectories honest up to the aperture plane, and lets every</span>
-<span class="sd">		current read stay ``sum(I)``.</span>
+	<span class="c1">#	Overrides :meth:`Element.propagate_ray` (the aperture has no ray</span>
+	<span class="c1">#	matrix). Coordinates are untouched — blocked rays become *ghosts*</span>
+	<span class="c1">#	that keep propagating with zero intensity (see</span>
+	<span class="c1">#	:meth:`apply_intensity`), which keeps array shapes stable, keeps the</span>
+	<span class="c1">#	plotted trajectories honest up to the aperture plane, and lets every</span>
+	<span class="c1">#	current read stay ``sum(I)``.</span>
 
-<span class="sd">		Parameters</span>
-<span class="sd">		----------</span>
-<span class="sd">		r0 : xp.ndarray or Rays</span>
-<span class="sd">			Rays arriving at the aperture plane, shape</span>
-<span class="sd">			``(n_rays, len(convention))``.</span>
-<span class="sd">		z : float, optional</span>
-<span class="sd">			Unused (zero-length element), by default ``None``.</span>
-<span class="sd">		z0 : float, optional</span>
-<span class="sd">			Unused, by default 0.</span>
+	<span class="c1">#	Parameters</span>
+	<span class="c1">#	----------</span>
+	<span class="c1">#	r0 : xp.ndarray or Rays</span>
+	<span class="c1">#		Rays arriving at the aperture plane, shape</span>
+	<span class="c1">#		``(n_rays, len(convention))``.</span>
+	<span class="c1">#	z : float, optional</span>
+	<span class="c1">#		Unused (zero-length element), by default ``None``.</span>
+	<span class="c1">#	z0 : float, optional</span>
+	<span class="c1">#		Unused, by default 0.</span>
 
-<span class="sd">		Returns</span>
-<span class="sd">		-------</span>
-<span class="sd">		xp.ndarray or Rays</span>
-<span class="sd">			The rays, geometrically unchanged; a ``Rays`` input comes back</span>
-<span class="sd">			paired with its masked intensity.</span>
+	<span class="c1">#	Returns</span>
+	<span class="c1">#	-------</span>
+	<span class="c1">#	xp.ndarray or Rays</span>
+	<span class="c1">#		The rays, geometrically unchanged; a ``Rays`` input comes back</span>
+	<span class="c1">#		paired with its masked intensity.</span>
 
-<span class="sd">		Raises</span>
-<span class="sd">		------</span>
-<span class="sd">		None</span>
+	<span class="c1">#	Raises</span>
+	<span class="c1">#	------</span>
+	<span class="c1">#	None</span>
 
-<span class="sd">		Related</span>
-<span class="sd">		-------</span>
-<span class="sd">		apply_intensity : Where the mask actually acts.</span>
-<span class="sd">		phase_shift : The wave path's identical transmission mask.</span>
-<span class="sd">		"""</span>
-		<span class="n">paired</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">r0</span><span class="p">,</span><span class="n">Rays</span><span class="p">)</span>
-		<span class="n">rays</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">r0</span><span class="p">)</span>
-		<span class="n">rf</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">rays</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">+</span><span class="n">rays</span>
-		<span class="k">if</span> <span class="n">paired</span><span class="p">:</span>
-			<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">rf</span><span class="p">,</span><span class="n">r0</span><span class="o">.</span><span class="n">R</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">apply_intensity</span><span class="p">(</span><span class="n">r0</span><span class="o">.</span><span class="n">I_per_ray</span><span class="p">,</span><span class="n">rays</span><span class="p">))</span>
-		<span class="k">return</span> <span class="n">rf</span></div>
-
+	<span class="c1">#	Related</span>
+	<span class="c1">#	-------</span>
+	<span class="c1">#	apply_intensity : Where the mask actually acts.</span>
+	<span class="c1">#	phase_shift : The wave path's identical transmission mask.</span>
+	<span class="c1">#	"""</span>
+	<span class="c1">#	#paired = isinstance(r0,Rays)</span>
+	<span class="c1">#	return r0.copy()</span>
+	<span class="c1">#	rays = xp.asarray(r0)</span>
+	<span class="c1">#	rf = xp.zeros(rays.shape)+rays</span>
+	<span class="c1">#	return Rays(rays=rf)</span>
+	<span class="c1">#	#if not paired: # matrix-only</span>
+	<span class="c1">#	#	return rf</span>
+	<span class="c1">#	print(r0,r0.shape)</span>
+	<span class="c1">#	# Rays object</span>
+	<span class="c1">#	I_pr  = self.apply_intensity(r0.I_per_ray,rays)</span>
+	<span class="c1">#	I_pp = xp.concatenate((r0.I_per_plane,[self.transmitted_fraction(r0[-1])]))</span>
+	<span class="c1">#	print("NEW I_pp",I_pp)</span>
+	<span class="c1">#	return Rays(rays=rf,R=r0.R, I_per_ray=I_pr, I_per_plane = I_pp )</span>
+	<span class="c1">#		# 	def __init__(self, rays:xp.ndarray, R:float, I_per_ray:float,reference_frame:str="stationary",I_at_planes:float=1):</span>
+	<span class="c1">#	return rf</span>
 
 <div class="viewcode-block" id="Aperture.apply_intensity">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Aperture.apply_intensity">[docs]</a>
@@ -3496,7 +3503,8 @@
 		<span class="n">ymax</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">r0</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)]))</span>
 		<span class="n">scale_x</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="k">if</span> <span class="n">xmax</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="o">/</span> <span class="n">xmax</span>
 		<span class="n">scale_y</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="k">if</span> <span class="n">ymax</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="o">/</span> <span class="n">ymax</span>
-		<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">scale_x</span> <span class="o">*</span> <span class="n">scale_y</span><span class="p">)</span></div>
+		<span class="n">SHAPE_FACTOR</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">4</span> <span class="c1"># pi/4 is a shape factor: square grid of rays to round</span>
+		<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">scale_x</span> <span class="o">*</span> <span class="n">scale_y</span><span class="p">)</span><span class="o">*</span><span class="n">SHAPE_FACTOR</span></div>
 
 
 <div class="viewcode-block" id="Aperture.propagate_moments">
