@@ -26,6 +26,8 @@ def test_basic_section_r0():
 	r0=fix_ray_dims(r0,["x","y","xt","yt"])
 	r1 = section.propagate_ray(r0)
 	rr = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	#print(repr(section))
+	#print(r1)
 	#plot2D(r1,section.R)
 	filename = "elements_sections_microscopes_basic_section_r0_rays.npy"
 	if not os.path.exists(filename):
@@ -188,6 +190,25 @@ def test_basic_microscope_reload_sea():
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 #test_basic_microscope_reload_sea()
 
+def test_at_z():
+	elements = [ Source(size=(1,1),np_xy=(3,3),angle=(0,0),na_xy=(1,1)), Lens(focal_length=1,position=1), Lens(focal_length=1,position=3) ]
+	section1 = MicroscopeSection(elements = elements)
+	elements = [ Lens(focal_length=2,position=1), Drift(length=2) ]
+	section2 = MicroscopeSection(elements = elements)
+	microscope = Microscope(sections = [ section1,section2 ])
+	#microscope.show()
+	r1 = microscope.propagate_ray()
+	rr = convert_to_rotating_reference_frame(r1)
+	#print(repr(microscope))
+	#print(r1)
+	#print(r1.rays.shape,r1.R.shape,np.asarray(r1.z).shape)
+	assert rr.at_z(0.5).x[-1] == 1 # parallel beam, sliced pre-lens, last ray's x position should be starting source size
+	assert rr.at_z(1.5).x[-1] == 0.5 # 0.5 post-first-lens, focal length of 1, we should have come in by 0.5
+	assert rr.at_z(3.5).x[-1] == -1	# post-second-lens, should be parallel again
+	assert rr.at_z(4.5).x[-1] == -0.75	# post-last-lens, coming in more gradually again
+	assert rr.at_z(4.5).xt[-1] == 0.5
+#test_at_z()
+
 def test_element_insertion_microscope():
 	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths.sea"
 	if not os.path.exists(filename):
@@ -277,7 +298,7 @@ def test_cropping_section():
 	section = section[1:]
 	section.insert(0, Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)) )
 	r2 = section.propagate_ray()
-	r2 = convert_to_rotating_reference_frame(r2) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r2 = convert_to_rotating_reference_frame(r2).rays # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	# RAYS MUST MATCH
 	assert np.sqrt(np.sum((r1[-1]-r2[-1])**2)) < .0001
 

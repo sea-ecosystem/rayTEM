@@ -1,4 +1,4 @@
-from .elements import columnByName,fix_mat_dims,Drift,Source
+from .elements import columnByName,fix_mat_dims,Drift,Source,Rays
 import numpy as np
 from scipy.optimize import minimize,brute
 import matplotlib.pyplot as plt
@@ -387,7 +387,7 @@ def convert_to_rotating_reference_frame(rays):
 			M = np.asarray([[C,S,0,0],[-S,C,0,0],[0,0,C,S],[0,0,-S,C]])
 			M = fix_mat_dims(M,["x","y","xt","yt"])
 			converted[l,r,:] = np.matmul(M,rays[l,r,:])
-	return converted
+	return Rays(converted,I=rays.I,R=R*0)
 
 
 
@@ -820,6 +820,17 @@ def findPlanes2(rays):
 
 # TWP TODO: find groups (not just pairs) of diffraction rays, measure bundle diameter (out-of-focus-ness of diffraction spots) and bundle separation (magnification of out-of-focus diffraction image)
 def diffraction_bundles_at_z(z,rays):
+	# step 1, infer bundled rays (all rays emitted at the same angle, but from different positions)
+	bundles = {}
+	for r in len(rays[0]): # whichelement,whichray,xyxtyt...
+		xt,yt = rays[0].xt[r] ; rays[0].yt[r]
+		k = str(xt)+","+str(yt)
+		if k not in bundles.keys():
+			bundles[k] = []
+		bundles[k].append(r)
+	# step 2, get ray positions at z:
+
+
 	pass
 
 def zFromFractional(zs,z): # e.g. 1.2 is 20% of the distance through element index 1

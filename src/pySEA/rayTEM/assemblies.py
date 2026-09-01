@@ -650,7 +650,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 				  else xp.ones(n_rays))
 		if R0 is None:
 			R0 = xp.zeros(n_rays)
-		ri=[r0] ; Ii=[I0] ; Ri=[R0]
+		ri = [ r0 ] ; Ii = [ I0 ] ; Ri = [ R0 ] #; zi = [ self.position ]
 		for i,ele in enumerate(self._propagation_elements()):
 			if verbose:
 				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
@@ -667,9 +667,10 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			#print(ele_ri.shape,r0.shape)
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
 				ri.append(ele_ri[:,:]) ; Ii.append(ele_I) ; Ri.append(ele_R)
+				#zi.append( self.position+ele.position+getattr(ele,"length",0) )
 			else:
 				ri[-1]=ele_ri[:,:] ; Ii[-1]=ele_I ; Ri[-1]=ele_R
-		self.rays = Rays(xp.asarray(ri),R=xp.asarray(Ri),I=xp.asarray(Ii))
+		self.rays = Rays(xp.asarray(ri),R=xp.asarray(Ri),I=xp.asarray(Ii)) #,z=xp.asarray(zi))
 		self.I = self.rays.I
 		self.R = self.rays.R
 		return self.rays
@@ -2738,17 +2739,17 @@ class Microscope(SealedAttributes, SEASerializable):
 			with suspended_aberrations(self._all_elements()):
 				return self.propagate_ray(r0, z=z, verbose=verbose)
 		r=r0 ; I=None ; R=None #; print("Microscope r0",r0)# starting rays/intensity/rotation fed into section.propagate
-		rs=[] ; Is=[] ; Rs=[]
+		rs=[] ; Is=[] ; Rs=[] #; zs=[]
 		for n,s in enumerate(self.sections):
 			#print("section",s)
 			r1 = s.propagate_ray(z=z,r0=r,I0=I,R0=R,verbose=verbose) # r1 is shape nthElement,nthRay,xythetaetc
 			#print(r1.shape)
 			for k in range(len(r1)):
 				#r[:,columnByName('z')]#+=s.position
-				rs.append(xp.asarray(r1[k])) ; Is.append(r1.I[k]) ; Rs.append(r1.R[k])
+				rs.append(xp.asarray(r1[k])) ; Is.append(r1.I[k]) ; Rs.append(r1.R[k]) #; zs.append(r1.z[k])
 			#print(r1[-1,0,:])
 			r=xp.asarray(r1[-1]) ; I=r1.I[-1] ; R=r1.R[-1] # rays/intensity/rotation fed into subsequent section are those exiting this section
-		self.rays = Rays(xp.asarray(rs),R=xp.asarray(Rs),I=xp.asarray(Is))
+		self.rays = Rays(xp.asarray(rs),R=xp.asarray(Rs),I=xp.asarray(Is)) #,z=zs)
 		self.I = self.rays.I
 		self.R = self.rays.R
 		#print(self.rays.shape)

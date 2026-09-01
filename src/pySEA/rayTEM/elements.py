@@ -46,17 +46,20 @@ def fix_ray_dims(rays,columnNames):
 		new[:,columnByName(name)]=rays[:,i]
 	return new
 
-# Rays object contains an array with element,ray,xyxtytetc indices, and tracks current and rotation parameters. if we did matrix operations on rays (as arrays) previously, we should still be able to do that
+# Rays object contains an array with n_planes,n_rays,xyxtytetc indices (all rays at all points in the column) or n_rays,xyxtytetc indices (a set of rays at a given point in the column), and tracks current and rotation parameters. if we did matrix operations on rays (as arrays) previously, we should still be able to do that
 class Rays():
-	def __init__(self, rays:xp.ndarray, R:float, I:float):
+	def __init__(self, rays:xp.ndarray, R:float, I:float,z:float=0):
 		self.rays = xp.asarray(rays)
-		shape = self.rays.shape[:-1]
-		self.R = xp.broadcast_to(xp.asarray(R),shape).copy()
+		shape = self.rays.shape[:-1]							# indices: n_planes,n_rays,xyxtyt or n_rays,xyxtyt or just xyxtyt
+		self.R = xp.broadcast_to(xp.asarray(R),shape).copy()	# indices: n_planes,n_rays or just n_rays
 		self.I = xp.broadcast_to(xp.asarray(I),shape).copy()
+		#self.z = z												# indices: n_planes, or just a float
 	def __array__(self, dtype=None):
 		return xp.asarray(self.rays, dtype=dtype)
 	def __getattr__(self, key):
 		return getattr(self.rays, key)
+	def __str__(self):
+		return "\n".join([ k+": "+str(getattr(self,k)) for k in ["rays","R","I"] ])
 	def copy(self):
 		return Rays(self.rays.copy(),self.R.copy(),self.I.copy())
 	def __len__(self):
@@ -77,19 +80,40 @@ class Rays():
 		return Rays(out,self.R[meta],self.I[meta])
 	def __setitem__(self, key, value):
 		self.rays[key]=value
+
+	# TODO is there a way to programmatically generate these?
 	@property
 	def x(self):
-		return self.rays[:,columnByName('x')]
+		return self.rays[...,columnByName('x')]
 	@property
 	def xt(self):
-		return self.rays[:,columnByName('xt')]
+		return self.rays[...,columnByName('xt')]
 	@property
 	def y(self):
-		return self.rays[:,columnByName('y')]
+		return self.rays[...,columnByName('y')]
 	@property
-	def y(self):
-		return self.rays[:,columnByName('yt')]
+	def yt(self):
+		return self.rays[...,columnByName('yt')]
+	@property
+	def E(self):
+		return self.rays[...,columnByName('E')]
+	@property
+	def z(self):
+		return self.rays[...,columnByName('z')]
 
+	# returns an interpolated slice of the rays (n_rays,xyxtytetc) at arbitrary z
+	def at_z(self,z):
+		zs = self.z									# n_plane
+		i = xp.where(zs < z)[0][-1]
+		xi,yi = self.x[i],self.y[i]					# n_plane,n_ray,xyxtyt --> n_ray
+		xf,yf = self.x[i+1],self.y[i+1]
+		def interp(z,z1,z2,y1,y2):
+			return y1+(z-z1)/(z2-z1)*(y2-y1)
+		xs = interp(z,zs[i],zs[i+1],xi,xf)			# lateral position of all rays between elements i and i+1
+		ys = interp(z,zs[i],zs[i+1],yi,yf)
+		rays = self.rays[i].copy()
+		rays[...,columnByName('x')]=xs ; rays[...,columnByName('y')]=ys ; rays[...,columnByName('z')]=z
+		return Rays(rays,I=self.I[i],R=self.R[i])
 
 """General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional"""
 
