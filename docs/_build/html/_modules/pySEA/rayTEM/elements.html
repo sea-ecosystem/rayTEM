@@ -249,6 +249,8 @@
 <span class="sd">		findPlanes : Calls this before detecting planes.</span>
 <span class="sd">		Lens.transfer_matrix : Source of the accumulated rotation.</span>
 <span class="sd">		"""</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reference_frame</span><span class="o">==</span><span class="s2">"rotating"</span><span class="p">:</span>
+			<span class="k">return</span> <span class="bp">self</span>
 		<span class="n">R</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span>
 		<span class="n">nl</span><span class="p">,</span><span class="n">nr</span><span class="p">,</span><span class="n">nc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span>
 		<span class="n">converted</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>

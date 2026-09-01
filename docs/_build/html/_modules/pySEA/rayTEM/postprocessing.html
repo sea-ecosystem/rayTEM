@@ -890,22 +890,63 @@
 	<span class="c1">#return {"x":{"diff":{"z":Zdx,"M":Mdx},"image":{"z":Zix,"M":Mix}},</span>
 	<span class="c1">#		"y":{"diff":{"z":Zdy,"M":Mdy},"image":{"z":Ziy,"M":Miy}}}</span>
 
-<span class="c1"># TWP TODO: find groups (not just pairs) of diffraction rays, measure bundle diameter (out-of-focus-ness of diffraction spots) and bundle separation (magnification of out-of-focus diffraction image)</span>
+<div class="viewcode-block" id="dedupe">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.postprocessing.dedupe">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">dedupe</span><span class="p">(</span><span class="n">ary</span><span class="p">):</span>
+	<span class="n">ary</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">ary</span><span class="p">)))</span>
+	<span class="n">grad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">ary</span><span class="p">)</span>
+	<span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(([</span><span class="kc">True</span><span class="p">],</span><span class="n">grad</span><span class="o">&gt;</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">grad</span><span class="p">)</span><span class="o">/</span><span class="mi">10</span><span class="p">))</span> <span class="c1"># get rid of dA/dx equal or close to zero</span>
+	<span class="k">return</span> <span class="n">ary</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span></div>
+
+
+<span class="c1"># find groups (not just pairs) of diffraction rays, measure bundle diameter (out-of-focus-ness of diffraction spots) and bundle separation (magnification of out-of-focus diffraction image)</span>
 <div class="viewcode-block" id="diffraction_bundles_at_z">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.postprocessing.diffraction_bundles_at_z">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">diffraction_bundles_at_z</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">rays</span><span class="p">):</span>
 	<span class="c1"># step 1, infer bundled rays (all rays emitted at the same angle, but from different positions)</span>
 	<span class="n">bundles</span> <span class="o">=</span> <span class="p">{}</span>
-	<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">len</span><span class="p">(</span><span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span> <span class="c1"># whichelement,whichray,xyxtyt...</span>
-		<span class="n">xt</span><span class="p">,</span><span class="n">yt</span> <span class="o">=</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">xt</span><span class="p">[</span><span class="n">r</span><span class="p">]</span> <span class="p">;</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">yt</span><span class="p">[</span><span class="n">r</span><span class="p">]</span>
+	<span class="n">rays</span> <span class="o">=</span> <span class="n">rays</span><span class="o">.</span><span class="n">convert_to_rotating_reference_frame</span><span class="p">()</span>
+	<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span> <span class="c1"># whichelement,whichray,xyxtyt...</span>
+		<span class="n">x</span><span class="p">,</span><span class="n">y</span> <span class="o">=</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="n">r</span><span class="p">]</span> <span class="p">,</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="n">r</span><span class="p">]</span>
+		<span class="n">xt</span><span class="p">,</span><span class="n">yt</span> <span class="o">=</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">xt</span><span class="p">[</span><span class="n">r</span><span class="p">]</span> <span class="p">,</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">yt</span><span class="p">[</span><span class="n">r</span><span class="p">]</span>
+		<span class="c1">#if yt!=0 or y!=0 or # TODO do i care?</span>
+		<span class="c1">#	continue</span>
 		<span class="n">k</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">xt</span><span class="p">)</span><span class="o">+</span><span class="s2">","</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">yt</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">bundles</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
 			<span class="n">bundles</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
 		<span class="n">bundles</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
 	<span class="c1"># step 2, get ray positions at z:</span>
-
-
-	<span class="k">pass</span></div>
+	<span class="n">rays</span> <span class="o">=</span> <span class="n">rays</span><span class="o">.</span><span class="n">at_z</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+	<span class="c1"># analyze. use std to calculate spreading per-bundle and between-bundles</span>
+	<span class="n">x</span> <span class="o">=</span> <span class="p">[]</span> <span class="p">;</span> <span class="n">y</span> <span class="o">=</span> <span class="p">[]</span> <span class="p">;</span> <span class="n">stdx</span> <span class="o">=</span> <span class="p">[]</span> <span class="p">;</span> <span class="n">stdy</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># each bundle's x,y position and std WITHIN EACH bundle</span>
+	<span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">rs</span> <span class="ow">in</span> <span class="n">bundles</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+		<span class="n">rx</span> <span class="o">=</span> <span class="n">dedupe</span><span class="p">(</span> <span class="n">rays</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="n">rs</span><span class="p">]</span> <span class="p">)</span>
+		<span class="n">ry</span> <span class="o">=</span> <span class="n">dedupe</span><span class="p">(</span> <span class="n">rays</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="n">rs</span><span class="p">]</span> <span class="p">)</span> <span class="c1">#; print("rx",rx,"ry",ry)</span>
+		<span class="n">x</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">rx</span><span class="p">)</span> <span class="p">)</span>
+		<span class="n">y</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">ry</span><span class="p">)</span> <span class="p">)</span>
+		<span class="c1"># std = sqrt( sum( (xi-mu)^2 )/N )</span>
+		<span class="c1">#stx = np.sqrt( np.std(rx)**2*len(rx)/2 )</span>
+		<span class="c1">#sty = np.sqrt( np.std(ry)**2*len(rx)/2 )</span>
+		<span class="c1"># TODO above is bad if na_xy np_xy !=3. and maybe a bit convoluted. should we just use stdev instead? or peak-to-peak</span>
+		<span class="n">stx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">rx</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="p">;</span> <span class="n">sty</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">ry</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span>
+		<span class="n">stdx</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">stx</span> <span class="p">)</span>
+		<span class="n">stdy</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">sty</span> <span class="p">)</span>
+		<span class="c1">#bundles[k]</span>
+		<span class="c1">#if np_xy is not None: # std = sqrt( sum( (xi-mu)^2 )/N ). so if you want "beam extent", then square, multiply, div/2</span>
+		<span class="c1">#	stdx[-1] = np.sqrt( stdx[-1]**2*(len(rs)-np_xy[0]) )/2 # need to know number of "duplicate" rays (n_points)</span>
+		<span class="c1">#	stdy[-1] = np.sqrt( stdy[-1]**2*(len(rs)-np_xy[1]) )/2</span>
+		<span class="c1">#print("rays.x",np.round(rays.x[rs],3),"--&gt;",np.round(rx,3),"--&gt;",np.mean(rx),"+/-",np.std(rx))</span>
+		<span class="c1">#print("rays.y",np.round(rays.y[rs],3),"--&gt;",np.round(ry,3),"--&gt;",np.mean(ry),"+/-",np.std(ry))</span>
+	<span class="n">size_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">stdx</span><span class="p">)</span> <span class="p">;</span> <span class="n">size_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">stdy</span><span class="p">)</span>
+	<span class="n">x</span> <span class="o">=</span> <span class="n">dedupe</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">;</span> <span class="n">y</span> <span class="o">=</span> <span class="n">dedupe</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+	<span class="c1">#spread_x = np.sqrt( np.std(x)**2*len(x)/2 )</span>
+	<span class="c1">#spread_y = np.sqrt( np.std(y)**2*len(y)/2 )</span>
+	<span class="n">spread_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="p">;</span> <span class="n">spread_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">y</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span>
+	<span class="c1">#if na_xy is not None:</span>
+	<span class="c1">#	spread_x = np.sqrt( spread_x**2*(len(bundles)-na_xy[0]) )/2</span>
+	<span class="c1">#	spread_y = np.sqrt( spread_y**2*(len(bundles)-na_xy[1]) )/2</span>
+	<span class="k">return</span> <span class="p">{</span> <span class="s2">"bundle_size"</span><span class="p">:</span> <span class="p">{</span> <span class="s2">"x"</span><span class="p">:</span><span class="n">size_x</span> <span class="p">,</span> <span class="s2">"y"</span><span class="p">:</span><span class="n">size_y</span> <span class="p">},</span>
+				<span class="s2">"bundle_spread"</span><span class="p">:</span> <span class="p">{</span> <span class="s2">"x"</span><span class="p">:</span><span class="n">spread_x</span> <span class="p">,</span> <span class="s2">"y"</span><span class="p">:</span><span class="n">spread_y</span> <span class="p">}</span> <span class="p">}</span></div>
 
 
 <div class="viewcode-block" id="zFromFractional">
