@@ -19,6 +19,7 @@ def plot2D(r1,axis="x",filename=None, zpts="",sections=None, xlims=None,ylims=No
 	# "ghosting": masked (dead) rays stop being drawn at the plane where their intensity hits zero.
 	# If you use too-few rays (or wish to see a continously-rescaled beam, as opposed to step-functions as rays cross the aperture border), then you should use "rescale". I have made this the default to preserve historical behavior (and for sensible plotting when using the minimal number of rays required for plane finding)
 	I = getattr(r1, "I_per_ray", None)
+	I_per_plane = getattr(r1, "I_per_plane", None)
 	r1 = r1.convert_to_rotating_reference_frame()
 	if plt_ax is None:
 		fig,ax = plt.subplots()
@@ -30,8 +31,12 @@ def plot2D(r1,axis="x",filename=None, zpts="",sections=None, xlims=None,ylims=No
 	# loop through rays
 	i,j=columnByName(axis),columnByName("z")
 	Y = np.array(np.asarray(r1)[:,:,i], dtype=float)
-	if I is not None:
+	if aperture_handling == "rescale" and I_per_plane is not None:
+		Y *= np.sqrt(np.asarray(I_per_plane)/I_per_plane[0])[:,None]
+	elif aperture_handling == "ghosting" and I is not None:
 		Y[np.asarray(I) <= 0] = np.nan
+	elif aperture_handling not in ["rescale","ghosting"]:
+		raise ValueError("aperture_handling must be 'rescale' or 'ghosting'")
 	for ys,xs,c in zip( Y.T , np.asarray(r1)[:,:,j].T , linecolors ):
 		ax.plot(xs,ys,linestyle="-",color=c,marker='',linewidth=1)
 
