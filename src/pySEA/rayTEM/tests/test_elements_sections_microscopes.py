@@ -425,6 +425,16 @@ def test_old_json_compatibility():
 #test_element_move()
 #test_element_insertion_microscope()
 
+def test_diffraction_rays():
+	from pySEA.rayTEM import diffraction_bundles_at_z
+	#np_xy=(3,3) ; na_xy=(3,3)
+	np_xy=(5,7) ; na_xy=(3,9)
+	elements = [ Source(name="S",size=(2,2),np_xy=np_xy,na_xy=na_xy) , Lens(name="L1",strength=3,length=.1,position=1), Lens(name="L2",strength=5,length=.1,position=2.8), Lens(name="L3",strength=1,length=.1,position=5.2) ]
+	microscope = MicroscopeSection(elements=elements)
+	microscope.propagate_ray()
+	ret = diffraction_bundles_at_z(5,microscope.rays)
+	microscope.show(title=str(ret))
+test_diffraction_rays()
 
 def test_rotated_quadrupole():
 	"""A rotated quadrupole couples the planes; pi/2 swaps them exactly."""

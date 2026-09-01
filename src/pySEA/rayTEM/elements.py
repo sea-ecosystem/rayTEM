@@ -139,6 +139,8 @@ class Rays():
 		findPlanes : Calls this before detecting planes.
 		Lens.transfer_matrix : Source of the accumulated rotation.
 		"""
+		if self.reference_frame=="rotating":
+			return self
 		R = self.R
 		nl,nr,nc = self.shape
 		converted = xp.zeros(self.shape)

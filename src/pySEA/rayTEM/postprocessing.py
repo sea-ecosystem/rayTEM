@@ -778,20 +778,58 @@ def findPlanes2(rays):
 	#return {"x":{"diff":{"z":Zdx,"M":Mdx},"image":{"z":Zix,"M":Mix}},
 	#		"y":{"diff":{"z":Zdy,"M":Mdy},"image":{"z":Ziy,"M":Miy}}}
 
-# TWP TODO: find groups (not just pairs) of diffraction rays, measure bundle diameter (out-of-focus-ness of diffraction spots) and bundle separation (magnification of out-of-focus diffraction image)
+def dedupe(ary):
+	ary = np.asarray(list(sorted(ary)))
+	grad = np.diff(ary)
+	mask = np.concatenate(([True],grad>np.mean(grad)/10)) # get rid of dA/dx equal or close to zero
+	return ary[mask]
+
+# find groups (not just pairs) of diffraction rays, measure bundle diameter (out-of-focus-ness of diffraction spots) and bundle separation (magnification of out-of-focus diffraction image)
 def diffraction_bundles_at_z(z,rays):
 	# step 1, infer bundled rays (all rays emitted at the same angle, but from different positions)
 	bundles = {}
-	for r in len(rays[0]): # whichelement,whichray,xyxtyt...
-		xt,yt = rays[0].xt[r] ; rays[0].yt[r]
+	rays = rays.convert_to_rotating_reference_frame()
+	for r in range(len(rays[0])): # whichelement,whichray,xyxtyt...
+		x,y = rays[0].x[r] , rays[0].y[r]
+		xt,yt = rays[0].xt[r] , rays[0].yt[r]
+		#if yt!=0 or y!=0 or # TODO do i care?
+		#	continue
 		k = str(xt)+","+str(yt)
 		if k not in bundles.keys():
 			bundles[k] = []
 		bundles[k].append(r)
 	# step 2, get ray positions at z:
-
-
-	pass
+	rays = rays.at_z(z)
+	# analyze. use std to calculate spreading per-bundle and between-bundles
+	x = [] ; y = [] ; stdx = [] ; stdy = [] # each bundle's x,y position and std WITHIN EACH bundle
+	for k,rs in bundles.items():
+		rx = dedupe( rays.x[rs] )
+		ry = dedupe( rays.y[rs] ) #; print("rx",rx,"ry",ry)
+		x.append( np.mean(rx) )
+		y.append( np.mean(ry) )
+		# std = sqrt( sum( (xi-mu)^2 )/N )
+		#stx = np.sqrt( np.std(rx)**2*len(rx)/2 )
+		#sty = np.sqrt( np.std(ry)**2*len(rx)/2 )
+		# TODO above is bad if na_xy np_xy !=3. and maybe a bit convoluted. should we just use stdev instead? or peak-to-peak
+		stx = np.ptp(rx)/2 ; sty = np.ptp(ry)/2
+		stdx.append( stx )
+		stdy.append( sty )
+		#bundles[k]
+		#if np_xy is not None: # std = sqrt( sum( (xi-mu)^2 )/N ). so if you want "beam extent", then square, multiply, div/2
+		#	stdx[-1] = np.sqrt( stdx[-1]**2*(len(rs)-np_xy[0]) )/2 # need to know number of "duplicate" rays (n_points)
+		#	stdy[-1] = np.sqrt( stdy[-1]**2*(len(rs)-np_xy[1]) )/2
+		#print("rays.x",np.round(rays.x[rs],3),"-->",np.round(rx,3),"-->",np.mean(rx),"+/-",np.std(rx))
+		#print("rays.y",np.round(rays.y[rs],3),"-->",np.round(ry,3),"-->",np.mean(ry),"+/-",np.std(ry))
+	size_x = np.mean(stdx) ; size_y = np.mean(stdy)
+	x = dedupe(x) ; y = dedupe(y)
+	#spread_x = np.sqrt( np.std(x)**2*len(x)/2 )
+	#spread_y = np.sqrt( np.std(y)**2*len(y)/2 )
+	spread_x = np.ptp(x)/2 ; spread_y = np.ptp(y)/2
+	#if na_xy is not None:
+	#	spread_x = np.sqrt( spread_x**2*(len(bundles)-na_xy[0]) )/2
+	#	spread_y = np.sqrt( spread_y**2*(len(bundles)-na_xy[1]) )/2
+	return { "bundle_size": { "x":size_x , "y":size_y },
+				"bundle_spread": { "x":spread_x , "y":spread_y } }
 
 def zFromFractional(zs,z): # e.g. 1.2 is 20% of the distance through element index 1
 	i,di=int(z),z-int(z) # 1.2 --> i=1, and di=0.2
