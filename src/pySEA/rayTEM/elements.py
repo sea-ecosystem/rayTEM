@@ -49,15 +49,17 @@ def fix_ray_dims(rays,columnNames):
 # Rays object contains an array with n_planes,n_rays,xyxtytetc indices (all rays at all points in the column) or n_rays,xyxtytetc indices (a set of rays at a given point in the column), and tracks current and rotation parameters. if we did matrix operations on rays (as arrays) previously, we should still be able to do that
 # Intensity is tracked per-ray (masked rays are zeroed), and per-plane (tracking the total beam intensity as apertures reduce the total intensity). mean(I_per_ray) for a given plane should yield similar result (but not exactly) to I_per_plane, since I_per_plane will use the smooth Aperture.transmitted_fraction() (non-stepped function for intensity, as rays cross the aperture edge).
 class Rays():
-	def __init__(self, rays:xp.ndarray, R:float, I_per_ray:float,reference_frame:str="stationary",I_per_plane:float=1):
+	def __init__(self, rays:xp.ndarray, R:float=0, I_per_ray:float=1,reference_frame:str="stationary",I_per_plane:float=None):
 		self.rays = xp.asarray(rays)
 		shape = self.rays.shape[:-1]							# indices: n_planes,n_rays,xyxtyt or n_rays,xyxtyt or just xyxtyt
 		self.R = xp.broadcast_to(xp.asarray(R),shape).copy()	# indices: n_planes,n_rays or just n_rays
 		self.I_per_ray = xp.broadcast_to(xp.asarray(I_per_ray),shape).copy()
 		self.reference_frame = reference_frame
-		self.I_per_plane = xp.asarray(I_per_plane).copy()
-		if self.rays.ndim == 3:
+		self.I_per_plane = (xp.sum(self.I_per_ray,axis=-1 if self.I_per_ray.ndim else None)
+								if I_per_plane is None else xp.asarray(I_per_plane).copy())
+		if I_per_plane is not None and self.rays.ndim == 3:
 			self.I_per_plane = xp.broadcast_to(self.I_per_plane,len(self.rays)).copy()
+		#self.boundary_ray =
 
 		#self.z = z												# indices: n_planes, or just a float
 	def __array__(self, dtype=None):
@@ -67,7 +69,57 @@ class Rays():
 	def __str__(self):
 		return "\n".join([ k+": "+str(getattr(self,k)) for k in ["rays","R","I_per_ray","I_per_plane"] ])
 	def copy(self):
-		return Rays(self.rays.copy(),self.R.copy(),self.I_per_ray.copy(),I_per_plane=self.I_per_plane.copy())
+		result = object.__new__(type(self))
+		result.__dict__ = deepcopy(self.__dict__)
+		return result
+	@staticmethod
+	def _same(a,b):
+		if type(a) is not type(b):
+			return False
+		if isinstance(a,dict):
+			return a.keys() == b.keys() and all(Rays._same(a[k],b[k]) for k in a)
+		if isinstance(a,(list,tuple)):
+			return len(a) == len(b) and all(Rays._same(x,y) for x,y in zip(a,b))
+		if hasattr(a,"__dict__"):
+			return Rays._same(vars(a),vars(b))
+		try:
+			return bool(xp.all(a == b))
+		except Exception:
+			return False
+	@classmethod
+	def _combine(cls, items, ndim):
+		items = list(items)
+		if not items or any(not isinstance(r,Rays) or r.rays.ndim != ndim for r in items):
+			raise ValueError(f"expected one or more {ndim}-D Rays objects")
+		shape = items[0].rays.shape[1:] if ndim == 3 else items[0].rays.shape
+		if any((r.rays.shape[1:] if ndim == 3 else r.rays.shape) != shape for r in items):
+			raise ValueError("all Rays objects must have matching ray shapes")
+		if any(r.reference_frame != items[0].reference_frame for r in items[1:]):
+			raise ValueError("all Rays objects must use the same reference frame")
+		core = {"rays","R","I_per_ray","I_per_plane","reference_frame"}
+		extra = set(vars(items[0])) - core
+		if any(set(vars(r))-core != extra or any(not cls._same(getattr(items[0],k),getattr(r,k)) for k in extra) for r in items[1:]):
+			raise ValueError("extra Rays attributes must match")
+		return items,items[0].copy()
+	@classmethod
+	def stack(cls, planes):
+		"""Stack single-plane ray states into one propagation history."""
+		planes,result = cls._combine(planes,2)
+		result.rays = xp.stack([r.rays for r in planes])
+		result.R = xp.stack([r.R for r in planes])
+		result.I_per_ray = xp.stack([r.I_per_ray for r in planes])
+		result.I_per_plane = xp.stack([xp.asarray(r.I_per_plane) for r in planes])
+		return result
+	@classmethod
+	def concatenate(cls, stacks,drop_shared=False):
+		"""Join propagation histories, optionally omitting repeated boundary planes."""
+		stacks,result = cls._combine(stacks,3)
+		parts = [slice(None)] + [slice(1,None) if drop_shared else slice(None)] * (len(stacks)-1)
+		result.rays = xp.concatenate([r.rays[k] for r,k in zip(stacks,parts)])
+		result.R = xp.concatenate([r.R[k] for r,k in zip(stacks,parts)])
+		result.I_per_ray = xp.concatenate([r.I_per_ray[k] for r,k in zip(stacks,parts)])
+		result.I_per_plane = xp.concatenate([r.I_per_plane[k] for r,k in zip(stacks,parts)])
+		return result
 	def __len__(self):
 		return len(self.rays)
 	def __getitem__(self, key):
@@ -83,8 +135,12 @@ class Rays():
 		if not isinstance(coord,slice) or any(v is not None for v in (coord.start,coord.stop,coord.step)):
 			return out
 		meta = tuple(keys[:-1])
-		I_per_plane = self.I_per_plane[keys[0]] if self.rays.ndim==3 else self.I_per_plane
-		return Rays(out,self.R[meta],self.I_per_ray[meta],I_per_plane=I_per_plane)
+		result = self.copy()
+		result.rays = result.rays[key]
+		result.R = result.R[meta]
+		result.I_per_ray = result.I_per_ray[meta]
+		result.I_per_plane = result.I_per_plane[keys[0]] if self.rays.ndim==3 else result.I_per_plane
+		return result
 	def __setitem__(self, key, value):
 		self.rays[key]=value
 
@@ -118,9 +174,9 @@ class Rays():
 			return y1+(z-z1)/(z2-z1)*(y2-y1)
 		xs = interp(z,zs[i],zs[i+1],xi,xf)			# lateral position of all rays between elements i and i+1
 		ys = interp(z,zs[i],zs[i+1],yi,yf)
-		rays = self.rays[i].copy()
-		rays[...,columnByName('x')]=xs ; rays[...,columnByName('y')]=ys ; rays[...,columnByName('z')]=z
-		return Rays(rays,I_per_ray=self.I_per_ray[i],R=self.R[i],I_per_plane=self.I_per_plane[i])
+		result = self[i].copy()
+		result.rays[...,columnByName('x')]=xs ; result.rays[...,columnByName('y')]=ys ; result.rays[...,columnByName('z')]=z
+		return result
 
 	def convert_to_rotating_reference_frame(self): # TODO NEEDS A WARNING IF YOU TRY TO PASS IT AN ALREADY-ROTATED REFERENCE FRAME
 		"""Ray propagation follows a fixed reference plane (solenoids rotate the beam). This function returns a new Rays object with the rays in a rotating (Larmor) reference frame.
@@ -158,7 +214,10 @@ class Rays():
 				M = xp.asarray([[C,S,0,0],[-S,C,0,0],[0,0,C,S],[0,0,-S,C]])
 				M = fix_mat_dims(M,["x","y","xt","yt"])
 				converted[l,r,:] = xp.matmul(M,self[l,r,:])
-		return Rays(converted,I_per_ray=self.I_per_ray,R=R,reference_frame="rotating",I_per_plane=self.I_per_plane)
+		result = self.copy()
+		result.rays = converted
+		result.reference_frame = "rotating"
+		return result
 
 
 """General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional"""
@@ -1835,7 +1894,11 @@ class Element(SealedAttributes, SEASerializable):
 			rf[:,columnByName("yt")] += chromatic[1]
 
 		if paired:
-			return Rays(rf,self.apply_rotation(r0.R),self.apply_intensity(r0.I_per_ray,rays))
+			result = r0.copy()
+			result.rays = rf
+			result.R = self.apply_rotation(r0.R)
+			result.I_per_ray = self.apply_intensity(r0.I_per_ray,rays)
+			return result
 		return rf
 
 	def apply_intensity(self, I:xp.ndarray, r0:xp.ndarray) -> xp.ndarray:
@@ -2798,7 +2861,7 @@ class Source(Element):
 		array=fix_ray_dims(array,["x","y","xt","yt"])
 		if self.voltage is not None:					# beam energy (keV) rides in the E column when defined
 			array[:,columnByName("E")] = self.voltage
-		return Rays(array,R=xp.zeros(len(array)),I_per_ray=xp.full(len(array),self.beam_current/len(array)),I_per_plane=self.beam_current)
+		return Rays(array,I_per_ray=xp.full(len(array),self.beam_current/len(array)),I_per_plane=self.beam_current)
 
 	# dummy propagation in case someone tries to propagate through since this is technically an element
 	def propagate_ray(self, r0:xp.ndarray | Rays, **kwargs) -> xp.ndarray:

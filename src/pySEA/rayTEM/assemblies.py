@@ -655,28 +655,27 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			I_initial = I0_per_plane
 		if R0 is None:
 			R0 = xp.zeros(n_rays)
-		ri = [ r0 ] ; Ii_pr = [ I0_per_ray ] ; Ri = [ R0 ] ; Ii_pp = [ I0_per_plane ] #; zi = [ self.position ]
+		planes = [Rays(r0,R=R0,I_per_ray=I0_per_ray,I_per_plane=I0_per_plane)]
 		for i,ele in enumerate(self._propagation_elements()):
 			if verbose:
-				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
+				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(planes[-1].x),xp.amax(planes[-1].y))
 			# intensity/rotation are evaluated relative to the incoming rays; rotation
 			# must follow propagate_ray so thick-lens self.larmor_rotation is already set.
 			# The element is told the current ARRIVING at it, so Element.beam_current
 			# can be a derived read rather than a second place a current is stated.
 			# Recorded on the element, so it is saved with .I and .rays.
-			ele._arriving_current = float(xp.sum(Ii_pr[-1]))
-			ele_I_pr  = ele.apply_intensity(Ii_pr[-1], ri[-1])
-			ele_I_pp = xp.minimum(Ii_pp[-1], I_initial * ele.transmitted_fraction(ri[-1])) if ele.kind == "Aperture" else Ii_pp[-1]
-			ele_ri = ele.propagate_ray(ri[-1], z=z)
-			ele_R  = ele.apply_rotation(Ri[-1])
+			ele._arriving_current = float(xp.sum(planes[-1].I_per_ray))
+			result = ele.propagate_ray(planes[-1],z=z)
+			result.I_per_plane = (xp.minimum(planes[-1].I_per_plane,I_initial * ele.transmitted_fraction(planes[-1].rays))
+								  if ele.kind == "Aperture" else planes[-1].I_per_plane)
 			#ele_ri[...,-2] += ele.position # TWP 2025/08/27 - do not add distance. drift already should update z
 			#print(ele_ri.shape,r0.shape)
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
-				ri.append(ele_ri[:,:]) ; Ii_pr.append(ele_I_pr) ; Ii_pp.append(ele_I_pp) ; Ri.append(ele_R)
+				planes.append(result)
 				#zi.append( self.position+ele.position+getattr(ele,"length",0) )
 			else:
-				ri[-1]=ele_ri[:,:] ; Ii_pr[-1]=ele_I_pr ; Ii_pp[-1]=ele_I_pp ; Ri[-1]=ele_R
-		self.rays = Rays(xp.asarray(ri),R=xp.asarray(Ri),I_per_ray=xp.asarray(Ii_pr),I_per_plane=xp.asarray(Ii_pp)) #,z=xp.asarray(zi))
+				planes[-1] = result
+		self.rays = Rays.stack(planes)
 		self.I = self.rays.I_per_ray
 		self.R = self.rays.R
 		return self.rays
@@ -1362,7 +1361,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		return self.wave_current_at(-1)
 
 	def convergence_angle_at(self, z:float) -> float:
-		"""Convergence **semi**-angle of the outermost ray at a plane.
+		"""Convergence **semi**-angle of the outermost non-blocked ray at a plane.
 
 		Semi-angle: the half-angle of the cone, measured from the optic axis —
 		not the full opening angle. This is the alpha every axial aberration is
@@ -2744,20 +2743,15 @@ class Microscope(SealedAttributes, SEASerializable):
 		if not apply_aberrations:
 			with suspended_aberrations(self._all_elements()):
 				return self.propagate_ray(r0, z=z, verbose=verbose)
-		r=r0 ; I_pr=None ; I_pp=None ; I_initial=None ; R=None #; print("Microscope r0",r0)# starting rays/intensity/rotation fed into section.propagate
-		rs=[] ; Is_pr=[] ; Is_pp=[] ; Rs=[] #; zs=[]
+		r=r0 ; I_initial=None ; stacks=[]
 		for n,s in enumerate(self.sections):
 			#print("section",s)
-			r1 = s.propagate_ray(z=z,r0=r,I0_per_ray=I_pr,I0_per_plane=I_pp,I_initial=I_initial,R0=R,verbose=verbose) # r1 is shape nthElement,nthRay,xythetaetc
+			r1 = s.propagate_ray(z=z,r0=r,I_initial=I_initial,verbose=verbose)
 			if I_initial is None:
 				I_initial = r1.I_per_plane[0]
-			#print(r1.shape)
-			for k in range(len(r1)):
-				#r[:,columnByName('z')]#+=s.position
-				rs.append(xp.asarray(r1[k])) ; Is_pr.append(r1.I_per_ray[k]) ; Is_pp.append(r1.I_per_plane[k]) ; Rs.append(r1.R[k]) #; zs.append(r1.z[k])
-			#print(r1[-1,0,:])
-			r=xp.asarray(r1[-1]) ; I_pr=r1.I_per_ray[-1] ; I_pp=r1.I_per_plane[-1] ; R=r1.R[-1] # rays/intensity/rotation fed into subsequent section are those exiting this section
-		self.rays = Rays(xp.asarray(rs),R=xp.asarray(Rs),I_per_ray=xp.asarray(Is_pr),I_per_plane=xp.asarray(Is_pp)) #,z=zs)
+			stacks.append(r1)
+			r = r1[-1]
+		self.rays = Rays.concatenate(stacks)
 		self.I = self.rays.I_per_ray
 		self.R = self.rays.R
 		#print(self.rays.shape)

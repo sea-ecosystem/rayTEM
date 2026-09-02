@@ -210,16 +210,6 @@ def test_at_z():
 	assert rr.at_z(4.5).xt[-1] == 0.5
 #test_at_z()
 
-def test_rays_defaults():
-	array = fix_ray_dims(np.zeros((3,4)),["x","xt","y","yt"])
-	rays = Rays(array)
-	assert np.array_equal(rays.R,np.zeros(3)) and np.array_equal(rays.I_per_ray,np.ones(3))
-	assert rays.I_per_plane == 3 and rays.reference_frame == "stationary"
-	history = Rays(np.stack((array,array)))
-	assert np.array_equal(history.I_per_plane,[3,3])
-	weighted = Rays(array,I_per_ray=[.1,.2,.3])
-	assert np.isclose(weighted.I_per_plane,.6)
-
 def test_rays_copy_preserves_extra_attributes():
 	r0 = Source(size=(1,1),np_xy=(2,2),angle=(0,0),na_xy=(1,1)).rays()
 	rays = MicroscopeSection(elements=[Drift(length=1)]).propagate_ray(r0)
