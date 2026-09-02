@@ -541,8 +541,8 @@
 <span class="sd">		"""</span>
 		<span class="n">first</span> <span class="o">=</span> <span class="kc">None</span>
 		<span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">cands</span><span class="p">:</span>
-			<span class="k">if</span> <span class="n">I</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">I</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">r</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-				<span class="k">continue</span>
+			<span class="c1">#if I is not None and not I[i, r] &gt; 0: # TWP 20260902 don't ignore blocked rays. heck, if we're only using pairs of rays to detect image and diffraction planes, we're already ignoring all the aberrations affecting other rays!</span>
+			<span class="c1">#	continue</span>
 			<span class="k">if</span> <span class="n">first</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 				<span class="n">first</span> <span class="o">=</span> <span class="n">r</span>
 			<span class="k">elif</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">r</span><span class="p">,</span><span class="n">col</span><span class="p">]</span> <span class="o">!=</span> <span class="n">rays</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">first</span><span class="p">,</span><span class="n">col</span><span class="p">]:</span>
