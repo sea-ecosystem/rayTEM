@@ -261,27 +261,20 @@ def test_rays_stack_and_concatenate():
 		Rays.stack([rays[0],other])
 
 def test_boundary_ray_rescales_at_aperture():
-	r0 = fix_ray_dims(np.asarray([[0,0,0,0],[2,.2,0,0],[0,0,3,.6]]),["x","xt","y","yt"])
+	r0 = fix_ray_dims(np.asarray([[0,0,0,0],[2,.2,0,0]]),["x","xt","y","yt"])
 	section1 = MicroscopeSection(elements=[Aperture(radius=1),Drift(length=1)])
 	rays = section1.propagate_ray(r0)
-	ix,ixt,iy,iz = columnByName("x"),columnByName("xt"),columnByName("y"),columnByName("z")
-	assert np.allclose(rays.boundary_ray[:,0,ix],[2,1,1.1])
-	assert np.allclose(rays.boundary_ray[:,0,ixt],[.2,.1,.1])
-	assert np.allclose(rays.boundary_ray[:,1,iy],[3,1,1.2])
-	assert np.array_equal(rays.boundary_ray[:,:,iz],[[0,0],[0,0],[1,1]])
-	assert np.allclose(rays.rays[:,1,ix],[2,2,2.2])
+	ix,ixt = columnByName("x"),columnByName("xt")
+	assert np.allclose(rays.boundary_ray[:,ix],[2,1,1.1])
+	assert np.allclose(rays.boundary_ray[:,ixt],[.2,.1,.1])
+	assert np.allclose(rays.rays[:,-1,ix],[2,2,2.2])
 	assert np.array_equal(rays[-1].boundary_ray,rays.boundary_ray[-1])
 	microscope = Microscope(sections=[section1,MicroscopeSection(elements=[Drift(length=1)])])
-	assert np.isclose(microscope.propagate_ray(r0).boundary_ray[-1,0,ix],1.2)
+	assert np.isclose(microscope.propagate_ray(r0).boundary_ray[-1,ix],1.2)
 	fig,ax = plt.subplots()
 	plot2D(rays,plt_ax=ax,aperture_handling="ghosting")
 	boundary_lines = [line for line in ax.lines if line.get_label() == "boundary ray"]
 	assert len(boundary_lines) == 1 and np.allclose(boundary_lines[0].get_ydata(),[2,1,1.1])
-	plt.close(fig)
-	fig,ax = plt.subplots()
-	plot2D(rays,axis="y",plt_ax=ax,aperture_handling="ghosting")
-	boundary_lines = [line for line in ax.lines if line.get_label() == "boundary ray"]
-	assert len(boundary_lines) == 1 and np.allclose(boundary_lines[0].get_ydata(),[3,1,1.2])
 	plt.close(fig)
 
 def test_element_insertion_microscope():

@@ -296,7 +296,8 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		if isinstance(item,slice):	# convert "sample:" (which results in "item" being a slice) to an integer-indexed slice, e.g. slice(3,None,None)
 			a,b,n=item.start,item.stop,item.step
 			trim_first = 0 ; trim_last = 0
-			a,b,n=[ self.index(v) if isinstance(v,str) else v for v in [a,b,n] ] # convert "PL1:" to whatever the index is for PL1
+			a,b,n = [self.index(v) if isinstance(v,str) else v
+					 for v in [a,b,n]] # convert "PL1:" to whatever the index is for PL1
 			if isinstance(a,float):
 				trim_first = a
 				positions = xp.asarray([ e.position for e in self.elements ])
@@ -636,7 +637,12 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 				r0 = self.elements[0].rays()
 			else:
 				raise UserWarning("First element is not a Source, and no r0 provided to propagate_ray. Please provide initial rays or ensure first element is a Source.")
+		boundary_ray = None
 		if isinstance(r0,Rays):
+			if r0.boundary_ray.ndim == 3:
+				boundary_ray = r0.boundary_ray[-1].copy()
+			else:
+				boundary_ray = r0.boundary_ray.copy()
 			I0_per_ray = r0.I_per_ray if I0_per_ray is None else I0_per_ray
 			I0_per_plane = r0.I_per_plane if I0_per_plane is None else I0_per_plane
 			R0 = r0.R if R0 is None else R0
@@ -656,6 +662,8 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		if R0 is None:
 			R0 = xp.zeros(n_rays)
 		planes = [Rays(r0,R=R0,I_per_ray=I0_per_ray,I_per_plane=I0_per_plane)]
+		if boundary_ray is not None:
+			planes[0].boundary_ray = boundary_ray
 		for i,ele in enumerate(self._propagation_elements()):
 			if verbose:
 				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(planes[-1].x),xp.amax(planes[-1].y))
@@ -666,8 +674,17 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			# Recorded on the element, so it is saved with .I and .rays.
 			ele._arriving_current = float(xp.sum(planes[-1].I_per_ray))
 			result = ele.propagate_ray(planes[-1],z=z)
-			result.I_per_plane = (xp.minimum(planes[-1].I_per_plane,I_initial * ele.transmitted_fraction(planes[-1].rays))
-								  if ele.kind == "Aperture" else planes[-1].I_per_plane)
+			result.boundary_ray = ele.propagate_ray(planes[-1].boundary_ray,z=z)
+			if ele.kind == "Aperture":
+				ix,ixt,iy,iyt = (columnByName(k) for k in ("x","xt","y","yt"))
+				for r,k in enumerate((ix,iy)):
+					extent = xp.abs(result.boundary_ray[r,k])
+					if extent > ele.radius:
+						result.boundary_ray[r,[ix,ixt,iy,iyt]] *= ele.radius/extent
+				result.I_per_plane = xp.minimum(planes[-1].I_per_plane,I_initial * ele.transmitted_fraction(planes[-1].rays))
+
+			else:
+				result.I_per_plane = planes[-1].I_per_plane
 			#ele_ri[...,-2] += ele.position # TWP 2025/08/27 - do not add distance. drift already should update z
 			#print(ele_ri.shape,r0.shape)
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
@@ -1406,17 +1423,18 @@ class Microscope(SealedAttributes, SEASerializable):
 		# picked by residuals and under-reads the cone. A masked ray keeps
 		# flying geometrically with I = 0, and an aperture is precisely the
 		# thing that DEFINES this angle, so dead rays do not count.
-		rays = xp.asarray(self.rays)
+		rays = xp.asarray(self.rays.boundary_ray)
 		zs = rays[:, 0, columnByName('z')]
 		i = int(xp.where(zs <= float(z))[0][-1])		# plane entering z
-		live = xp.asarray(self.I)[i] > 0
-		if not live.any():
-			raise ValueError(f"no ray carries intensity at z={z}: an upstream "
-							 "aperture blocked the whole fan, so there is no "
-							 "live beam whose convergence could be measured.")
-		xt = rays[i, live, columnByName('xt')]
-		yt = rays[i, live, columnByName('yt')]
-		return float(xp.hypot(xt, yt).max())
+		#live = xp.asarray(self.I)[i] > 0
+		#if not live.any():
+		#	raise ValueError(f"no ray carries intensity at z={z}: an upstream "
+		#					 "aperture blocked the whole fan, so there is no "
+		#					 "live beam whose convergence could be measured.")
+		#xt = rays[i, live, columnByName('xt')]
+		#yt = rays[i, live, columnByName('yt')]
+		#return float(xp.hypot(xt, yt).max())
+		return xp.sqrt( rays[i,0,columnByName('xt')]**2 + rays[i,1,columnByName('yt')]**2 )
 
 	@property
 	def convergence_angle(self) -> float:

@@ -59,9 +59,20 @@ class Rays():
 								if I_per_plane is None else xp.asarray(I_per_plane).copy())
 		if I_per_plane is not None and self.rays.ndim == 3:
 			self.I_per_plane = xp.broadcast_to(self.I_per_plane,len(self.rays)).copy()
-		#self.boundary_ray =
+		self.boundary_ray = self._default_boundary_ray(self.rays)
 
 		#self.z = z												# indices: n_planes, or just a float
+	@staticmethod
+	def _default_boundary_ray(rays):
+		if rays.ndim == 1:
+			return xp.stack((rays,rays)).copy()
+		def edge(plane,pos,angle):
+			vals = xp.abs(plane[:,columnByName(pos)])
+			inds = xp.flatnonzero(vals == xp.amax(vals))
+			return plane[inds[xp.argmax(xp.abs(plane[inds,columnByName(angle)]))]]
+		planes = rays[None,:] if rays.ndim == 2 else rays
+		boundary = xp.stack([xp.stack((edge(plane,"x","xt"),edge(plane,"y","yt"))) for plane in planes])
+		return boundary[0].copy() if rays.ndim == 2 else boundary.copy()
 	def __array__(self, dtype=None):
 		return xp.asarray(self.rays, dtype=dtype)
 	def __getattr__(self, key):
@@ -96,7 +107,7 @@ class Rays():
 			raise ValueError("all Rays objects must have matching ray shapes")
 		if any(r.reference_frame != items[0].reference_frame for r in items[1:]):
 			raise ValueError("all Rays objects must use the same reference frame")
-		core = {"rays","R","I_per_ray","I_per_plane","reference_frame"}
+		core = {"rays","R","I_per_ray","I_per_plane","reference_frame","boundary_ray"}
 		extra = set(vars(items[0])) - core
 		if any(set(vars(r))-core != extra or any(not cls._same(getattr(items[0],k),getattr(r,k)) for k in extra) for r in items[1:]):
 			raise ValueError("extra Rays attributes must match")
@@ -109,6 +120,7 @@ class Rays():
 		result.R = xp.stack([r.R for r in planes])
 		result.I_per_ray = xp.stack([r.I_per_ray for r in planes])
 		result.I_per_plane = xp.stack([xp.asarray(r.I_per_plane) for r in planes])
+		result.boundary_ray = xp.stack([r.boundary_ray for r in planes])
 		return result
 	@classmethod
 	def concatenate(cls, stacks,drop_shared=False):
@@ -119,6 +131,7 @@ class Rays():
 		result.R = xp.concatenate([r.R[k] for r,k in zip(stacks,parts)])
 		result.I_per_ray = xp.concatenate([r.I_per_ray[k] for r,k in zip(stacks,parts)])
 		result.I_per_plane = xp.concatenate([r.I_per_plane[k] for r,k in zip(stacks,parts)])
+		result.boundary_ray = xp.concatenate([r.boundary_ray[k] for r,k in zip(stacks,parts)])
 		return result
 	def __len__(self):
 		return len(self.rays)
@@ -140,6 +153,7 @@ class Rays():
 		result.R = result.R[meta]
 		result.I_per_ray = result.I_per_ray[meta]
 		result.I_per_plane = result.I_per_plane[keys[0]] if self.rays.ndim==3 else result.I_per_plane
+		result.boundary_ray = result.boundary_ray[keys[0]] if self.rays.ndim==3 else result.boundary_ray
 		return result
 	def __setitem__(self, key, value):
 		self.rays[key]=value
@@ -206,6 +220,7 @@ class Rays():
 		R = self.R
 		nl,nr,nc = self.shape
 		converted = xp.zeros(self.shape)
+		boundary_ray = self.boundary_ray.copy()
 		for l in range(nl):
 			for r in range(nr):
 				Rv = R[l,r]
@@ -214,8 +229,10 @@ class Rays():
 				M = xp.asarray([[C,S,0,0],[-S,C,0,0],[0,0,C,S],[0,0,-S,C]])
 				M = fix_mat_dims(M,["x","y","xt","yt"])
 				converted[l,r,:] = xp.matmul(M,self[l,r,:])
+			boundary_ray[l] = xp.einsum('mn,in->im',M,boundary_ray[l])
 		result = self.copy()
 		result.rays = converted
+		result.boundary_ray = boundary_ray
 		result.reference_frame = "rotating"
 		return result
 
@@ -3189,6 +3206,7 @@ class Aperture(Element):
 		self._position = position
 		self.radius = radius
 		self.calibration = calibration
+		self.shape_factor = xp.pi/4 # pi/4 is a shape factor: square grid of rays to round
 
 	#def transfer_matrix(self) -> xp.ndarray:
 	#	r"""Transfer matrix for ray propogation.
@@ -3345,8 +3363,7 @@ class Aperture(Element):
 		ymax = xp.amax(xp.abs(r0[:,columnByName("y")]))
 		scale_x = 1.0 if xmax < self.radius else self.radius / xmax
 		scale_y = 1.0 if ymax < self.radius else self.radius / ymax
-		SHAPE_FACTOR = xp.pi/4 # pi/4 is a shape factor: square grid of rays to round
-		return float(scale_x * scale_y)*SHAPE_FACTOR
+		return float(scale_x * scale_y)*self.shape_factor
 
 	def propagate_moments(self, mu:xp.ndarray, Sigma:xp.ndarray, closure=None) -> tuple:
 		"""Pass moments through unchanged (aperture is treated as non-truncating here).
