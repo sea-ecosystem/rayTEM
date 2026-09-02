@@ -436,8 +436,8 @@ def findPlanes(rays,axis="xy"):
 		"""
 		first = None
 		for r in cands:
-			if I is not None and not I[i, r] > 0:
-				continue
+			#if I is not None and not I[i, r] > 0: # TWP 20260902 don't ignore blocked rays. heck, if we're only using pairs of rays to detect image and diffraction planes, we're already ignoring all the aberrations affecting other rays!
+			#	continue
 			if first is None:
 				first = r
 			elif rays[0,r,col] != rays[0,first,col]:
