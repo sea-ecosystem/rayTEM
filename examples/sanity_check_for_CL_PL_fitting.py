@@ -1,7 +1,13 @@
 """Check a MACSTEM calibration using the measurements in https://arxiv.org/abs/2607.29411.
 
 The report checks lens-wobble focus conditions, aperture-limited current, lens rotation, and Table 2 diffraction states.
-Pass a microscope JSON file whose folder also contains the calibration CSVs. This script was written by Codex.
+Pass a microscope JSON file whose folder also contains the calibration CSVs.
+
+# Run as: python3 sanity_check_for_CL_PL_fitting.py [microscope.json]
+# data csv files should appear in the same folder as the microscope json file, unless '--data-dir' overrides it
+# Use '--save FILE --no-show' to write a headless report.
+
+This script was written by Codex.
 """
 
 import argparse
@@ -47,7 +53,7 @@ def note_missing(ax, title):
 	ax.set_axis_off()
 
 
-# Find the conjugate plane nearest the intended lens center, sample, or detector and return its signed axial error.
+# For various focusing conditions (focus_cases, explained in https://arxiv.org/abs/2607.29411), measure deltas between actual and desired focal postion
 def focus_offset(m, start, end, plane_type):
 	scope = m[start:]
 	if isinstance(start, str) and scope[start].kind not in ("Drift", "Source"):
@@ -66,7 +72,7 @@ def focus_offset(m, start, end, plane_type):
 
 
 # Recreate the critical-current states from https://arxiv.org/abs/2607.29411. Forward states focus at a lens center; reverse states
-# express detector/sample back-projection as the reciprocal forward focus used by full.py.
+# back-project a detector or other plane to a preceeding lens or plane.
 def focus_cases(path, model_path, family):
 	out = []
 	for row in rows(path):
@@ -114,7 +120,7 @@ def plot_focus(ax, data_dir, model_path):
 	ax.grid(axis="y", alpha=.25)
 
 
-# Mask the unstable part of a beam-current lens sweep before MSE scaling; all points remain visible in the plot.
+# Mask the beam current vs lens current curve. normalization uses MSE, and values with varying gradient (i.e., noisy) are excluded.
 def smooth_mask(x, y):
 	window = min(7, len(y) if len(y) % 2 else len(y)-1)
 	if window < 5:
@@ -130,7 +136,7 @@ def smooth_mask(x, y):
 	return mask
 
 
-# Scale measured detector counts to modeled aperture transmission by MSE over the smooth-mask points.
+# Applies normalization to beam current vs lens current curve (where a lens before an aperture changes the masked fraction of the beam)
 def current_curve(path, model_path):
 	data = rows(path)
 	if not data:
@@ -277,9 +283,9 @@ def plot_diffraction(ax, values):
 	ax.legend()
 
 
-# Run as `python3 examples/sanity_check_for_CL_PL_fitting.py [microscope.json]`.
-# CSVs belong beside an explicit JSON unless `--data-dir` overrides it; missing CSVs skip their checks.
-# Use `--save FILE --no-show` to write a headless report.
+# Run as: python3 sanity_check_for_CL_PL_fitting.py [microscope.json]
+# data csv files should appear in the same folder as the microscope json file, unless '--data-dir' overrides it
+# Use '--save FILE --no-show' to write a headless report.
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	p.add_argument("model", nargs="?", type=Path)
