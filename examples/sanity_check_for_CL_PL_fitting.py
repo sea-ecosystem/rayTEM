@@ -6,6 +6,7 @@ Pass a microscope JSON file whose folder also contains the calibration CSVs.
 # Run as: python3 sanity_check_for_CL_PL_fitting.py [microscope.json]
 # data csv files should appear in the same folder as the microscope json file, unless '--data-dir' overrides it
 # Use '--save FILE --no-show' to write a headless report.
+# use '--focus-rays' with options: 'both','CL','PL' to visualize focus states
 
 This script was written by Codex.
 """
@@ -25,7 +26,7 @@ CAL = DEV.parent / "macstem_calibration"
 sys.path.insert(0, str(DEV / "src"))
 
 from pySEA.rayTEM import Drift, Source, load_microscope
-from pySEA.rayTEM.postprocessing import diffraction_bundles_at_z
+from pySEA.rayTEM.postprocessing import diffraction_bundles_at_z, helper_focus_to
 
 
 # Read non-comment CSV rows, or warn and return no rows when the file is missing.
@@ -118,6 +119,34 @@ def plot_focus(ax, data_dir, model_path):
 	ax.set_ylabel("focal position − target center (model units)")
 	ax.set_title(f"Focal-position errors; RMS={np.sqrt(np.mean(np.square(values))):.3g}")
 	ax.grid(axis="y", alpha=.25)
+
+
+# Preview focusing conditions ("rays entering L1 are focused to the plane of L2")
+def show_focus_cases(path, model_path, family):
+	for row in rows(path):
+		try:
+			m = load(model_path)
+			if family == "P" and "DQCM" in m.keys():
+				m["DQCM"].strength = 0
+			l1, l2, current, *extra = row
+			names = [f"{family}{i}" for i in range(1, 4 if family == "C" else 5)]
+			settings = {name:{"strength":0.0} for name in names}
+			settings[l1] = {"strength":float(current)}
+			if extra:
+				name, value = extra[0].split("=")
+				settings[name] = {"strength":float(value)}
+			m.update_with_settings(settings)
+			backward = int(l1[1:]) > int(l2[1:])
+			start = l2 if backward else 0
+			end = ("sample" if family == "C" else "CCD") if backward else l2
+			if start == "C1":
+				start = "VOA"
+			scope = m[:"P1"] if family == "C" else m["sample":]
+			print(f"showing {family} focus condition: {row}")
+			helper_focus_to(scope, start, end, plotting=True)
+			plt.close()
+		except Exception as exc:
+			warnings.warn(f"skipping focus diagram {row}: {exc}")
 
 
 # Mask the beam current vs lens current curve. normalization uses MSE, and values with varying gradient (i.e., noisy) are excluded.
@@ -286,12 +315,14 @@ def plot_diffraction(ax, values):
 # Run as: python3 sanity_check_for_CL_PL_fitting.py [microscope.json]
 # data csv files should appear in the same folder as the microscope json file, unless '--data-dir' overrides it
 # Use '--save FILE --no-show' to write a headless report.
+# use '--focus-rays' with options: 'both','CL','PL' to visualize focus states
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	p.add_argument("model", nargs="?", type=Path)
 	p.add_argument("--data-dir", type=Path)
 	p.add_argument("--save", type=Path)
 	p.add_argument("--no-show", action="store_true")
+	p.add_argument("--focus-rays", choices=("CL", "PL", "both"), help="Show full.py-style ray diagrams for each focus condition.")
 	a = p.parse_args()
 	model_given = a.model is not None
 	a.model = a.model or CAL / "microscope"
@@ -308,6 +339,13 @@ def main():
 	fig.suptitle(f"MACSTEM calibration sanity check: {a.model}")
 	if a.save:
 		fig.savefig(a.save, dpi=180)
+	if a.focus_rays and a.no_show:
+		warnings.warn("--focus-rays is interactive and was skipped because --no-show was supplied")
+	elif a.focus_rays:
+		if a.focus_rays in ("CL", "both"):
+			show_focus_cases(a.data_dir / "CLs_critical.csv", a.model, "C")
+		if a.focus_rays in ("PL", "both"):
+			show_focus_cases(a.data_dir / "PLs_critical.csv", a.model, "P")
 	if not a.no_show:
 		plt.show()
 
