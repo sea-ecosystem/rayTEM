@@ -4478,13 +4478,19 @@ class Lens(Element):
 
 	@property
 	def calibrated_strength(self) -> float:
-		K = self.strength
+		return self.calibrated(self.strength)
+	@property
+	def calibrated_f(self):
+		K = xp.sqrt(1/self._focal_length) # 1/f = K^2
+		K = self.calibrated(K)
+		return 1/(K**2)
+	def calibrated(self,val):
 		if self.calibration is not None:
 			if isinstance(self.calibration, (int, float)):
-				K *= self.calibration
+				val *= self.calibration
 			else:
-				K = sum([self.calibration[0]] + [v * K**(1 / (i + 1)) for i, v in enumerate(self.calibration[1:])])
-		return K
+				val = sum([self.calibration[0]] + [v * val**(1 / (i + 1)) for i, v in enumerate(self.calibration[1:])])
+		return val
 
 	def transfer_matrix(self,rotation=True) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
@@ -4503,9 +4509,9 @@ class Lens(Element):
 		# THIN LENS, NO ROTATION (thick lens math will have sine term going to zero)
 		if self.length==0:
 			X=xp.asarray([[    1   , 0 ],
-					     [ -self.focal_power , 1 ]])
+					     [ -1/self.calibrated_f , 1 ]])
 			Y=xp.asarray([[    1   , 0 ],
-						 [ -self.focal_power , 1 ]])
+						 [ -1/self.calibrated_f , 1 ]])
 			self.larmor_rotation = 0
 			return xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
 
@@ -4708,11 +4714,14 @@ class Lens(Element):
 		aberration_kick : Consumes this as the pupil scale on the ray path.
 		phase_shift : Consumes this on the wave path.
 		"""
-		if self.length == 0:
-			f = self._focal_length
-			return 0.0 if xp.isinf(f) else float(1 / f)
-		K = self.calibrated_strength
-		return 0.0 if K == 0 else float(K * xp.sin(K * self.length))
+		A,B,C,D = self.ABCD().flat
+		return -C
+
+		#if self.length == 0:
+		#	f = self._focal_length
+		#	return 0.0 if xp.isinf(f) else float(1 / f)
+		#K = self.calibrated_strength
+		#return 0.0 if K == 0 else float(K * xp.sin(K * self.length))
 
 	# unlike below(?), here we'll *measure* focal length at the current K=I*C and L, then adjust C and L to preserve focal length and set beam rotation (K*L) to match R in radians at this current I.
 	def get_C_L_from_rotation_at_I(self,I,R):

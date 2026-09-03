@@ -1,6 +1,7 @@
 """Check a MACSTEM calibration using the measurements in https://arxiv.org/abs/2607.29411.
 
-The report checks lens-wobble focus conditions, aperture-limited current, lens rotation, and Table 2 diffraction states.
+The report checks lens-wobble focus conditions, aperture-limited current, lens rotation, Table 1 convergence states,
+and Table 2 diffraction states.
 Pass a microscope JSON file whose folder also contains the calibration CSVs.
 
 # Run as: python3 sanity_check_for_CL_PL_fitting.py [microscope.json]
@@ -28,6 +29,26 @@ sys.path.insert(0, str(DEV / "src"))
 from pySEA.rayTEM import Drift, Source, load_microscope
 from pySEA.rayTEM.postprocessing import diffraction_bundles_at_z, helper_focus_to
 
+TABLE1 = [
+	{"setting":"a", "C1_mA":0, "C2_mA":758.222, "C3_nominal_mA":856.682, "C3_actual_mA":856.682,
+		"focus_nm":np.nan, "convergence_modeled_mrad":30.947, "convergence_actual_mrad":30.947},
+	{"setting":"b", "C1_mA":0, "C2_mA":509.436, "C3_nominal_mA":907.197, "C3_actual_mA":910.817,
+		"focus_nm":245.55, "convergence_modeled_mrad":14.096, "convergence_actual_mrad":14.592},
+	{"setting":"c", "C1_mA":0, "C2_mA":298.779, "C3_nominal_mA":1096.938, "C3_actual_mA":1108.888,
+		"focus_nm":809.28, "convergence_modeled_mrad":4.277, "convergence_actual_mrad":4.453},
+]
+
+TABLE2 = [
+	{"setting":"a", "P1_mA":451.0, "P2_mA":0.0, "P3_mA":0.0, "P4_mA":560.5,
+		"theta_modeled_deg":np.nan, "theta_actual_deg":np.nan, "camera_length_modeled_mm":20.0, "camera_length_actual_mm":np.nan},
+	{"setting":"b", "P1_mA":370.750, "P2_mA":387.238, "P3_mA":0.0, "P4_mA":547.517,
+		"theta_modeled_deg":-17.3, "theta_actual_deg":-18.8, "camera_length_modeled_mm":11.76, "camera_length_actual_mm":9.19},
+	{"setting":"c", "P1_mA":541.665, "P2_mA":1075.68, "P3_mA":547.74, "P4_mA":563.9,
+		"theta_modeled_deg":75.1, "theta_actual_deg":71.7, "camera_length_modeled_mm":29.8, "camera_length_actual_mm":31.8},
+	{"setting":"d", "P1_mA":551.264, "P2_mA":999.999, "P3_mA":180.706, "P4_mA":610.204,
+		"theta_modeled_deg":98.1, "theta_actual_deg":96.5, "camera_length_modeled_mm":45.0, "camera_length_actual_mm":53.6},
+]
+
 
 # Read non-comment CSV rows, or warn and return no rows when the file is missing.
 def rows(path, dicts=False):
@@ -37,6 +58,22 @@ def rows(path, dicts=False):
 	with path.open(newline="") as f:
 		lines = (line for line in f if line.strip() and not line.lstrip().startswith("#"))
 		return list(csv.DictReader(lines) if dicts else csv.reader(lines))
+
+
+def table_rows(path, fallback):
+	return rows(path, dicts=True) if path.exists() else [dict(row) for row in fallback]
+
+
+def num(row, key, default=np.nan):
+	value = row.get(key, default)
+	if value is None or value == "" or value == "-":
+		return default
+	return float(str(value).replace("%", ""))
+
+
+def text_num(value, digits=5):
+	value = float(value)
+	return "-" if not np.isfinite(value) else f"{value:.{digits}g}"
 
 
 # Load either a JSON filename or the extension-free basename expected by rayTEM.
@@ -259,13 +296,13 @@ def plot_rotation(ax, values):
 # Recreate Table 2 of https://arxiv.org/abs/2607.29411 and trace equal-angle ray bundles to the CCD.
 # Raw center spread gives relative camera length; setting A supplies the nominal 20 mm scale.
 def diffraction_values(path, model_path):
-	data = rows(path, dicts=True)
+	data = table_rows(path, TABLE2)
 	out = []
 	for row in data:
 		try:
 			m = load(model_path)
 			for i in range(1,5):
-				m[f"P{i}"].strength = float(row[f"P{i}_mA"])/1000
+				m[f"P{i}"].strength = num(row, f"P{i}_mA")/1000
 			scope = m["sample":]
 			angle = 1e-3
 			scope[0].insert(0, Source(size=(1e-4,1e-4), np_xy=(3,3), angle=(angle,angle), na_xy=(3,3)))
@@ -274,8 +311,8 @@ def diffraction_values(path, model_path):
 			# Bundle-center spread divided by launch angle is the effective camera length.
 			length = np.mean([abs(result["bundle_spread"][axis]) for axis in ("x", "y")])/angle
 			blur = np.mean([abs(result["bundle_size"][axis]) for axis in ("x", "y")])
-			actual = float(row["camera_length_actual_mm"]) if row["camera_length_actual_mm"] else np.nan
-			out.append((row["setting"], actual, length, np.nan, blur, float(row["camera_length_modeled_mm"])))
+			actual = num(row, "camera_length_actual_mm")
+			out.append((row["setting"], actual, length, np.nan, blur, num(row, "camera_length_modeled_mm")))
 		except Exception as exc:
 			warnings.warn(f"skipping diffraction setting {row.get('setting', '?')}: {exc}")
 	if out:
@@ -283,8 +320,8 @@ def diffraction_values(path, model_path):
 		if ref is None or ref[2] == 0:
 			raise ValueError("setting A is required as the camera-length reference")
 		scale = ref[5]/ref[2]
-		out = [(name, nominal if name.upper() == "A" else actual, raw*scale,
-			100*(raw*scale/(nominal if name.upper() == "A" else actual)-1), blur) for name, actual, raw, _, blur, nominal in out]
+		out = [(name, nominal if not np.isfinite(actual) else actual, raw*scale,
+			100*(raw*scale/(nominal if not np.isfinite(actual) else actual)-1), blur) for name, actual, raw, _, blur, nominal in out]
 	print("\nTable 2 diffraction check (camera lengths referenced to setting A)")
 	print(f"{'state':<7}{'actual':>12}{'model':>12}{'delta %':>12}{'blur':>12}")
 	for state, actual, model, deviation, blur in out:
@@ -312,6 +349,70 @@ def plot_diffraction(ax, values):
 	ax.legend()
 
 
+def convergence_values(path, model_path):
+	data = table_rows(path, TABLE1)
+	out = []
+	for row in data:
+		try:
+			m = load(model_path)[:"P1"]
+			for i in range(1,4):
+				value = num(row, f"C{i}_mA")
+				if i == 3:
+					value = num(row, "C3_actual_mA", num(row, "C3_nominal_mA", value))
+				m[f"C{i}"].strength = value/1000
+			m.propagate_ray()
+			actual = num(row, "convergence_actual_mrad")
+			out.append((row["setting"], actual, m.convergence_angle*1000, np.nan, num(row, "convergence_modeled_mrad")))
+		except Exception as exc:
+			warnings.warn(f"skipping convergence setting {row.get('setting', '?')}: {exc}")
+	if out:
+		ref = next((v for v in out if v[0].upper() == "A"), None)
+		if ref is None or ref[2] == 0:
+			raise ValueError("setting A is required as the convergence-angle reference")
+		scale = ref[1]/ref[2]
+		out = [(state, actual, raw*scale, 100*(raw*scale/actual-1), paper_model)
+			for state, actual, raw, _, paper_model in out]
+	print("\nTable 1 convergence check (angles referenced to setting A; actual C3 where available)")
+	print(f"{'state':<7}{'paper model':>14}{'actual':>12}{'model':>12}{'delta %':>12}")
+	for state, actual, model, deviation, paper_model in out:
+		print(f"{state:<7}{paper_model:14.5g}{actual:12.5g}{model:12.5g}{deviation:12.3g}")
+	return out
+
+
+def plot_convergence(ax, values):
+	if not values:
+		return note_missing(ax, "Table 1 convergence conditions")
+	names = [v[0] for v in values]
+	actual = np.asarray([v[1] for v in values])
+	model = np.asarray([v[2] for v in values])
+	x = np.arange(len(names))
+	ax.bar(x-.2, actual, .4, label="measured")
+	ax.bar(x+.2, model, .4, label="model")
+	for i, (_, _, _, deviation, paper_model) in enumerate(values):
+		label = f"{deviation:+.1f}%\npaper {paper_model:.3g}"
+		ax.text(i+.2, model[i], label, ha="center", va="bottom", fontsize=7)
+	ax.set_xticks(x, names)
+	ax.set_ylabel("convergence semi-angle (mrad)")
+	ax.set_title("Table 1 convergence conditions")
+	ax.grid(axis="y", alpha=.25)
+	ax.legend()
+
+
+def plot_tables(ax, rotation, diffraction, convergence):
+	ax.set_title("Printed calibration tables")
+	ax.set_axis_off()
+	lines = ["Lens rotation (rad/A)", f"{'lens':<5}{'meas':>10}{'model':>10}{'delta':>10}"]
+	for name, measured, model in rotation:
+		lines.append(f"{name:<5}{text_num(measured):>10}{text_num(model):>10}{text_num(model-measured):>10}")
+	lines += ["", "Table 2 camera length (mm)", f"{'state':<5}{'actual':>10}{'model':>10}{'d%':>9}{'blur':>10}"]
+	for state, actual, model, deviation, blur in diffraction:
+		lines.append(f"{state:<5}{text_num(actual):>10}{text_num(model):>10}{text_num(deviation,3):>9}{text_num(blur):>10}")
+	lines += ["", "Table 1 convergence (mrad)", f"{'state':<5}{'paper':>10}{'actual':>10}{'model':>10}{'d%':>9}"]
+	for state, actual, model, deviation, paper_model in convergence:
+		lines.append(f"{state:<5}{text_num(paper_model):>10}{text_num(actual):>10}{text_num(model):>10}{text_num(deviation,3):>9}")
+	ax.text(0.0, 1.0, "\n".join(lines), ha="left", va="top", family="monospace", fontsize=7, transform=ax.transAxes)
+
+
 # Run as: python3 sanity_check_for_CL_PL_fitting.py [microscope.json]
 # data csv files should appear in the same folder as the microscope json file, unless '--data-dir' overrides it
 # Use '--save FILE --no-show' to write a headless report.
@@ -329,13 +430,19 @@ def main():
 	# Explicit models look for companion CSVs beside the JSON unless overridden.
 	a.data_dir = a.data_dir or (a.model.expanduser().resolve().parent if model_given else CAL)
 	table = a.data_dir / "table2.csv"
-	if not table.exists():
-		table = a.data_dir / "codex_attempts" / "table2.csv"
-	fig, axes = plt.subplots(2, 2, figsize=(14,9), constrained_layout=True)
+	if not table.exists() and (a.data_dir / "table2_check.csv").exists():
+		table = a.data_dir / "table2_check.csv"
+	table1 = a.data_dir / "table1.csv"
+	rotation = rotation_values(a.data_dir / "rotations.csv", a.model)
+	diffraction = diffraction_values(table, a.model)
+	convergence = convergence_values(table1, a.model)
+	fig, axes = plt.subplots(2, 3, figsize=(20,9), constrained_layout=True)
 	plot_focus(axes[0,0], a.data_dir, a.model)
 	plot_current(axes[0,1], a.data_dir, a.model)
-	plot_rotation(axes[1,0], rotation_values(a.data_dir / "rotations.csv", a.model))
-	plot_diffraction(axes[1,1], diffraction_values(table, a.model))
+	plot_tables(axes[0,2], rotation, diffraction, convergence)
+	plot_rotation(axes[1,0], rotation)
+	plot_diffraction(axes[1,1], diffraction)
+	plot_convergence(axes[1,2], convergence)
 	fig.suptitle(f"MACSTEM calibration sanity check: {a.model}")
 	if a.save:
 		fig.savefig(a.save, dpi=180)
