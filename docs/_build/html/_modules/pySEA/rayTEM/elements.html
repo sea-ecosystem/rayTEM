@@ -4757,13 +4757,22 @@
 
 	<span class="nd">@property</span>
 	<span class="k">def</span><span class="w"> </span><span class="nf">calibrated_strength</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-		<span class="n">K</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">strength</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">calibrated</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">strength</span><span class="p">)</span>
+	<span class="nd">@property</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">calibrated_f</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">K</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">_focal_length</span><span class="p">)</span> <span class="c1"># 1/f = K^2</span>
+		<span class="n">K</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calibrated</span><span class="p">(</span><span class="n">K</span><span class="p">)</span>
+		<span class="k">return</span> <span class="mi">1</span><span class="o">/</span><span class="p">(</span><span class="n">K</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<div class="viewcode-block" id="Lens.calibrated">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Lens.calibrated">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">calibrated</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">val</span><span class="p">):</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">calibration</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 			<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calibration</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
-				<span class="n">K</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calibration</span>
+				<span class="n">val</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calibration</span>
 			<span class="k">else</span><span class="p">:</span>
-				<span class="n">K</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">calibration</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">+</span> <span class="p">[</span><span class="n">v</span> <span class="o">*</span> <span class="n">K</span><span class="o">**</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calibration</span><span class="p">[</span><span class="mi">1</span><span class="p">:])])</span>
-		<span class="k">return</span> <span class="n">K</span>
+				<span class="n">val</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">calibration</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">+</span> <span class="p">[</span><span class="n">v</span> <span class="o">*</span> <span class="n">val</span><span class="o">**</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calibration</span><span class="p">[</span><span class="mi">1</span><span class="p">:])])</span>
+		<span class="k">return</span> <span class="n">val</span></div>
+
 
 <div class="viewcode-block" id="Lens.transfer_matrix">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Lens.transfer_matrix">[docs]</a>
@@ -4784,9 +4793,9 @@
 		<span class="c1"># THIN LENS, NO ROTATION (thick lens math will have sine term going to zero)</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
 			<span class="n">X</span><span class="o">=</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([[</span>    <span class="mi">1</span>   <span class="p">,</span> <span class="mi">0</span> <span class="p">],</span>
-					     <span class="p">[</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">focal_power</span> <span class="p">,</span> <span class="mi">1</span> <span class="p">]])</span>
+					     <span class="p">[</span> <span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">calibrated_f</span> <span class="p">,</span> <span class="mi">1</span> <span class="p">]])</span>
 			<span class="n">Y</span><span class="o">=</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([[</span>    <span class="mi">1</span>   <span class="p">,</span> <span class="mi">0</span> <span class="p">],</span>
-						 <span class="p">[</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">focal_power</span> <span class="p">,</span> <span class="mi">1</span> <span class="p">]])</span>
+						 <span class="p">[</span> <span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">calibrated_f</span> <span class="p">,</span> <span class="mi">1</span> <span class="p">]])</span>
 			<span class="bp">self</span><span class="o">.</span><span class="n">larmor_rotation</span> <span class="o">=</span> <span class="mi">0</span>
 			<span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span> <span class="n">fix_mat_dims</span><span class="p">(</span><span class="n">X</span><span class="p">,[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">])</span> <span class="p">,</span> <span class="n">fix_mat_dims</span><span class="p">(</span><span class="n">Y</span><span class="p">,[</span><span class="s2">"y"</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">])</span> <span class="p">)</span>
 
@@ -4993,11 +5002,14 @@
 <span class="sd">		aberration_kick : Consumes this as the pupil scale on the ray path.</span>
 <span class="sd">		phase_shift : Consumes this on the wave path.</span>
 <span class="sd">		"""</span>
-		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-			<span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_focal_length</span>
-			<span class="k">return</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="n">xp</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">f</span><span class="p">)</span>
-		<span class="n">K</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calibrated_strength</span>
-		<span class="k">return</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="n">K</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="n">xp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">))</span>
+		<span class="n">A</span><span class="p">,</span><span class="n">B</span><span class="p">,</span><span class="n">C</span><span class="p">,</span><span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ABCD</span><span class="p">()</span><span class="o">.</span><span class="n">flat</span>
+		<span class="k">return</span> <span class="o">-</span><span class="n">C</span>
+
+		<span class="c1">#if self.length == 0:</span>
+		<span class="c1">#	f = self._focal_length</span>
+		<span class="c1">#	return 0.0 if xp.isinf(f) else float(1 / f)</span>
+		<span class="c1">#K = self.calibrated_strength</span>
+		<span class="c1">#return 0.0 if K == 0 else float(K * xp.sin(K * self.length))</span>
 
 	<span class="c1"># unlike below(?), here we'll *measure* focal length at the current K=I*C and L, then adjust C and L to preserve focal length and set beam rotation (K*L) to match R in radians at this current I.</span>
 <div class="viewcode-block" id="Lens.get_C_L_from_rotation_at_I">
