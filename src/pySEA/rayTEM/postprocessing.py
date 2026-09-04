@@ -894,7 +894,7 @@ def helper_focus_to(microscope,initializeAt,focusTo,plotting=False):
 # "cases" is a list of nested dicts, each dict describes the focusing condition:
 # [ { "from":107.5, "to":"P3", "settables": {"P1": {"strength": 0.300}, "P2": {"strength": 0.451} } } ]
 # describes focusing a beam originating from z0 into P3, where P1 and P2 strengths are set accordingly
-def dz_focus_to(vals,setKeys,cases,microscope,plotting=False,returns="mse"):
+def dz_focus_to(vals,setKeys,cases,microscope,plotting=False):
 	# update microscope
 	settings = setkeys_to_settables_dict(vals,setKeys)
 	microscope.update_with_settings(settings)
@@ -908,9 +908,7 @@ def dz_focus_to(vals,setKeys,cases,microscope,plotting=False,returns="mse"):
 		if plotting and "name" in scenario.keys():
 			print(scenario["name"])
 		deltas.append( helper_focus_to(microscope,initializeAt,focusTo,plotting) )
-	if returns == "mse":
-		return np.sum(deltas)
-	return deltas
+	return np.sum(deltas)
 
 
 # TODO what's the "right" way to chain together a whole bunch of different criteria? sometimes i want to fit "multiple settings" (PL1=a1,PL2=b1,PL3=c1,PL4=d1, with a diffraction plane here, and a magnification of M1, and PL1=a2,PL2=b2,PL3=c2,PL4=d2 and magnification of M2, and so on, what are the calibrations for PL1 PL2 PL3 PL4?). sometimes i want to fit "multiple planes" (what values of PL1 and PL2 give me a diffraction plane here and an image plane there?) or "multiple criteria for a single plane" (what values of PL1 and PL2 give me a diffraction plane here with this magnification?).
