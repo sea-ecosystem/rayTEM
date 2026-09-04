@@ -3488,7 +3488,7 @@ class Microscope(SealedAttributes, SEASerializable):
 			if os.path.exists(filename+".json"):
 				v=.0001
 				while True:
-					candidate = filename+"-v"+str(v)+".json"
+					candidate = filename+"-v"+str(xp.round(v,4))+".json"
 					if not os.path.exists(candidate):
 						shutil.copy(filename+".json",candidate)
 						break
