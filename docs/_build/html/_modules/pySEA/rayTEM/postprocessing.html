@@ -1023,7 +1023,7 @@
 <span class="c1"># describes focusing a beam originating from z0 into P3, where P1 and P2 strengths are set accordingly</span>
 <div class="viewcode-block" id="dz_focus_to">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.postprocessing.dz_focus_to">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">dz_focus_to</span><span class="p">(</span><span class="n">vals</span><span class="p">,</span><span class="n">setKeys</span><span class="p">,</span><span class="n">cases</span><span class="p">,</span><span class="n">microscope</span><span class="p">,</span><span class="n">plotting</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">dz_focus_to</span><span class="p">(</span><span class="n">vals</span><span class="p">,</span><span class="n">setKeys</span><span class="p">,</span><span class="n">cases</span><span class="p">,</span><span class="n">microscope</span><span class="p">,</span><span class="n">plotting</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span><span class="n">returns</span><span class="o">=</span><span class="s2">"mse"</span><span class="p">):</span>
 	<span class="c1"># update microscope</span>
 	<span class="n">settings</span> <span class="o">=</span> <span class="n">setkeys_to_settables_dict</span><span class="p">(</span><span class="n">vals</span><span class="p">,</span><span class="n">setKeys</span><span class="p">)</span>
 	<span class="n">microscope</span><span class="o">.</span><span class="n">update_with_settings</span><span class="p">(</span><span class="n">settings</span><span class="p">)</span>
@@ -1037,7 +1037,9 @@
 		<span class="k">if</span> <span class="n">plotting</span> <span class="ow">and</span> <span class="s2">"name"</span> <span class="ow">in</span> <span class="n">scenario</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
 			<span class="nb">print</span><span class="p">(</span><span class="n">scenario</span><span class="p">[</span><span class="s2">"name"</span><span class="p">])</span>
 		<span class="n">deltas</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">helper_focus_to</span><span class="p">(</span><span class="n">microscope</span><span class="p">,</span><span class="n">initializeAt</span><span class="p">,</span><span class="n">focusTo</span><span class="p">,</span><span class="n">plotting</span><span class="p">)</span> <span class="p">)</span>
-	<span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">deltas</span><span class="p">)</span></div>
+	<span class="k">if</span> <span class="n">returns</span> <span class="o">==</span> <span class="s2">"mse"</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">deltas</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">deltas</span></div>
 
 
 
