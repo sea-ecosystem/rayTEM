@@ -134,10 +134,12 @@ def focus_cases(path, model_path, family):
 			if start == "C1":
 				start = "VOA"
 			scope = m[:"P1"] if family == "C" else m["sample":]
+			#scope.show()
 			plane_type = "diff" if family == "C" and not backward else "image"
 			offset = focus_offset(scope, start, end, plane_type)
 			out.append((f"{l1}→{l2}\n{float(current):.3f} A", offset))
 		except Exception as exc:
+			#scope.show()
 			warnings.warn(f"skipping focus condition {row}: {exc}")
 	return out
 

@@ -1122,6 +1122,8 @@ class Microscope(SealedAttributes, SEASerializable):
 				b = self.index(b)
 			# since self.index(namedElement) might be a tuple (sectionIndex,elementIndex), we need to filter to section indices
 			a1,b1,n1 = [ v[0] if isinstance(v,tuple) else v for v in [a,b,n] ]
+			if isinstance(b,tuple) and b[1]>0: # retain the named stop's section so its preceding elements can be included
+				b1 += 1
 			item = slice(a1,b1,n1)
 		# DEEP COPY MYSELF, SLICE SECTIONS, MAKE ADJUSTMENTS TO POSITIONS AND LENGTHS
 		new = self.copy()
@@ -1135,6 +1137,8 @@ class Microscope(SealedAttributes, SEASerializable):
 		if trim_first > 0:
 			new.sections[0] = new.sections[0][trim_first:]	# let MicroscopeSection.__getattr__ handle section trimming
 			new.sections[0].position+=trim_first		# then "scoot it back" so it ends where it ended previously
+		if isinstance(b,tuple) and b[1]<len(new.sections[-1].elements): # trim the retained section at the named stop
+			new.sections[-1] = new.sections[-1][:b[1]]
 		p0 = new.sections[0].position
 		for i,s in enumerate(new.sections):
 			new.sections[i].position -= p0		# shift all sections positions so first is at zero

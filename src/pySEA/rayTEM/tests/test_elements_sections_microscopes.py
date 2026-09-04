@@ -448,6 +448,16 @@ def test_cropping_microscope():
 		assert v1==v3+.5
 
 
+def test_cropping_single_section_microscope_by_named_stop():
+	sec = MicroscopeSection(elements=[Source(name="source"), Drift(name="before",length=1),
+			Lens(name="P1",focal_length=1), Drift(name="after",length=1)])
+	microscope = Microscope(sections=[sec])
+	cropped = microscope[:"P1"]
+	assert len(cropped.sections) == 1
+	assert cropped.keys() == ["source","before"]
+	cropped.propagate_ray()
+
+
 #test_cropping_section()
 #test_cropping_microscope()
 
