@@ -1,6 +1,6 @@
 import sys
-sys.path.insert(1,"../TWP20260820/src/")
-from pySEA.rayTEM import Source, Lens, Drift, Aperture, MicroscopeSection, Microscope, load_microscope, dz_focus_to, check_lengths, setkeys_to_settables_dict, load_guesses, columnByName
+sys.path.insert(1,"../dev/src/")
+from pySEA.rayTEM import Source, Lens, Drift, Aperture, MicroscopeSection, Microscope, load_microscope, dz_focus_to, check_lengths, setkeys_to_settables_dict, load_guesses, columnByName, closest_plane
 from scipy.optimize import minimize,curve_fit
 import numpy as np
 import matplotlib.pyplot as plt
@@ -90,6 +90,7 @@ def fit_CLs(file_in,mode="fit"):
 		cases.append(target)
 	print(cases)
 	if "loaded" in mode:
+		print(microscope[:"P1"].propagate_ray())
 		deltas = dz_focus_to([],{},cases,microscope[:"P1"],plotting=True)
 		print("loaded deltas",np.sum(deltas))
 	if "guesses" in mode:
@@ -105,6 +106,7 @@ def fit_CLs(file_in,mode="fit"):
 		microscope.update_with_settings(settings)
 		microscope.save("microscope")
 
+# General premise for fitting VOA: measure and fit a beam current vs C1 curve
 def fit_VOA(file_in,mode="fit"):
 	# load data from CSV
 	data = np.loadtxt(file_in,delimiter=",")
@@ -120,18 +122,14 @@ def fit_VOA(file_in,mode="fit"):
 	microscope = load_microscope(microscope_file) ; z0 = microscope.get_element_position("VOA")
 	#microscope["GL"].strength/=1.05 ; microscope["C1"].calibration*=1.05
 	def I(C1s,r_VOA,dz_VOA):
-		# the traced current through a MASKING aperture is a staircase in C1
-		# (quantized by ray count), which starves curve_fit's gradients; the
-		# smooth continuum estimate Aperture.transmitted_fraction is the
-		# fitting surface instead, evaluated on the rays ARRIVING at the VOA
 		microscope["VOA"].radius = r_VOA
 		microscope.move_element("VOA",z=z0+dz_VOA)
 		Is = []
 		for C1 in C1s:
 			microscope["C1"].strength = C1
-			r1 = np.asarray(microscope.propagate_ray())
-			at_voa = r1[np.argmin(np.abs(r1[:,0,columnByName("z")] - (z0+dz_VOA)))]
-			Is.append(microscope["VOA"].transmitted_fraction(at_voa))
+			r1 = microscope.propagate_ray()
+			I = microscope["VOA"].transmitted_fraction(r1.at_z(microscope.get_element_position("VOA")))
+			Is.append(I)
 		Is = np.asarray(Is)/np.amax(Is)
 		return Is
 	# fitting
@@ -211,6 +209,7 @@ def fit_PLs(file_in,mode="fit"):
 		microscope.update_with_settings(settings)
 		microscope.save("microscope")
 
+# General premise for fitting PL lengths: measure beam rotation per amp for each lens. if focusing follows K^2 L and rotation follows K L, and K = I C, then you can adjust L and C simultaneously to preserve focal lengths at a given current while adjusting beam rotation
 def fit_rotation(file_in,mode="fit"):
 	lines = open(file_in).readlines()
 	RpA = { l.split(',')[0] : float(l.split(",")[1]) for l in lines  if len(l)>0 and l[0]!="#" } # radians per amp
@@ -225,47 +224,108 @@ def fit_rotation(file_in,mode="fit"):
 
 	microscope.save("microscope")
 
+# fitting for PLs and O2 establishes an image plane position (switching to the spectroscopy DQCM mode (instead of 4DSTEM) focuses an image plane onto the detector along the dispersive axis (tightly-focused zero-loss beam came from a tightly-focused probe at the sample plane).
+# this image plane can be preserved if the position and strength of O2 are simultaneously adjusted, but this will move the post-OL diffraction plane.
+# How do we know where the post-OL diffraction plane should be? pick two projector settings which a different number of subsequent diffraction planes before the CCD. adjust OL until the positions of these settings' diffraction planes line up.
+def adjustOL(settings_list):
+	microscope = load_microscope(microscope_file)["sample":]
+	microscope.insert(0,Source(angle=(1e-3,1e-3)))
 
-assemble()
-adjust_element_positions()
-#fit_CLs("CLs_critical.csv",mode="guesses")
+	# infer current image plane (multiple settings ought to agree, but might not necessarily, so take their mean)
+	z_images = []
+	#z_P1 = microscope.get_element_position("P1") # nope. DON'T use this for image plane, because it's mid-PLs
+	z_P4 = microscope.get_element_position("P4")/2+microscope.get_element_position("CCD")/2
+	for s in settings_list:
+		microscope.load_setting(s)
+		#microscope.show()
+		z_images.append( closest_plane(microscope,z_P4,"image")['z'] )
+	z_image = np.mean(z_images)
+
+	# error function: pass O2.calibration and a dz (from initial O2.position), calculate how far image plane has moved (should be zero), and distance between two settings' diffraction planes (should be the same)
+	z0 = microscope.get_element_position("O2")
+	def dz(vals):
+		C,dz = vals
+		microscope.move_element("O2",z=z0+dz)
+		microscope["O2"].calibration = C
+		z_images = [] ; z_diffs = []
+		for s in settings_list:
+			microscope.load_setting(s)
+			#microscope.show()
+			z_images.append( closest_plane(microscope,z_P4,"image")['z'] )
+			z_diffs.append( closest_plane(microscope,z_P4,"diff")['z'] )
+		# z0-mean(zi). and use std for diff: std is just dz/2 for 2 entries, but arbitrarily expandable for many settings
+		return (z_image-np.mean(z_images))**2 + (2*np.std(z_diffs))**2
+
+	x0 = minimize(dz,x0=(1,0))
+	print(x0)
+
+	if "DQCM" not in microscope.keys():
+		microscope.insert(z_P4,Lens(name="DQCM",strength=0,length=.1))
+
+	while True:
+		for s in settings_list:
+			microscope.load_setting(s)
+			microscope.show()
+		c = input("DQCM dz,K: ")
+		if "q" in c:
+			break
+		dz,K = c.split(",") ; dz=float(dz) ; K=float(K)
+		microscope.move_element("DQCM",dz=dz)
+		microscope["DQCM"].strength=K
+
+	microscope.save("microscope_OL")
+
+#step = "fresh,fitCL,viewCL,guessPL,fitPL,viewPL,fitOL"
+step = "viewCL,viewPL"
+#step = "fitPL,viewPL"
+#step = "fitOL"
+
+
+if "fresh" in step:
+	assemble()
+	adjust_element_positions()
 
 # ITERATIVE FITTING OF CL CALIBRATIONS AND VOA:
 # BFGS does well for course refinement of CL calibrations, but a bad job dialing it in. bounded Powell does a better job dialing it in, but needs tight bounds.
 # moving the VOA (as possibly required for VOA fitting) means CL calibrations need to be re-checked, since rays propagated from the VOA are used for calibrating CLs.
 # SO: BFGS (mode=fit), then a few Powells (mode=iterative), then VOA, and repeat. view the result with mode=loaded
-
-# ITERATIVE FIT
-fit_CLs("CLs_critical.csv",mode="fit")
-fit_VOA("C1_vs_beamcurrent.csv",mode="fit")
-for i in range(10):
-	fit_CLs("CLs_critical.csv",mode="iterative")
-fit_VOA("C1_vs_beamcurrent.csv",mode="iterative")
-for i in range(10):
-	fit_CLs("CLs_critical.csv",mode="iterative")
-# PREVIEWS
-fit_VOA("C1_vs_beamcurrent.csv",mode="loaded")
-fit_CLs("CLs_critical.csv",mode="loaded")
+if "guessCL" in step:
+	fit_CLs("CLs_critical.csv",mode="guesses")
+if "fitCL" in step:
+	# ITERATIVE FIT
+	fit_CLs("CLs_critical.csv",mode="fit")
+	fit_CLs("CLs_critical.csv",mode="loaded")
+	fit_VOA("C1_vs_beamcurrent.csv",mode="loaded")
+	fit_VOA("C1_vs_beamcurrent.csv",mode="fit")
+	for i in range(10):
+		fit_CLs("CLs_critical.csv",mode="iterative")
+	fit_VOA("C1_vs_beamcurrent.csv",mode="iterative")
+	for i in range(10):
+		fit_CLs("CLs_critical.csv",mode="iterative")
+if "viewCL" in step:
+	# PREVIEWS
+	fit_VOA("C1_vs_beamcurrent.csv",mode="loaded")
+	fit_CLs("CLs_critical.csv",mode="loaded")
 
 # feedback from codex review: if focus-position is wrong (but we're measuring focus at a fixed position z), then should we be finding the crossover and using that for our delta?
 
 # PROJECTOR FITTING: similarly iterative: fit calibrations using assumed sane lengths, actually fit lengths based on rotations which might fork up the focus calibrations slightly, repeat calibrations using updated lengths
-#fit_PLs("PLs_critical.csv",mode="guesses")
-fit_PLs("PLs_critical.csv",mode="fit")
-#fit_PLs("PLs_critical.csv",mode="loaded")
-for i in range(10):
-	fit_rotation("rotations.csv",mode="fit")
-	for j in range(20):
-		fit_PLs("PLs_critical.csv",mode="iterative")
-fit_PLs("PLs_critical.csv",mode="loaded")
-
-#fit_CLs("CLs_critical.csv",mode="loaded")
-#fit_PLs("PLs_critical.csv",mode="loaded")
+if "guessPL" in step:
+	fit_PLs("PLs_critical.csv",mode="guesses")
+if "fitPL" in step:
+	fit_PLs("PLs_critical.csv",mode="fit")
+	#fit_PLs("PLs_critical.csv",mode="loaded")
+	for i in range(10):
+		fit_rotation("rotations.csv",mode="fit")
+		for j in range(20):
+			fit_PLs("PLs_critical.csv",mode="iterative")
+if "viewPL" in step:
+	fit_PLs("PLs_critical.csv",mode="loaded")
 
 # SAVE OFF CALIBRATIONS
-microscope = load_microscope(microscope_file)
-microscope.save_as_calibration("condensers", {"C1":"calibration", "VOA":["position","radius"], "C2":"calibration", "C3":"calibration","GL":"strength","O1":"strength"})
-microscope.save_as_calibration("projectors", {"P1":["calibration","length"], "P2":["calibration","length"], "P3":["calibration","length"], "P4":["calibration","length"],"O2":"strength"})
+#microscope = load_microscope(microscope_file)
+#microscope.save_as_calibration("condensers", {"C1":"calibration", "VOA":["position","radius"], "C2":"calibration", "C3":"calibration","GL":"strength","O1":"strength"})
+#microscope.save_as_calibration("projectors", {"P1":["calibration","length"], "P2":["calibration","length"], "P3":["calibration","length"], "P4":["calibration","length"],"O2":"strength"})
 
 # CHECK RELOADING:
 #assemble()
@@ -276,4 +336,11 @@ microscope.save_as_calibration("projectors", {"P1":["calibration","length"], "P2
 #microscope.save("microscope")
 #fit_CLs("CLs_critical.csv",mode="loaded")
 #fit_PLs("PLs_critical.csv",mode="loaded")
+
+if "fitOL" in step: # BEWARE, THIS BREAKS GENERALIZATION BECAUSE YOU MUST SPECIFY TWO MEASURED PROJECTOR SETTINGS
+	adjustOL(["projectors_A","projectors_C"]) # see /media/qwe/Data/Various Code/rayTEM/TWP20260810/src/pySEA/rayTEM/microscopes/MACSTEM/OLs.py for the settings we used. also referred to as manul104 and manual165
+
+
+
+
 
