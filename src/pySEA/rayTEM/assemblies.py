@@ -3447,7 +3447,7 @@ class Microscope(SealedAttributes, SEASerializable):
 					 "_wave_scaled_planes", "crossovers", "image_planes",
 					 "diffraction_planes")
 
-	def save(self, filename:str) -> None:
+	def save(self, filename:str,versioned=False) -> None:
 		"""Write this microscope to ``<filename>.json``.
 
 		Uses the flat rayTEM microscope layout shared with TWP20260820:
@@ -3482,6 +3482,18 @@ class Microscope(SealedAttributes, SEASerializable):
 		SEA-envelope JSON written by earlier versions of this branch remains
 		readable by :func:`load_microscope`.
 		"""
+
+		# Versioning: if "microscope.json" exists, along with "microscope-v0.001.json" and "microscope-v0.002.json", then we'll rename existing file as "microscope-v0.003.json" before saving. so "microscope.json" is always the latest
+		if versioned:
+			if os.path.exists(filename+".json"):
+				v=.0001
+				while True:
+					candidate = filename+"-v"+str(v)+".json"
+					if not os.path.exists(candidate):
+						shutil.copy(filename+".json",candidate)
+						break
+					v+=.0001
+
 		import json
 		skip = set(self._JSON_EXCLUDE_RESULTS) | {"_arriving_current","format","sea_type","payload"}
 		def clean(v):
