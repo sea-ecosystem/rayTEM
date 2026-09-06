@@ -220,7 +220,7 @@
     "name": "check_lengths",
     "qualname": "check_lengths",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3902,
+    "source_lineno": 4027,
     "signature": "check_lengths(section)",
     "doc": ""
   },
@@ -706,7 +706,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4001,
+    "source_lineno": 4126,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -715,7 +715,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3831,
+    "source_lineno": 3956,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -1237,7 +1237,7 @@
     "name": "repair",
     "qualname": "repair",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3916,
+    "source_lineno": 4041,
     "signature": "repair(section, combine_drifts)",
     "doc": "Close gaps and overlaps in a section's element list, in place."
   },
@@ -1309,7 +1309,7 @@
     "name": "roundjson",
     "qualname": "roundjson",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3813,
+    "source_lineno": 3938,
     "signature": "roundjson(jdict)",
     "doc": ""
   },
@@ -3022,6 +3022,15 @@
     "source_lineno": 78,
     "signature": "test_show_plots_each_mode_headless()",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_show_ray_draws_signal_lines",
+    "qualname": "test_show_ray_draws_signal_lines",
+    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 895,
+    "signature": "test_show_ray_draws_signal_lines()",
+    "doc": "show(kind='ray') renders through sea_eco, not through plot2D."
   },
   {
     "kind": "function",

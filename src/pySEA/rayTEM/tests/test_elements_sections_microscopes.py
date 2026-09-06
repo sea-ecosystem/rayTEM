@@ -890,3 +890,39 @@ def test_frame_focal_surface():
 								  method="frame")
 	assert s0["sag"] == 0.0
 	assert np.allclose(s0["z"], s0["z_paraxial"], atol=1e-12)
+
+
+def test_show_ray_draws_signal_lines():
+	"""show(kind='ray') renders through sea_eco, not through plot2D.
+
+	ray_lines hands back one calibrated 1D Signal per ray (plus the boundary
+	ray), and show draws each with Signal.show -- so the axis ends up carrying
+	matplotlib lines, one per ray, on a calibrated z axis. The two aperture
+	rules differ in the drawn heights but not in the count.
+	"""
+	import matplotlib
+	matplotlib.use("Agg")
+	import matplotlib.pyplot as plt
+	sec = MicroscopeSection(name="S", elements=[
+		Source(voltage=200, size=(1e-6, 1e-6), np_xy=(3, 3),
+			   angle=(1e-3, 1e-3), na_xy=(3, 3)),
+		Drift(length=0.01), Lens(name="L", strength=np.sqrt(1 / 0.02)),
+		Drift(length=0.05)])
+	m = Microscope(sections=[sec])
+	m.propagate_ray()
+	lines, edge = m.ray_lines()
+	assert len(lines) == m.rays.shape[1]
+	assert all([d.name for d in line.dimensions] == ["plane_z"] for line in lines)
+	assert edge is not None and edge.data.ndim == 1
+	# ghosting and rescale are the same family, drawn differently
+	ghosted, _ = m.ray_lines(aperture_handling="ghosting")
+	assert len(ghosted) == len(lines)
+	with pytest.raises(ValueError):
+		m.ray_lines(aperture_handling="nonsense")
+
+	fig, ax = plt.subplots()
+	m.show(kind="ray", plt_ax=ax, regenerate=False, overlays=False)
+	assert len(ax.lines) >= len(lines)			# a line per ray, plus the edge
+	assert not ax.collections					# lines, not the scatter fallback
+	assert ax.get_xlabel() == "z (m)"
+	plt.close(fig)

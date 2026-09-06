@@ -3327,8 +3327,99 @@ class Microscope(SealedAttributes, SEASerializable):
 			coordinate='x' if coordinates == 'physical' else 'ξ',
 			name=f"{self.name or 'microscope'} |ψ(x, 0, z)|")
 
+	def ray_lines(self, axis:Literal['x','y']='x',
+				  aperture_handling:Literal['rescale','ghosting']='rescale',
+				  regenerate:bool=False):
+		"""One calibrated Signal per ray: the ray diagram, as data.
+
+		The rays in the rotating (Larmor) frame, so a column with thick lenses
+		reads as a plane figure rather than a spiral, with the aperture
+		accounted for the same two ways :func:`postprocessing.plot2D` offers.
+		Each returned Signal is a 1D line over the plane-z axis, which is what
+		``Signal.show`` draws -- the rendering is sea_eco's, not rayTEM's.
+
+		Parameters
+		----------
+		axis : {'x', 'y'}, optional
+			Transverse coordinate, by default ``'x'``.
+		aperture_handling : {'rescale', 'ghosting'}, optional
+			``'rescale'`` (default) scales the family to the boundary ray at
+			each plane, so the drawn beam edge follows the aperture smoothly;
+			``'ghosting'`` instead stops each ray where its intensity goes to
+			zero. With few rays ``'rescale'`` is the honest picture -- see
+			:func:`postprocessing.plot2D`, which shares the rule.
+		regenerate : bool, optional
+			Re-propagate before reading, by default False.
+
+		Returns
+		-------
+		tuple
+			``(rays, boundary)`` -- a list of one 1D Signal per ray, and one
+			more for the boundary ray (``None`` if the run has none).
+
+		Raises
+		------
+		ValueError
+			If ``aperture_handling`` is not one of the documented values.
+
+		Related
+		-------
+		show : Renders these, with the element and plane overlays.
+		wave_cross_section : The same idea for the wave path.
+		seashells.make_rays_signalset : Builds the calibrated result.
+		postprocessing.plot2D : The older renderer, which owns the same
+			aperture rule.
+
+		Notes
+		-----
+		Returned one Signal per ray rather than one 2D Signal because sea_eco
+		renders a 2D Signal as an image: ``display_type='line'`` requires
+		exactly one displayed dimension, so N lines means N Signals.
+
+		Examples
+		--------
+		>>> for line in scope.ray_lines()[0]:			# doctest: +SKIP
+		...     line.show(ax=ax, plot_type=None)		# doctest: +SKIP
+		"""
+		if aperture_handling not in ('rescale', 'ghosting'):
+			raise ValueError("aperture_handling must be 'rescale' or 'ghosting', "
+							 f"not {aperture_handling!r}.")
+		if self.rays is None or regenerate:
+			self.propagate_ray()
+		from .seashells import make_rays_signalset
+		rot = self.rays.convert_to_rotating_reference_frame()
+		i, j = columnByName(axis), columnByName("z")
+		data = xp.array(xp.asarray(rot), dtype=float)
+		Y = data[:, :, i]
+		boundary = xp.asarray(self.rays.boundary_ray)
+		if boundary.ndim == 2:							# one plane logged only
+			boundary = boundary[None, {"x": 0, "y": 1}[axis]]
+		else:
+			boundary = boundary[:, {"x": 0, "y": 1}[axis]]
+		if aperture_handling == 'rescale':
+			extent = xp.max(xp.abs(Y), axis=1)
+			scale = xp.divide(xp.abs(boundary[:, i]), extent,
+							  out=xp.ones_like(extent), where=extent != 0)
+			Y = Y * scale[:, None]
+		else:
+			I = getattr(self.rays, "I_per_ray", None)
+			if I is not None:
+				Y = xp.where(xp.asarray(I) <= 0, xp.nan, Y)
+		data[:, :, i] = Y
+		sset = make_rays_signalset(data, self.I, self.R, convention,
+								   name=f"{self.name or 'microscope'} rays")
+		rays = [sset[0][:, k, i] for k in range(data.shape[1])]
+		edge = None
+		if len(boundary) == data.shape[0]:
+			one = boundary[:, None, :]
+			edge = make_rays_signalset(one, xp.ones(one.shape[:2]),
+									   xp.zeros(one.shape[:2]), convention,
+									   name="boundary ray")[0][:, 0, i]
+		return rays, edge
+
 	def show_elements(self, ax, color="w", ls="--", lw=0.6, alpha=0.6,
-					  at:Literal['top','bottom']='top', fontsize=7) -> None:
+					  at:Literal['top','bottom']='top', fontsize=7,
+					  sections:bool=False) -> None:
 		r"""Overlay this column's named element positions on an existing axis.
 
 		The companion to :meth:`show` for building composite figures: draw a
@@ -3348,6 +3439,9 @@ class Microscope(SealedAttributes, SEASerializable):
 			pass ``color='0.4'`` over a light background.
 		at : {'top', 'bottom'}, optional
 			Which end of the axis the labels sit at, by default ``'top'``.
+		sections : bool, optional
+			Also shade each :attr:`named_sections` span in its own colour, by
+			default False -- how the ray diagram distinguishes sections.
 
 		Returns
 		-------
@@ -3369,6 +3463,14 @@ class Microscope(SealedAttributes, SEASerializable):
 		>>> scope.show(kind='wave-hybrid', plt_ax=ax)        # doctest: +SKIP
 		>>> scope.show_elements(ax)                          # doctest: +SKIP
 		"""
+		if sections:
+			shades = 'gbr' * 10
+			lo, hi = ax.get_ylim()
+			for k, (name, (z1, z2)) in enumerate(self.named_sections.items()):
+				ax.fill_between([z1, z2], [lo, lo], [hi, hi],
+								color=shades[k], alpha=0.1)
+				ax.annotate(name, (z1, lo), fontsize=fontsize)
+			ax.set_ylim(lo, hi)
 		_annotate_positions(ax, self.named_positions, color=color, ls=ls, lw=lw,
 							alpha=alpha, at=at, fontsize=fontsize)
 
@@ -3550,23 +3652,46 @@ class Microscope(SealedAttributes, SEASerializable):
 		if zpts is not None and kind not in ("wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"):
 			raise ValueError(f"zpts is only supported for the scaled wave kinds, not {kind!r}; "
 							 "call subdivided(zpts) and propagate that copy for other kinds.")
-		# --- ray diagram (unchanged behavior) ---
-		if kind in ("ray","rays"):
-			if self.rays is None or regenerate:
-				self.propagate_ray()
-			if zlims is None:
-				zs = self.rays[:,0,columnByName("z")]
-				zlims = [ xp.amin(zs),xp.amax(zs) ]
-			plot2D(self.rays, zpts=self.named_positions if overlays else "",
-				   sections=self.named_sections if overlays else None,
-				   planes=overlays, filename=filename, title=title,
-				   ylims=ylims, xlims=zlims, plt_ax=plt_ax,
-				   xlabel=xlabel, ylabel=ylabel)
-			return
-		# --- delegate to the result Signal's own .show() (sea_eco renders <=2D) ---
+		# --- every kind delegates to the result Signal's own .show() ---
 		import matplotlib.pyplot as plt
 		from .seashells import read_wavefield, make_wavefield_signal
 		ax = plt_ax if plt_ax is not None else plt.subplots()[1]
+		if kind in ("ray","rays"):
+			from matplotlib.cm import plasma
+			lines, edge = self.ray_lines(regenerate=regenerate)
+			colors = plasma(xp.linspace(0, 1, len(lines)))
+			# plot_type=None because the plane-z axis is unstructured (logged
+			# planes are not evenly spaced) and sea_eco's matplotlib backend
+			# would otherwise force a scatter -- see the sea-eco note
+			# TODO_ACTIVE_matplotlib-plotspec-kind
+			for line, color in zip(lines, colors):
+				line.show(ax=ax, plot_type=None, color=color, lw=1)
+			if edge is not None:
+				edge.show(ax=ax, plot_type=None, color="k", ls="--", lw=2,
+						  label="boundary ray")
+			if overlays:
+				self.show_elements(ax, color="0.35", ls=":", alpha=0.8,
+								   sections=True)
+				# planes at the bottom, elements at the top: the two label
+				# sets share one z axis and would otherwise overprint
+				self.show_planes(ax, planes='all', axis='x', color="k",
+								 alpha=0.8, at='bottom')
+			if ylims is not None:
+				ax.set_ylim(*ylims)
+			if zlims is not None:
+				ax.set_xlim(*zlims)
+			ax.set_xlabel("z (m)" if xlabel is None else xlabel)
+			# the line path takes its y label from the Signal's quantity, which
+			# a ray table does not carry -- the transverse coordinate is what
+			# the values are
+			ax.set_ylabel("x (m)" if ylabel is None else ylabel)
+			if title:
+				ax.set_title(title)
+			if filename is not None:
+				plt.gcf().savefig(filename)
+			elif plt_ax is None:
+				plt.show()
+			return
 		if kind in ("moments","envelope","covariance"):
 			if self.covariance_matrix is None or regenerate:
 				self.propagate_moments()

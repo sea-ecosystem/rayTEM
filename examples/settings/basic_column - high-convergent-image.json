@@ -1,8 +1,8 @@
 {
     "kind": "setting",
     "name": "basic_column - high-convergent-image",
-    "version": 0.024,
-    "timestamp": "2026-09-06 20:51:02",
+    "version": 0.025,
+    "timestamp": "2026-09-06 22:52:04",
     "C1": {
         "strength": 707.01251411
     },

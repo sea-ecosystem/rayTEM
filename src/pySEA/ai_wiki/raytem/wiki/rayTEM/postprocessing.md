@@ -4,19 +4,19 @@
 | Overview | 25 |
 | Module-level functions | 37 |
 |   `plot2D(r1, axis, filename, zpts, sections, xlims, ylims, title, plt_ax, planes)` | 39 |
-|   `plot3D(r1, filename, elev, azi, roll)` | 51 |
-|   `plotSliceSeries(rays, N, M, filename)` | 57 |
-|   `findPlanes(rays, axes)` | 61 |
-|   `findPlanes1(rays)` | 82 |
-|   `findPlanes1(rays)` | 86 |
-|   `zFromFractional(zs, z)` | 90 |
-|   `update_microscope_with_settings(microscope, settings)` | 96 |
-|   `error_dz(microscope, settings, targets)` | 100 |
-|   `error_magnification(microscope, settings, targets)` | 110 |
-|   `error_diameter(microscope, settings, targets, absolute)` | 116 |
-|   `error_angles(microscope, settings, targets, absolute)` | 120 |
-|   `fitForCrossover(section, r0, targets, modifiable, axis, prefer, ignoreSigns, filename)` | 124 |
-|   `measureAtZ(z, rays, section)` | 148 |
+|   `plot3D(r1, filename, elev, azi, roll)` | 56 |
+|   `plotSliceSeries(rays, N, M, filename)` | 62 |
+|   `findPlanes(rays, axes)` | 66 |
+|   `findPlanes1(rays)` | 87 |
+|   `findPlanes1(rays)` | 91 |
+|   `zFromFractional(zs, z)` | 95 |
+|   `update_microscope_with_settings(microscope, settings)` | 101 |
+|   `error_dz(microscope, settings, targets)` | 105 |
+|   `error_magnification(microscope, settings, targets)` | 115 |
+|   `error_diameter(microscope, settings, targets, absolute)` | 121 |
+|   `error_angles(microscope, settings, targets, absolute)` | 125 |
+|   `fitForCrossover(section, r0, targets, modifiable, axis, prefer, ignoreSigns, filename)` | 129 |
+|   `measureAtZ(z, rays, section)` | 153 |
 <!-- END AUTO-GENERATED TOC -->
 
 # postprocessing.py
@@ -43,6 +43,11 @@ Standard ray diagram: plots all rays as colored lines in z vs. lateral position 
 Automatically calls `findPlanes` and draws vertical lines at all detected image and diffraction planes, annotated with the plane type and magnification. Additional named z-positions can be passed via `zpts` (a `{label: z}` dict).
 
 If `sections` is provided (a `{name: (z_start, z_end)}` dict), each section is shaded with a semi-transparent background color. This is how `Microscope.show()` distinguishes its sections.
+
+`Microscope.show(kind='ray')` no longer routes through this — it draws each
+ray as a sea-eco Signal via `Microscope.ray_lines`, and reuses only the
+aperture rule below. `plot2D` remains for direct callers (examples 01-03) and
+for `MicroscopeSection.show`.
 
 `planes=False` suppresses the `findPlanes` annotations. Both axes are in metres, so passing `plt_ax` composites the ray diagram onto a wave cross-section drawn by `Microscope.show(kind='wave-hybrid')`; there `planes=False` (reached as `show(kind='ray', overlays=False)`) keeps the wave panel's own overlays from being doubled.
 
