@@ -45,8 +45,6 @@ def _():
 	from pySEA.rayTEM import Drift, Lens, Quadrapole, MicroscopeSection, Microscope
 	from pySEA.rayTEM import waveoptics as wo
 	from pySEA.rayTEM.assemblies import load_microscope
-	# aliased without the underscore: marimo treats _names as cell-local
-	from pySEA.rayTEM.assemblies import _scaled_wave_cross_section as scaled_wave_cross_section
 	from pySEA.rayTEM.elements import columnByName, convention
 	from pySEA.rayTEM.seashells import read_scaled_wavefield
 
@@ -56,9 +54,9 @@ def _():
 	DZ_DENSE = 1e-3				# m, plane spacing for the continuous cross-section
 	AIM_AT = "C1"				# image rays leave (0,0) and reach +-aperture here
 	return (AIM_AT, APERTURE_RADIUS, DZ_DENSE, Drift, Lens, MicroscopeSection,
-			Microscope, Quadrapole, TAIL, TRIM_AFTER, scaled_wave_cross_section,
-			columnByName, convention, load_microscope, np,
-			os, plt, read_scaled_wavefield, wo)
+			Microscope, Quadrapole, TAIL, TRIM_AFTER, columnByName,
+			convention, load_microscope, np, os, plt,
+			read_scaled_wavefield, wo)
 
 
 @app.cell
@@ -347,44 +345,37 @@ def _(AIM_AT, APERTURE_RADIUS, DZ_DENSE, columnByName, convention, np,
 		rot = dense.rays.convert_to_rotating_reference_frame()
 		return dense.rays[:, 0, columnByName("z")], rot[:, :, xi], theta_aim
 
-	def wave_cross_section(scope, z_max):
-		"""The scaled-wave planes up to ``z_max``, ready to draw.
+	def dense_wave_column(scope):
+		"""Propagate the scaled wave on a densely subdivided copy.
 
-		The rendering itself is :func:`assemblies._scaled_wave_cross_section`,
-		the same helper :meth:`Microscope.show` uses for ``kind='wave-hybrid'``
-		-- reconstructing each plane, peak-normalizing it and resampling onto a
-		common x axis is its job, not this notebook's. All that is left here is
-		the run and the ``z_max`` window.
+		Everything the panel needs after this -- reconstructing each plane,
+		peak-normalizing it, resampling onto a common x axis -- is
+		:meth:`Microscope.wave_cross_section`'s job, not this notebook's.
 
 		Parameters
 		----------
 		scope : Microscope
-			The column (propagated here on a subdivided copy).
-		z_max : float
-			Ignore planes beyond this z, keeping the common x axis tight.
+			The column; a subdivided copy is propagated, leaving it alone.
 
 		Returns
 		-------
-		tuple
-			``(planes, crossovers)`` -- the scaled wavefields within the
-			window, and the run's crossover positions (m).
+		Microscope
+			The propagated dense copy.
 		"""
 		dense = scope.subdivided(DZ_DENSE)
 		dense.propagate_wave(mode="hybrid")
-		planes = [p for p in dense._wave_scaled_planes
-				  if read_scaled_wavefield(p)[7] is not None
-				  and read_scaled_wavefield(p)[7] <= z_max + 1e-12]
-		return planes, np.asarray(dense.crossovers
-								  if dense.crossovers is not None else [])
+		return dense
 
-	wave_planes, crossovers = wave_cross_section(scope, z_max)
+	dense_wave = dense_wave_column(scope)
+	crossovers = np.asarray(dense_wave.crossovers
+							if dense_wave.crossovers is not None else [])
 	ray = scope.conjugate_planes(axis="x")
 	zr, rays_x, theta_aim = reference_rays(scope)
-	print(f"wave planes: {len(wave_planes)}   crossovers: {len(crossovers)}   "
+	print(f"wave planes: {len(dense_wave._wave_scaled_planes)}   crossovers: {len(crossovers)}   "
 		  f"ray diff: {len(ray['diff'])}   ray image: {len(ray['image'])}")
 	print(f"image rays aimed from (0,0) to ({AIM_AT}, ±{APERTURE_RADIUS*1e6:g} µm) "
 		  f"=> θ = ±{theta_aim*1e6:.1f} µrad")
-	return crossovers, ray, rays_x, theta_aim, wave_planes, zr
+	return crossovers, dense_wave, ray, rays_x, theta_aim, zr
 
 
 @app.cell(hide_code=True)
@@ -590,17 +581,22 @@ def _(mo):
 
 
 @app.cell
-def _(AIM_AT, APERTURE_RADIUS, analytic, scaled_wave_cross_section,
-	  crossovers, np, os, plt, ray, rays_x, scope, theta_aim, wave_planes,
-	  z_max, zr):
+def _(AIM_AT, APERTURE_RADIUS, analytic, crossovers, dense_wave, np, os, plt,
+	  ray, rays_x, scope, theta_aim, z_max, zr):
 	fig, ax = plt.subplots(figsize=(13, 7))
 
 	# the same renderer Microscope.show uses for kind='wave-hybrid', so the
 	# reference rays below are overlaid on the canonical cross-section rather
 	# than on a second, hand-built copy of it
-	# the crossovers get their own labelled overlay below, alongside the two
-	# families they are being compared against, so the renderer draws none
-	scaled_wave_cross_section(wave_planes, ax)
+	# the same panel Microscope.show draws for kind='wave-hybrid': a calibrated
+	# Signal that renders itself. The crossovers get their own labelled overlay
+	# below, alongside the two families they are compared against, so
+	# show_planes is not used here.
+	dense_wave.wave_cross_section(zlims=(0.0, z_max)).show(
+		ax=ax, cmap="magma", aspect="auto", scale_bar=False,
+		ticks_and_labels="on")
+	ax.set_ylim(*sorted(ax.get_ylim()))
+	ax.set_xlabel("z (m)") ; ax.set_ylabel("x (m)")
 
 	_m = zr <= z_max + 1e-12
 	for _j in (0, 1):

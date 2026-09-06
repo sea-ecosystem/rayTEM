@@ -13,7 +13,7 @@
     "name": "AberrationScreen",
     "qualname": "AberrationScreen",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3547,
+    "source_lineno": 3722,
     "signature": "class AberrationScreen",
     "doc": "A zero-thickness pure aberration plate."
   },
@@ -21,15 +21,6 @@
     "kind": "function",
     "name": "add_button",
     "qualname": "add_button",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 591,
-    "signature": "add_button(func, xy, text)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "add_button",
-    "qualname": "add_button",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 591,
     "signature": "add_button(func, xy, text)",
@@ -39,36 +30,9 @@
     "kind": "function",
     "name": "add_entry",
     "qualname": "add_entry",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 598,
-    "signature": "add_entry(name, xy, default)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "add_entry",
-    "qualname": "add_entry",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 598,
     "signature": "add_entry(name, xy, default)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "adjust_element_positions",
-    "qualname": "adjust_element_positions",
-    "path": "src/pySEA/rayTEM/generalized_CL_PL_fitting.py",
-    "source_lineno": 36,
-    "signature": "adjust_element_positions()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "analytical_crossover_fitting",
-    "qualname": "analytical_crossover_fitting",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs-v0.001.py",
-    "source_lineno": 109,
-    "signature": "analytical_crossover_fitting()",
     "doc": ""
   },
   {
@@ -84,27 +48,9 @@
     "kind": "function",
     "name": "analytical_crossover_fitting",
     "qualname": "analytical_crossover_fitting",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 341,
-    "signature": "analytical_crossover_fitting()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "analytical_crossover_fitting",
-    "qualname": "analytical_crossover_fitting",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 341,
     "signature": "analytical_crossover_fitting()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "analytical_crossover_fitting2",
-    "qualname": "analytical_crossover_fitting2",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs-v0.001.py",
-    "source_lineno": 299,
-    "signature": "analytical_crossover_fitting2()",
     "doc": ""
   },
   {
@@ -130,7 +76,7 @@
     "name": "Aperture",
     "qualname": "Aperture",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3198,
+    "source_lineno": 3361,
     "signature": "class Aperture",
     "doc": "Aperture element class. An aperture MASKS the beam: rays outside the"
   },
@@ -190,15 +136,6 @@
   },
   {
     "kind": "function",
-    "name": "assemble",
-    "qualname": "assemble",
-    "path": "src/pySEA/rayTEM/generalized_CL_PL_fitting.py",
-    "source_lineno": 12,
-    "signature": "assemble()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
     "name": "axis_components",
     "qualname": "axis_components",
     "path": "src/pySEA/rayTEM/waveoptics.py",
@@ -238,7 +175,7 @@
     "name": "beam_widths",
     "qualname": "beam_widths",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1373,
+    "source_lineno": 1408,
     "signature": "beam_widths(covariance_matrix)",
     "doc": "RMS beam half-widths in x and y from a stack of covariance matrices."
   },
@@ -283,7 +220,7 @@
     "name": "check_lengths",
     "qualname": "check_lengths",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3810,
+    "source_lineno": 3900,
     "signature": "check_lengths(section)",
     "doc": ""
   },
@@ -292,17 +229,8 @@
     "name": "closest_plane",
     "qualname": "closest_plane",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 985,
+    "source_lineno": 1020,
     "signature": "closest_plane(microscope, z_target, plane_type, regenerate)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "collectPresets",
-    "qualname": "collectPresets",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 85,
-    "signature": "collectPresets()",
     "doc": ""
   },
   {
@@ -327,27 +255,9 @@
     "kind": "function",
     "name": "compareLacyRotations",
     "qualname": "compareLacyRotations",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 976,
-    "signature": "compareLacyRotations()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "compareLacyRotations",
-    "qualname": "compareLacyRotations",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 976,
     "signature": "compareLacyRotations()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "condenser_guesses",
-    "qualname": "condenser_guesses",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 462,
-    "signature": "condenser_guesses(targets)",
     "doc": ""
   },
   {
@@ -361,19 +271,28 @@
   },
   {
     "kind": "function",
-    "name": "convert_to_rotating_reference_frame",
-    "qualname": "convert_to_rotating_reference_frame",
+    "name": "dedupe",
+    "qualname": "dedupe",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 417,
-    "signature": "convert_to_rotating_reference_frame(rays)",
-    "doc": "Rotate rays into the beam's rotating (Larmor) reference frame."
+    "source_lineno": 864,
+    "signature": "dedupe(ary)",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "diffraction_bundles_at_z",
+    "qualname": "diffraction_bundles_at_z",
+    "path": "src/pySEA/rayTEM/postprocessing.py",
+    "source_lineno": 871,
+    "signature": "diffraction_bundles_at_z(z, rays)",
+    "doc": ""
   },
   {
     "kind": "class",
     "name": "Dipole",
     "qualname": "Dipole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4253,
+    "source_lineno": 4428,
     "signature": "class Dipole",
     "doc": ""
   },
@@ -390,15 +309,6 @@
     "kind": "function",
     "name": "DQCM",
     "qualname": "DQCM",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 806,
-    "signature": "DQCM()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "DQCM",
-    "qualname": "DQCM",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 806,
     "signature": "DQCM()",
@@ -409,7 +319,7 @@
     "name": "Drift",
     "qualname": "Drift",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3471,
+    "source_lineno": 3646,
     "signature": "class Drift",
     "doc": "Drift element class for free-space propagation."
   },
@@ -435,27 +345,9 @@
     "kind": "function",
     "name": "dz_double_lens",
     "qualname": "dz_double_lens",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs-v0.001.py",
-    "source_lineno": 99,
-    "signature": "dz_double_lens(d1, d2, d3, C1, I1, C2, I2)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "dz_double_lens",
-    "qualname": "dz_double_lens",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs.py",
     "source_lineno": 99,
     "signature": "dz_double_lens(d1, d2, d3, C1, I1, C2, I2)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "dz_double_lens",
-    "qualname": "dz_double_lens",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 331,
-    "signature": "dz_double_lens(d1, d2, d3, iF1, iF2)",
     "doc": ""
   },
   {
@@ -472,17 +364,8 @@
     "name": "dz_focus_to",
     "qualname": "dz_focus_to",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 929,
+    "source_lineno": 964,
     "signature": "dz_focus_to(vals, setKeys, cases, microscope, plotting)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "dz_single_lens",
-    "qualname": "dz_single_lens",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs-v0.001.py",
-    "source_lineno": 95,
-    "signature": "dz_single_lens(d1, d2, C, I)",
     "doc": ""
   },
   {
@@ -492,15 +375,6 @@
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs.py",
     "source_lineno": 95,
     "signature": "dz_single_lens(d1, d2, C, I)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "dz_single_lens",
-    "qualname": "dz_single_lens",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 327,
-    "signature": "dz_single_lens(d1, d2, iF)",
     "doc": ""
   },
   {
@@ -517,7 +391,7 @@
     "name": "Element",
     "qualname": "Element",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 862,
+    "source_lineno": 1021,
     "signature": "class Element",
     "doc": ""
   },
@@ -535,7 +409,7 @@
     "name": "emittance",
     "qualname": "emittance",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1474,
+    "source_lineno": 1509,
     "signature": "emittance(covariance_matrix)",
     "doc": "RMS emittance in x and y from a stack of covariance matrices."
   },
@@ -544,7 +418,7 @@
     "name": "error_angles",
     "qualname": "error_angles",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1073,
+    "source_lineno": 1108,
     "signature": "error_angles(microscope, settings, targets, absolute)",
     "doc": ""
   },
@@ -553,7 +427,7 @@
     "name": "error_at_plane",
     "qualname": "error_at_plane",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1004,
+    "source_lineno": 1039,
     "signature": "error_at_plane(microscope, settings, targets, absolute, include_z)",
     "doc": ""
   },
@@ -562,7 +436,7 @@
     "name": "error_at_position",
     "qualname": "error_at_position",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1037,
+    "source_lineno": 1072,
     "signature": "error_at_position(microscope, settings, targets, absolute)",
     "doc": ""
   },
@@ -571,7 +445,7 @@
     "name": "error_diameter",
     "qualname": "error_diameter",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1059,
+    "source_lineno": 1094,
     "signature": "error_diameter(microscope, settings, targets, absolute)",
     "doc": ""
   },
@@ -580,7 +454,7 @@
     "name": "error_dz",
     "qualname": "error_dz",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 963,
+    "source_lineno": 998,
     "signature": "error_dz(microscope, settings, targets)",
     "doc": ""
   },
@@ -607,7 +481,7 @@
     "name": "findPlanes",
     "qualname": "findPlanes",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 459,
+    "source_lineno": 441,
     "signature": "findPlanes(rays, axis)",
     "doc": ""
   },
@@ -616,7 +490,7 @@
     "name": "findPlanes1",
     "qualname": "findPlanes1",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 637,
+    "source_lineno": 619,
     "signature": "findPlanes1(rays)",
     "doc": ""
   },
@@ -625,7 +499,7 @@
     "name": "findPlanes2",
     "qualname": "findPlanes2",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 785,
+    "source_lineno": 767,
     "signature": "findPlanes2(rays)",
     "doc": ""
   },
@@ -634,44 +508,8 @@
     "name": "findPlanes4",
     "qualname": "findPlanes4",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 270,
+    "source_lineno": 292,
     "signature": "findPlanes4(rays, axes)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "fit_CLs",
-    "qualname": "fit_CLs",
-    "path": "src/pySEA/rayTEM/generalized_CL_PL_fitting.py",
-    "source_lineno": 56,
-    "signature": "fit_CLs(file_in, mode)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "fit_PLs",
-    "qualname": "fit_PLs",
-    "path": "src/pySEA/rayTEM/generalized_CL_PL_fitting.py",
-    "source_lineno": 154,
-    "signature": "fit_PLs(file_in, mode)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "fit_rotation",
-    "qualname": "fit_rotation",
-    "path": "src/pySEA/rayTEM/generalized_CL_PL_fitting.py",
-    "source_lineno": 214,
-    "signature": "fit_rotation(file_in, mode)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "fit_VOA",
-    "qualname": "fit_VOA",
-    "path": "src/pySEA/rayTEM/generalized_CL_PL_fitting.py",
-    "source_lineno": 108,
-    "signature": "fit_VOA(file_in, mode)",
     "doc": ""
   },
   {
@@ -679,7 +517,7 @@
     "name": "fitForCrossover",
     "qualname": "fitForCrossover",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1096,
+    "source_lineno": 1131,
     "signature": "fitForCrossover(section, r0, targets, modifiable, axis, prefer, ignoreSigns, filename)",
     "doc": ""
   },
@@ -742,7 +580,7 @@
     "name": "Gun",
     "qualname": "Gun",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3146,
+    "source_lineno": 3309,
     "signature": "class Gun",
     "doc": "A Source by its microscope name."
   },
@@ -751,17 +589,8 @@
     "name": "helper_focus_to",
     "qualname": "helper_focus_to",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 899,
+    "source_lineno": 934,
     "signature": "helper_focus_to(microscope, initializeAt, focusTo, plotting)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "I_crit_from_2D",
-    "qualname": "I_crit_from_2D",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs-v0.001.py",
-    "source_lineno": 25,
-    "signature": "I_crit_from_2D()",
     "doc": ""
   },
   {
@@ -770,15 +599,6 @@
     "qualname": "I_crit_from_2D",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs.py",
     "source_lineno": 25,
-    "signature": "I_crit_from_2D()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "I_crit_from_2D",
-    "qualname": "I_crit_from_2D",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 200,
     "signature": "I_crit_from_2D()",
     "doc": ""
   },
@@ -822,15 +642,6 @@
     "kind": "function",
     "name": "lacyRotationOpenCV",
     "qualname": "lacyRotationOpenCV",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 829,
-    "signature": "lacyRotationOpenCV()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "lacyRotationOpenCV",
-    "qualname": "lacyRotationOpenCV",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 829,
     "signature": "lacyRotationOpenCV()",
@@ -841,7 +652,7 @@
     "name": "Lens",
     "qualname": "Lens",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4474,
+    "source_lineno": 4649,
     "signature": "class Lens",
     "doc": "Lens element class for round lenses / symmetric focusing. https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example or Brown1983 page 105"
   },
@@ -867,27 +678,9 @@
     "kind": "function",
     "name": "live",
     "qualname": "live",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 189,
-    "signature": "live(event, thread)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "live",
-    "qualname": "live",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 189,
     "signature": "live(event, thread)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "live_worker",
-    "qualname": "live_worker",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 183,
-    "signature": "live_worker(stop_event)",
     "doc": ""
   },
   {
@@ -904,7 +697,7 @@
     "name": "load_guesses",
     "qualname": "load_guesses",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1361,
+    "source_lineno": 1396,
     "signature": "load_guesses(guess_file)",
     "doc": ""
   },
@@ -913,7 +706,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3909,
+    "source_lineno": 3999,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -922,17 +715,8 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3739,
+    "source_lineno": 3829,
     "signature": "load_section(filename)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "loadPresetCS",
-    "qualname": "loadPresetCS",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 122,
-    "signature": "loadPresetCS(event)",
     "doc": ""
   },
   {
@@ -942,15 +726,6 @@
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 122,
     "signature": "loadPresetCS(event)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "loadPresetPS",
-    "qualname": "loadPresetPS",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 130,
-    "signature": "loadPresetPS(event)",
     "doc": ""
   },
   {
@@ -969,15 +744,6 @@
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/rederive.py",
     "source_lineno": 11,
     "signature": "log()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "log_prefit",
-    "qualname": "log_prefit",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 209,
-    "signature": "log_prefit(func)",
     "doc": ""
   },
   {
@@ -1020,26 +786,8 @@
     "kind": "function",
     "name": "main",
     "qualname": "main",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs-v0.001.py",
-    "source_lineno": 17,
-    "signature": "main()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "main",
-    "qualname": "main",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs.py",
     "source_lineno": 17,
-    "signature": "main()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "main",
-    "qualname": "main",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 23,
     "signature": "main()",
     "doc": ""
   },
@@ -1060,6 +808,15 @@
     "source_lineno": 422,
     "signature": "make_covariance_signal(covariance, z, components, name)",
     "doc": "Wrap a stack of per-plane covariance matrices as a calibrated sea_eco ``Signal``."
+  },
+  {
+    "kind": "function",
+    "name": "make_cross_section_signal",
+    "qualname": "make_cross_section_signal",
+    "path": "src/pySEA/rayTEM/seashells.py",
+    "source_lineno": 468,
+    "signature": "make_cross_section_signal(profile, x, z, coordinate, name)",
+    "doc": "Wrap a |psi(x, 0, z)| cross-section as a calibrated sea_eco ``Signal``."
   },
   {
     "kind": "function",
@@ -1084,7 +841,7 @@
     "name": "make_scaled_wave_signalset",
     "qualname": "make_scaled_wave_signalset",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 738,
+    "source_lineno": 804,
     "signature": "make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags, name)",
     "doc": "Wrap a stack of reduced fields and their frame state as a sea_eco ``SignalSet``."
   },
@@ -1093,7 +850,7 @@
     "name": "make_scaled_wavefield_signal",
     "qualname": "make_scaled_wavefield_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 548,
+    "source_lineno": 614,
     "signature": "make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z, z_cross, tag, name)",
     "doc": "Wrap a reduced field ``U(\u03be, \u03b7)`` as a single-plane scaled-wavefield ``Signal``."
   },
@@ -1120,18 +877,9 @@
     "name": "measureAtZ",
     "qualname": "measureAtZ",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1272,
+    "source_lineno": 1307,
     "signature": "measureAtZ(z, rays, I, R, section, live_only)",
     "doc": "Measure the outermost ray's state at an arbitrary z position."
-  },
-  {
-    "kind": "function",
-    "name": "measureEllipseRotation",
-    "qualname": "measureEllipseRotation",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 892,
-    "signature": "measureEllipseRotation()",
-    "doc": ""
   },
   {
     "kind": "function",
@@ -1140,15 +888,6 @@
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 892,
     "signature": "measureEllipseRotation()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "measureLacyRotation",
-    "qualname": "measureLacyRotation",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 911,
-    "signature": "measureLacyRotation()",
     "doc": ""
   },
   {
@@ -1165,7 +904,7 @@
     "name": "Microscope",
     "qualname": "Microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1017,
+    "source_lineno": 916,
     "signature": "class Microscope",
     "doc": "Microscope class represents a whole microscope, and is comprised of multiple MicroscopeSections. propagation through a Microscope results in propagation through individual MicroscopeSections"
   },
@@ -1174,7 +913,7 @@
     "name": "MicroscopeSection",
     "qualname": "MicroscopeSection",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 279,
+    "source_lineno": 155,
     "signature": "class MicroscopeSection",
     "doc": "MicroscopeSection class represents a portion of a microscope, and contains multiple Elements. propagation through a Section results in propagation through individual Elements."
   },
@@ -1186,15 +925,6 @@
     "source_lineno": 1301,
     "signature": "min_representable_curvature(n, dxi, wavelength, s, safety, x_max)",
     "doc": "Smallest reference-curvature radius a scaled frame can absorb or release."
-  },
-  {
-    "kind": "function",
-    "name": "minima_from_1D",
-    "qualname": "minima_from_1D",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 245,
-    "signature": "minima_from_1D()",
-    "doc": ""
   },
   {
     "kind": "function",
@@ -1245,15 +975,6 @@
     "kind": "function",
     "name": "orthogonalize",
     "qualname": "orthogonalize",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 852,
-    "signature": "orthogonalize(f)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "orthogonalize",
-    "qualname": "orthogonalize",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 852,
     "signature": "orthogonalize(f)",
@@ -1283,7 +1004,7 @@
     "qualname": "plot2D",
     "path": "src/pySEA/rayTEM/postprocessing.py",
     "source_lineno": 15,
-    "signature": "plot2D(r1, axis, filename, zpts, sections, xlims, ylims, title, plt_ax, planes, xlabel, ylabel)",
+    "signature": "plot2D(r1, axis, filename, zpts, sections, xlims, ylims, title, plt_ax, aperture_handling, planes, xlabel, ylabel)",
     "doc": "Draw the ray diagram: one transverse coordinate against z."
   },
   {
@@ -1291,7 +1012,7 @@
     "name": "plot3D",
     "qualname": "plot3D",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 174,
+    "source_lineno": 196,
     "signature": "plot3D(r1, filename, elev, azi, roll)",
     "doc": ""
   },
@@ -1309,7 +1030,7 @@
     "name": "plotSliceSeries",
     "qualname": "plotSliceSeries",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 229,
+    "source_lineno": 251,
     "signature": "plotSliceSeries(rays, N, M, filename)",
     "doc": ""
   },
@@ -1327,7 +1048,7 @@
     "name": "Prism",
     "qualname": "Prism",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 5045,
+    "source_lineno": 5277,
     "signature": "class Prism",
     "doc": ""
   },
@@ -1338,15 +1059,6 @@
     "path": "src/pySEA/rayTEM/references/andys_functions.py",
     "source_lineno": 138,
     "signature": "class prism",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "projector_guesses",
-    "qualname": "projector_guesses",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 428,
-    "signature": "projector_guesses(targets)",
     "doc": ""
   },
   {
@@ -1416,15 +1128,6 @@
     "kind": "function",
     "name": "pushToHardware",
     "qualname": "pushToHardware",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 63,
-    "signature": "pushToHardware(event)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "pushToHardware",
-    "qualname": "pushToHardware",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 63,
     "signature": "pushToHardware(event)",
@@ -1444,7 +1147,7 @@
     "name": "Quadrapole",
     "qualname": "Quadrapole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3734,
+    "source_lineno": 3909,
     "signature": "class Quadrapole",
     "doc": ""
   },
@@ -1470,15 +1173,6 @@
     "kind": "function",
     "name": "quit_me",
     "qualname": "quit_me",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 683,
-    "signature": "quit_me()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "quit_me",
-    "qualname": "quit_me",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 683,
     "signature": "quit_me()",
@@ -1489,7 +1183,7 @@
     "name": "Rays",
     "qualname": "Rays",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 49,
+    "source_lineno": 50,
     "signature": "class Rays",
     "doc": ""
   },
@@ -1498,7 +1192,7 @@
     "name": "read_scaled_wavefield",
     "qualname": "read_scaled_wavefield",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 641,
+    "source_lineno": 707,
     "signature": "read_scaled_wavefield(signal)",
     "doc": "Read ``(U, dxi, deta, wavelength, s, R, tau, z)`` from a scaled wavefield."
   },
@@ -1507,18 +1201,9 @@
     "name": "read_wavefield",
     "qualname": "read_wavefield",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 468,
+    "source_lineno": 534,
     "signature": "read_wavefield(signal)",
     "doc": "Read ``(data, dx, dy, wavelength, z)`` from a wavefield Signal or fallback."
-  },
-  {
-    "kind": "function",
-    "name": "readFromHardware",
-    "qualname": "readFromHardware",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 27,
-    "signature": "readFromHardware(event)",
-    "doc": ""
   },
   {
     "kind": "function",
@@ -1552,7 +1237,7 @@
     "name": "repair",
     "qualname": "repair",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3824,
+    "source_lineno": 3914,
     "signature": "repair(section, combine_drifts)",
     "doc": "Close gaps and overlaps in a section's element list, in place."
   },
@@ -1570,18 +1255,9 @@
     "name": "resolution_ellipses",
     "qualname": "resolution_ellipses",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 1404,
+    "source_lineno": 1439,
     "signature": "resolution_ellipses(covariance_matrix, kind)",
     "doc": "Principal rms widths and axes of a covariance block, per plane."
-  },
-  {
-    "kind": "function",
-    "name": "retry_last_fit",
-    "qualname": "retry_last_fit",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 214,
-    "signature": "retry_last_fit(event)",
-    "doc": ""
   },
   {
     "kind": "function",
@@ -1633,7 +1309,7 @@
     "name": "roundjson",
     "qualname": "roundjson",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3721,
+    "source_lineno": 3811,
     "signature": "roundjson(jdict)",
     "doc": ""
   },
@@ -1642,7 +1318,7 @@
     "name": "safeReinstantiate",
     "qualname": "safeReinstantiate",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 827,
+    "source_lineno": 893,
     "signature": "safeReinstantiate(source, cls)",
     "doc": ""
   },
@@ -1669,7 +1345,7 @@
     "name": "scaled_frame_crossover",
     "qualname": "scaled_frame_crossover",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 677,
+    "source_lineno": 743,
     "signature": "scaled_frame_crossover(signal)",
     "doc": "Read the crossover marker of a scaled wavefield's flat frame, if any."
   },
@@ -1678,18 +1354,9 @@
     "name": "scaled_frame_tag",
     "qualname": "scaled_frame_tag",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 710,
+    "source_lineno": 776,
     "signature": "scaled_frame_tag(signal)",
     "doc": "Read the frame-event tag of a scaled wavefield plane, if any."
-  },
-  {
-    "kind": "function",
-    "name": "scootOL2",
-    "qualname": "scootOL2",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 482,
-    "signature": "scootOL2(event)",
-    "doc": ""
   },
   {
     "kind": "function",
@@ -1705,7 +1372,7 @@
     "name": "SealedAttributes",
     "qualname": "SealedAttributes",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 364,
+    "source_lineno": 523,
     "signature": "class SealedAttributes",
     "doc": "Refuses attribute names the class does not have, once built."
   },
@@ -1741,7 +1408,7 @@
     "name": "setkeys_to_settables_dict",
     "qualname": "setkeys_to_settables_dict",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 892,
+    "source_lineno": 927,
     "signature": "setkeys_to_settables_dict(vals, setKeys)",
     "doc": ""
   },
@@ -1795,7 +1462,7 @@
     "name": "Source",
     "qualname": "Source",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2722,
+    "source_lineno": 2885,
     "signature": "class Source",
     "doc": "Source element class. Source element can be put in a MicroscopeSection and then propagating \"through\" the section will mean the starting rays r0 are generated by the Source (instead of requiring the user pass in starting rays)"
   },
@@ -1813,18 +1480,9 @@
     "name": "suspended_aberrations",
     "qualname": "suspended_aberrations",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 238,
+    "source_lineno": 397,
     "signature": "class suspended_aberrations",
     "doc": "Context manager that temporarily detaches elements' aberrations."
-  },
-  {
-    "kind": "function",
-    "name": "sweep_fitting_1D_individual",
-    "qualname": "sweep_fitting_1D_individual",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 38,
-    "signature": "sweep_fitting_1D_individual(microscope_name, preview_only)",
-    "doc": ""
   },
   {
     "kind": "function",
@@ -1833,15 +1491,6 @@
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py",
     "source_lineno": 38,
     "signature": "sweep_fitting_1D_individual(microscope_name, preview_only)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "sweep_fitting_1D_simultaneous",
-    "qualname": "sweep_fitting_1D_simultaneous",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 117,
-    "signature": "sweep_fitting_1D_simultaneous(microscope_name)",
     "doc": ""
   },
   {
@@ -1858,7 +1507,7 @@
     "name": "test_a_calibrated_screen_is_resampled_onto_the_propagation_grid",
     "qualname": "test_a_calibrated_screen_is_resampled_onto_the_propagation_grid",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2527,
+    "source_lineno": 2534,
     "signature": "test_a_calibrated_screen_is_resampled_onto_the_propagation_grid()",
     "doc": ""
   },
@@ -1885,7 +1534,7 @@
     "name": "test_a_screen_may_be_complex_carrying_amplitude_and_phase_together",
     "qualname": "test_a_screen_may_be_complex_carrying_amplitude_and_phase_together",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2388,
+    "source_lineno": 2395,
     "signature": "test_a_screen_may_be_complex_carrying_amplitude_and_phase_together()",
     "doc": ""
   },
@@ -1894,7 +1543,7 @@
     "name": "test_a_sub_nanometre_drift_actually_propagates",
     "qualname": "test_a_sub_nanometre_drift_actually_propagates",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2708,
+    "source_lineno": 2715,
     "signature": "test_a_sub_nanometre_drift_actually_propagates()",
     "doc": ""
   },
@@ -1903,7 +1552,7 @@
     "name": "test_a_supplied_screen_is_stored_and_a_derivable_one_is_not",
     "qualname": "test_a_supplied_screen_is_stored_and_a_derivable_one_is_not",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2461,
+    "source_lineno": 2468,
     "signature": "test_a_supplied_screen_is_stored_and_a_derivable_one_is_not()",
     "doc": ""
   },
@@ -1912,7 +1561,7 @@
     "name": "test_a_thick_medium_still_applies_its_screen",
     "qualname": "test_a_thick_medium_still_applies_its_screen",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2662,
+    "source_lineno": 2669,
     "signature": "test_a_thick_medium_still_applies_its_screen()",
     "doc": ""
   },
@@ -1921,7 +1570,7 @@
     "name": "test_a_volume_screen_becomes_a_multislice_through_the_body",
     "qualname": "test_a_volume_screen_becomes_a_multislice_through_the_body",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2568,
+    "source_lineno": 2575,
     "signature": "test_a_volume_screen_becomes_a_multislice_through_the_body()",
     "doc": ""
   },
@@ -1957,7 +1606,7 @@
     "name": "test_aberration_screen_element",
     "qualname": "test_aberration_screen_element",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 466,
+    "source_lineno": 584,
     "signature": "test_aberration_screen_element()",
     "doc": "A stand-alone AberrationScreen kicks rays and is transparent when idle."
   },
@@ -1975,7 +1624,7 @@
     "name": "test_aberrations_survive_a_sea_round_trip",
     "qualname": "test_aberrations_survive_a_sea_round_trip",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2322,
+    "source_lineno": 2329,
     "signature": "test_aberrations_survive_a_sea_round_trip()",
     "doc": ""
   },
@@ -1993,7 +1642,7 @@
     "name": "test_acts_on_rays_is_asked_of_the_optics_not_the_type",
     "qualname": "test_acts_on_rays_is_asked_of_the_optics_not_the_type",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1749,
+    "source_lineno": 1756,
     "signature": "test_acts_on_rays_is_asked_of_the_optics_not_the_type()",
     "doc": ""
   },
@@ -2002,7 +1651,7 @@
     "name": "test_aligned_C12_makes_two_line_foci",
     "qualname": "test_aligned_C12_makes_two_line_foci",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2756,
+    "source_lineno": 2763,
     "signature": "test_aligned_C12_makes_two_line_foci()",
     "doc": ""
   },
@@ -2035,6 +1684,15 @@
   },
   {
     "kind": "function",
+    "name": "test_aperture_current_types",
+    "qualname": "test_aperture_current_types",
+    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 708,
+    "signature": "test_aperture_current_types()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_aperture_lens_system_converges_with_resolvable_edge",
     "qualname": "test_aperture_lens_system_converges_with_resolvable_edge",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -2056,7 +1714,7 @@
     "name": "test_aperture_masks_rays",
     "qualname": "test_aperture_masks_rays",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 584,
+    "source_lineno": 727,
     "signature": "test_aperture_masks_rays()",
     "doc": "An aperture is a true mask: blocked rays carry I = 0 onward,"
   },
@@ -2074,7 +1732,7 @@
     "name": "test_aperture_wave_behaviour_survives_the_move_to_a_screen",
     "qualname": "test_aperture_wave_behaviour_survives_the_move_to_a_screen",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2426,
+    "source_lineno": 2433,
     "signature": "test_aperture_wave_behaviour_survives_the_move_to_a_screen()",
     "doc": ""
   },
@@ -2083,7 +1741,7 @@
     "name": "test_apply_aberrations_false_gives_the_ideal_result_on_every_path",
     "qualname": "test_apply_aberrations_false_gives_the_ideal_result_on_every_path",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2348,
+    "source_lineno": 2355,
     "signature": "test_apply_aberrations_false_gives_the_ideal_result_on_every_path()",
     "doc": ""
   },
@@ -2103,6 +1761,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 1007,
     "signature": "test_astigmatic_line_foci_in_column_hybrid()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_at_z",
+    "qualname": "test_at_z",
+    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 195,
+    "signature": "test_at_z()",
     "doc": ""
   },
   {
@@ -2137,7 +1804,7 @@
     "name": "test_basic_microscope_defined_by_lengths",
     "qualname": "test_basic_microscope_defined_by_lengths",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 110,
+    "source_lineno": 114,
     "signature": "test_basic_microscope_defined_by_lengths()",
     "doc": ""
   },
@@ -2146,7 +1813,7 @@
     "name": "test_basic_microscope_defined_by_positions",
     "qualname": "test_basic_microscope_defined_by_positions",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 144,
+    "source_lineno": 148,
     "signature": "test_basic_microscope_defined_by_positions()",
     "doc": ""
   },
@@ -2155,7 +1822,7 @@
     "name": "test_basic_microscope_reload_json",
     "qualname": "test_basic_microscope_reload_json",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 163,
+    "source_lineno": 167,
     "signature": "test_basic_microscope_reload_json()",
     "doc": ""
   },
@@ -2164,7 +1831,7 @@
     "name": "test_basic_microscope_reload_sea",
     "qualname": "test_basic_microscope_reload_sea",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 178,
+    "source_lineno": 182,
     "signature": "test_basic_microscope_reload_sea()",
     "doc": ""
   },
@@ -2173,7 +1840,7 @@
     "name": "test_basic_section_r0",
     "qualname": "test_basic_section_r0",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 22,
+    "source_lineno": 24,
     "signature": "test_basic_section_r0()",
     "doc": ""
   },
@@ -2182,7 +1849,7 @@
     "name": "test_basic_section_wsource",
     "qualname": "test_basic_section_wsource",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 47,
+    "source_lineno": 51,
     "signature": "test_basic_section_wsource()",
     "doc": ""
   },
@@ -2191,7 +1858,7 @@
     "name": "test_beam_current_is_in_amps_and_apertures_take_it_away",
     "qualname": "test_beam_current_is_in_amps_and_apertures_take_it_away",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2964,
+    "source_lineno": 2971,
     "signature": "test_beam_current_is_in_amps_and_apertures_take_it_away()",
     "doc": ""
   },
@@ -2200,7 +1867,7 @@
     "name": "test_beam_current_survives_a_sea_round_trip",
     "qualname": "test_beam_current_survives_a_sea_round_trip",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 3159,
+    "source_lineno": 3166,
     "signature": "test_beam_current_survives_a_sea_round_trip(tmp_path)",
     "doc": ""
   },
@@ -2218,7 +1885,7 @@
     "name": "test_beam_waists_match_analytic_focal_shift",
     "qualname": "test_beam_waists_match_analytic_focal_shift",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1520,
+    "source_lineno": 1527,
     "signature": "test_beam_waists_match_analytic_focal_shift()",
     "doc": ""
   },
@@ -2227,8 +1894,17 @@
     "name": "test_beam_waists_returns_minima_not_stationary_points",
     "qualname": "test_beam_waists_returns_minima_not_stationary_points",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1879,
+    "source_lineno": 1886,
     "signature": "test_beam_waists_returns_minima_not_stationary_points()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_boundary_ray_rescales_at_aperture",
+    "qualname": "test_boundary_ray_rescales_at_aperture",
+    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 263,
+    "signature": "test_boundary_ray_rescales_at_aperture()",
     "doc": ""
   },
   {
@@ -2245,7 +1921,7 @@
     "name": "test_C10_moves_the_wave_and_the_rays_by_the_same_amount",
     "qualname": "test_C10_moves_the_wave_and_the_rays_by_the_same_amount",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2292,
+    "source_lineno": 2299,
     "signature": "test_C10_moves_the_wave_and_the_rays_by_the_same_amount()",
     "doc": ""
   },
@@ -2353,7 +2029,7 @@
     "name": "test_coma_is_even_order_and_spherical_is_odd",
     "qualname": "test_coma_is_even_order_and_spherical_is_odd",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2803,
+    "source_lineno": 2810,
     "signature": "test_coma_is_even_order_and_spherical_is_odd()",
     "doc": ""
   },
@@ -2371,7 +2047,7 @@
     "name": "test_conjugate_planes_both_families_compound",
     "qualname": "test_conjugate_planes_both_families_compound",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1129,
+    "source_lineno": 1136,
     "signature": "test_conjugate_planes_both_families_compound()",
     "doc": ""
   },
@@ -2380,7 +2056,7 @@
     "name": "test_conjugate_planes_feed_zpts_to_log_image_planes",
     "qualname": "test_conjugate_planes_feed_zpts_to_log_image_planes",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1166,
+    "source_lineno": 1173,
     "signature": "test_conjugate_planes_feed_zpts_to_log_image_planes()",
     "doc": ""
   },
@@ -2389,7 +2065,7 @@
     "name": "test_conjugate_planes_frame_ray_and_wave_agree",
     "qualname": "test_conjugate_planes_frame_ray_and_wave_agree",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1459,
+    "source_lineno": 1466,
     "signature": "test_conjugate_planes_frame_ray_and_wave_agree()",
     "doc": ""
   },
@@ -2398,7 +2074,7 @@
     "name": "test_conjugate_planes_reference_plane",
     "qualname": "test_conjugate_planes_reference_plane",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1488,
+    "source_lineno": 1495,
     "signature": "test_conjugate_planes_reference_plane()",
     "doc": ""
   },
@@ -2407,7 +2083,7 @@
     "name": "test_convergence_angle_is_a_semi_angle_and_a_total_deflection",
     "qualname": "test_convergence_angle_is_a_semi_angle_and_a_total_deflection",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2923,
+    "source_lineno": 2930,
     "signature": "test_convergence_angle_is_a_semi_angle_and_a_total_deflection()",
     "doc": ""
   },
@@ -2425,7 +2101,7 @@
     "name": "test_covariance_aberration_closure",
     "qualname": "test_covariance_aberration_closure",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 667,
+    "source_lineno": 817,
     "signature": "test_covariance_aberration_closure()",
     "doc": "Aberrations enter the moments mode analytically (Gaussian closure)."
   },
@@ -2452,7 +2128,7 @@
     "name": "test_cropping_microscope",
     "qualname": "test_cropping_microscope",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 312,
+    "source_lineno": 408,
     "signature": "test_cropping_microscope()",
     "doc": ""
   },
@@ -2461,8 +2137,17 @@
     "name": "test_cropping_section",
     "qualname": "test_cropping_section",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 264,
+    "source_lineno": 360,
     "signature": "test_cropping_section()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_cropping_single_section_microscope_by_named_stop",
+    "qualname": "test_cropping_single_section_microscope_by_named_stop",
+    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 451,
+    "signature": "test_cropping_single_section_microscope_by_named_stop()",
     "doc": ""
   },
   {
@@ -2472,15 +2157,6 @@
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
     "source_lineno": 233,
     "signature": "test_cross_plane_closure_terms_appear_when_the_beam_is_coupled()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "test_crossovers",
-    "qualname": "test_crossovers",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 632,
-    "signature": "test_crossovers(microscope, states, noplot)",
     "doc": ""
   },
   {
@@ -2503,10 +2179,19 @@
   },
   {
     "kind": "function",
+    "name": "test_diffraction_rays",
+    "qualname": "test_diffraction_rays",
+    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 513,
+    "signature": "test_diffraction_rays()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_dipole_transfer_matrix",
     "qualname": "test_dipole_transfer_matrix",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 93,
+    "source_lineno": 97,
     "signature": "test_dipole_transfer_matrix()",
     "doc": ""
   },
@@ -2524,7 +2209,7 @@
     "name": "test_element_beam_current_is_derived_from_the_source",
     "qualname": "test_element_beam_current_is_derived_from_the_source",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 3119,
+    "source_lineno": 3126,
     "signature": "test_element_beam_current_is_derived_from_the_source()",
     "doc": ""
   },
@@ -2533,7 +2218,7 @@
     "name": "test_element_insertion_microscope",
     "qualname": "test_element_insertion_microscope",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 191,
+    "source_lineno": 287,
     "signature": "test_element_insertion_microscope()",
     "doc": ""
   },
@@ -2542,7 +2227,7 @@
     "name": "test_element_move",
     "qualname": "test_element_move",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 358,
+    "source_lineno": 464,
     "signature": "test_element_move()",
     "doc": ""
   },
@@ -2596,7 +2281,7 @@
     "name": "test_every_element",
     "qualname": "test_every_element",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 79,
+    "source_lineno": 83,
     "signature": "test_every_element()",
     "doc": ""
   },
@@ -2605,7 +2290,7 @@
     "name": "test_every_element_kind_can_be_reloaded",
     "qualname": "test_every_element_kind_can_be_reloaded",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 3016,
+    "source_lineno": 3023,
     "signature": "test_every_element_kind_can_be_reloaded()",
     "doc": ""
   },
@@ -2683,19 +2368,10 @@
   },
   {
     "kind": "function",
-    "name": "test_findplanes_ignores_dead_rays",
-    "qualname": "test_findplanes_ignores_dead_rays",
-    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 624,
-    "signature": "test_findplanes_ignores_dead_rays()",
-    "doc": "Plane detection only trusts rays that still carry intensity."
-  },
-  {
-    "kind": "function",
     "name": "test_first_order_terms_are_absorbed_into_the_frame",
     "qualname": "test_first_order_terms_are_absorbed_into_the_frame",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2258,
+    "source_lineno": 2265,
     "signature": "test_first_order_terms_are_absorbed_into_the_frame()",
     "doc": ""
   },
@@ -2713,7 +2389,7 @@
     "name": "test_focal_properties_round_trip",
     "qualname": "test_focal_properties_round_trip",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 565,
+    "source_lineno": 690,
     "signature": "test_focal_properties_round_trip()",
     "doc": "A thin lens defined by focal_length keeps all three focal numbers"
   },
@@ -2722,7 +2398,7 @@
     "name": "test_focal_surface_is_flat_without_aberration",
     "qualname": "test_focal_surface_is_flat_without_aberration",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2017,
+    "source_lineno": 2024,
     "signature": "test_focal_surface_is_flat_without_aberration()",
     "doc": ""
   },
@@ -2731,7 +2407,7 @@
     "name": "test_focal_surface_separates_spherical_from_astigmatism",
     "qualname": "test_focal_surface_separates_spherical_from_astigmatism",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2039,
+    "source_lineno": 2046,
     "signature": "test_focal_surface_separates_spherical_from_astigmatism()",
     "doc": ""
   },
@@ -2740,7 +2416,7 @@
     "name": "test_focal_surface_single_radius_cannot_separate_r_terms",
     "qualname": "test_focal_surface_single_radius_cannot_separate_r_terms",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2066,
+    "source_lineno": 2073,
     "signature": "test_focal_surface_single_radius_cannot_separate_r_terms()",
     "doc": ""
   },
@@ -2749,7 +2425,7 @@
     "name": "test_focus_error_finds_the_first_crossover_after_the_condenser",
     "qualname": "test_focus_error_finds_the_first_crossover_after_the_condenser",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2892,
+    "source_lineno": 2899,
     "signature": "test_focus_error_finds_the_first_crossover_after_the_condenser()",
     "doc": ""
   },
@@ -2758,7 +2434,7 @@
     "name": "test_frame_focal_surface",
     "qualname": "test_frame_focal_surface",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 715,
+    "source_lineno": 865,
     "signature": "test_frame_focal_surface()",
     "doc": "focal_surface(method='frame'): the aberrated surface in closed form."
   },
@@ -2821,7 +2497,7 @@
     "name": "test_gun_is_a_source_and_survives_a_round_trip",
     "qualname": "test_gun_is_a_source_and_survives_a_round_trip",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 3101,
+    "source_lineno": 3108,
     "signature": "test_gun_is_a_source_and_survives_a_round_trip(tmp_path)",
     "doc": ""
   },
@@ -2848,7 +2524,7 @@
     "name": "test_hybrid_logs_image_planes",
     "qualname": "test_hybrid_logs_image_planes",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1693,
+    "source_lineno": 1700,
     "signature": "test_hybrid_logs_image_planes()",
     "doc": ""
   },
@@ -2893,7 +2569,7 @@
     "name": "test_krivanek_terms_have_the_right_order_and_symmetry",
     "qualname": "test_krivanek_terms_have_the_right_order_and_symmetry",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2224,
+    "source_lineno": 2231,
     "signature": "test_krivanek_terms_have_the_right_order_and_symmetry()",
     "doc": ""
   },
@@ -2902,7 +2578,7 @@
     "name": "test_lens_phase_carries_the_quartic_in_both_representations",
     "qualname": "test_lens_phase_carries_the_quartic_in_both_representations",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2101,
+    "source_lineno": 2108,
     "signature": "test_lens_phase_carries_the_quartic_in_both_representations()",
     "doc": ""
   },
@@ -2929,7 +2605,7 @@
     "name": "test_merging_a_complex_screen_into_a_real_volume_converts_it_meaningfully",
     "qualname": "test_merging_a_complex_screen_into_a_real_volume_converts_it_meaningfully",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2627,
+    "source_lineno": 2634,
     "signature": "test_merging_a_complex_screen_into_a_real_volume_converts_it_meaningfully()",
     "doc": ""
   },
@@ -2938,7 +2614,7 @@
     "name": "test_microscope_index_raises",
     "qualname": "test_microscope_index_raises",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 490,
+    "source_lineno": 608,
     "signature": "test_microscope_index_raises()",
     "doc": "Microscope.index raises KeyError for unknown names instead of returning None."
   },
@@ -2947,7 +2623,7 @@
     "name": "test_mid_element_crossover_lands_on_the_analytic_plane",
     "qualname": "test_mid_element_crossover_lands_on_the_analytic_plane",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1825,
+    "source_lineno": 1832,
     "signature": "test_mid_element_crossover_lands_on_the_analytic_plane()",
     "doc": ""
   },
@@ -2956,7 +2632,7 @@
     "name": "test_mid_element_frame_switch_crosses_inside_a_body",
     "qualname": "test_mid_element_frame_switch_crosses_inside_a_body",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1775,
+    "source_lineno": 1782,
     "signature": "test_mid_element_frame_switch_crosses_inside_a_body()",
     "doc": ""
   },
@@ -2965,7 +2641,7 @@
     "name": "test_mid_element_hybrid_leaves_the_common_case_alone",
     "qualname": "test_mid_element_hybrid_leaves_the_common_case_alone",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1801,
+    "source_lineno": 1808,
     "signature": "test_mid_element_hybrid_leaves_the_common_case_alone()",
     "doc": ""
   },
@@ -2992,7 +2668,7 @@
     "name": "test_old_json_compatibility",
     "qualname": "test_old_json_compatibility",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 399,
+    "source_lineno": 505,
     "signature": "test_old_json_compatibility()",
     "doc": ""
   },
@@ -3109,7 +2785,7 @@
     "name": "test_quadrupole_axis_convention_thin_and_thick",
     "qualname": "test_quadrupole_axis_convention_thin_and_thick",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1623,
+    "source_lineno": 1630,
     "signature": "test_quadrupole_axis_convention_thin_and_thick()",
     "doc": ""
   },
@@ -3118,7 +2794,7 @@
     "name": "test_quadrupole_scaled_segment_declaration",
     "qualname": "test_quadrupole_scaled_segment_declaration",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1381,
+    "source_lineno": 1388,
     "signature": "test_quadrupole_scaled_segment_declaration()",
     "doc": ""
   },
@@ -3127,8 +2803,26 @@
     "name": "test_ray_kick_is_the_gradient_of_the_wave_screen",
     "qualname": "test_ray_kick_is_the_gradient_of_the_wave_screen",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2077,
+    "source_lineno": 2084,
     "signature": "test_ray_kick_is_the_gradient_of_the_wave_screen()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_rays_copy_preserves_extra_attributes",
+    "qualname": "test_rays_copy_preserves_extra_attributes",
+    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 229,
+    "signature": "test_rays_copy_preserves_extra_attributes()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_rays_defaults",
+    "qualname": "test_rays_defaults",
+    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 214,
+    "signature": "test_rays_defaults()",
     "doc": ""
   },
   {
@@ -3142,10 +2836,19 @@
   },
   {
     "kind": "function",
+    "name": "test_rays_stack_and_concatenate",
+    "qualname": "test_rays_stack_and_concatenate",
+    "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
+    "source_lineno": 240,
+    "signature": "test_rays_stack_and_concatenate()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_reconstruction_zero_fills_beyond_the_modelled_field",
     "qualname": "test_reconstruction_zero_fills_beyond_the_modelled_field",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2199,
+    "source_lineno": 2206,
     "signature": "test_reconstruction_zero_fills_beyond_the_modelled_field()",
     "doc": ""
   },
@@ -3190,7 +2893,7 @@
     "name": "test_rotate_field_is_exact_and_unitary",
     "qualname": "test_rotate_field_is_exact_and_unitary",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1283,
+    "source_lineno": 1290,
     "signature": "test_rotate_field_is_exact_and_unitary()",
     "doc": ""
   },
@@ -3199,7 +2902,7 @@
     "name": "test_rotated_quadrupole",
     "qualname": "test_rotated_quadrupole",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 408,
+    "source_lineno": 526,
     "signature": "test_rotated_quadrupole()",
     "doc": "A rotated quadrupole couples the planes; pi/2 swaps them exactly."
   },
@@ -3208,7 +2911,7 @@
     "name": "test_rotation_commutes_with_propagation",
     "qualname": "test_rotation_commutes_with_propagation",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1303,
+    "source_lineno": 1310,
     "signature": "test_rotation_commutes_with_propagation()",
     "doc": ""
   },
@@ -3226,7 +2929,7 @@
     "name": "test_scaled_plane_at_is_exact",
     "qualname": "test_scaled_plane_at_is_exact",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1717,
+    "source_lineno": 1724,
     "signature": "test_scaled_plane_at_is_exact()",
     "doc": ""
   },
@@ -3253,7 +2956,7 @@
     "name": "test_section_insertion_microscope",
     "qualname": "test_section_insertion_microscope",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 230,
+    "source_lineno": 326,
     "signature": "test_section_insertion_microscope()",
     "doc": ""
   },
@@ -3262,7 +2965,7 @@
     "name": "test_section_level_aberrations",
     "qualname": "test_section_level_aberrations",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 441,
+    "source_lineno": 559,
     "signature": "test_section_level_aberrations()",
     "doc": "Aberrations declared on a section act, suspend, and round-trip."
   },
@@ -3271,7 +2974,7 @@
     "name": "test_sections_and_microscopes_refuse_unknown_attributes_too",
     "qualname": "test_sections_and_microscopes_refuse_unknown_attributes_too",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2875,
+    "source_lineno": 2882,
     "signature": "test_sections_and_microscopes_refuse_unknown_attributes_too()",
     "doc": ""
   },
@@ -3280,7 +2983,7 @@
     "name": "test_segment_block_regimes",
     "qualname": "test_segment_block_regimes",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1228,
+    "source_lineno": 1235,
     "signature": "test_segment_block_regimes()",
     "doc": ""
   },
@@ -3289,7 +2992,7 @@
     "name": "test_segment_delta_tau_closed_form_all_regimes",
     "qualname": "test_segment_delta_tau_closed_form_all_regimes",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1187,
+    "source_lineno": 1194,
     "signature": "test_segment_delta_tau_closed_form_all_regimes()",
     "doc": ""
   },
@@ -3298,7 +3001,7 @@
     "name": "test_segment_propagator_is_per_axis",
     "qualname": "test_segment_propagator_is_per_axis",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1400,
+    "source_lineno": 1407,
     "signature": "test_segment_propagator_is_per_axis()",
     "doc": ""
   },
@@ -3307,7 +3010,7 @@
     "name": "test_setting_an_unknown_attribute_is_refused",
     "qualname": "test_setting_an_unknown_attribute_is_refused",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2822,
+    "source_lineno": 2829,
     "signature": "test_setting_an_unknown_attribute_is_refused()",
     "doc": ""
   },
@@ -3343,7 +3046,7 @@
     "name": "test_show_zpts_uses_temporary_dense_copy",
     "qualname": "test_show_zpts_uses_temporary_dense_copy",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1105,
+    "source_lineno": 1112,
     "signature": "test_show_zpts_uses_temporary_dense_copy()",
     "doc": ""
   },
@@ -3352,7 +3055,7 @@
     "name": "test_skew_C12_rotates_the_line_foci_by_45_degrees",
     "qualname": "test_skew_C12_rotates_the_line_foci_by_45_degrees",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2785,
+    "source_lineno": 2792,
     "signature": "test_skew_C12_rotates_the_line_foci_by_45_degrees()",
     "doc": ""
   },
@@ -3361,7 +3064,7 @@
     "name": "test_spherical_aberration_degrades_the_wave_focus",
     "qualname": "test_spherical_aberration_degrades_the_wave_focus",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2126,
+    "source_lineno": 2133,
     "signature": "test_spherical_aberration_degrades_the_wave_focus()",
     "doc": ""
   },
@@ -3370,7 +3073,7 @@
     "name": "test_spherical_aberration_kick_matches_the_closed_form",
     "qualname": "test_spherical_aberration_kick_matches_the_closed_form",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1951,
+    "source_lineno": 1958,
     "signature": "test_spherical_aberration_kick_matches_the_closed_form()",
     "doc": ""
   },
@@ -3388,7 +3091,7 @@
     "name": "test_strong_lens_virtual_bfp_vs_internal_crossover",
     "qualname": "test_strong_lens_virtual_bfp_vs_internal_crossover",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 543,
+    "source_lineno": 668,
     "signature": "test_strong_lens_virtual_bfp_vs_internal_crossover()",
     "doc": "Past KL = pi/2 the BFD goes virtual; the real crossover is in-body."
   },
@@ -3406,7 +3109,7 @@
     "name": "test_subdivided_preserves_geometry",
     "qualname": "test_subdivided_preserves_geometry",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1079,
+    "source_lineno": 1086,
     "signature": "test_subdivided_preserves_geometry()",
     "doc": ""
   },
@@ -3415,7 +3118,7 @@
     "name": "test_supplied_screen_and_aberrations_survive_reload_on_any_element",
     "qualname": "test_supplied_screen_and_aberrations_survive_reload_on_any_element",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2496,
+    "source_lineno": 2503,
     "signature": "test_supplied_screen_and_aberrations_survive_reload_on_any_element()",
     "doc": ""
   },
@@ -3433,7 +3136,7 @@
     "name": "test_the_wave_carries_current_too",
     "qualname": "test_the_wave_carries_current_too",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 3050,
+    "source_lineno": 3057,
     "signature": "test_the_wave_carries_current_too()",
     "doc": ""
   },
@@ -3442,7 +3145,7 @@
     "name": "test_thick_body_aberration_matches_the_perturbed_ray_equation",
     "qualname": "test_thick_body_aberration_matches_the_perturbed_ray_equation",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1983,
+    "source_lineno": 1990,
     "signature": "test_thick_body_aberration_matches_the_perturbed_ray_equation()",
     "doc": ""
   },
@@ -3451,7 +3154,7 @@
     "name": "test_thick_lens_crossovers_match_ray_planes",
     "qualname": "test_thick_lens_crossovers_match_ray_planes",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1264,
+    "source_lineno": 1271,
     "signature": "test_thick_lens_crossovers_match_ray_planes()",
     "doc": ""
   },
@@ -3460,7 +3163,7 @@
     "name": "test_thick_lens_efl_vs_bfd_split",
     "qualname": "test_thick_lens_efl_vs_bfd_split",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 500,
+    "source_lineno": 618,
     "signature": "test_thick_lens_efl_vs_bfd_split()",
     "doc": "The three focal quantities and their matrix definitions."
   },
@@ -3469,7 +3172,7 @@
     "name": "test_thick_lens_segment_matches_transfer_matrix",
     "qualname": "test_thick_lens_segment_matches_transfer_matrix",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1243,
+    "source_lineno": 1250,
     "signature": "test_thick_lens_segment_matches_transfer_matrix()",
     "doc": ""
   },
@@ -3478,7 +3181,7 @@
     "name": "test_thick_lens_wave_rotation_matches_ray_larmor",
     "qualname": "test_thick_lens_wave_rotation_matches_ray_larmor",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1317,
+    "source_lineno": 1324,
     "signature": "test_thick_lens_wave_rotation_matches_ray_larmor()",
     "doc": ""
   },
@@ -3487,7 +3190,7 @@
     "name": "test_thick_quadrupole_conserves_emittance",
     "qualname": "test_thick_quadrupole_conserves_emittance",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1652,
+    "source_lineno": 1659,
     "signature": "test_thick_quadrupole_conserves_emittance()",
     "doc": ""
   },
@@ -3496,7 +3199,7 @@
     "name": "test_thick_quadrupole_is_an_exact_scaled_segment",
     "qualname": "test_thick_quadrupole_is_an_exact_scaled_segment",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1346,
+    "source_lineno": 1353,
     "signature": "test_thick_quadrupole_is_an_exact_scaled_segment()",
     "doc": ""
   },
@@ -3505,7 +3208,7 @@
     "name": "test_thick_quadrupole_is_symplectic",
     "qualname": "test_thick_quadrupole_is_symplectic",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1602,
+    "source_lineno": 1609,
     "signature": "test_thick_quadrupole_is_symplectic()",
     "doc": ""
   },
@@ -3523,7 +3226,7 @@
     "name": "test_transfer_block_matches_transfer_matrix",
     "qualname": "test_transfer_block_matches_transfer_matrix",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1432,
+    "source_lineno": 1439,
     "signature": "test_transfer_block_matches_transfer_matrix()",
     "doc": ""
   },
@@ -3532,7 +3235,7 @@
     "name": "test_transfer_block_refuses_to_invent_a_kick_in_a_body",
     "qualname": "test_transfer_block_refuses_to_invent_a_kick_in_a_body",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1555,
+    "source_lineno": 1562,
     "signature": "test_transfer_block_refuses_to_invent_a_kick_in_a_body()",
     "doc": ""
   },
@@ -3541,7 +3244,7 @@
     "name": "test_undersampled_aberration_screen_is_refused",
     "qualname": "test_undersampled_aberration_screen_is_refused",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2147,
+    "source_lineno": 2154,
     "signature": "test_undersampled_aberration_screen_is_refused()",
     "doc": ""
   },
@@ -3550,7 +3253,7 @@
     "name": "test_various_lenses",
     "qualname": "test_various_lenses",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 61,
+    "source_lineno": 65,
     "signature": "test_various_lenses()",
     "doc": ""
   },
@@ -3559,7 +3262,7 @@
     "name": "test_walk_refuses_non_symplectic_body",
     "qualname": "test_walk_refuses_non_symplectic_body",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1581,
+    "source_lineno": 1588,
     "signature": "test_walk_refuses_non_symplectic_body()",
     "doc": ""
   },
@@ -3595,7 +3298,7 @@
     "name": "test_wave_matches_closed_form_back_focal_plane",
     "qualname": "test_wave_matches_closed_form_back_focal_plane",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 2173,
+    "source_lineno": 2180,
     "signature": "test_wave_matches_closed_form_back_focal_plane()",
     "doc": ""
   },
@@ -3631,7 +3334,7 @@
     "name": "test_wavefield_at_is_exact_not_nearest",
     "qualname": "test_wavefield_at_is_exact_not_nearest",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
-    "source_lineno": 1762,
+    "source_lineno": 1769,
     "signature": "test_wavefield_at_is_exact_not_nearest()",
     "doc": ""
   },
@@ -3642,15 +3345,6 @@
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
     "source_lineno": 198,
     "signature": "test_zero_aberration_strength_recovers_the_ideal_result()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "thinking",
-    "qualname": "thinking",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 203,
-    "signature": "thinking(text)",
     "doc": ""
   },
   {
@@ -3693,15 +3387,6 @@
     "kind": "function",
     "name": "unpush",
     "qualname": "unpush",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 78,
-    "signature": "unpush(event)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "unpush",
-    "qualname": "unpush",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 78,
     "signature": "unpush(event)",
@@ -3711,27 +3396,9 @@
     "kind": "function",
     "name": "update_convergence",
     "qualname": "update_convergence",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 379,
-    "signature": "update_convergence(event, use_brute)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "update_convergence",
-    "qualname": "update_convergence",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 379,
     "signature": "update_convergence(event, use_brute)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "update_current",
-    "qualname": "update_current",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 330,
-    "signature": "update_current(event, use_brute)",
     "doc": ""
   },
   {
@@ -3756,15 +3423,6 @@
     "kind": "function",
     "name": "update_magnification",
     "qualname": "update_magnification",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 264,
-    "signature": "update_magnification(event, use_brute)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "update_magnification",
-    "qualname": "update_magnification",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 264,
     "signature": "update_magnification(event, use_brute)",
@@ -3774,27 +3432,9 @@
     "kind": "function",
     "name": "update_ray_diagram",
     "qualname": "update_ray_diagram",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 139,
-    "signature": "update_ray_diagram(event)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "update_ray_diagram",
-    "qualname": "update_ray_diagram",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 139,
     "signature": "update_ray_diagram(event)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "update_rotation",
-    "qualname": "update_rotation",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 221,
-    "signature": "update_rotation(event, use_brute)",
     "doc": ""
   },
   {
@@ -3819,26 +3459,8 @@
     "kind": "function",
     "name": "visualize_fitted",
     "qualname": "visualize_fitted",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs-v0.001.py",
-    "source_lineno": 271,
-    "signature": "visualize_fitted()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "visualize_fitted",
-    "qualname": "visualize_fitted",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/CLs.py",
     "source_lineno": 271,
-    "signature": "visualize_fitted()",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "visualize_fitted",
-    "qualname": "visualize_fitted",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py",
-    "source_lineno": 709,
     "signature": "visualize_fitted()",
     "doc": ""
   },
@@ -3855,27 +3477,9 @@
     "kind": "function",
     "name": "wobble_worker",
     "qualname": "wobble_worker",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 529,
-    "signature": "wobble_worker(stop_event)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "wobble_worker",
-    "qualname": "wobble_worker",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
     "source_lineno": 529,
     "signature": "wobble_worker(stop_event)",
-    "doc": ""
-  },
-  {
-    "kind": "function",
-    "name": "wobbler",
-    "qualname": "wobbler",
-    "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py",
-    "source_lineno": 544,
-    "signature": "wobbler(event, thread)",
     "doc": ""
   },
   {
@@ -3892,7 +3496,7 @@
     "name": "zFromFractional",
     "qualname": "zFromFractional",
     "path": "src/pySEA/rayTEM/postprocessing.py",
-    "source_lineno": 882,
+    "source_lineno": 917,
     "signature": "zFromFractional(zs, z)",
     "doc": ""
   }

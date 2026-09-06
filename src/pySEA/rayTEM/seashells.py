@@ -465,6 +465,72 @@ def make_covariance_signal(covariance, z, components, name="covariance"):
 				   metadata={"components": list(components)}, signal_type="Image")
 
 
+def make_cross_section_signal(profile, x, z, coordinate:str="x", name="wave cross-section"):
+	r"""Wrap a |psi(x, 0, z)| cross-section as a calibrated sea_eco ``Signal``.
+
+	The wave analog of the ray diagram, as data rather than as a picture: a
+	``(n_x, n_z)`` image on two **uniform** position axes, so it renders,
+	slices, and serializes like any other Signal. Transverse first and z
+	second, so it draws with z across the panel like the ray diagram, and
+	``panel[:, z]`` is the line-out at one plane.
+
+	Returns the raw ndarray (with a warning) when sea_eco is unavailable.
+
+	Parameters
+	----------
+	profile : numpy.ndarray
+		The cross-section, shape ``(len(x), len(z))``.
+	x : Sequence[float]
+		Uniformly spaced transverse samples (metres).
+	z : Sequence[float]
+		Uniformly spaced plane positions (metres).
+	coordinate : str, optional
+		Name of the transverse axis, by default ``"x"`` -- ``"xi"`` for the
+		reduced coordinate the scaled field rides on.
+	name : str, optional
+		Signal name, by default ``"wave cross-section"``.
+
+	Returns
+	-------
+	Signal or numpy.ndarray
+		A calibrated ``Signal`` when sea_eco is present, else ``profile``
+		unchanged.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	make_wavefield_signal : One plane, in full 2D.
+	make_covariance_signal : The envelope result, on the same plane axis.
+	pySEA.rayTEM.assemblies.Microscope.wave_cross_section : The caller.
+
+	Notes
+	-----
+	Both axes must be uniformly sampled. sea_eco's matplotlib backend renders
+	any 2D Signal carrying an unstructured dimension as a scatter, with no
+	way to ask for an image, so the caller resamples the logged planes onto a
+	uniform z before building this.
+	"""
+	import numpy as _np
+	profile = _np.asarray(profile)
+	if not sea_available:
+		warn("sea_eco is not installed; make_cross_section_signal returns a raw ndarray.")
+		return profile
+	zvals = _np.asarray(z, dtype=float)
+	xvals = _np.asarray(x, dtype=float)
+	zscale = float(zvals[1] - zvals[0]) if len(zvals) > 1 else 1.0
+	xscale = float(xvals[1] - xvals[0]) if len(xvals) > 1 else 1.0
+	zdim = _Dimension(name="z", space="position", scale=zscale, offset=float(zvals[0]),
+					  size=len(zvals), units="m", unstructured=False)
+	xdim = _Dimension(name=coordinate, space="position", scale=xscale,
+					  offset=float(xvals[0]), size=len(xvals), units="m",
+					  unstructured=False)
+	return _Signal(data=profile, name=name, dimensions=[xdim, zdim],
+				   signal_type="Image")
+
+
 def read_wavefield(signal):
 	"""Read ``(data, dx, dy, wavelength, z)`` from a wavefield Signal or fallback.
 

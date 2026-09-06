@@ -1051,7 +1051,8 @@ def test_show_scaled_wave_kinds():
 	# cross-section into a provided axis: something must actually be drawn
 	fig, ax = plt.subplots()
 	mic.show(kind="wave-scaled", plt_ax=ax)
-	assert len(ax.collections) > 0				# the pcolormesh
+	assert len(ax.images) > 0					# the cross-section Signal's imshow
+	assert ax.get_ylim()[0] < ax.get_ylim()[1]	# +x up, not the image convention
 	# SI, like every other renderer, so a ray diagram composites onto it
 	assert ax.get_xlabel() == "z (m)"
 	assert ax.get_ylabel() == "x (m)"
@@ -1061,9 +1062,15 @@ def test_show_scaled_wave_kinds():
 	fig, ax = plt.subplots()
 	mic.show(kind="wave-scaled", regenerate=False, plt_ax=ax,
 			 zlims=(15e-3, 25e-3), ylims=(-1e-5, 1e-5))
-	assert ax.get_xlim() == pytest.approx((15e-3, 25e-3))
-	assert ax.get_ylim() == pytest.approx((-1e-5, 1e-5))
+	assert ax.get_xlim() == pytest.approx((15e-3, 25e-3), abs=1e-4)
+	assert ax.get_ylim() == pytest.approx((-1e-5, 1e-5), abs=1e-7)
 	plt.close(fig)
+	# the panel is data, not just a picture: a calibrated (x, z) Signal whose
+	# transverse slice is the line-out at one plane
+	panel = mic.wave_cross_section(zlims=(15e-3, 25e-3), ylims=(-1e-5, 1e-5))
+	assert [d.name for d in panel.dimensions] == ["x", "z"]
+	assert all(not d.unstructured for d in panel.dimensions)
+	assert panel[:, 20e-3].data.ndim == 1
 	# per-plane by z (metres): delegates to the reconstructed Signal's .show()
 	fig, ax = plt.subplots()
 	mic.show(kind="wave-scaled", plane=21e-3, regenerate=False, plt_ax=ax)
@@ -1113,7 +1120,7 @@ def test_show_zpts_uses_temporary_dense_copy():
 	n_own = len(mic._wave_scaled_planes)
 	fig, ax = plt.subplots()
 	mic.show(kind="wave-hybrid", zpts=2e-3, plt_ax=ax)
-	assert len(ax.collections) > 0							# drew the dense section
+	assert len(ax.images) > 0								# drew the dense section
 	assert len(mic._wave_scaled_planes) == n_own			# self's result untouched
 	plt.close(fig)
 	# a float plane with explicit cuts is logged exactly (no nearest-plane snap)

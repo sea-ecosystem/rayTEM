@@ -10,7 +10,7 @@
 | SEASerializable (sea_eco absent) | 58 |
 | Module-level functions | 64 |
 |   Signal factories and readers (the wave/rays/covariance seam) | 66 |
-|   `safeReinstantiate(source, cls)` | 102 |
+|   `safeReinstantiate(source, cls)` | 109 |
 <!-- END AUTO-GENERATED TOC -->
 
 # seashells.py
@@ -92,6 +92,13 @@ warning) when sea_eco is absent:
 - `make_rays_signalset(rays, I, R, components, name)` — rays + I + R on shared
   plane-z/ray axes.
 - `make_covariance_signal(covariance, z, components, name)` — per-plane Σ stack.
+- `make_cross_section_signal(profile, x, z, coordinate, name)` — the
+  |ψ(x, 0, z)| cross-section as an `(x, z)` image. Transverse axis first so it
+  draws with z across the panel like the ray diagram and `panel[:, z]` is the
+  line-out at one plane. **Both axes must be uniformly sampled**: sea-eco's
+  matplotlib backend renders any 2D Signal carrying an unstructured dimension
+  as a scatter, so `Microscope.wave_cross_section` resamples the logged planes
+  onto a uniform z before calling this.
 - `make_screen_phase_signal(data, dx, dy, name)` /
   `make_kernel_phase_signal(data, fx, fy, name)` / `phase_space_of(phase)`
   (+ `_Phase` fallback) — space-tagged phase items for the `phase_shift`

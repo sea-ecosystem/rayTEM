@@ -9,7 +9,7 @@ import sys,inspect,os,datetime,shutil
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
 from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,Rays,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes,AberrationScreen,_as_aberrations
 from .aberrations import Aberrations
-from typing import Literal
+from typing import Literal, Sequence
 from .seashells import SEASerializable
 
 from copy import deepcopy
@@ -150,130 +150,6 @@ def _annotate_positions(ax, positions, label=None, color="w", ls="--", lw=0.6,
 		if name:
 			ax.text(float(z), y, str(name), color=color, rotation=90,
 					ha=ha, va=va, fontsize=fontsize)
-
-
-def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None,
-							   image_planes=None, title=None,
-							   coordinates:Literal['physical','scaled']='physical',
-							   zlims=None, ylims=None, xlabel=None, ylabel=None):
-	r"""Draw the |ψ(x, y=0, z)| cross-section of a scaled-wave run into an axis.
-
-	The wave analog of the geometric ray diagram: each logged plane is
-	reconstructed to physical coordinates on its native grid (``Δx = |s|·Δξ``,
-	so the pixel spans nm at the foci to µm at the detector), its centre row
-	``|ψ(x, 0)|`` is normalized to its peak and resampled onto one common x
-	axis, and the planes are rendered as a z–x pcolormesh. Element positions
-	are annotated as white dashed lines with labels and crossover (focal)
-	planes as cyan dotted lines — the same overlays the ray diagram carries.
-
-	Parameters
-	----------
-	planes : Sequence
-		Per-plane scaled wavefields (Signals or ``_ScaledWavefield`` fallbacks)
-		from a scaled/hybrid run, in any z order.
-	ax : matplotlib axis
-		Axis to draw into.
-	named_positions : dict, optional
-		``{label: z}`` element annotations (white dashed), by default none.
-	crossovers : Sequence[float], optional
-		Crossover z positions of the family the wave's own frame follows —
-		the diffraction / back-focal planes for the usual flat-wavefront seed
-		(cyan dotted), by default none.
-	image_planes : Sequence[float], optional
-		The conjugate family: image-plane z positions from
-		:meth:`Microscope.conjugate_planes` (magenta dashed), by default none.
-	title : str, optional
-		Axis title, by default none.
-	coordinates : {'physical', 'scaled'}, optional
-		Which transverse coordinate to render against, by default
-		``'physical'`` -- metres, the frame the instrument is in, where the
-		beam spans nanometres at a focus and millimetres at the detector.
-		``'scaled'`` renders the same planes against
-		:math:`\xi = x/s`, the *reduced* coordinate the field actually rides
-		on: one grid for the whole run, in which the zooming frame keeps the
-		internal structure resolved everywhere. The two are the same data,
-		and switching between them is the point of the scaled representation.
-	zlims : Sequence[float], optional
-		``(z_lo, z_hi)`` in metres. Planes outside are **dropped before** the
-		common x grid is built, so windowing on a focus gives a panel a few
-		Airy radii across rather than one sized by the detector plane.
-	ylims : Sequence[float], optional
-		Transverse limits in metres, by default the full extent of the planes
-		that survive ``zlims``. Like ``zlims`` this is a window rather than a
-		zoom: the common transverse grid is built across it, so the samples
-		land where the panel is.
-	xlabel, ylabel : str, optional
-		Axis labels, by default ``"z (m)"`` and the transverse coordinate --
-		supplied here rather than set afterwards, as ``Signal.show`` takes
-		them.
-
-	Returns
-	-------
-	None
-		Draws into ``ax``.
-
-	Related
-	-------
-	Microscope.show : Calls this for ``kind='wave-scaled'/'wave-hybrid'``
-		when no ``plane`` is selected.
-	waveoptics.reconstruct_physical_wave : The per-plane reconstruction.
-
-	Notes
-	-----
-	Planes are individually peak-normalized — the panel shows the beam's
-	shape and envelope, not absolute intensity (which spans many orders of
-	magnitude between a focus and the detector). A column built with finely
-	subdivided drifts yields a smoother section (see
-	``examples/04_scaledWave_basic_column.py``).
-	"""
-	from .seashells import read_scaled_wavefield
-	from .waveoptics import reconstruct_physical_wave
-	recon = []
-	for p in planes:
-		U, dxi, deta, lam, s, R, tau, z = read_scaled_wavefield(p)
-		psi, dx, dy = reconstruct_physical_wave(U, dxi, deta, lam, s, R)
-		# xi = x/s is the reduced coordinate the field rides on, so the scaled
-		# view is the same rows against the (single, run-wide) xi grid
-		recon.append((z if z is not None else 0.0, psi,
-					  dx if coordinates == 'physical' else dxi))
-	if zlims is not None:
-		lo, hi = float(min(zlims)), float(max(zlims))
-		recon = [r for r in recon if lo - 1e-12 <= r[0] <= hi + 1e-12]
-		if not recon:
-			raise ValueError(f"No logged plane lies in zlims {tuple(zlims)}; "
-							 "subdivide the column across that window first.")
-	recon.sort(key=lambda r: r[0])
-	zs = xp.array([r[0] for r in recon])
-	z_edges = xp.concatenate([[zs[0] - 1e-4], (zs[:-1] + zs[1:]) / 2, [zs[-1] + 1e-4]])
-	n = recon[0][1].shape[1]
-	# ylims windows the grid the rows are resampled onto, not just the view:
-	# otherwise a window a few Airy radii wide keeps only a handful of the 600
-	# samples spread across the whole beam, and the caustic turns to blocks
-	half = (max(abs(float(y)) for y in ylims) if ylims is not None
-			else max(abs(r[2]) * n / 2 for r in recon))
-	x_common = xp.linspace(-half, half, 600)
-	prof = xp.zeros((len(recon), x_common.size))
-	for i, (z, psi, dx) in enumerate(recon):
-		x = (xp.arange(n) - n // 2) * dx
-		row = xp.abs(psi[psi.shape[0] // 2, :])
-		prof[i] = xp.interp(x_common, x, row / row.max(), left=0, right=0)
-	x_edges = xp.linspace(-half, half, x_common.size + 1)
-	ax.pcolormesh(z_edges, x_edges, prof.T, cmap="magma", shading="flat")
-	if zlims is not None:
-		ax.set_xlim(float(min(zlims)), float(max(zlims)))
-	if ylims is not None:
-		ax.set_ylim(float(min(ylims)), float(max(ylims)))
-	ax.set_xlabel("z (m)" if xlabel is None else xlabel)
-	ax.set_ylabel(("x (m)" if coordinates == 'physical' else "ξ = x/s (m)")
-				  if ylabel is None else ylabel)
-	_annotate_positions(ax, named_positions, color="w", ls="--", lw=0.6,
-						alpha=0.6, at="top")
-	_annotate_positions(ax, crossovers, label="crossover", color="cyan", ls=":",
-						lw=0.8, alpha=0.9, at="bottom")
-	_annotate_positions(ax, image_planes, label="image", color="magenta",
-						ls="-.", lw=0.8, alpha=0.9, at="bottom", ha="left")
-	if title:
-		ax.set_title(title)
 
 
 class MicroscopeSection(SealedAttributes, SEASerializable):
@@ -3298,6 +3174,159 @@ class Microscope(SealedAttributes, SEASerializable):
 	def named_sections(self):
 		return { s.name+" ("+str(i)+")":[s.position,s.position+s.length] for i,s in enumerate(self.sections) }
 
+	def _physical_planes(self, zlims=None):
+		r"""Reconstruct every logged scaled plane to physical coordinates.
+
+		The scaled-wave result is not one array on one grid: each plane rides
+		its own scale ``s(z)``, so its physical pixel ``Δx = |s|·Δξ`` runs
+		from picometres at a focus to micrometres at the detector. This
+		unpacks each stored plane and reconstructs it, which is the step that
+		has to happen before the run can be treated as a single image.
+
+		Parameters
+		----------
+		zlims : Sequence[float], optional
+			``(z_lo, z_hi)`` in metres; planes outside are dropped, by default
+			all of them.
+
+		Returns
+		-------
+		list of tuple
+			``(z, psi, dx, dxi)`` per plane, sorted by z: the reconstructed
+			complex field, its physical sample spacing, and the reduced
+			spacing it rode on.
+
+		Raises
+		------
+		ValueError
+			If ``zlims`` excludes every logged plane.
+
+		Related
+		-------
+		wave_cross_section : Turns these into one calibrated Signal.
+		wavefield_at : The same reconstruction, for a single named plane.
+		waveoptics.reconstruct_physical_wave : The per-plane math.
+
+		Notes
+		-----
+		Reads through :mod:`seashells`, the sea_eco seam -- the planes are
+		stored as Signals, and this unpacks ``s``, ``R``, ``Δξ`` and ``λ``
+		back out of them rather than re-reading anything from disk.
+		"""
+		from .seashells import read_scaled_wavefield
+		from .waveoptics import reconstruct_physical_wave
+		recon = []
+		for p in self._wave_scaled_planes:
+			U, dxi, deta, lam, s, R, tau, z = read_scaled_wavefield(p)
+			psi, dx, dy = reconstruct_physical_wave(U, dxi, deta, lam, s, R)
+			recon.append((float(z) if z is not None else 0.0, psi, dx, dxi))
+		if zlims is not None:
+			lo, hi = float(min(zlims)), float(max(zlims))
+			recon = [r for r in recon if lo - 1e-12 <= r[0] <= hi + 1e-12]
+			if not recon:
+				raise ValueError(f"No logged plane lies in zlims {tuple(zlims)}; "
+								 "subdivide the column across that window first.")
+		recon.sort(key=lambda r: r[0])
+		return recon
+
+	def wave_cross_section(self, coordinates:Literal['physical','scaled']='physical',
+						   zlims:Sequence[float]=None, ylims:Sequence[float]=None,
+						   samples:Sequence[int]=(1000, 600), regenerate:bool=False):
+		r"""The |ψ(x, y=0, z)| cross-section of a scaled-wave run, as a Signal.
+
+		The wave analog of the ray diagram. Each logged plane is reconstructed
+		on its own native grid, its centre row is normalized to its own peak,
+		and the rows are resampled onto one common ``(x, z)`` grid -- which is
+		what makes a run whose pixel size changes by six orders of magnitude
+		into a single calibrated image that slices and renders like any other.
+
+		Parameters
+		----------
+		coordinates : {'physical', 'scaled'}, optional
+			Which transverse coordinate to build against, by default
+			``'physical'`` -- metres, the frame the instrument is in, where
+			the beam spans nanometres at a focus and millimetres at the
+			detector. ``'scaled'`` uses :math:`\xi = x/s`, the *reduced*
+			coordinate the field actually rides on, in which the zooming frame
+			keeps the internal structure resolved everywhere. The same data
+			either way; moving between them is what the scaled representation
+			is for.
+		zlims, ylims : Sequence[float], optional
+			``(lo, hi)`` in metres. **Windows, not zooms**: planes outside
+			``zlims`` are dropped and the transverse grid is built across
+			``ylims`` *before* resampling, so a focal window a few Airy radii
+			wide keeps its resolution instead of holding a handful of samples
+			spread across the whole beam.
+		samples : Sequence[int], optional
+			``(n_z, n_x)`` grid size, by default ``(1000, 600)``. Each z column
+			takes its **nearest** logged plane, so a plane occupies the columns
+			nearest it rather than being blended with its neighbours -- pass
+			``n_z=None`` to keep one column per plane, which is faithful only
+			when the planes are already evenly spaced.
+		regenerate : bool, optional
+			Re-propagate before reading, by default False.
+
+		Returns
+		-------
+		Signal
+			A calibrated ``(x, z)`` image of |ψ| with both axes in metres --
+			transverse first, so it draws with z across the panel like the ray
+			diagram, and ``panel[:, z]`` is the line-out at one plane.
+
+		Raises
+		------
+		ValueError
+			If ``zlims`` excludes every logged plane.
+
+		Related
+		-------
+		show : Renders this, with the element and plane overlays.
+		_physical_planes : The per-plane reconstruction behind it.
+		wavefield_at : One plane, in full 2D, on its native grid.
+		seashells.make_cross_section_signal : Builds the Signal.
+
+		Notes
+		-----
+		Planes are individually peak-normalized: the panel shows the beam's
+		shape and envelope, not absolute intensity, which spans many orders of
+		magnitude between a focus and the detector. z is resampled onto a
+		**uniform** axis even though the logged planes are not evenly spaced,
+		because sea_eco's matplotlib backend renders any 2D Signal carrying an
+		unstructured dimension as a scatter with no way to ask for an image.
+
+		Examples
+		--------
+		>>> scope.wave_cross_section().show()					# doctest: +SKIP
+		>>> scope.wave_cross_section(zlims=(z0, z1))[:, 0.0]	# doctest: +SKIP
+		"""
+		if getattr(self, "_wave_scaled_planes", None) is None or regenerate:
+			self.propagate_wave(mode='hybrid')
+		recon = self._physical_planes(zlims=zlims)
+		n = recon[0][1].shape[1]
+		pitch = (lambda r: r[2]) if coordinates == 'physical' else (lambda r: r[3])
+		half = (max(abs(float(y)) for y in ylims) if ylims is not None
+				else max(abs(pitch(r)) * n / 2 for r in recon))
+		nz, nx = samples
+		x_common = xp.linspace(-half, half, nx)
+		rows = xp.zeros((len(recon), nx))
+		for i, r in enumerate(recon):
+			row = xp.abs(r[1][r[1].shape[0] // 2, :])
+			x = (xp.arange(n) - n // 2) * pitch(r)
+			rows[i] = xp.interp(x_common, x, row / row.max(), left=0, right=0)
+		zs = xp.array([r[0] for r in recon])
+		if nz is not None and len(zs) > 1:
+			# nearest logged plane, not an interpolation between two: a plane is
+			# a measurement of the field there, and blending across the gaps
+			# would invent beam where none was computed
+			z_uniform = xp.linspace(zs[0], zs[-1], nz)
+			rows = rows[xp.argmin(xp.abs(z_uniform[:, None] - zs[None, :]), axis=1)]
+			zs = z_uniform
+		from .seashells import make_cross_section_signal
+		return make_cross_section_signal(
+			rows.T, x_common, zs,
+			coordinate='x' if coordinates == 'physical' else 'xi',
+			name=f"{self.name or 'microscope'} |ψ(x, 0, z)|")
+
 	def show_elements(self, ax, color="w", ls="--", lw=0.6, alpha=0.6,
 					  at:Literal['top','bottom']='top', fontsize=7) -> None:
 		r"""Overlay this column's named element positions on an existing axis.
@@ -3345,7 +3374,8 @@ class Microscope(SealedAttributes, SEASerializable):
 
 	def show_planes(self, ax, planes:Literal['crossovers','image','diff','all']='all',
 					axis:str="x", color=None, alpha=0.9, lw=0.8,
-					at:Literal['top','bottom']='bottom', fontsize=7) -> None:
+					at:Literal['top','bottom']='bottom', ha:str="right",
+					fontsize=7) -> None:
 		r"""Overlay conjugate planes and wave crossovers on an existing axis.
 
 		The other half of the composite-figure pair with
@@ -3369,6 +3399,10 @@ class Microscope(SealedAttributes, SEASerializable):
 			diffraction, magenta for image), by default None.
 		alpha, lw, fontsize
 			Matplotlib styling.
+		ha : str, optional
+			Horizontal alignment of the rotated labels, by default
+			``"right"`` -- pass ``"left"`` for a second family so the two sets
+			of labels fall on opposite sides of their lines.
 		at : {'top', 'bottom'}, optional
 			Which end the labels sit at, by default ``'bottom'`` — the
 			opposite end from :meth:`show_elements`, so the two compose
@@ -3409,7 +3443,8 @@ class Microscope(SealedAttributes, SEASerializable):
 				families.append(("image", conjugate.get("image"), "magenta", "-."))
 		for name, zs, default_color, ls in families:
 			_annotate_positions(ax, zs, label=name, color=color or default_color,
-								ls=ls, lw=lw, alpha=alpha, at=at, fontsize=fontsize)
+								ls=ls, lw=lw, alpha=alpha, at=at, ha=ha,
+								fontsize=fontsize)
 
 	def show(self, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray",
 			 filename=None, title=None, ylims=None, zlims=None, regenerate=True, plt_ax=None,
@@ -3501,7 +3536,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		-------
 		propagate_ray, propagate_moments, propagate_wave, wavefield_at
 		subdivided : Builds the denser column ``zpts`` propagates.
-		_scaled_wave_cross_section : The cross-section renderer.
+		wave_cross_section : The Signal the scaled kinds render.
 
 		Examples
 		--------
@@ -3570,17 +3605,35 @@ class Microscope(SealedAttributes, SEASerializable):
 			elif getattr(self, "_wave_scaled_planes", None) is None or regenerate:
 				self.propagate_wave(mode=mode)
 			if plane is None:
-				# the wave analog of the ray diagram, with the same overlays
-				images = None
+				# the wave analog of the ray diagram: the cross-section is a
+				# calibrated Signal, so it draws itself; the overlays that make
+				# it a column diagram are layered on by the same two helpers
+				# any other panel would use
+				panel = scope.wave_cross_section(coordinates=coordinates,
+												 zlims=zlims, ylims=ylims)
+				panel.show(ax=ax, cmap="magma", aspect="auto",
+						   scale_bar=False, ticks_and_labels="on")
+				# sea_eco hands imshow the image-convention extent (row 0 at the
+				# top). That is right for a micrograph and wrong for a column
+				# diagram, where +x goes up.
+				ax.set_ylim(*sorted(ax.get_ylim()))
+				if zlims is not None:
+					# the window is already applied to the data; this only
+					# pins the view, which matters when so few planes survive
+					# that the z axis has no spacing to set an extent from
+					ax.set_xlim(float(min(zlims)), float(max(zlims)))
+				# sea_eco's image path takes its axis labels from `axes_info`,
+				# which nothing populates, and ignores xlabel/ylabel -- see the
+				# sea-eco note TODO_ACTIVE_matplotlib-plotspec-kind
+				ax.set_xlabel("z (m)" if xlabel is None else xlabel)
+				ax.set_ylabel((("x (m)" if coordinates == 'physical'
+								else "ξ = x/s (m)") if ylabel is None else ylabel))
+				ax.set_title(title or (self.name or 'microscope')
+							 + f" {mode} wave |ψ(x, 0, z)|")
+				scope.show_elements(ax)
+				scope.show_planes(ax, planes='crossovers')
 				if conjugates:
-					images = scope.conjugate_planes(axis='x')['image']
-				_scaled_wave_cross_section(
-					scope._wave_scaled_planes, ax,
-					named_positions=scope.named_positions,
-					crossovers=getattr(scope, "crossovers", None),
-					image_planes=images, coordinates=coordinates,
-					zlims=zlims, ylims=ylims, xlabel=xlabel, ylabel=ylabel,
-					title=title or (self.name or 'microscope') + f" {mode} wave |ψ(x, 0, z)|")
+					scope.show_planes(ax, planes='image', ha="left")
 			else:
 				if isinstance(plane, (int, xp.integer)) and not isinstance(plane, bool):
 					from .seashells import read_scaled_wavefield
