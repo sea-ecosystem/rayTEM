@@ -258,7 +258,7 @@
     "signature": "roundjson(jdict)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3811,
+    "source_lineno": 3813,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -270,7 +270,7 @@
     "signature": "load_section(filename)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3829,
+    "source_lineno": 3831,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 54,
     "wiki_method_lineno": null
@@ -282,7 +282,7 @@
     "signature": "check_lengths(section)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3900,
+    "source_lineno": 3902,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -294,7 +294,7 @@
     "signature": "repair(section, combine_drifts)",
     "doc": "Close gaps and overlaps in a section's element list, in place.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3914,
+    "source_lineno": 3916,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -306,7 +306,7 @@
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3999,
+    "source_lineno": 4001,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 58,
     "wiki_method_lineno": null
@@ -681,7 +681,7 @@
     "source_lineno": 3131,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 155,
-    "wiki_method_lineno": 393
+    "wiki_method_lineno": 396
   },
   {
     "class": "Microscope",
@@ -753,7 +753,7 @@
     "source_lineno": 3449,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 155,
-    "wiki_method_lineno": 398
+    "wiki_method_lineno": 401
   },
   {
     "class": "Microscope",
@@ -762,10 +762,10 @@
     "signature": "save(self, filename, versioned)",
     "doc": "Write this microscope to ``<filename>.json``.",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3672,
+    "source_lineno": 3674,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 155,
-    "wiki_method_lineno": 402
+    "wiki_method_lineno": 405
   },
   {
     "class": "Microscope",
@@ -774,7 +774,7 @@
     "signature": "copy(self)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3753,
+    "source_lineno": 3755,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 155,
     "wiki_method_lineno": null
@@ -786,7 +786,7 @@
     "signature": "save_as_setting(self, setting_name, keys)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3764,
+    "source_lineno": 3766,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 155,
     "wiki_method_lineno": null
@@ -798,7 +798,7 @@
     "signature": "save_as_calibration(self, calibration_name, keys)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3768,
+    "source_lineno": 3770,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 155,
     "wiki_method_lineno": null
@@ -810,7 +810,7 @@
     "signature": "save_subset(self, name, keys, kind)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3772,
+    "source_lineno": 3774,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 155,
     "wiki_method_lineno": null
@@ -822,7 +822,7 @@
     "signature": "load_setting(self, setting_name)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3799,
+    "source_lineno": 3801,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 155,
     "wiki_method_lineno": null
@@ -834,7 +834,7 @@
     "signature": "load_calibration(self, calibration_name)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3802,
+    "source_lineno": 3804,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 155,
     "wiki_method_lineno": null
@@ -846,7 +846,7 @@
     "signature": "load_subset(self, name, kind)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3805,
+    "source_lineno": 3807,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/assemblies.md",
     "wiki_lineno": 155,
     "wiki_method_lineno": null
@@ -3774,7 +3774,7 @@
     "signature": "read_wavefield(signal)",
     "doc": "Read ``(data, dx, dy, wavelength, z)`` from a wavefield Signal or fallback.",
     "source_path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 534,
+    "source_lineno": 535,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/seashells.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -3786,7 +3786,7 @@
     "signature": "make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z, z_cross, tag, name)",
     "doc": "Wrap a reduced field ``U(\u03be, \u03b7)`` as a single-plane scaled-wavefield ``Signal``.",
     "source_path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 614,
+    "source_lineno": 615,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/seashells.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -3798,7 +3798,7 @@
     "signature": "read_scaled_wavefield(signal)",
     "doc": "Read ``(U, dxi, deta, wavelength, s, R, tau, z)`` from a scaled wavefield.",
     "source_path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 707,
+    "source_lineno": 708,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/seashells.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -3810,7 +3810,7 @@
     "signature": "scaled_frame_crossover(signal)",
     "doc": "Read the crossover marker of a scaled wavefield's flat frame, if any.",
     "source_path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 743,
+    "source_lineno": 744,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/seashells.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -3822,7 +3822,7 @@
     "signature": "scaled_frame_tag(signal)",
     "doc": "Read the frame-event tag of a scaled wavefield plane, if any.",
     "source_path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 776,
+    "source_lineno": 777,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/seashells.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -3834,7 +3834,7 @@
     "signature": "make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags, name)",
     "doc": "Wrap a stack of reduced fields and their frame state as a sea_eco ``SignalSet``.",
     "source_path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 804,
+    "source_lineno": 805,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/seashells.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -3846,7 +3846,7 @@
     "signature": "safeReinstantiate(source, cls)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 893,
+    "source_lineno": 894,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/seashells.md",
     "wiki_lineno": 109,
     "wiki_method_lineno": null
@@ -3870,7 +3870,7 @@
     "signature": "__init__(self, data, dxi, deta, wavelength, s, R, tau, z, z_cross)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 602,
+    "source_lineno": 603,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/seashells.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null

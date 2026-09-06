@@ -3324,7 +3324,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		from .seashells import make_cross_section_signal
 		return make_cross_section_signal(
 			rows.T, x_common, zs,
-			coordinate='x' if coordinates == 'physical' else 'xi',
+			coordinate='x' if coordinates == 'physical' else 'ξ',
 			name=f"{self.name or 'microscope'} |ψ(x, 0, z)|")
 
 	def show_elements(self, ax, color="w", ls="--", lw=0.6, alpha=0.6,
@@ -3611,8 +3611,16 @@ class Microscope(SealedAttributes, SEASerializable):
 				# any other panel would use
 				panel = scope.wave_cross_section(coordinates=coordinates,
 												 zlims=zlims, ylims=ylims)
-				panel.show(ax=ax, cmap="magma", aspect="auto",
-						   scale_bar=False, ticks_and_labels="on")
+				# ticks_and_labels='on' because the image default is 'off'
+				# (axis('off') -- the micrograph convention); the labels
+				# themselves come from the Signal's own Dimensions
+				# only pass a label that was actually asked for: `xlabel=None`
+				# is still a key in kwargs, and spec.py fills the default in
+				# with `if "xlabel" not in kwargs`, so passing None blanks it
+				labels = {k: v for k, v in (("xlabel", xlabel),
+											("ylabel", ylabel)) if v is not None}
+				panel.show(ax=ax, cmap="magma", aspect="auto", scale_bar=False,
+						   ticks_and_labels="on", **labels)
 				# sea_eco hands imshow the image-convention extent (row 0 at the
 				# top). That is right for a micrograph and wrong for a column
 				# diagram, where +x goes up.
@@ -3622,12 +3630,6 @@ class Microscope(SealedAttributes, SEASerializable):
 					# pins the view, which matters when so few planes survive
 					# that the z axis has no spacing to set an extent from
 					ax.set_xlim(float(min(zlims)), float(max(zlims)))
-				# sea_eco's image path takes its axis labels from `axes_info`,
-				# which nothing populates, and ignores xlabel/ylabel -- see the
-				# sea-eco note TODO_ACTIVE_matplotlib-plotspec-kind
-				ax.set_xlabel("z (m)" if xlabel is None else xlabel)
-				ax.set_ylabel((("x (m)" if coordinates == 'physical'
-								else "ξ = x/s (m)") if ylabel is None else ylabel))
 				ax.set_title(title or (self.name or 'microscope')
 							 + f" {mode} wave |ψ(x, 0, z)|")
 				scope.show_elements(ax)

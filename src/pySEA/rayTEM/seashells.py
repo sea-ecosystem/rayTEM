@@ -485,8 +485,9 @@ def make_cross_section_signal(profile, x, z, coordinate:str="x", name="wave cros
 	z : Sequence[float]
 		Uniformly spaced plane positions (metres).
 	coordinate : str, optional
-		Name of the transverse axis, by default ``"x"`` -- ``"xi"`` for the
-		reduced coordinate the scaled field rides on.
+		Name of the transverse axis, by default ``"x"`` -- ``"ξ"`` for the
+		reduced coordinate the scaled field rides on. It becomes the axis
+		label ``Signal.show`` draws, so it is the display name, not a slug.
 	name : str, optional
 		Signal name, by default ``"wave cross-section"``.
 

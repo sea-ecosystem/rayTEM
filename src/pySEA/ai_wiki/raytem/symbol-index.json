@@ -220,7 +220,7 @@
     "name": "check_lengths",
     "qualname": "check_lengths",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3900,
+    "source_lineno": 3902,
     "signature": "check_lengths(section)",
     "doc": ""
   },
@@ -706,7 +706,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3999,
+    "source_lineno": 4001,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -715,7 +715,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3829,
+    "source_lineno": 3831,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -841,7 +841,7 @@
     "name": "make_scaled_wave_signalset",
     "qualname": "make_scaled_wave_signalset",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 804,
+    "source_lineno": 805,
     "signature": "make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags, name)",
     "doc": "Wrap a stack of reduced fields and their frame state as a sea_eco ``SignalSet``."
   },
@@ -850,7 +850,7 @@
     "name": "make_scaled_wavefield_signal",
     "qualname": "make_scaled_wavefield_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 614,
+    "source_lineno": 615,
     "signature": "make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z, z_cross, tag, name)",
     "doc": "Wrap a reduced field ``U(\u03be, \u03b7)`` as a single-plane scaled-wavefield ``Signal``."
   },
@@ -1192,7 +1192,7 @@
     "name": "read_scaled_wavefield",
     "qualname": "read_scaled_wavefield",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 707,
+    "source_lineno": 708,
     "signature": "read_scaled_wavefield(signal)",
     "doc": "Read ``(U, dxi, deta, wavelength, s, R, tau, z)`` from a scaled wavefield."
   },
@@ -1201,7 +1201,7 @@
     "name": "read_wavefield",
     "qualname": "read_wavefield",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 534,
+    "source_lineno": 535,
     "signature": "read_wavefield(signal)",
     "doc": "Read ``(data, dx, dy, wavelength, z)`` from a wavefield Signal or fallback."
   },
@@ -1237,7 +1237,7 @@
     "name": "repair",
     "qualname": "repair",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3914,
+    "source_lineno": 3916,
     "signature": "repair(section, combine_drifts)",
     "doc": "Close gaps and overlaps in a section's element list, in place."
   },
@@ -1309,7 +1309,7 @@
     "name": "roundjson",
     "qualname": "roundjson",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 3811,
+    "source_lineno": 3813,
     "signature": "roundjson(jdict)",
     "doc": ""
   },
@@ -1318,7 +1318,7 @@
     "name": "safeReinstantiate",
     "qualname": "safeReinstantiate",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 893,
+    "source_lineno": 894,
     "signature": "safeReinstantiate(source, cls)",
     "doc": ""
   },
@@ -1345,7 +1345,7 @@
     "name": "scaled_frame_crossover",
     "qualname": "scaled_frame_crossover",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 743,
+    "source_lineno": 744,
     "signature": "scaled_frame_crossover(signal)",
     "doc": "Read the crossover marker of a scaled wavefield's flat frame, if any."
   },
@@ -1354,7 +1354,7 @@
     "name": "scaled_frame_tag",
     "qualname": "scaled_frame_tag",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 776,
+    "source_lineno": 777,
     "signature": "scaled_frame_tag(signal)",
     "doc": "Read the frame-event tag of a scaled wavefield plane, if any."
   },

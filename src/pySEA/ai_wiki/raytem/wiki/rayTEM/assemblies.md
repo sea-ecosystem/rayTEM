@@ -33,9 +33,9 @@
 |   `Microscope.beam_waists(axis='x', sigma0=None)` | 255 |
 |   `Microscope.subdivided(zpts)` | 294 |
 |   `Microscope.wave_cross_section(coordinates, zlims, ylims, samples, regenerate)` | 330 |
-|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 393 |
-|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 398 |
-|   `Microscope.save(self, filename)` | 402 |
+|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 396 |
+|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 401 |
+|   `Microscope.save(self, filename)` | 405 |
 <!-- END AUTO-GENERATED TOC -->
 
 # assemblies.py
@@ -352,11 +352,14 @@ Two sea-eco constraints shape the result, both recorded in the sea-eco note
   **nearest** logged plane rather than interpolating between two — a plane is
   a measurement of the field there, and blending across the gaps would invent
   beam that was never computed.
-- **`show` sets the axis labels and flips y itself.** The image path takes its
-  labels from `axes_info`, which nothing populates, and ignores
-  `xlabel`/`ylabel`; and `_image_extent` hands imshow the image convention
-  (row 0 at the top), which is right for a micrograph and wrong for a column
-  diagram where +x goes up.
+- **`show` flips y.** `_image_extent` hands imshow the micrograph convention
+  (row 0 at the top), which is wrong for a column diagram where +x goes up.
+  Axis labels are *not* a rayTEM concern: `Signal.show` sets them from the
+  Dimensions, and from `xlabel`/`ylabel` when a caller supplies them. The one
+  thing to know is that images default to `ticks_and_labels='off'` (which is
+  `axis('off')` — the micrograph convention), so `show` passes `'on'`; and
+  that an unset label must be *omitted* rather than forwarded as `None`,
+  since `spec.py` fills the default in with `if "xlabel" not in kwargs`.
 
 `zlims`/`ylims` are **windows, not zooms** — see above.
 
