@@ -394,7 +394,8 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		if isinstance(item,slice):	# convert "sample:" (which results in "item" being a slice) to an integer-indexed slice, e.g. slice(3,None,None)
 			a,b,n=item.start,item.stop,item.step
 			trim_first = 0 ; trim_last = 0
-			a,b,n=[ self.index(v) if isinstance(v,str) else v for v in [a,b,n] ] # convert "PL1:" to whatever the index is for PL1
+			a,b,n = [self.index(v) if isinstance(v,str) else v
+					 for v in [a,b,n]] # convert "PL1:" to whatever the index is for PL1
 			if isinstance(a,float):
 				trim_first = a
 				positions = xp.asarray([ e.position for e in self.elements ])
@@ -683,8 +684,8 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		return els
 
 	def propagate_ray(self, r0:xp.ndarray=None,
-					   I0:xp.ndarray=None, R0:xp.ndarray=None,
-					   z: float = None,
+					   I0_per_ray:xp.ndarray=None, I0_per_plane:xp.ndarray=None,
+					   I_initial:float=None, R0:xp.ndarray=None, z: float = None,
 					   verbose=False, apply_aberrations:bool=True):
 		"""Propagate rays through every element in the section, bottom-up.
 
@@ -727,48 +728,70 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		"""
 		if not apply_aberrations:
 			with suspended_aberrations(list(self.elements or ()) + [self]):
-				return self.propagate_ray(r0, I0, R0, z=z, verbose=verbose)
+				return self.propagate_ray(r0=r0, I0_per_ray=I0_per_ray, I0_per_plane=I0_per_plane, I_initial=I_initial, R0=R0, z=z, verbose=verbose)
 		#print("Section r0",r0)
 		if r0 is None:
 			if isinstance(self.elements[0], Source):
 				r0 = self.elements[0].rays()
 			else:
 				raise UserWarning("First element is not a Source, and no r0 provided to propagate_ray. Please provide initial rays or ensure first element is a Source.")
+		boundary_ray = None
 		if isinstance(r0,Rays):
-			I0 = r0.I if I0 is None else I0
+			if r0.boundary_ray.ndim == 3:
+				boundary_ray = r0.boundary_ray[-1].copy()
+			else:
+				boundary_ray = r0.boundary_ray.copy()
+			I0_per_ray = r0.I_per_ray if I0_per_ray is None else I0_per_ray
+			I0_per_plane = r0.I_per_plane if I0_per_plane is None else I0_per_plane
 			R0 = r0.R if R0 is None else R0
 			r0 = xp.asarray(r0)
 		n_rays = len(r0)
-		if I0 is None:
+		if I0_per_ray is None:
 			# Seed in AMPS, shared over the rays, so I.sum() is the current at
 			# every plane and an aperture reduces it just by scaling. Sections
 			# with no Source of their own inherit I0 from the previous section.
 			current = getattr(self.elements[0], "beam_current", None)
-			I0 = (xp.full(n_rays, float(current) / n_rays) if current is not None
+			I0_per_ray = (xp.full(n_rays, float(current) / n_rays) if current is not None
 				  else xp.ones(n_rays))
+		if I0_per_plane is None:
+			I0_per_plane = float(xp.sum(I0_per_ray))
+		if I_initial is None:
+			I_initial = I0_per_plane
 		if R0 is None:
 			R0 = xp.zeros(n_rays)
-		ri=[r0] ; Ii=[I0] ; Ri=[R0]
+		planes = [Rays(r0,R=R0,I_per_ray=I0_per_ray,I_per_plane=I0_per_plane)]
+		if boundary_ray is not None:
+			planes[0].boundary_ray = boundary_ray
 		for i,ele in enumerate(self._propagation_elements()):
 			if verbose:
-				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
+				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(planes[-1].x),xp.amax(planes[-1].y))
 			# intensity/rotation are evaluated relative to the incoming rays; rotation
 			# must follow propagate_ray so thick-lens self.larmor_rotation is already set.
 			# The element is told the current ARRIVING at it, so Element.beam_current
 			# can be a derived read rather than a second place a current is stated.
 			# Recorded on the element, so it is saved with .I and .rays.
-			ele._arriving_current = float(xp.sum(Ii[-1]))
-			ele_I  = ele.apply_intensity(Ii[-1], ri[-1])
-			ele_ri = ele.propagate_ray(ri[-1], z=z)
-			ele_R  = ele.apply_rotation(Ri[-1])
+			ele._arriving_current = float(xp.sum(planes[-1].I_per_ray))
+			result = ele.propagate_ray(planes[-1],z=z)
+			result.boundary_ray = ele.propagate_ray(planes[-1].boundary_ray,z=z)
+			if ele.kind == "Aperture":
+				ix,ixt,iy,iyt = (columnByName(k) for k in ("x","xt","y","yt"))
+				for r,k in enumerate((ix,iy)):
+					extent = xp.abs(result.boundary_ray[r,k])
+					if extent > ele.radius:
+						result.boundary_ray[r,[ix,ixt,iy,iyt]] *= ele.radius/extent
+				result.I_per_plane = xp.minimum(planes[-1].I_per_plane,I_initial * ele.transmitted_fraction(planes[-1].rays))
+
+			else:
+				result.I_per_plane = planes[-1].I_per_plane
 			#ele_ri[...,-2] += ele.position # TWP 2025/08/27 - do not add distance. drift already should update z
 			#print(ele_ri.shape,r0.shape)
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
-				ri.append(ele_ri[:,:]) ; Ii.append(ele_I) ; Ri.append(ele_R)
+				planes.append(result)
+				#zi.append( self.position+ele.position+getattr(ele,"length",0) )
 			else:
-				ri[-1]=ele_ri[:,:] ; Ii[-1]=ele_I ; Ri[-1]=ele_R
-		self.rays = Rays(xp.asarray(ri),R=xp.asarray(Ri),I=xp.asarray(Ii))
-		self.I = self.rays.I
+				planes[-1] = result
+		self.rays = Rays.stack(planes)
+		self.I = self.rays.I_per_ray
 		self.R = self.rays.R
 		return self.rays
 
@@ -1159,6 +1182,8 @@ class Microscope(SealedAttributes, SEASerializable):
 				b = self.index(b)
 			# since self.index(namedElement) might be a tuple (sectionIndex,elementIndex), we need to filter to section indices
 			a1,b1,n1 = [ v[0] if isinstance(v,tuple) else v for v in [a,b,n] ]
+			if isinstance(b,tuple) and b[1]>0: # retain the named stop's section so its preceding elements can be included
+				b1 += 1
 			item = slice(a1,b1,n1)
 		# DEEP COPY MYSELF, SLICE SECTIONS, MAKE ADJUSTMENTS TO POSITIONS AND LENGTHS
 		new = self.copy()
@@ -1172,6 +1197,8 @@ class Microscope(SealedAttributes, SEASerializable):
 		if trim_first > 0:
 			new.sections[0] = new.sections[0][trim_first:]	# let MicroscopeSection.__getattr__ handle section trimming
 			new.sections[0].position+=trim_first		# then "scoot it back" so it ends where it ended previously
+		if isinstance(b,tuple) and b[1]<len(new.sections[-1].elements): # trim the retained section at the named stop
+			new.sections[-1] = new.sections[-1][:b[1]]
 		p0 = new.sections[0].position
 		for i,s in enumerate(new.sections):
 			new.sections[i].position -= p0		# shift all sections positions so first is at zero
@@ -1415,7 +1442,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		return self.wave_current_at(-1)
 
 	def convergence_angle_at(self, z:float) -> float:
-		"""Convergence **semi**-angle of the outermost ray at a plane.
+		"""Convergence **semi**-angle of the outermost non-blocked ray at a plane.
 
 		Semi-angle: the half-angle of the cone, measured from the optic axis —
 		not the full opening angle. This is the alpha every axial aberration is
@@ -1460,17 +1487,18 @@ class Microscope(SealedAttributes, SEASerializable):
 		# picked by residuals and under-reads the cone. A masked ray keeps
 		# flying geometrically with I = 0, and an aperture is precisely the
 		# thing that DEFINES this angle, so dead rays do not count.
-		rays = xp.asarray(self.rays)
+		rays = xp.asarray(self.rays.boundary_ray)
 		zs = rays[:, 0, columnByName('z')]
 		i = int(xp.where(zs <= float(z))[0][-1])		# plane entering z
-		live = xp.asarray(self.I)[i] > 0
-		if not live.any():
-			raise ValueError(f"no ray carries intensity at z={z}: an upstream "
-							 "aperture blocked the whole fan, so there is no "
-							 "live beam whose convergence could be measured.")
-		xt = rays[i, live, columnByName('xt')]
-		yt = rays[i, live, columnByName('yt')]
-		return float(xp.hypot(xt, yt).max())
+		#live = xp.asarray(self.I)[i] > 0
+		#if not live.any():
+		#	raise ValueError(f"no ray carries intensity at z={z}: an upstream "
+		#					 "aperture blocked the whole fan, so there is no "
+		#					 "live beam whose convergence could be measured.")
+		#xt = rays[i, live, columnByName('xt')]
+		#yt = rays[i, live, columnByName('yt')]
+		#return float(xp.hypot(xt, yt).max())
+		return xp.sqrt( rays[i,0,columnByName('xt')]**2 + rays[i,1,columnByName('yt')]**2 )
 
 	@property
 	def convergence_angle(self) -> float:
@@ -2797,19 +2825,16 @@ class Microscope(SealedAttributes, SEASerializable):
 		if not apply_aberrations:
 			with suspended_aberrations(self._all_elements()):
 				return self.propagate_ray(r0, z=z, verbose=verbose)
-		r=r0 ; I=None ; R=None #; print("Microscope r0",r0)# starting rays/intensity/rotation fed into section.propagate
-		rs=[] ; Is=[] ; Rs=[]
+		r=r0 ; I_initial=None ; stacks=[]
 		for n,s in enumerate(self.sections):
 			#print("section",s)
-			r1 = s.propagate_ray(z=z,r0=r,I0=I,R0=R,verbose=verbose) # r1 is shape nthElement,nthRay,xythetaetc
-			#print(r1.shape)
-			for k in range(len(r1)):
-				#r[:,columnByName('z')]#+=s.position
-				rs.append(xp.asarray(r1[k])) ; Is.append(r1.I[k]) ; Rs.append(r1.R[k])
-			#print(r1[-1,0,:])
-			r=xp.asarray(r1[-1]) ; I=r1.I[-1] ; R=r1.R[-1] # rays/intensity/rotation fed into subsequent section are those exiting this section
-		self.rays = Rays(xp.asarray(rs),R=xp.asarray(Rs),I=xp.asarray(Is))
-		self.I = self.rays.I
+			r1 = s.propagate_ray(z=z,r0=r,I_initial=I_initial,verbose=verbose)
+			if I_initial is None:
+				I_initial = r1.I_per_plane[0]
+			stacks.append(r1)
+			r = r1[-1]
+		self.rays = Rays.concatenate(stacks)
+		self.I = self.rays.I_per_ray
 		self.R = self.rays.R
 		#print(self.rays.shape)
 		self._planes = None
@@ -3591,7 +3616,7 @@ class Microscope(SealedAttributes, SEASerializable):
 					 "_wave_scaled_planes", "crossovers", "image_planes",
 					 "diffraction_planes")
 
-	def save(self, filename:str) -> None:
+	def save(self, filename:str,versioned=False) -> None:
 		"""Write this microscope to ``<filename>.json``.
 
 		Uses the flat rayTEM microscope layout shared with TWP20260820:
@@ -3626,6 +3651,18 @@ class Microscope(SealedAttributes, SEASerializable):
 		SEA-envelope JSON written by earlier versions of this branch remains
 		readable by :func:`load_microscope`.
 		"""
+
+		# Versioning: if "microscope.json" exists, along with "microscope-v0.001.json" and "microscope-v0.002.json", then we'll rename existing file as "microscope-v0.003.json" before saving. so "microscope.json" is always the latest
+		if versioned:
+			if os.path.exists(filename+".json"):
+				v=.0001
+				while True:
+					candidate = filename+"-v"+str(xp.round(v,4))+".json"
+					if not os.path.exists(candidate):
+						shutil.copy(filename+".json",candidate)
+						break
+					v+=.0001
+
 		import json
 		skip = set(self._JSON_EXCLUDE_RESULTS) | {"_arriving_current","format","sea_type","payload"}
 		def clean(v):

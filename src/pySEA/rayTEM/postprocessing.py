@@ -1,4 +1,4 @@
-from .elements import columnByName,fix_mat_dims,Drift,Source
+from .elements import columnByName,fix_mat_dims,Drift,Source,Rays
 import numpy as np
 from scipy.optimize import minimize,brute
 import matplotlib.pyplot as plt
@@ -12,20 +12,19 @@ from matplotlib.cm import plasma as cmap
 # Basic 2D plotting (along z, and in whatever axis you have chosen)
 # TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
 # For now, plot2D assumes it is given unrotated-reference-frame rays, and should likely call convert_to_rotating_reference_frame.
-def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,title=None,plt_ax=None,planes:bool=True,xlabel:str=None,ylabel:str=None):
+def plot2D(r1,axis="x",filename=None, zpts="",sections=None, xlims=None,ylims=None, title=None,plt_ax=None, aperture_handling="rescale", planes:bool=True, xlabel:str=None, ylabel:str=None):
 	"""Draw the ray diagram: one transverse coordinate against z.
 
 	Rays are converted to the rotating (Larmor) frame first, so a column with
-	thick lenses reads as a plane figure rather than a spiral. Dead rays --
-	those an aperture has already killed -- stop being drawn where their
-	intensity goes to zero. Conjugate (image/diffraction) planes found in the
-	traced family, named z positions, and section spans are annotated on top.
+	thick lenses reads as a plane figure rather than a spiral. Conjugate
+	(image/diffraction) planes found in the traced family, named z positions,
+	and section spans are annotated on top, and the boundary ray is drawn as
+	the beam edge.
 
 	Parameters
 	----------
-	r1 : ndarray
-		Ray array, shape ``(n_planes, n_rays, len(convention))``, optionally
-		carrying an ``.I`` intensity attribute.
+	r1 : Rays
+		The traced family, shape ``(n_planes, n_rays, len(convention))``.
 	axis : {'x', 'y'}, optional
 		Transverse coordinate to plot, by default ``'x'``.
 	filename : str, optional
@@ -40,6 +39,9 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 		Axis title.
 	plt_ax : matplotlib axis, optional
 		Draw into an existing axis instead of creating a figure.
+	aperture_handling : {'rescale', 'ghosting'}, optional
+		How an aperture shows up -- see the comment below, by default
+		``'rescale'``.
 	planes : bool, optional
 		Annotate the conjugate planes found by :func:`findPlanes`, by default
 		True. Pass False when compositing onto a panel that already carries
@@ -55,13 +57,15 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 
 	Raises
 	------
-	None
+	ValueError
+		If ``aperture_handling`` is neither ``'rescale'`` nor ``'ghosting'``.
 
 	Related
 	-------
 	Microscope.show : The usual caller.
 	findPlanes : Supplies the conjugate-plane annotations.
-	convert_to_rotating_reference_frame : The frame the rays are drawn in.
+	Rays.convert_to_rotating_reference_frame : The frame the rays are drawn in.
+	Rays.boundary_ray : The beam edge drawn over them.
 
 	Notes
 	-----
@@ -73,11 +77,12 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 	>>> plot2D(scope.rays, plt_ax=ax, planes=False)		# doctest: +SKIP
 	"""
 	conjugates = findPlanes(r1,axis=axis)
-	# masked (dead) rays stop being drawn at the plane where their intensity
-	# hits zero -- an aperture kills them there, and plotting their ghost
-	# trajectories onward would show beam that no longer exists
-	I = getattr(r1, "I", None)
-	r1 = convert_to_rotating_reference_frame(r1)
+	# two options for plotting the beam through an aperture:
+	# "rescale": historically used, beam was rescaled by elements.py > Aperture > propagate_ray, so we could simply plot rescaled rays.
+	# "ghosting": masked (dead) rays stop being drawn at the plane where their intensity hits zero.
+	# If you use too-few rays (or wish to see a continously-rescaled beam, as opposed to step-functions as rays cross the aperture border), then you should use "rescale". I have made this the default to preserve historical behavior (and for sensible plotting when using the minimal number of rays required for plane finding)
+	I = getattr(r1, "I_per_ray", None)
+	r1 = r1.convert_to_rotating_reference_frame()
 	if plt_ax is None:
 		fig,ax = plt.subplots()
 	else:
@@ -88,17 +93,32 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 	# loop through rays
 	i,j=columnByName(axis),columnByName("z")
 	Y = np.array(np.asarray(r1)[:,:,i], dtype=float)
-	if I is not None:
+	boundary_ray = np.asarray(r1.boundary_ray)
+	boundary_i = {"x":0,"y":1}[axis]
+	if boundary_ray.ndim == 2:
+		boundary_ray = boundary_ray[None,boundary_i]
+	else:
+		boundary_ray = boundary_ray[:,boundary_i]
+	if aperture_handling == "rescale":
+		extent = np.max(np.abs(Y),axis=1)
+		scale = np.divide(np.abs(boundary_ray[:,i]),extent,out=np.ones_like(extent),where=extent != 0)
+		Y *= scale[:,None]
+	elif aperture_handling == "ghosting" and I is not None:
 		Y[np.asarray(I) <= 0] = np.nan
+	elif aperture_handling not in ["rescale","ghosting"]:
+		raise ValueError("aperture_handling must be 'rescale' or 'ghosting'")
 	for ys,xs,c in zip( Y.T , np.asarray(r1)[:,:,j].T , linecolors ):
 		ax.plot(xs,ys,linestyle="-",color=c,marker='',linewidth=1)
+	marker = "o" if len(boundary_ray) == 1 else ''
+	ax.plot(boundary_ray[:,j],boundary_ray[:,i],linestyle="--",color="k",marker=marker,linewidth=2,label="boundary ray")
 
 	# add all image/diffraction planes
 	ct=0 ; zs=r1[:,0,j]
 	#print(planes)
 	nplanes=len(conjugates[axis]["diff"]["z"])+len(conjugates[axis]["image"]["z"])+len(zpts)
 	if ylims is None:
-		ylims = [ np.nanmin(Y) , np.nanmax(Y) ]
+		bounds = np.concatenate((Y.ravel(),boundary_ray[:,i]))
+		ylims = [np.nanmin(bounds),np.nanmax(bounds)]
 	for imdiff in (["diff","image"] if planes else []):
 		Z=conjugates[axis][imdiff]["z"]
 		M=conjugates[axis][imdiff]["M"]
@@ -133,6 +153,8 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 		ax.set_xlim(xlims)
 	ax.set_ylim(ylims)
 
+	ax.set_xlabel("z (m)" if xlabel is None else xlabel)
+	ax.set_ylabel(f"{axis} (m)" if ylabel is None else ylabel)
 	ax.set_xlabel("z (m)" if xlabel is None else xlabel)
 	ax.set_ylabel(f"{axis} (m)" if ylabel is None else ylabel)
 	if title is not None:
@@ -412,46 +434,6 @@ def findPlanes4(rays,axes="x"):
 
 	return returnable
 
-# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
-# This function provides easy return to the rotated reference frame
-def convert_to_rotating_reference_frame(rays):
-	"""Rotate rays into the beam's rotating (Larmor) reference frame.
-
-	Cumulative rotation ``R`` is read from the supplied :class:`Rays` object.
-	Each ray at each plane is
-	rotated by its accumulated angle so that image/diffraction-plane detection can
-	operate in the unrotated frame.
-
-	Parameters
-	----------
-	rays : Rays
-		Geometric rays, shape ``(n_planes, n_rays, len(convention))``.
-
-	Returns
-	-------
-	np.ndarray
-		Rays rotated into the rotating reference frame, same shape as ``rays``.
-
-	Related
-	-------
-	findPlanes : Calls this before detecting planes.
-	Lens.transfer_matrix : Source of the accumulated rotation.
-	"""
-	R = rays.R
-	nl,nr,nc = rays.shape
-	converted = np.zeros(rays.shape)
-	for l in range(nl):
-		for r in range(nr):
-			Rv = R[l,r]
-			C = np.cos(Rv)
-			S = np.sin(Rv)
-			M = np.asarray([[C,S,0,0],[-S,C,0,0],[0,0,C,S],[0,0,-S,C]])
-			M = fix_mat_dims(M,["x","y","xt","yt"])
-			converted[l,r,:] = np.matmul(M,rays[l,r,:])
-	return converted
-
-
-
 # Returns a dict for each axis, image vs diffraction planes, and the magnification and z position (NOTE: Z IS IN FRACTIONAL COORDINATES: 4.2 = 20% of the way through the 4th element)
 warned = []
 # TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
@@ -463,8 +445,8 @@ def findPlanes(rays,axis="xy"):
 	# per-ray intensity, if the caller passed a Rays object: dead (masked)
 	# rays must not report planes -- an aperture selects the pupil zone, and
 	# with aberrations the ghost pair's crossing is the WRONG focal plane
-	I = getattr(rays, "I", None)
-	rays = convert_to_rotating_reference_frame(rays)
+	I = getattr(rays, "I_per_ray", None)
+	rays = rays.convert_to_rotating_reference_frame()
 	global warned
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
 	diffRays=[] ; imageRays=[]
@@ -521,8 +503,8 @@ def findPlanes(rays,axis="xy"):
 		"""
 		first = None
 		for r in cands:
-			if I is not None and not I[i, r] > 0:
-				continue
+			#if I is not None and not I[i, r] > 0: # TWP 20260902 don't ignore blocked rays. heck, if we're only using pairs of rays to detect image and diffraction planes, we're already ignoring all the aberrations affecting other rays!
+			#	continue
 			if first is None:
 				first = r
 			elif rays[0,r,col] != rays[0,first,col]:
@@ -878,6 +860,59 @@ def findPlanes2(rays):
 	return returnable
 	#return {"x":{"diff":{"z":Zdx,"M":Mdx},"image":{"z":Zix,"M":Mix}},
 	#		"y":{"diff":{"z":Zdy,"M":Mdy},"image":{"z":Ziy,"M":Miy}}}
+
+def dedupe(ary):
+	ary = np.asarray(list(sorted(ary)))
+	grad = np.diff(ary)
+	mask = np.concatenate(([True],grad>np.mean(grad)/10)) # get rid of dA/dx equal or close to zero
+	return ary[mask]
+
+# find groups (not just pairs) of diffraction rays, measure bundle diameter (out-of-focus-ness of diffraction spots) and bundle separation (magnification of out-of-focus diffraction image)
+def diffraction_bundles_at_z(z,rays):
+	# step 1, infer bundled rays (all rays emitted at the same angle, but from different positions)
+	bundles = {}
+	rays = rays.convert_to_rotating_reference_frame()
+	for r in range(len(rays[0])): # whichelement,whichray,xyxtyt...
+		x,y = rays[0].x[r] , rays[0].y[r]
+		xt,yt = rays[0].xt[r] , rays[0].yt[r]
+		#if yt!=0 or y!=0 or # TODO do i care?
+		#	continue
+		k = str(xt)+","+str(yt)
+		if k not in bundles.keys():
+			bundles[k] = []
+		bundles[k].append(r)
+	# step 2, get ray positions at z:
+	rays = rays.at_z(z)
+	# analyze. use std to calculate spreading per-bundle and between-bundles
+	x = [] ; y = [] ; stdx = [] ; stdy = [] # each bundle's x,y position and std WITHIN EACH bundle
+	for k,rs in bundles.items():
+		rx = dedupe( rays.x[rs] )
+		ry = dedupe( rays.y[rs] ) #; print("rx",rx,"ry",ry)
+		x.append( np.mean(rx) )
+		y.append( np.mean(ry) )
+		# std = sqrt( sum( (xi-mu)^2 )/N )
+		#stx = np.sqrt( np.std(rx)**2*len(rx)/2 )
+		#sty = np.sqrt( np.std(ry)**2*len(rx)/2 )
+		# TODO above is bad if na_xy np_xy !=3. and maybe a bit convoluted. should we just use stdev instead? or peak-to-peak
+		stx = np.ptp(rx)/2 ; sty = np.ptp(ry)/2
+		stdx.append( stx )
+		stdy.append( sty )
+		#bundles[k]
+		#if np_xy is not None: # std = sqrt( sum( (xi-mu)^2 )/N ). so if you want "beam extent", then square, multiply, div/2
+		#	stdx[-1] = np.sqrt( stdx[-1]**2*(len(rs)-np_xy[0]) )/2 # need to know number of "duplicate" rays (n_points)
+		#	stdy[-1] = np.sqrt( stdy[-1]**2*(len(rs)-np_xy[1]) )/2
+		#print("rays.x",np.round(rays.x[rs],3),"-->",np.round(rx,3),"-->",np.mean(rx),"+/-",np.std(rx))
+		#print("rays.y",np.round(rays.y[rs],3),"-->",np.round(ry,3),"-->",np.mean(ry),"+/-",np.std(ry))
+	size_x = np.mean(stdx) ; size_y = np.mean(stdy)
+	x = dedupe(x) ; y = dedupe(y)
+	#spread_x = np.sqrt( np.std(x)**2*len(x)/2 )
+	#spread_y = np.sqrt( np.std(y)**2*len(y)/2 )
+	spread_x = np.ptp(x)/2 ; spread_y = np.ptp(y)/2
+	#if na_xy is not None:
+	#	spread_x = np.sqrt( spread_x**2*(len(bundles)-na_xy[0]) )/2
+	#	spread_y = np.sqrt( spread_y**2*(len(bundles)-na_xy[1]) )/2
+	return { "bundle_size": { "x":size_x , "y":size_y },
+				"bundle_spread": { "x":spread_x , "y":spread_y } }
 
 def zFromFractional(zs,z): # e.g. 1.2 is 20% of the distance through element index 1
 	i,di=int(z),z-int(z) # 1.2 --> i=1, and di=0.2
@@ -1314,8 +1349,8 @@ def measureAtZ(z,rays=None,I=None,R=None,section=None,live_only=False):
 		if section.rays is None:
 			section.propagate_ray()
 		rays = section.rays
-	if hasattr(rays,"I"):
-		I = rays.I if I is None else I
+	if hasattr(rays,"I_per_ray"):
+		I = rays.I_per_ray if I is None else I
 		R = rays.R if R is None else R
 	if section is not None:
 		if I is None:

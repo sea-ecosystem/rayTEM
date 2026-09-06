@@ -77,7 +77,6 @@
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Aperture.apply_intensity"><code class="docutils literal notranslate"><span class="pre">Aperture.apply_intensity()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Aperture.phase_shift"><code class="docutils literal notranslate"><span class="pre">Aperture.phase_shift()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Aperture.propagate_moments"><code class="docutils literal notranslate"><span class="pre">Aperture.propagate_moments()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Aperture.propagate_ray"><code class="docutils literal notranslate"><span class="pre">Aperture.propagate_ray()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Aperture.transmitted_fraction"><code class="docutils literal notranslate"><span class="pre">Aperture.transmitted_fraction()</span></code></a></li>
 </ul>
 </li>
@@ -123,14 +122,18 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens"><code class="docutils literal notranslate"><span class="pre">Lens</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.ABCD"><code class="docutils literal notranslate"><span class="pre">Lens.ABCD()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.aberration_powers"><code class="docutils literal notranslate"><span class="pre">Lens.aberration_powers()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.back_focal_distance"><code class="docutils literal notranslate"><span class="pre">Lens.back_focal_distance</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.calibrated"><code class="docutils literal notranslate"><span class="pre">Lens.calibrated()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.calibrated_f"><code class="docutils literal notranslate"><span class="pre">Lens.calibrated_f</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.calibrated_strength"><code class="docutils literal notranslate"><span class="pre">Lens.calibrated_strength</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.calibration_from_f_and_I"><code class="docutils literal notranslate"><span class="pre">Lens.calibration_from_f_and_I()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.focal_length"><code class="docutils literal notranslate"><span class="pre">Lens.focal_length</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.focal_power"><code class="docutils literal notranslate"><span class="pre">Lens.focal_power</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.get_C_L_from_rotation_at_I"><code class="docutils literal notranslate"><span class="pre">Lens.get_C_L_from_rotation_at_I()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.phase_shift"><code class="docutils literal notranslate"><span class="pre">Lens.phase_shift()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.principal_distance"><code class="docutils literal notranslate"><span class="pre">Lens.principal_distance</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.transfer_block"><code class="docutils literal notranslate"><span class="pre">Lens.transfer_block()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.transfer_matrix"><code class="docutils literal notranslate"><span class="pre">Lens.transfer_matrix()</span></code></a></li>
 </ul>
@@ -153,7 +156,17 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays"><code class="docutils literal notranslate"><span class="pre">Rays</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.E"><code class="docutils literal notranslate"><span class="pre">Rays.E</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.at_z"><code class="docutils literal notranslate"><span class="pre">Rays.at_z()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.concatenate"><code class="docutils literal notranslate"><span class="pre">Rays.concatenate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.convert_to_rotating_reference_frame"><code class="docutils literal notranslate"><span class="pre">Rays.convert_to_rotating_reference_frame()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.copy"><code class="docutils literal notranslate"><span class="pre">Rays.copy()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.stack"><code class="docutils literal notranslate"><span class="pre">Rays.stack()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.x"><code class="docutils literal notranslate"><span class="pre">Rays.x</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.xt"><code class="docutils literal notranslate"><span class="pre">Rays.xt</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.y"><code class="docutils literal notranslate"><span class="pre">Rays.y</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.yt"><code class="docutils literal notranslate"><span class="pre">Rays.yt</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Rays.z"><code class="docutils literal notranslate"><span class="pre">Rays.z</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes"><code class="docutils literal notranslate"><span class="pre">SealedAttributes</span></code></a><ul>
@@ -317,7 +330,8 @@
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.waveoptics.transverse_coordinates"><code class="docutils literal notranslate"><span class="pre">transverse_coordinates()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.beam_widths"><code class="docutils literal notranslate"><span class="pre">beam_widths()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.closest_plane"><code class="docutils literal notranslate"><span class="pre">closest_plane()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.convert_to_rotating_reference_frame"><code class="docutils literal notranslate"><span class="pre">convert_to_rotating_reference_frame()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.dedupe"><code class="docutils literal notranslate"><span class="pre">dedupe()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.diffraction_bundles_at_z"><code class="docutils literal notranslate"><span class="pre">diffraction_bundles_at_z()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.dz_focus_to"><code class="docutils literal notranslate"><span class="pre">dz_focus_to()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.emittance"><code class="docutils literal notranslate"><span class="pre">emittance()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.error_angles"><code class="docutils literal notranslate"><span class="pre">error_angles()</span></code></a></li>
@@ -575,7 +589,7 @@ in/out test.</p></li>
 <div class="admonition seealso">
 <p class="admonition-title">See also</p>
 <dl class="simple">
-<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Aperture.propagate_ray" title="pySEA.rayTEM.elements.Aperture.propagate_ray"><code class="xref py py-obj docutils literal notranslate"><span class="pre">propagate_ray</span></code></a></dt><dd><p>Leaves the geometry untouched.</p>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">propagate_ray</span></code></dt><dd><p>Leaves the geometry untouched.</p>
 </dd>
 <dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">assemblies.MicroscopeSection.propagate_ray</span></code></dt><dd><p>Calls this with the rays <em>arriving</em> at the element, i.e. at the aperture plane.</p>
 </dd>
@@ -672,47 +686,6 @@ second.</p></li>
 <dd class="field-odd"><p>tuple of xp.ndarray</p>
 </dd>
 </dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Aperture.propagate_ray">
-<span class="sig-name descname"><span class="pre">propagate_ray</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#pySEA.rayTEM.elements.Rays" title="pySEA.rayTEM.elements.Rays"><span class="pre">Rays</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Aperture.propagate_ray"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Aperture.propagate_ray" title="Link to this definition"></a></dt>
-<dd><p>Pass rays through geometrically unchanged; the mask acts on I.</p>
-<p>Overrides <a class="reference internal" href="#pySEA.rayTEM.elements.Element.propagate_ray" title="pySEA.rayTEM.elements.Element.propagate_ray"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Element.propagate_ray()</span></code></a> (the aperture has no ray
-matrix). Coordinates are untouched — blocked rays become <em>ghosts</em>
-that keep propagating with zero intensity (see
-<a class="reference internal" href="#pySEA.rayTEM.elements.Aperture.apply_intensity" title="pySEA.rayTEM.elements.Aperture.apply_intensity"><code class="xref py py-meth docutils literal notranslate"><span class="pre">apply_intensity()</span></code></a>), which keeps array shapes stable, keeps the
-plotted trajectories honest up to the aperture plane, and lets every
-current read stay <code class="docutils literal notranslate"><span class="pre">sum(I)</span></code>.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>r0</strong> (<em>xp.ndarray</em><em> or </em><a class="reference internal" href="#pySEA.rayTEM.elements.Rays" title="pySEA.rayTEM.elements.Rays"><em>Rays</em></a>) – Rays arriving at the aperture plane, shape
-<code class="docutils literal notranslate"><span class="pre">(n_rays,</span> <span class="pre">len(convention))</span></code>.</p></li>
-<li><p><strong>z</strong> (<em>float</em><em>, </em><em>optional</em>) – Unused (zero-length element), by default <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
-<li><p><strong>z0</strong> (<em>float</em><em>, </em><em>optional</em>) – Unused, by default 0.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>The rays, geometrically unchanged; a <code class="docutils literal notranslate"><span class="pre">Rays</span></code> input comes back
-paired with its masked intensity.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>xp.ndarray or <a class="reference internal" href="#pySEA.rayTEM.elements.Rays" title="pySEA.rayTEM.elements.Rays">Rays</a></p>
-</dd>
-<dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>None</strong> – </p>
-</dd>
-</dl>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<dl class="simple">
-<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Aperture.apply_intensity" title="pySEA.rayTEM.elements.Aperture.apply_intensity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">apply_intensity</span></code></a></dt><dd><p>Where the mask actually acts.</p>
-</dd>
-<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Aperture.phase_shift" title="pySEA.rayTEM.elements.Aperture.phase_shift"><code class="xref py py-obj docutils literal notranslate"><span class="pre">phase_shift</span></code></a></dt><dd><p>The wave path’s identical transmission mask.</p>
-</dd>
-</dl>
-</div>
 </dd></dl>
 
 <dl class="py method">
@@ -1725,6 +1698,11 @@ and the wave path, at every order - see
 </dd>
 </dl>
 <dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.ABCD">
+<span class="sig-name descname"><span class="pre">ABCD</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Lens.ABCD"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.ABCD" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.aberration_powers">
 <span class="sig-name descname"><span class="pre">aberration_powers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Lens.aberration_powers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.aberration_powers" title="Link to this definition"></a></dt>
 <dd><p>Split the aberration function into frame powers and a residual.</p>
@@ -1822,6 +1800,16 @@ strength.</p>
 </dl>
 </div>
 </dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.calibrated">
+<span class="sig-name descname"><span class="pre">calibrated</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">val</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Lens.calibrated"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.calibrated" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.calibrated_f">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">calibrated_f</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.calibrated_f" title="Link to this definition"></a></dt>
+<dd></dd></dl>
 
 <dl class="py property">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.calibrated_strength">
@@ -1969,6 +1957,11 @@ when an aligned C12 makes the two axes differ.</p>
 </div>
 </dd></dl>
 
+<dl class="py property">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.principal_distance">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">principal_distance</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.principal_distance" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.transfer_block">
 <span class="sig-name descname"><span class="pre">transfer_block</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'x'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'y'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'x'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Lens.transfer_block"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.transfer_block" title="Link to this definition"></a></dt>
@@ -2010,7 +2003,7 @@ both.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Lens.transfer_matrix">
-<span class="sig-name descname"><span class="pre">transfer_matrix</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Lens.transfer_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.transfer_matrix" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">transfer_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rotation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Lens.transfer_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Lens.transfer_matrix" title="Link to this definition"></a></dt>
 <dd><p>Transfer matrix for ray propogation.</p>
 </dd></dl>
 
@@ -2334,11 +2327,88 @@ SLAC-75 (1983), p. 46.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.elements.</span></span><span class="sig-name descname"><span class="pre">Rays</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rays</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">R</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">I</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Rays"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Rays" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.elements.</span></span><span class="sig-name descname"><span class="pre">Rays</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rays</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">R</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">I_per_ray</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference_frame</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'stationary'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">I_per_plane</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Rays"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Rays" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py property">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.E">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">E</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Rays.E" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.at_z">
+<span class="sig-name descname"><span class="pre">at_z</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">z</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Rays.at_z"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Rays.at_z" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.concatenate">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">concatenate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stacks</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">drop_shared</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Rays.concatenate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Rays.concatenate" title="Link to this definition"></a></dt>
+<dd><p>Join propagation histories, optionally omitting repeated boundary planes.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.convert_to_rotating_reference_frame">
+<span class="sig-name descname"><span class="pre">convert_to_rotating_reference_frame</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Rays.convert_to_rotating_reference_frame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Rays.convert_to_rotating_reference_frame" title="Link to this definition"></a></dt>
+<dd><p>Ray propagation follows a fixed reference plane (solenoids rotate the beam). This function returns a new Rays object with the rays in a rotating (Larmor) reference frame.</p>
+<p>Cumulative rotation <code class="docutils literal notranslate"><span class="pre">R</span></code> is read from the supplied <a class="reference internal" href="#pySEA.rayTEM.elements.Rays" title="pySEA.rayTEM.elements.Rays"><code class="xref py py-class docutils literal notranslate"><span class="pre">Rays</span></code></a> object.
+Each ray at each plane is
+rotated by its accumulated angle so that image/diffraction-plane detection can
+operate in the unrotated frame.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>rays</strong> (<a class="reference internal" href="#pySEA.rayTEM.elements.Rays" title="pySEA.rayTEM.elements.Rays"><em>Rays</em></a>) – Geometric rays, shape <code class="docutils literal notranslate"><span class="pre">(n_planes,</span> <span class="pre">n_rays,</span> <span class="pre">len(convention))</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Rays rotated into the rotating reference frame, same shape as <code class="docutils literal notranslate"><span class="pre">rays</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">findPlanes</span></code></dt><dd><p>Calls this before detecting planes.</p>
+</dd>
+<dt><a class="reference internal" href="#pySEA.rayTEM.elements.Lens.transfer_matrix" title="pySEA.rayTEM.elements.Lens.transfer_matrix"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Lens.transfer_matrix</span></code></a></dt><dd><p>Source of the accumulated rotation.</p>
+</dd>
+</dl>
+</div>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.copy">
 <span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Rays.copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Rays.copy" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.stack">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">stack</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">planes</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/elements.html#Rays.stack"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.elements.Rays.stack" title="Link to this definition"></a></dt>
+<dd><p>Stack single-plane ray states into one propagation history.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.x">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">x</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Rays.x" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.xt">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">xt</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Rays.xt" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.y">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">y</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Rays.y" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.yt">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">yt</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Rays.yt" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Rays.z">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">z</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Rays.z" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -3089,7 +3159,7 @@ rotation does not hide part of it — see
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.Microscope.convergence_angle_at">
 <span class="sig-name descname"><span class="pre">convergence_angle_at</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#Microscope.convergence_angle_at"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope.convergence_angle_at" title="Link to this definition"></a></dt>
-<dd><p>Convergence <strong>semi</strong>-angle of the outermost ray at a plane.</p>
+<dd><p>Convergence <strong>semi</strong>-angle of the outermost non-blocked ray at a plane.</p>
 <p>Semi-angle: the half-angle of the cone, measured from the optic axis —
 not the full opening angle. This is the alpha every axial aberration is
 measured against, so a factor of two here propagates as
@@ -3648,7 +3718,7 @@ arrays remain the primary working representation.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.Microscope.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#Microscope.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope.save" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">versioned</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#Microscope.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope.save" title="Link to this definition"></a></dt>
 <dd><p>Write this microscope to <code class="docutils literal notranslate"><span class="pre">&lt;filename&gt;.json</span></code>.</p>
 <p>Uses the flat rayTEM microscope layout shared with TWP20260820:
 <code class="docutils literal notranslate"><span class="pre">Microscope</span> <span class="pre">-&gt;</span> <span class="pre">Sections</span> <span class="pre">-&gt;</span> <span class="pre">Elements</span></code>. Runtime results and null values
@@ -4127,7 +4197,7 @@ buried in the elements.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.MicroscopeSection.propagate_ray">
-<span class="sig-name descname"><span class="pre">propagate_ray</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">I0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">R0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_aberrations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#MicroscopeSection.propagate_ray"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.MicroscopeSection.propagate_ray" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">propagate_ray</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">I0_per_ray</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">I0_per_plane</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">I_initial</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">R0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_aberrations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#MicroscopeSection.propagate_ray"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.MicroscopeSection.propagate_ray" title="Link to this definition"></a></dt>
 <dd><p>Propagate rays through every element in the section, bottom-up.</p>
 <p>Intensity (<code class="docutils literal notranslate"><span class="pre">I</span></code>) and cumulative Larmor rotation (<code class="docutils literal notranslate"><span class="pre">R</span></code>) travel as separate
 parallel arrays rather than as ray coordinates; they are stored on
@@ -6630,34 +6700,14 @@ the position coordinates).</p>
 <dd></dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="pySEA.rayTEM.postprocessing.convert_to_rotating_reference_frame">
-<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.postprocessing.</span></span><span class="sig-name descname"><span class="pre">convert_to_rotating_reference_frame</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rays</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/postprocessing.html#convert_to_rotating_reference_frame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.postprocessing.convert_to_rotating_reference_frame" title="Link to this definition"></a></dt>
-<dd><p>Rotate rays into the beam’s rotating (Larmor) reference frame.</p>
-<p>Cumulative rotation <code class="docutils literal notranslate"><span class="pre">R</span></code> is read from the supplied <code class="xref py py-class docutils literal notranslate"><span class="pre">Rays</span></code> object.
-Each ray at each plane is
-rotated by its accumulated angle so that image/diffraction-plane detection can
-operate in the unrotated frame.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>rays</strong> (<a class="reference internal" href="#pySEA.rayTEM.elements.Rays" title="pySEA.rayTEM.elements.Rays"><em>Rays</em></a>) – Geometric rays, shape <code class="docutils literal notranslate"><span class="pre">(n_planes,</span> <span class="pre">n_rays,</span> <span class="pre">len(convention))</span></code>.</p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Rays rotated into the rotating reference frame, same shape as <code class="docutils literal notranslate"><span class="pre">rays</span></code>.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>np.ndarray</p>
-</dd>
-</dl>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<dl class="simple">
-<dt><a class="reference internal" href="#pySEA.rayTEM.postprocessing.findPlanes" title="pySEA.rayTEM.postprocessing.findPlanes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">findPlanes</span></code></a></dt><dd><p>Calls this before detecting planes.</p>
-</dd>
-<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">Lens.transfer_matrix</span></code></dt><dd><p>Source of the accumulated rotation.</p>
-</dd>
-</dl>
-</div>
-</dd></dl>
+<dt class="sig sig-object py" id="pySEA.rayTEM.postprocessing.dedupe">
+<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.postprocessing.</span></span><span class="sig-name descname"><span class="pre">dedupe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ary</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/postprocessing.html#dedupe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.postprocessing.dedupe" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pySEA.rayTEM.postprocessing.diffraction_bundles_at_z">
+<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.postprocessing.</span></span><span class="sig-name descname"><span class="pre">diffraction_bundles_at_z</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rays</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/postprocessing.html#diffraction_bundles_at_z"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.postprocessing.diffraction_bundles_at_z" title="Link to this definition"></a></dt>
+<dd></dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pySEA.rayTEM.postprocessing.dz_focus_to">
@@ -6796,7 +6846,7 @@ intensity array is available.</p></li>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pySEA.rayTEM.postprocessing.plot2D">
-<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.postprocessing.</span></span><span class="sig-name descname"><span class="pre">plot2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'x'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sections</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xlims</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ylims</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plt_ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/postprocessing.html#plot2D"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.postprocessing.plot2D" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.postprocessing.</span></span><span class="sig-name descname"><span class="pre">plot2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'x'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sections</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xlims</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ylims</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plt_ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aperture_handling</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'rescale'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/postprocessing.html#plot2D"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.postprocessing.plot2D" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py function">

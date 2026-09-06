@@ -13,8 +13,10 @@ import sys,os,pytest
 sys.path.insert(1,"../../../")
 from pySEA.rayTEM import Source,Lens,Drift,Aperture,Dipole,Quadrapole
 from pySEA.rayTEM import MicroscopeSection,Microscope,check_lengths
-from pySEA.rayTEM import fix_ray_dims,plot2D,plot3D,findPlanes,columnByName,load_microscope,load_section,convert_to_rotating_reference_frame
+from pySEA.rayTEM import fix_ray_dims,plot2D,plot3D,findPlanes,columnByName,load_microscope,load_section
+from pySEA.rayTEM.elements import Rays
 import numpy as np
+import matplotlib.pyplot as plt
 
 # basic Drift/Lens/Drift/Lens/Drift configuration. Manually-defined input rays (one pair of axial and one pair of field rays)
 # test: resulting rays should always be identical (compare to numpy saved rays)
@@ -25,7 +27,9 @@ def test_basic_section_r0():
 	r0=np.asarray( [[1,0,0,0],[.5,0,0,0],[0,0,1,0],[0,0,.5,0]] )
 	r0=fix_ray_dims(r0,["x","y","xt","yt"])
 	r1 = section.propagate_ray(r0)
-	rr = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	rr = r1.convert_to_rotating_reference_frame() # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	#print(repr(section))
+	#print(r1)
 	#plot2D(r1,section.R)
 	filename = "elements_sections_microscopes_basic_section_r0_rays.npy"
 	if not os.path.exists(filename):
@@ -49,7 +53,7 @@ def test_basic_section_wsource():
 	section = MicroscopeSection(elements=elements)
 	section.to_sea("elements_sections_microscopes_basic_section_wsource.sea")
 	r1 = section.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = r1.convert_to_rotating_reference_frame() # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	#plot2D(r1,section.R)
 	filename = "elements_sections_microscopes_basic_section_wsource_rays.npy"
 	if not os.path.exists(filename):
@@ -115,7 +119,7 @@ def test_basic_microscope_defined_by_lengths():
 	microscope = Microscope(sections = [ section1,section2 ])
 	#microscope.show()
 	r1 = microscope.propagate_ray()
-	rr = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	rr = r1.convert_to_rotating_reference_frame() # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths_rays.npy"
 	if not os.path.exists(filename):
 		np.save(filename,rr)
@@ -149,7 +153,7 @@ def test_basic_microscope_defined_by_positions():
 	microscope = Microscope(sections = [ section1,section2 ])
 	#microscope.show()
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = r1.convert_to_rotating_reference_frame() # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths_rays.npy"
 	if not os.path.exists(filename):
 		print("ERROR: test_basic_microscope_defined_by_positions requires test_basic_microscope_defined_by_lengths to run first")
@@ -164,7 +168,7 @@ def test_basic_microscope_reload_json():
 	microscope = load_microscope("elements_sections_microscopes_basic_microscope_defined_by_lengths.json")
 	#microscope.show()
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = r1.convert_to_rotating_reference_frame() # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths_rays.npy"
 	if not os.path.exists(filename):
 		print("ERROR: test_basic_microscope_reload_json requires test_basic_microscope_defined_by_lengths to run first")
@@ -179,7 +183,7 @@ def test_basic_microscope_reload_sea():
 	microscope = load_microscope("elements_sections_microscopes_basic_microscope_defined_by_lengths.sea")
 	#microscope.show()
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = r1.convert_to_rotating_reference_frame() # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths_rays.npy"
 	if not os.path.exists(filename):
 		print("ERROR: test_basic_microscope_reload_sea requires test_basic_microscope_defined_by_lengths to run first")
@@ -187,6 +191,98 @@ def test_basic_microscope_reload_sea():
 	r1_old = np.load(filename)
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001 # serves as a "hash" of sorts to ensure we're getting the same rays out
 #test_basic_microscope_reload_sea()
+
+def test_at_z():
+	elements = [ Source(size=(1,1),np_xy=(3,3),angle=(0,0),na_xy=(1,1)), Lens(focal_length=1,position=1), Lens(focal_length=1,position=3) ]
+	section1 = MicroscopeSection(elements = elements)
+	elements = [ Lens(focal_length=2,position=1), Drift(length=2) ]
+	section2 = MicroscopeSection(elements = elements)
+	microscope = Microscope(sections = [ section1,section2 ])
+	#microscope.show()
+	r1 = microscope.propagate_ray()
+	rr = r1.convert_to_rotating_reference_frame()
+	#print(repr(microscope))
+	#print(r1)
+	#print(r1.rays.shape,r1.R.shape,np.asarray(r1.z).shape)
+	assert np.isclose(rr.at_z(0.5).x[-1],1) # parallel beam, sliced pre-lens, last ray's x position should be starting source size
+	assert np.isclose(rr.at_z(1.5).x[-1],0.5) # 0.5 post-first-lens, focal length of 1, we should have come in by 0.5
+	assert np.isclose(rr.at_z(3.5).x[-1],-1)	# post-second-lens, should be parallel again
+	assert np.isclose(rr.at_z(4.5).x[-1],-0.75)	# post-last-lens, coming in more gradually again
+	assert np.isclose(rr.at_z(4.5).xt[-1],0.5)
+#test_at_z()
+
+def test_rays_defaults():
+	array = fix_ray_dims(np.zeros((3,4)),["x","xt","y","yt"])
+	rays = Rays(array)
+	assert np.array_equal(rays.R,np.zeros(3)) and np.array_equal(rays.I_per_ray,np.ones(3))
+	assert rays.I_per_plane == 3 and rays.reference_frame == "stationary"
+	assert rays.boundary_ray.shape == (2,6) and np.array_equal(rays.boundary_ray,np.stack((array[0],array[0])))
+	history = Rays(np.stack((array,array)))
+	assert np.array_equal(history.I_per_plane,[3,3])
+	assert history.boundary_ray.shape == (2,2,6)
+	weighted = Rays(array,I_per_ray=[.1,.2,.3])
+	assert np.isclose(weighted.I_per_plane,.6)
+	edges = fix_ray_dims(np.asarray([[1,.1,0,0],[-1,.3,0,0],[0,0,2,.1],[0,0,-2,.4]]),["x","xt","y","yt"])
+	boundary_ray = Rays(edges).boundary_ray
+	assert np.array_equal(boundary_ray[0],edges[1]) and np.array_equal(boundary_ray[1],edges[3])
+
+def test_rays_copy_preserves_extra_attributes():
+	r0 = Source(size=(1,1),np_xy=(2,2),angle=(0,0),na_xy=(1,1)).rays()
+	rays = MicroscopeSection(elements=[Drift(length=1)]).propagate_ray(r0)
+	rays.edge = {"ray": np.asarray([1.,2.])}
+	for result in (rays.copy(),rays[0],rays.at_z(.5),Drift(length=.1).propagate_ray(rays[0])):
+		assert isinstance(result,Rays) and np.array_equal(result.edge["ray"],rays.edge["ray"])
+		assert not np.shares_memory(result.edge["ray"],rays.edge["ray"])
+	result = rays.copy()
+	result.edge["ray"][0] = -1
+	assert rays.edge["ray"][0] == 1
+
+def test_rays_stack_and_concatenate():
+	r0 = Source(size=(1,1),np_xy=(2,2),angle=(0,0),na_xy=(1,1)).rays()
+	rays = MicroscopeSection(elements=[Drift(length=1)]).propagate_ray(r0)
+	planes = [rays[i] for i in range(len(rays))]
+	for plane in planes:
+		plane.label = {"value": np.asarray([1])}
+	stacked = Rays.stack(planes)
+	assert np.array_equal(stacked.rays,rays.rays)
+	assert np.array_equal(stacked.R,rays.R) and np.array_equal(stacked.I_per_ray,rays.I_per_ray)
+	assert np.array_equal(stacked.I_per_plane,rays.I_per_plane)
+	assert np.array_equal(stacked.boundary_ray,rays.boundary_ray)
+	assert np.array_equal(stacked.label["value"],[1])
+	joined = Rays.concatenate([stacked,stacked],drop_shared=True)
+	assert np.array_equal(joined.rays,np.concatenate((rays.rays,rays.rays[1:])))
+	assert np.array_equal(joined.boundary_ray,np.concatenate((rays.boundary_ray,rays.boundary_ray[1:])))
+	planes[1].label["value"][0] = 2
+	with pytest.raises(ValueError,match="extra Rays attributes"):
+		Rays.stack(planes)
+	other = rays[0]
+	other.reference_frame = "rotating"
+	with pytest.raises(ValueError,match="reference frame"):
+		Rays.stack([rays[0],other])
+
+def test_boundary_ray_rescales_at_aperture():
+	r0 = fix_ray_dims(np.asarray([[0,0,0,0],[2,.2,0,0],[0,0,3,.6]]),["x","xt","y","yt"])
+	section1 = MicroscopeSection(elements=[Aperture(radius=1),Drift(length=1)])
+	rays = section1.propagate_ray(r0)
+	ix,ixt,iy,iz = columnByName("x"),columnByName("xt"),columnByName("y"),columnByName("z")
+	assert np.allclose(rays.boundary_ray[:,0,ix],[2,1,1.1])
+	assert np.allclose(rays.boundary_ray[:,0,ixt],[.2,.1,.1])
+	assert np.allclose(rays.boundary_ray[:,1,iy],[3,1,1.2])
+	assert np.array_equal(rays.boundary_ray[:,:,iz],[[0,0],[0,0],[1,1]])
+	assert np.allclose(rays.rays[:,1,ix],[2,2,2.2])
+	assert np.array_equal(rays[-1].boundary_ray,rays.boundary_ray[-1])
+	microscope = Microscope(sections=[section1,MicroscopeSection(elements=[Drift(length=1)])])
+	assert np.isclose(microscope.propagate_ray(r0).boundary_ray[-1,0,ix],1.2)
+	fig,ax = plt.subplots()
+	plot2D(rays,plt_ax=ax,aperture_handling="ghosting")
+	boundary_lines = [line for line in ax.lines if line.get_label() == "boundary ray"]
+	assert len(boundary_lines) == 1 and np.allclose(boundary_lines[0].get_ydata(),[2,1,1.1])
+	plt.close(fig)
+	fig,ax = plt.subplots()
+	plot2D(rays,axis="y",plt_ax=ax,aperture_handling="ghosting")
+	boundary_lines = [line for line in ax.lines if line.get_label() == "boundary ray"]
+	assert len(boundary_lines) == 1 and np.allclose(boundary_lines[0].get_ydata(),[3,1,1.2])
+	plt.close(fig)
 
 def test_element_insertion_microscope():
 	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths.sea"
@@ -199,7 +295,7 @@ def test_element_insertion_microscope():
 	microscope.insert(1.25,Lens(name="inserted by position at 1.25",strength=0))
 	#lengths_1 = [ s.length for s in microscope.sections ]
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1)[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = r1.convert_to_rotating_reference_frame()[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	filename = "elements_sections_microscopes_basic_microscope_defined_by_lengths_rays.npy"
 	if not os.path.exists(filename):
 		print("ERROR: test_insertion_microscope requires test_basic_microscope_defined_by_lengths to run first")
@@ -210,17 +306,17 @@ def test_element_insertion_microscope():
 	# insertion at zero should NOT go before the zero-length source! it should only go into the first Drift.
 	microscope.insert(0.,Drift(name="inserted by position at 0.0",length=1.))
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1)[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = r1.convert_to_rotating_reference_frame()[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001
 	# breaking up a drift, with zero left-over at the end...
 	microscope.insert(.5,Drift(name="inserted by position at 0.5",length=.5))
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1)[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = r1.convert_to_rotating_reference_frame()[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001
 	# drift *replacement* by inserting one of the same-position same-length
 	microscope.insert(.5,Drift(name="new inserted by position at 0.5",length=.5))
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1)[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = r1.convert_to_rotating_reference_frame()[-1,:,:] # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	assert np.sqrt(np.sum((r1-r1_old)**2)) < .0001
 	#print(repr(microscope))
 	#lengths_2 = [ s.length for s in microscope.sections ]
@@ -237,7 +333,7 @@ def test_section_insertion_microscope():
 	#microscope.show()
 	print("OLD") ; print(repr(microscope))
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = r1.convert_to_rotating_reference_frame() # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	filename = "elements_sections_microscopes_section_insertion_microscope_rays.npy"
 	if not os.path.exists(filename):
 		np.save(filename,r1)
@@ -252,7 +348,7 @@ def test_section_insertion_microscope():
 	print("NEW") ; print(microscope.tabulate(columns=["name","length","position"]))
 	#microscope.show()
 	r1 = microscope.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = r1.convert_to_rotating_reference_frame() # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 
 	r1_old = np.load(filename)
 
@@ -271,13 +367,13 @@ def test_cropping_section():
 				Drift(name="D3",length=1)  ]
 	section = MicroscopeSection(elements=elements)
 	r1 = section.propagate_ray()
-	r1 = convert_to_rotating_reference_frame(r1) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r1 = r1.convert_to_rotating_reference_frame() # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	#section.show()
 	# CROP BY INDEX, REPLACE SOURCE
 	section = section[1:]
 	section.insert(0, Source(size=(1,1),np_xy=(3,3),angle=(1,1),na_xy=(3,3)) )
 	r2 = section.propagate_ray()
-	r2 = convert_to_rotating_reference_frame(r2) # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
+	r2 = r2.convert_to_rotating_reference_frame().rays # 20260723: updated to default to rotate, so we need to convert to match previous rotating-reference-frame saved rays
 	# RAYS MUST MATCH
 	assert np.sqrt(np.sum((r1[-1]-r2[-1])**2)) < .0001
 
@@ -352,6 +448,16 @@ def test_cropping_microscope():
 		assert v1==v3+.5
 
 
+def test_cropping_single_section_microscope_by_named_stop():
+	sec = MicroscopeSection(elements=[Source(name="source"), Drift(name="before",length=1),
+			Lens(name="P1",focal_length=1), Drift(name="after",length=1)])
+	microscope = Microscope(sections=[sec])
+	cropped = microscope[:"P1"]
+	assert len(cropped.sections) == 1
+	assert cropped.keys() == ["source","before"]
+	cropped.propagate_ray()
+
+
 #test_cropping_section()
 #test_cropping_microscope()
 
@@ -404,6 +510,18 @@ def test_old_json_compatibility():
 #test_element_move()
 #test_element_insertion_microscope()
 
+def test_diffraction_rays():
+	from pySEA.rayTEM import diffraction_bundles_at_z
+	#np_xy=(3,3) ; na_xy=(3,3)
+	np_xy=(5,7) ; na_xy=(3,9)
+	elements = [ Source(name="S",size=(2,2),np_xy=np_xy,na_xy=na_xy) , Lens(name="L1",strength=3,length=.1,position=1), Lens(name="L2",strength=5,length=.1,position=2.8), Lens(name="L3",strength=1,length=.1,position=5.2) ]
+	microscope = MicroscopeSection(elements=elements)
+	microscope.propagate_ray()
+	ret = diffraction_bundles_at_z(5,microscope.rays)
+	#microscope.show(title=str(ret))
+	assert ret["bundle_size"]['x'] == 1.1493823309657483
+	assert ret["bundle_spread"]['x'] == 4.732795911827746
+#test_diffraction_rays()
 
 def test_rotated_quadrupole():
 	"""A rotated quadrupole couples the planes; pi/2 swaps them exactly."""
@@ -506,8 +624,15 @@ def test_thick_lens_efl_vs_bfd_split():
 	face to BFP). focal_power and focal_length are reciprocals;
 	back_focal_distance is NOT (their product is A = cos(KL)).
 	"""
+
+	lens = Lens(strength=.1, length=10,name="L1")
+	section = MicroscopeSection(elements=[Source(angle=(0,0),na_xy=(2,2)),Drift(length=100),lens,Drift(length=100)])
+	#section.show(title="f @ "+str(section["L1"].position+section["L1"].principal_distance+section["L1"].focal_length))
+
 	K, L = 129.80, 0.010
-	lens = Lens(strength=K, length=L)
+	lens = Lens(strength=K, length=L,name="L1")
+	section = MicroscopeSection(elements=[Source(angle=(0,0),na_xy=(2,2)),Drift(length=1),lens,Drift(length=1)])
+	#section.show(title="f @ "+str(section["L1"].position+section["L1"].focal_length))
 	# 1. matrix definitions
 	assert lens.focal_power == pytest.approx(K * np.sin(K * L))
 	assert lens.focal_length == pytest.approx(1 / lens.focal_power)
@@ -580,6 +705,24 @@ def test_focal_properties_round_trip():
 		assert getattr(back["FL"], prop) == pytest.approx(getattr(m["FL"], prop))
 	assert back["FL"].focal_length == pytest.approx(0.03)
 
+def test_aperture_current_types():
+	for n,toll,tolu in [ [9,1.14,1.15], [90,1.025,1.03], [900,1.001,1.003] ]:
+		sec = MicroscopeSection(name="S", elements=[
+		Source(voltage=200, size=(10e-6, 10e-6), np_xy=(n, n),
+			angle=(0.0, 0.0), na_xy=(1, 1), beam_current=1e-9),
+		Drift(length=0.01),
+		Aperture(name="A1", radius=6e-6),
+		Drift(length=0.01),
+		Aperture(name="A2", radius=3e-6),
+		Drift(length=0.01)])
+		m = Microscope(sections=[sec])
+		m.propagate_ray()
+		#print(m.rays.I_per_plane)
+		I_pp = m.rays.I_per_plane
+		I_pr = np.sum(m.rays.I_per_ray,axis=1)
+		#print(I_pp,I_pr,I_pp/I_pr)
+		assert toll < np.amax(I_pp/I_pr) < tolu
+#test_aperture_current_types()
 
 def test_aperture_masks_rays():
 	"""An aperture is a true mask: blocked rays carry I = 0 onward,
@@ -596,6 +739,10 @@ def test_aperture_masks_rays():
 		Drift(length=0.01)])
 	m = Microscope(sections=[sec])
 	rays = np.asarray(m.propagate_ray())
+
+	I_pp = m.rays.I_per_plane
+	I_pr = np.sum(m.rays.I_per_ray,axis=1)
+	print(I_pp,I_pr,I_pp/I_pr)
 	I = np.asarray(m.I)
 	r_at = np.hypot(rays[0, :, 0], rays[0, :, 2])	# parallel fan: radii constant
 	# geometry is untouched everywhere (drifts aside, transverse coords const)
@@ -616,52 +763,55 @@ def test_aperture_masks_rays():
 	assert np.isclose(float(I[-1].sum()), frac * 1e-9, rtol=1e-12)
 	assert np.isclose(m.beam_current, frac * 1e-9, rtol=1e-12)
 	# the smooth fitting estimate exists and brackets sensibly
-	tf = m["A2"].transmitted_fraction(rays[i_a1])
+	tf = m["A2"].transmitted_fraction(rays[i_a1]) / (np.pi/4) # TWP added shape factor for transmitted_fraction, removing it here
 	assert 0 < tf <= 1
-	assert m["A1"].transmitted_fraction(rays[0] * 0) == 1.0
+	assert m["A1"].transmitted_fraction(rays[0] * 0) / (np.pi/4) == 1.0
+#test_aperture_masks_rays()
 
+#def test_findplanes_ignores_dead_rays():
+#	"""Plane detection only trusts rays that still carry intensity.
+#
+#	TWP 20260903: commenting this out, because i reverted this functionality.
+#	find-planes with aberrations ought to more than just a few rays anyway!
 
-def test_findplanes_ignores_dead_rays():
-	"""Plane detection only trusts rays that still carry intensity.
-
-	With spherical aberration, parallel rays at different heights cross at
-	different z (the focal surface) -- and an aperture selects which zone
-	carries beam. The detected diffraction plane must follow the LIVE zone:
-	ghost (masked, I = 0) tracers reporting the cut zone's crossing was the
-	bug. Ideal optics are insensitive (all parallel rays share one crossing),
-	and with nothing masked the tracer pair is the old first-two, bit for
-	bit. When the aperture kills every candidate, no plane is reported at
-	all -- there is no beam to have one.
-	"""
-	def build(radius, c30):
-		from pySEA.rayTEM.aberrations import Aberrations
-		lens = Lens(name="L", strength=np.sqrt(1 / 0.02))
-		if c30:
-			lens.aberrations = Aberrations({'C30': c30})
-		sec = MicroscopeSection(name="S", elements=[
-			Source(voltage=200, size=(40e-6, 40e-6), np_xy=(5, 5),
-				   angle=(0.0, 0.0), na_xy=(1, 1)),
-			Drift(length=0.01),
-			Aperture(name="A", radius=radius),
-			Drift(length=0.01),
-			lens,
-			Drift(length=0.03)])
-		m = Microscope(sections=[sec])
-		m.propagate_ray()
-		return findPlanes(m.rays, axis="x")["x"]["diff"]["z"]
-	# ideal lens: cutting the outer zone must not move the plane
-	z_open  = build(radius=1.0,   c30=0.0)
-	z_cut   = build(radius=25e-6, c30=0.0)
-	assert len(z_open) == 1 and len(z_cut) == 1
-	assert np.isclose(z_cut[0], z_open[0], atol=1e-9)
-	# aberrated lens: outer rays cross EARLIER (spherical), so masking them
-	# must move the detected plane DOWNSTREAM to the live inner zone
-	za_open = build(radius=1.0,   c30=2.0)
-	za_cut  = build(radius=25e-6, c30=2.0)
-	assert len(za_open) == 1 and len(za_cut) == 1
-	assert za_cut[0] > za_open[0] + 1e-4
-	# everything masked: no beam, no plane
-	assert build(radius=1e-9, c30=0.0) == []
+#	With spherical aberration, parallel rays at different heights cross at
+#	different z (the focal surface) -- and an aperture selects which zone
+#	carries beam. The detected diffraction plane must follow the LIVE zone:
+#	ghost (masked, I = 0) tracers reporting the cut zone's crossing was the
+#	bug. Ideal optics are insensitive (all parallel rays share one crossing),
+#	and with nothing masked the tracer pair is the old first-two, bit for
+#	bit. When the aperture kills every candidate, no plane is reported at
+#	all -- there is no beam to have one.
+#	"""
+#	def build(radius, c30):
+#		from pySEA.rayTEM.aberrations import Aberrations
+#		lens = Lens(name="L", strength=np.sqrt(1 / 0.02))
+#		if c30:
+#			lens.aberrations = Aberrations({'C30': c30})
+#		sec = MicroscopeSection(name="S", elements=[
+#			Source(voltage=200, size=(40e-6, 40e-6), np_xy=(5, 5),
+#				   angle=(0.0, 0.0), na_xy=(1, 1)),
+#			Drift(length=0.01),
+#			Aperture(name="A", radius=radius),
+#			Drift(length=0.01),
+#			lens,
+#			Drift(length=0.03)])
+#		m = Microscope(sections=[sec])
+#		m.propagate_ray()
+#		return findPlanes(m.rays, axis="x")["x"]["diff"]["z"]
+#	# ideal lens: cutting the outer zone must not move the plane
+#	z_open  = build(radius=1.0,   c30=0.0)
+#	z_cut   = build(radius=25e-6, c30=0.0)
+#	assert len(z_open) == 1 and len(z_cut) == 1
+#	assert np.isclose(z_cut[0], z_open[0], atol=1e-9)
+#	# aberrated lens: outer rays cross EARLIER (spherical), so masking them
+#	# must move the detected plane DOWNSTREAM to the live inner zone
+#	za_open = build(radius=1.0,   c30=2.0)
+#	za_cut  = build(radius=25e-6, c30=2.0)
+#	assert len(za_open) == 1 and len(za_cut) == 1
+#	assert za_cut[0] > za_open[0] + 1e-4
+#	# everything masked: no beam, no plane
+#	assert build(radius=1e-9, c30=0.0) == []
 
 
 def test_covariance_aberration_closure():

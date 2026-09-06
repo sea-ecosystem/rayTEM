@@ -20,7 +20,7 @@ onto, and the quantity a thick lens's Larmor rotation is built from
 (`R = KL`). It is a property of the *field*, not of the imaging: two lenses
 with the same `K` but different lengths focus differently.
 
-**Focal length `f`** (m) is the classical light-optics quantity: the focal
+**Focal length `f`** (m) is the focal distance from the principal plane (critically, neither the entrance or exit planes for a thick lens). This is the focal
 length of the equivalent thin lens (the EFL; the exit-face
 `back_focal_distance` is a separate number, next section). It is what a
 microscopist quotes and what column geometry is designed around. For a thin
@@ -36,6 +36,8 @@ is not monotonic: past `KL = π/2` a stronger field gives a *longer* focal
 length, which is why `solve_strength_for_focal_length` in
 `microscopes/basic_column.py` restricts itself to the first branch,
 `f ≥ 2L/π`.
+
+**principal plane** For a thick lens, this denotes the position of the equivalent thin lens. focus position can be found by taking lens position (entrance plane) plus distance to principal plane plus focal distance.
 
 **Focal power `P = 1/f`** (1/m, the light-optics *dioptre*) is the
 reciprocal, and it is not a redundant synonym — it is the quantity that
@@ -57,15 +59,15 @@ being *summed per axis*.
 ### EFL vs BFD: two focal lengths per thick lens
 
 For a **thick** lens there are two different "f"s, and rayTEM deliberately
-carries both. Send a parallel ray in at height `h`: inside the body it
-curves, and at the exit face it emerges with angle `θ = K·sin(KL)·h` at
-height `x = cos(KL)·h`.
+carries both. Send a parallel ray in at height `x_1`: inside the body it
+curves, and at the exit face it emerges with angle `θ_2 = K·sin(KL)·x_1` at
+height `x_2 = cos(KL)·x_1`.
 
 | Quantity | Definition | Value | rayTEM property | Job |
 |---|---|---|---|---|
-| **Equivalent power** | `θ/h` — angle out per height in (`P = −C`) | `K·sin(KL)` | `Lens.focal_power` | The **angle** number: the pupil scale for aberrations (`α = P·h` is the angle the ray *actually crosses the focus at*), the wave-path χ, and the power that composes additively |
+| **Equivalent power** | `θ_2/x_1` — angle out per height in (`P = −C`) | `K·sin(KL)` | `Lens.focal_power` | The **angle** number: the pupil scale for aberrations (`α = P·x_1` is the angle the ray *actually crosses the focus at*), the wave-path χ, and the power that composes additively |
 | **EFL** (effective focal length) | `1/P`, referenced to the rear principal plane | `1/(K·sin KL)` | `Lens.focal_length` | The conventional focal length of the equivalent thin lens |
-| **BFD** (back focal distance) | `x/θ` — **signed** exit face to the BFP (`−A/C`) | `1/(K·tan KL)` | `Lens.back_focal_distance` | The **geometry** number: where the focus physically sits — placing a sample or detector, bench comparison |
+| **BFD** (back focal distance) | `x_2/θ_2` — **signed** exit face to the BFP (`−A/C`) | `1/(K·tan KL)` | `Lens.back_focal_distance` | The **geometry** number: where the focus physically sits — placing a sample or detector, bench comparison |
 
 `focal_power` and `focal_length` are exact reciprocals. It is
 **`back_focal_distance` that is not**: EFL and BFD differ by exactly
@@ -103,9 +105,9 @@ below):
         ⎣ C  D ⎦   ⎣ −K·s      c  ⎦            ⎣x′⎦   angle
 ```
 
-Trace one parallel ray `(h, 0)ᵀ` through it: `M·(h,0)ᵀ = (c·h, −K·s·h)ᵀ`,
-i.e. exit **height** `x = cos(KL)·h` (the `A` entry) and exit **angle**
-`θ = K·sin(KL)·h` (the `−C` entry). Then:
+Trace one parallel ray `(x_1, 0)ᵀ` through it: `M·(x_1,0)ᵀ = (c·x_1, −K·s·x_1)ᵀ`,
+i.e. exit **height** `x_2 = cos(KL)·x_1` (the `A` entry) and exit **angle**
+`θ_2 = K·sin(KL)·x_1` (the `−C` entry). Then:
 
 - **`focal_power = −C`** — angle out per height in, `K·sin(KL)`;
   `focal_length` is its reciprocal, the EFL.

@@ -27,7 +27,7 @@ from weakref import WeakSet
 # The columnByName function is used universally, so additional geometric columns can be added
 # (or reordered) without every Element needing to be updated.
 
-convention = ["x","xt","y","yt","z","E"]
+convention = ["x","xt","y","yt","z","E"] # TODO: should z be in the rays matrix? i *think* we want path_length in the rays matrix (since this is the phase of an electron), but right now we use z to denote the plane position. if we switch to path_length, we MUST ALSO implement z as a Rays object attribute (like R or I) which denotes the z position of the planes in the rays matrix. I have already started implementing this (propagate_rays needs to track a list of z values), but left it commented out
 # given a keyword, return the column associated. r0[:,columnByName('x')] should return every ray's x position
 def columnByName(name):
 	return convention.index(name)
@@ -45,19 +45,93 @@ def fix_ray_dims(rays,columnNames):
 		new[:,columnByName(name)]=rays[:,i]
 	return new
 
-# Rays object contains an array with element,ray,xyxtytetc indices, and tracks current and rotation parameters. if we did matrix operations on rays (as arrays) previously, we should still be able to do that
+# Rays object contains an array with n_planes,n_rays,xyxtytetc indices (all rays at all points in the column) or n_rays,xyxtytetc indices (a set of rays at a given point in the column), and tracks current and rotation parameters. if we did matrix operations on rays (as arrays) previously, we should still be able to do that
+# Intensity is tracked per-ray (masked rays are zeroed), and per-plane (tracking the total beam intensity as apertures reduce the total intensity). mean(I_per_ray) for a given plane should yield similar result (but not exactly) to I_per_plane, since I_per_plane will use the smooth Aperture.transmitted_fraction() (non-stepped function for intensity, as rays cross the aperture edge).
 class Rays():
-	def __init__(self, rays:xp.ndarray, R:float, I:float):
+	def __init__(self, rays:xp.ndarray, R:float=0, I_per_ray:float=1,reference_frame:str="stationary",I_per_plane:float=None):
 		self.rays = xp.asarray(rays)
-		shape = self.rays.shape[:-1]
-		self.R = xp.broadcast_to(xp.asarray(R),shape).copy()
-		self.I = xp.broadcast_to(xp.asarray(I),shape).copy()
+		shape = self.rays.shape[:-1]							# indices: n_planes,n_rays,xyxtyt or n_rays,xyxtyt or just xyxtyt
+		self.R = xp.broadcast_to(xp.asarray(R),shape).copy()	# indices: n_planes,n_rays or just n_rays
+		self.I_per_ray = xp.broadcast_to(xp.asarray(I_per_ray),shape).copy()
+		self.reference_frame = reference_frame
+		self.I_per_plane = (xp.sum(self.I_per_ray,axis=-1 if self.I_per_ray.ndim else None)
+								if I_per_plane is None else xp.asarray(I_per_plane).copy())
+		if I_per_plane is not None and self.rays.ndim == 3:
+			self.I_per_plane = xp.broadcast_to(self.I_per_plane,len(self.rays)).copy()
+		self.boundary_ray = self._default_boundary_ray(self.rays)
+
+		#self.z = z												# indices: n_planes, or just a float
+	@staticmethod
+	def _default_boundary_ray(rays):
+		if rays.ndim == 1:
+			return xp.stack((rays,rays)).copy()
+		def edge(plane,pos,angle):
+			vals = xp.abs(plane[:,columnByName(pos)])
+			inds = xp.flatnonzero(vals == xp.amax(vals))
+			return plane[inds[xp.argmax(xp.abs(plane[inds,columnByName(angle)]))]]
+		planes = rays[None,:] if rays.ndim == 2 else rays
+		boundary = xp.stack([xp.stack((edge(plane,"x","xt"),edge(plane,"y","yt"))) for plane in planes])
+		return boundary[0].copy() if rays.ndim == 2 else boundary.copy()
 	def __array__(self, dtype=None):
 		return xp.asarray(self.rays, dtype=dtype)
 	def __getattr__(self, key):
 		return getattr(self.rays, key)
+	def __str__(self):
+		return "\n".join([ k+": "+str(getattr(self,k)) for k in ["rays","R","I_per_ray","I_per_plane"] ])
 	def copy(self):
-		return Rays(self.rays.copy(),self.R.copy(),self.I.copy())
+		result = object.__new__(type(self))
+		result.__dict__ = deepcopy(self.__dict__)
+		return result
+	@staticmethod
+	def _same(a,b):
+		if type(a) is not type(b):
+			return False
+		if isinstance(a,dict):
+			return a.keys() == b.keys() and all(Rays._same(a[k],b[k]) for k in a)
+		if isinstance(a,(list,tuple)):
+			return len(a) == len(b) and all(Rays._same(x,y) for x,y in zip(a,b))
+		if hasattr(a,"__dict__"):
+			return Rays._same(vars(a),vars(b))
+		try:
+			return bool(xp.all(a == b))
+		except Exception:
+			return False
+	@classmethod
+	def _combine(cls, items, ndim):
+		items = list(items)
+		if not items or any(not isinstance(r,Rays) or r.rays.ndim != ndim for r in items):
+			raise ValueError(f"expected one or more {ndim}-D Rays objects")
+		shape = items[0].rays.shape[1:] if ndim == 3 else items[0].rays.shape
+		if any((r.rays.shape[1:] if ndim == 3 else r.rays.shape) != shape for r in items):
+			raise ValueError("all Rays objects must have matching ray shapes")
+		if any(r.reference_frame != items[0].reference_frame for r in items[1:]):
+			raise ValueError("all Rays objects must use the same reference frame")
+		core = {"rays","R","I_per_ray","I_per_plane","reference_frame","boundary_ray"}
+		extra = set(vars(items[0])) - core
+		if any(set(vars(r))-core != extra or any(not cls._same(getattr(items[0],k),getattr(r,k)) for k in extra) for r in items[1:]):
+			raise ValueError("extra Rays attributes must match")
+		return items,items[0].copy()
+	@classmethod
+	def stack(cls, planes):
+		"""Stack single-plane ray states into one propagation history."""
+		planes,result = cls._combine(planes,2)
+		result.rays = xp.stack([r.rays for r in planes])
+		result.R = xp.stack([r.R for r in planes])
+		result.I_per_ray = xp.stack([r.I_per_ray for r in planes])
+		result.I_per_plane = xp.stack([xp.asarray(r.I_per_plane) for r in planes])
+		result.boundary_ray = xp.stack([r.boundary_ray for r in planes])
+		return result
+	@classmethod
+	def concatenate(cls, stacks,drop_shared=False):
+		"""Join propagation histories, optionally omitting repeated boundary planes."""
+		stacks,result = cls._combine(stacks,3)
+		parts = [slice(None)] + [slice(1,None) if drop_shared else slice(None)] * (len(stacks)-1)
+		result.rays = xp.concatenate([r.rays[k] for r,k in zip(stacks,parts)])
+		result.R = xp.concatenate([r.R[k] for r,k in zip(stacks,parts)])
+		result.I_per_ray = xp.concatenate([r.I_per_ray[k] for r,k in zip(stacks,parts)])
+		result.I_per_plane = xp.concatenate([r.I_per_plane[k] for r,k in zip(stacks,parts)])
+		result.boundary_ray = xp.concatenate([r.boundary_ray[k] for r,k in zip(stacks,parts)])
+		return result
 	def __len__(self):
 		return len(self.rays)
 	def __getitem__(self, key):
@@ -73,9 +147,94 @@ class Rays():
 		if not isinstance(coord,slice) or any(v is not None for v in (coord.start,coord.stop,coord.step)):
 			return out
 		meta = tuple(keys[:-1])
-		return Rays(out,self.R[meta],self.I[meta])
+		result = self.copy()
+		result.rays = result.rays[key]
+		result.R = result.R[meta]
+		result.I_per_ray = result.I_per_ray[meta]
+		result.I_per_plane = result.I_per_plane[keys[0]] if self.rays.ndim==3 else result.I_per_plane
+		result.boundary_ray = result.boundary_ray[keys[0]] if self.rays.ndim==3 else result.boundary_ray
+		return result
 	def __setitem__(self, key, value):
 		self.rays[key]=value
+
+	# TODO is there a way to programmatically generate these?
+	@property
+	def x(self):
+		return self.rays[...,columnByName('x')]
+	@property
+	def xt(self):
+		return self.rays[...,columnByName('xt')]
+	@property
+	def y(self):
+		return self.rays[...,columnByName('y')]
+	@property
+	def yt(self):
+		return self.rays[...,columnByName('yt')]
+	@property
+	def E(self):
+		return self.rays[...,columnByName('E')]
+	@property
+	def z(self):
+		return self.rays[...,columnByName('z')]
+
+	# returns an interpolated slice of the rays (n_rays,xyxtytetc) at arbitrary z
+	def at_z(self,z):
+		zs = self.z									# n_plane
+		i = xp.where(zs < z)[0][-1]
+		xi,yi = self.x[i],self.y[i]					# n_plane,n_ray,xyxtyt --> n_ray
+		xf,yf = self.x[i+1],self.y[i+1]
+		def interp(z,z1,z2,y1,y2):
+			return y1+(z-z1)/(z2-z1)*(y2-y1)
+		xs = interp(z,zs[i],zs[i+1],xi,xf)			# lateral position of all rays between elements i and i+1
+		ys = interp(z,zs[i],zs[i+1],yi,yf)
+		result = self[i].copy()
+		result.rays[...,columnByName('x')]=xs ; result.rays[...,columnByName('y')]=ys ; result.rays[...,columnByName('z')]=z
+		return result
+
+	def convert_to_rotating_reference_frame(self): # TODO NEEDS A WARNING IF YOU TRY TO PASS IT AN ALREADY-ROTATED REFERENCE FRAME
+		"""Ray propagation follows a fixed reference plane (solenoids rotate the beam). This function returns a new Rays object with the rays in a rotating (Larmor) reference frame.
+
+		Cumulative rotation ``R`` is read from the supplied :class:`Rays` object.
+		Each ray at each plane is
+		rotated by its accumulated angle so that image/diffraction-plane detection can
+		operate in the unrotated frame.
+
+		Parameters
+		----------
+		rays : Rays
+			Geometric rays, shape ``(n_planes, n_rays, len(convention))``.
+
+		Returns
+		-------
+		np.ndarray
+			Rays rotated into the rotating reference frame, same shape as ``rays``.
+
+		Related
+		-------
+		findPlanes : Calls this before detecting planes.
+		Lens.transfer_matrix : Source of the accumulated rotation.
+		"""
+		if self.reference_frame=="rotating":
+			return self
+		R = self.R
+		nl,nr,nc = self.shape
+		converted = xp.zeros(self.shape)
+		boundary_ray = self.boundary_ray.copy()
+		for l in range(nl):
+			for r in range(nr):
+				Rv = R[l,r]
+				C = xp.cos(Rv)
+				S = xp.sin(Rv)
+				M = xp.asarray([[C,S,0,0],[-S,C,0,0],[0,0,C,S],[0,0,-S,C]])
+				M = fix_mat_dims(M,["x","y","xt","yt"])
+				converted[l,r,:] = xp.matmul(M,self[l,r,:])
+			boundary_ray[l] = xp.einsum('mn,in->im',M,boundary_ray[l])
+		result = self.copy()
+		result.rays = converted
+		result.boundary_ray = boundary_ray
+		result.reference_frame = "rotating"
+		return result
+
 
 """General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional"""
 
@@ -1990,7 +2149,11 @@ class Element(SealedAttributes, SEASerializable):
 			rf[:,columnByName("yt")] += dyt
 
 		if paired:
-			return Rays(rf,self.apply_rotation(r0.R),self.apply_intensity(r0.I,rays))
+			result = r0.copy()
+			result.rays = rf
+			result.R = self.apply_rotation(r0.R)
+			result.I_per_ray = self.apply_intensity(r0.I_per_ray,rays)
+			return result
 		return rf
 
 	def apply_intensity(self, I:xp.ndarray, r0:xp.ndarray) -> xp.ndarray:
@@ -2891,7 +3054,7 @@ class Source(Element):
 		array=fix_ray_dims(array,["x","y","xt","yt"])
 		if self.voltage is not None:					# beam energy (keV) rides in the E column when defined
 			array[:,columnByName("E")] = self.voltage
-		return Rays(array,R=xp.zeros(len(array)),I=xp.full(len(array),self.beam_current/len(array)))
+		return Rays(array,I_per_ray=xp.full(len(array),self.beam_current/len(array)),I_per_plane=self.beam_current)
 
 	# dummy propagation in case someone tries to propagate through since this is technically an element
 	def propagate_ray(self, r0:xp.ndarray | Rays, **kwargs) -> xp.ndarray:
@@ -3219,6 +3382,7 @@ class Aperture(Element):
 		self._position = position
 		self.radius = radius
 		self.calibration = calibration
+		self.shape_factor = xp.pi/4 # pi/4 is a shape factor: square grid of rays to round
 
 	#def transfer_matrix(self) -> xp.ndarray:
 	#	r"""Transfer matrix for ray propogation.
@@ -3228,7 +3392,7 @@ class Aperture(Element):
 	#	m = xp.eye(4) # drift tube updates x from xθ and y from yθ
 	#	return fix_mat_dims(m,["x","xt","y","yt"])
 
-	# TWO WAYS TO IMPLEMENT AN APERTURE:
+	# TWP: TWO WAYS TO IMPLEMENT AN APERTURE:
 	# 1) set the intensity of any rays "outside" the aperture to zero. this is fine for plotting and we can capture beam current by looking at how many rays are zeroed out. *BUT*, this will be problematic during fitting, as rays which "pop" into and out of view will yield an intensity vs [whatever] function with step edges.
 	# def propagate_ray(self, r0:xp.ndarray,
 	#				  z:float=None, z0:float=0) -> xp.ndarray:
@@ -3237,7 +3401,7 @@ class Aperture(Element):
 	#	rf[radii>self.radius,columnByName("I")]=0
 	#	return rf
 	# 2) aperture can rescale all rays based on the outer ray's position, or the area covered by the rays. we can thus calculate reductions in beam current based on the aperture's reduction in intensity (area cropped out). we're effectively pretending the originating rays were less divergent or something, which is actually sort of what we see IRL; you can't tell the divergence of the beam from the gun because the VOA masks out a bunch of it. This will only work for one aperture in the system though (otherwise second aperture undoes the scaling of the first one? or should we only allow the aperture to scale-down, so if the first aperture scales down, second scales down further (second is smaller), or first scale down, second leaves it alone (second is larger, we'd be able to see our first aperture in the CCD for example). and how do we handle apertures of different shapes??
-	# 2026-08-30: option 1 (masking) is now the implementation. The rescale
+	# 2026-08-30 ERH: option 1 (masking) is now the implementation. The rescale
 	# (option 2) had the one-aperture limitation described above, compressed
 	# the survivors' emittance instead of truncating the distribution (finite
 	# sources), and relabeled outer rays inward so downstream aberrations
@@ -3245,48 +3409,59 @@ class Aperture(Element):
 	# laminar (point-source) fan. Masking composes correctly across any
 	# number of apertures; the cost is that the transmitted current becomes a
 	# SAMPLED estimate, quantized in units of I_total/n_rays.
-	def propagate_ray(self, r0:xp.ndarray | Rays,
-					  z:float=None, z0:float=0) -> xp.ndarray:
-		"""Pass rays through geometrically unchanged; the mask acts on I.
+	# 2026-09-01: *must* have a smooth total-beam-intensity function though. i see transmitted_fraction, but it requires passing rays at the aperture plane, and the aperture element doesn't know its rays. adding a "total intensity"
+	# 2026-09-01: while trying to implement ^^^, it became apparent that if MicroscopeSection is handling intensity, then we don't even need to do anything here! editing intensity here was overwritten by MicroscopeSection's intensity code!
+	#def propagate_ray(self, r0:xp.ndarray | Rays,
+	#				  z:float=None, z0:float=0) -> xp.ndarray:
+	#	"""Pass rays through geometrically unchanged; the mask acts on I.
 
-		Overrides :meth:`Element.propagate_ray` (the aperture has no ray
-		matrix). Coordinates are untouched — blocked rays become *ghosts*
-		that keep propagating with zero intensity (see
-		:meth:`apply_intensity`), which keeps array shapes stable, keeps the
-		plotted trajectories honest up to the aperture plane, and lets every
-		current read stay ``sum(I)``.
+	#	Overrides :meth:`Element.propagate_ray` (the aperture has no ray
+	#	matrix). Coordinates are untouched — blocked rays become *ghosts*
+	#	that keep propagating with zero intensity (see
+	#	:meth:`apply_intensity`), which keeps array shapes stable, keeps the
+	#	plotted trajectories honest up to the aperture plane, and lets every
+	#	current read stay ``sum(I)``.
 
-		Parameters
-		----------
-		r0 : xp.ndarray or Rays
-			Rays arriving at the aperture plane, shape
-			``(n_rays, len(convention))``.
-		z : float, optional
-			Unused (zero-length element), by default ``None``.
-		z0 : float, optional
-			Unused, by default 0.
+	#	Parameters
+	#	----------
+	#	r0 : xp.ndarray or Rays
+	#		Rays arriving at the aperture plane, shape
+	#		``(n_rays, len(convention))``.
+	#	z : float, optional
+	#		Unused (zero-length element), by default ``None``.
+	#	z0 : float, optional
+	#		Unused, by default 0.
 
-		Returns
-		-------
-		xp.ndarray or Rays
-			The rays, geometrically unchanged; a ``Rays`` input comes back
-			paired with its masked intensity.
+	#	Returns
+	#	-------
+	#	xp.ndarray or Rays
+	#		The rays, geometrically unchanged; a ``Rays`` input comes back
+	#		paired with its masked intensity.
 
-		Raises
-		------
-		None
+	#	Raises
+	#	------
+	#	None
 
-		Related
-		-------
-		apply_intensity : Where the mask actually acts.
-		phase_shift : The wave path's identical transmission mask.
-		"""
-		paired = isinstance(r0,Rays)
-		rays = xp.asarray(r0)
-		rf = xp.zeros(rays.shape)+rays
-		if paired:
-			return Rays(rf,r0.R,self.apply_intensity(r0.I,rays))
-		return rf
+	#	Related
+	#	-------
+	#	apply_intensity : Where the mask actually acts.
+	#	phase_shift : The wave path's identical transmission mask.
+	#	"""
+	#	#paired = isinstance(r0,Rays)
+	#	return r0.copy()
+	#	rays = xp.asarray(r0)
+	#	rf = xp.zeros(rays.shape)+rays
+	#	return Rays(rays=rf)
+	#	#if not paired: # matrix-only
+	#	#	return rf
+	#	print(r0,r0.shape)
+	#	# Rays object
+	#	I_pr  = self.apply_intensity(r0.I_per_ray,rays)
+	#	I_pp = xp.concatenate((r0.I_per_plane,[self.transmitted_fraction(r0[-1])]))
+	#	print("NEW I_pp",I_pp)
+	#	return Rays(rays=rf,R=r0.R, I_per_ray=I_pr, I_per_plane = I_pp )
+	#		# 	def __init__(self, rays:xp.ndarray, R:float, I_per_ray:float,reference_frame:str="stationary",I_at_planes:float=1):
+	#	return rf
 
 	def apply_intensity(self, I:xp.ndarray, r0:xp.ndarray) -> xp.ndarray:
 		"""Zero the intensity of rays outside the aperture radius (the MASK).
@@ -3364,7 +3539,7 @@ class Aperture(Element):
 		ymax = xp.amax(xp.abs(r0[:,columnByName("y")]))
 		scale_x = 1.0 if xmax < self.radius else self.radius / xmax
 		scale_y = 1.0 if ymax < self.radius else self.radius / ymax
-		return float(scale_x * scale_y)
+		return float(scale_x * scale_y)*self.shape_factor
 
 	def propagate_moments(self, mu:xp.ndarray, Sigma:xp.ndarray, closure=None) -> tuple:
 		"""Pass moments through unchanged (aperture is treated as non-truncating here).
@@ -4524,63 +4699,28 @@ class Lens(Element):
 
 	@property
 	def calibrated_strength(self) -> float:
-		K = self.strength
+		return self.calibrated(self.strength)
+	@property
+	def calibrated_f(self):
+		K = xp.sqrt(1/self._focal_length) # 1/f = K^2
+		K = self.calibrated(K)
+		return 1/(K**2)
+	def calibrated(self,val):
 		if self.calibration is not None:
 			if isinstance(self.calibration, (int, float)):
-				K *= self.calibration
+				val *= self.calibration
 			else:
-				K = sum([self.calibration[0]] + [v * K**(1 / (i + 1)) for i, v in enumerate(self.calibration[1:])])
-		return K
+				val = sum([self.calibration[0]] + [v * val**(1 / (i + 1)) for i, v in enumerate(self.calibration[1:])])
+		return val
 
-	@property
-	def focal_power(self) -> float:
-		r"""The equivalent paraxial focal power ``P = -C`` (1/metres).
-
-		The lens's matrix maps the entrance face to the exit face; for an
-		on-axis parallel ray at height ``h``, the exit angle is
-		``x' = C*h = -P*h``. So ``P`` converts entrance pupil height into
-		the converging exit angle — the angle the ray actually crosses the
-		focus at — which is why it is the scale used by the ray- and
-		wave-path aberration expressions, and the quantity that composes
-		additively when lenses stack. Thin lens: ``1/focal_length``. Thick
-		lens: Brown's focusing relation ``K*sin(K*L)``.
-
-		This is reciprocal to :attr:`focal_length` (the EFL), but generally
-		**not** reciprocal to :attr:`back_focal_distance` for a thick lens
-		(the two differ by ``cos(K*L)``). See the Terminology page of the
-		docs for the full derivation.
-
-		Returns
-		-------
-		float
-			Equivalent power ``P = -C`` (1/metres); 0 for a zero-strength
-			lens.
-
-		Raises
-		------
-		None
-
-		Related
-		-------
-		focal_length : The EFL, ``1/focal_power``.
-		back_focal_distance : The exit-face-to-BFP geometry number.
-		_aberration_kick : Consumes this as the pupil scale on the ray path.
-		phase_shift : Consumes this on the wave path.
-		"""
-		if self.length == 0:
-			f = self.focal_length
-			return 0.0 if xp.isinf(f) else float(1 / f)
-		K = self.calibrated_strength
-		return 0.0 if K == 0 else float(K * xp.sin(K * self.length))
-
-	def transfer_matrix(self) -> xp.ndarray:
+	def transfer_matrix(self,rotation=True) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		"""
 
 		K = self.calibrated_strength
 
 		# FINITE LENGTH LENS, ZERO STRENGTH = DRIFT (try inserting a zero-strength lens and seeing if the result changes)
-		if (self.length == 0 and xp.isinf(self.focal_length)) or (self.length > 0 and K == 0):
+		if (self.length == 0 and xp.isinf(self._focal_length)) or (self.length > 0 and K == 0):
 			m = xp.eye(4) # IDENTITY MATRIX, OR DRIFT-EQUIVALENT
 			m[0,1]=self.length
 			m[2,3]=self.length
@@ -4590,9 +4730,9 @@ class Lens(Element):
 		# THIN LENS, NO ROTATION (thick lens math will have sine term going to zero)
 		if self.length==0:
 			X=xp.asarray([[    1   , 0 ],
-					     [ -self.focal_power , 1 ]])
+					     [ -1/self.calibrated_f , 1 ]])
 			Y=xp.asarray([[    1   , 0 ],
-						 [ -self.focal_power , 1 ]])
+						 [ -1/self.calibrated_f , 1 ]])
 			self.larmor_rotation = 0
 			return xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
 
@@ -4623,10 +4763,31 @@ class Lens(Element):
 		#	XY*=zeroer
 		#print("lens",self.name,"adds rotation",kL)
 		# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
-		XY = xp.matmul(R,XY)
 		self.larmor_rotation = -kL
-		M = fix_mat_dims(XY,["x","xt","y","yt"])
-		return M
+		M = fix_mat_dims(xp.matmul(R,XY),["x","xt","y","yt"])
+		if rotation:
+			return M
+		return XY
+
+	# 1-axis transfer matrix, used for calculating various named lens properties
+	def ABCD(self):
+		columns = [columnByName(k) for k in ["x", "xt"]]
+		return self.transfer_matrix(rotation=False)[columns, :][:, columns]
+
+	# Terminology
+	#  zL      zP   zE    zF		self.position: zL, position of the lens entrance plane
+	# __|______|     |     |		self.length: lens length, exit plane is zL, zL = self.position+self.length
+	#   |'-.    '.   |     |		"back focal distance": distance from lens exit (zE) to focal point (zF): zF-zE
+	#   |    '-.  '. |     |		"principal_distance": position of principal plane (zP) relative to entrance (zL): zP-zL
+	#   |      | '-.'.     |		"focal length": distance from principal plane (zP) to focal point (zF): zF-zP
+	#   |      |     |'.   |
+	#   |      |     |  '. |
+	# __|______|_____|____'.
+	#
+	@property
+	def principal_distance(self):
+		A,B,C,D = self.ABCD().flat
+		return self.length-(D-1)/C
 
 	@property
 	def focal_length(self):
@@ -4659,12 +4820,25 @@ class Lens(Element):
 		focal_power : Its reciprocal, ``P = -C``.
 		back_focal_distance : The exit-face-to-BFP geometry number.
 		"""
-		if self.length == 0:
-			return self._focal_length if self.allow_diverging else abs(self._focal_length)
-		K = self.calibrated_strength
-		if K == 0:
-			return xp.inf
-		return float(1.0 / (K * xp.sin(K * self.length)))
+
+		A,B,C,D = self.ABCD().flat
+		return -1/C
+
+		# TWP CODE: DO NOT DELETE: this is referenced to the entrance plane
+		#columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]
+		#M = self.transfer_matrix()[columns, :][:, columns]
+		#r1 = xp.matmul(M, [1, 0, 1, 0])		# parallel entering rays, finite x_1,y_1, zero xt_1,yt_1
+		#x = xp.sqrt(r1[0]**2 + r1[2]**2)
+		#xt = xp.sqrt(r1[1]**2 + r1[3]**2)
+		#return self.length + x / xt						# focuses to: ratio of x_2/xt_2
+
+		# OLD ERIC CLODE: DO NOT DELETE: should match -C, this is referenced to self.principal_plane
+		#if self.length == 0:
+		#	return self._focal_length if self.allow_diverging else abs(self._focal_length)
+		#K = self.calibrated_strength
+		#if K == 0:
+		#	return xp.inf
+		#return float(1.0 / (K * xp.sin(K * self.length)))
 
 	@property
 	def back_focal_distance(self):
@@ -4706,13 +4880,69 @@ class Lens(Element):
 		focal_power : The equivalent power ``-C`` (the aberration scale).
 		transfer_block : Locates physical planes inside the body.
 		"""
-		if self.length == 0:
-			return self.focal_length
-		K = self.calibrated_strength
-		if K == 0:
-			return xp.inf
-		return float(xp.cos(K * self.length) / (K * xp.sin(K * self.length)))
 
+		A,B,C,D = self.ABCD().flat
+		return -A/C
+
+		# TWP CODE: DO NOT DELETE: use this to prove to yourself you get the same result.
+		#columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]
+		#M = self.transfer_matrix()[columns, :][:, columns]
+		#r1 = xp.matmul(M, [1, 0, 1, 0])		# parallel entering rays, finite x_1,y_1, zero xt_1,yt_1
+		#x = xp.sqrt(r1[0]**2 + r1[2]**2)
+		#xt = xp.sqrt(r1[1]**2 + r1[3]**2)
+		#return x / xt						# focuses to: ratio of x_2/xt_2
+
+		# OLD ERIC CLODE: DO NOT DELETE: should match -A/C
+		#if self.length == 0:
+		#	return self.focal_length
+		#K = self.calibrated_strength
+		#if K == 0:
+		#	return xp.inf
+		#return float(xp.cos(K * self.length) / (K * xp.sin(K * self.length)))
+
+	@property
+	def focal_power(self) -> float:
+		r"""The equivalent paraxial focal power ``P = -C`` (1/metres).
+
+		The lens's matrix maps the entrance face to the exit face; for an
+		on-axis parallel ray at height ``h``, the exit angle is
+		``x' = C*h = -P*h``. So ``P`` converts entrance pupil height into
+		the converging exit angle — the angle the ray actually crosses the
+		focus at — which is why it is the scale used by the ray- and
+		wave-path aberration expressions, and the quantity that composes
+		additively when lenses stack. Thin lens: ``1/focal_length``. Thick
+		lens: Brown's focusing relation ``K*sin(K*L)``.
+
+		This is reciprocal to :attr:`focal_length` (the EFL), but generally
+		**not** reciprocal to :attr:`back_focal_distance` for a thick lens
+		(the two differ by ``cos(K*L)``). See the Terminology page of the
+		docs for the full derivation.
+
+		Returns
+		-------
+		float
+			Equivalent power ``P = -C`` (1/metres); 0 for a zero-strength
+			lens.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		focal_length : The EFL, ``1/focal_power``.
+		back_focal_distance : The exit-face-to-BFP geometry number.
+		_aberration_kick : Consumes this as the pupil scale on the ray path.
+		phase_shift : Consumes this on the wave path.
+		"""
+		A,B,C,D = self.ABCD().flat
+		return -C
+
+		#if self.length == 0:
+		#	f = self._focal_length
+		#	return 0.0 if xp.isinf(f) else float(1 / f)
+		#K = self.calibrated_strength
+		#return 0.0 if K == 0 else float(K * xp.sin(K * self.length))
 
 	# unlike below(?), here we'll *measure* focal length at the current K=I*C and L, then adjust C and L to preserve focal length and set beam rotation (K*L) to match R in radians at this current I.
 	def get_C_L_from_rotation_at_I(self,I,R):
@@ -4720,16 +4950,18 @@ class Lens(Element):
 		print(self.name,I,R)
 		def FR(C,L):
 			new = Lens(strength = I, calibration = C, length = L)
-			columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
-			M = new.transfer_matrix()[columns,:][:,columns]
-			r0 = [1,0,1,0] # parallel starting ray
-			r1 = xp.matmul(M,r0)
-			x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
-			f = x/xt # f = x/theta
-			rot = new.larmor_rotation
-			return f,rot
+			return new.focal_length, new.larmor_rotation
+			#columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
+			#M = new.transfer_matrix()[columns,:][:,columns]
+			#r0 = [1,0,1,0] # parallel starting ray
+			#r1 = xp.matmul(M,r0)
+			#x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
+			#f = x/xt # f = x/theta
+			#rot = new.larmor_rotation
+			#return f,rot
 		f0,_ = FR(self.calibration,self.length)	# initial focal length
 		print("currently focuses to",f0)
+
 		def dz(vals):
 			f,rot = FR(*vals)
 			return ((f-f0)/f0)**2 + ((R-rot)/R)**2
