@@ -2,11 +2,11 @@
 
 The report checks lens-wobble focus conditions, aperture-limited current, lens rotation, Table 1 convergence states,
 and Table 2 diffraction states.
-Pass a microscope JSON file whose folder also contains the calibration CSVs.
+Pass a microscope JSON file, or a directory of them, whose folder also contains the calibration CSVs.
 
 # Run as: python3 sanity_check_for_CL_PL_fitting.py [microscope.json]
 # data csv files should appear in the same folder as the microscope json file, unless '--data-dir' overrides it
-# Use '--save FILE --no-show' to write a headless report.
+# Use '--save [FILE] --no-show' to write a headless report.
 # use '--focus-rays' with options: 'both','CL','PL' to visualize focus states
 
 This script was written by Codex.
@@ -26,7 +26,7 @@ DEV = Path(__file__).resolve().parents[1]
 CAL = DEV.parent / "macstem_calibration"
 sys.path.insert(0, str(DEV / "src"))
 
-from pySEA.rayTEM import Drift, Source, load_microscope
+from pySEA.rayTEM import Source, load_microscope
 from pySEA.rayTEM.postprocessing import diffraction_bundles_at_z, helper_focus_to
 
 TABLE1 = [
@@ -91,24 +91,6 @@ def note_missing(ax, title):
 	ax.set_axis_off()
 
 
-# For various focusing conditions (focus_cases, explained in https://arxiv.org/abs/2607.29411), measure deltas between actual and desired focal postion
-def focus_offset(m, start, end, plane_type):
-	scope = m[start:]
-	if isinstance(start, str) and scope[start].kind not in ("Drift", "Source"):
-		length = getattr(scope[start], "length", 0)
-		if length > 0:
-			position = scope[0].elements[0].position
-			scope[0].elements[0] = Drift(length=length, position=position, name=scope[start].name)
-			scope = scope[length/2:]
-	target = scope.get_element_position(end)
-	if scope[end].kind not in ("Drift", "Source"):
-		target += scope[end].length/2
-	planes = scope.conjugate_planes(method="frame")[plane_type]
-	if not len(planes):
-		raise ValueError(f"no {plane_type} focus found for {start} to {end}")
-	return float(planes[np.argmin(abs(planes-target))]-target)
-
-
 # Recreate the critical-current states from https://arxiv.org/abs/2607.29411. Forward states focus at a lens center; reverse states
 # back-project a detector or other plane to a preceeding lens or plane.
 def focus_cases(path, model_path, family):
@@ -135,8 +117,7 @@ def focus_cases(path, model_path, family):
 				start = "VOA"
 			scope = m[:"P1"] if family == "C" else m["sample":]
 			#scope.show()
-			plane_type = "diff" if family == "C" and not backward else "image"
-			offset = focus_offset(scope, start, end, plane_type)
+			offset = float(helper_focus_to(scope, start, end, use="focus_signed"))
 			out.append((f"{l1}→{l2}\n{float(current):.3f} A", offset))
 		except Exception as exc:
 			#scope.show()
@@ -153,10 +134,13 @@ def plot_focus(ax, data_dir, model_path):
 		return note_missing(ax, "Focusing conditions")
 	labels, values = zip(*checks)
 	x = np.arange(len(values))
-	ax.bar(x, values, color=["tab:blue"] * len(cl) + ["tab:orange"] * len(pl))
+	bars = ax.bar(x, values, color=["tab:blue"] * len(cl) + ["tab:orange"] * len(pl))
+	for bar, value in zip(bars, values):
+		ax.text(bar.get_x()+bar.get_width()/2, value, f"{value:.3g}", ha="center", va="bottom" if value >= 0 else "top", rotation=90)
 	ax.set_xticks(x, labels, rotation=90, fontsize=7)
 	ax.set_ylabel("focal position − target center (model units)")
 	ax.set_title(f"Focal-position errors; RMS={np.sqrt(np.mean(np.square(values))):.3g}")
+	ax.margins(y=.15)
 	ax.grid(axis="y", alpha=.25)
 
 
@@ -243,7 +227,8 @@ def plot_current(ax, data_dir, model_path):
 	ax.plot(x[valid], measured[valid], ".", label="measured")
 	ax.plot(x[~valid], measured[~valid], "x", color="0.6", label="masked from normalization")
 	ax.plot(x, model, "-", label="model")
-	ax.set(xlabel="C1 current (A)", ylabel="relative beam current", title="Beam current through VOA")
+	mse = np.mean(np.square(measured[valid]-model[valid]))
+	ax.set(xlabel="C1 current (A)", ylabel="relative beam current", title=f"Beam current through VOA; MSE={mse:.3g}")
 	ax.grid(alpha=.25)
 	ax.legend()
 
@@ -412,49 +397,65 @@ def plot_tables(ax, rotation, diffraction, convergence):
 	lines += ["", "Table 1 convergence (mrad)", f"{'state':<5}{'paper':>10}{'actual':>10}{'model':>10}{'d%':>9}"]
 	for state, actual, model, deviation, paper_model in convergence:
 		lines.append(f"{state:<5}{text_num(paper_model):>10}{text_num(actual):>10}{text_num(model):>10}{text_num(deviation,3):>9}")
-	ax.text(0.0, 1.0, "\n".join(lines), ha="left", va="top", family="monospace", fontsize=7, transform=ax.transAxes)
+	ax.text(0.0, 1.0, "\n".join(lines), ha="left", va="top", family="monospace", fontsize=10, transform=ax.transAxes)
 
 
 # Run as: python3 sanity_check_for_CL_PL_fitting.py [microscope.json]
 # data csv files should appear in the same folder as the microscope json file, unless '--data-dir' overrides it
-# Use '--save FILE --no-show' to write a headless report.
+# Use '--save [FILE] --no-show' to write a headless report.
 # use '--focus-rays' with options: 'both','CL','PL' to visualize focus states
-def main():
-	p = argparse.ArgumentParser(description=__doc__)
-	p.add_argument("model", nargs="?", type=Path)
-	p.add_argument("--data-dir", type=Path)
-	p.add_argument("--save", type=Path)
-	p.add_argument("--no-show", action="store_true")
-	p.add_argument("--focus-rays", choices=("CL", "PL", "both"), help="Show full.py-style ray diagrams for each focus condition.")
-	a = p.parse_args()
-	model_given = a.model is not None
-	a.model = a.model or CAL / "microscope"
+def report(a, model, save):
+	load(model)
 	# Explicit models look for companion CSVs beside the JSON unless overridden.
-	a.data_dir = a.data_dir or (a.model.expanduser().resolve().parent if model_given else CAL)
-	table = a.data_dir / "table2.csv"
-	if not table.exists() and (a.data_dir / "table2_check.csv").exists():
-		table = a.data_dir / "table2_check.csv"
-	table1 = a.data_dir / "table1.csv"
-	rotation = rotation_values(a.data_dir / "rotations.csv", a.model)
-	diffraction = diffraction_values(table, a.model)
-	convergence = convergence_values(table1, a.model)
+	data_dir = a.data_dir or model.expanduser().resolve().parent
+	table = data_dir / "table2.csv"
+	if not table.exists() and (data_dir / "table2_check.csv").exists():
+		table = data_dir / "table2_check.csv"
+	rotation = rotation_values(data_dir / "rotations.csv", model)
+	diffraction = diffraction_values(table, model)
+	convergence = convergence_values(data_dir / "table1.csv", model)
 	fig, axes = plt.subplots(2, 3, figsize=(20,9), constrained_layout=True)
-	plot_focus(axes[0,0], a.data_dir, a.model)
-	plot_current(axes[0,1], a.data_dir, a.model)
+	plot_focus(axes[0,0], data_dir, model)
+	plot_current(axes[0,1], data_dir, model)
 	plot_tables(axes[0,2], rotation, diffraction, convergence)
 	plot_rotation(axes[1,0], rotation)
 	plot_diffraction(axes[1,1], diffraction)
 	plot_convergence(axes[1,2], convergence)
-	fig.suptitle(f"MACSTEM calibration sanity check: {a.model}")
-	if a.save:
-		fig.savefig(a.save, dpi=180)
+	fig.suptitle(f"MACSTEM calibration sanity check: {model}")
+	if save:
+		fig.savefig(save, dpi=180)
 	if a.focus_rays and a.no_show:
 		warnings.warn("--focus-rays is interactive and was skipped because --no-show was supplied")
 	elif a.focus_rays:
 		if a.focus_rays in ("CL", "both"):
-			show_focus_cases(a.data_dir / "CLs_critical.csv", a.model, "C")
+			show_focus_cases(data_dir / "CLs_critical.csv", model, "C")
 		if a.focus_rays in ("PL", "both"):
-			show_focus_cases(a.data_dir / "PLs_critical.csv", a.model, "P")
+			show_focus_cases(data_dir / "PLs_critical.csv", model, "P")
+
+
+def main():
+	p = argparse.ArgumentParser(description=__doc__)
+	p.add_argument("model", nargs="?", type=Path)
+	p.add_argument("--data-dir", type=Path)
+	p.add_argument("--save", nargs="?", const=True, type=Path)
+	p.add_argument("--no-show", action="store_true")
+	p.add_argument("--focus-rays", choices=("CL", "PL", "both"), help="Show full.py-style ray diagrams for each focus condition.")
+	a = p.parse_args()
+	path = (a.model or CAL / "microscope").expanduser()
+	models = sorted(path.glob("*.json")) if path.is_dir() else [path]
+	if not models:
+		p.error(f"no JSON files found in {path}")
+	for model in models:
+		save = model.with_suffix(".png") if a.save is True else a.save
+		if save and len(models) > 1 and a.save is not True:
+			save = save.with_name(f"{save.stem}-{model.stem}{save.suffix}")
+		try:
+			report(a, model, save)
+		except Exception as exc:
+			warnings.warn(f"skipping microscope JSON {model}: {exc}")
+		finally:
+			if a.no_show:
+				plt.close("all")
 	if not a.no_show:
 		plt.show()
 

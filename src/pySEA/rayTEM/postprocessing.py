@@ -868,7 +868,7 @@ def setkeys_to_settables_dict(vals,setKeys):
 	return settings
 
 # given a Microscope Object, initialize rays at one element ("initializeAt"), measure beam diameter at another ("focusTo"). this is used to construct an error function to fit lens parameters. check out /media/qwe/Data/Various Code/rayTEM/refreshing20260804/TWP20260724/src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py
-def helper_focus_to(microscope,initializeAt,focusTo,plotting=None):
+def helper_focus_to(microscope,initializeAt,focusTo,plotting=None,use="diameter"):
 	scope = microscope[initializeAt:] # all elements after/including first element
 	# scope[0][0] = Drift(length=microscope[initializeAt].length,position=microscope[initializeAt].position)# REPLACE L WITH DRIFT
 	if isinstance(initializeAt,str) and scope[initializeAt].kind not in [ "Drift", "Source" ]:
@@ -895,13 +895,18 @@ def helper_focus_to(microscope,initializeAt,focusTo,plotting=None):
 	if scope[focusTo].kind != "Drift":
 		z += scope[focusTo].length/2
 	x,y,xt,yt,R,I = measureAtZ(z,rays=scope.rays)
-	return np.sqrt( x**2+y**2 )**2
+	if use == "diameter":
+		return np.sqrt( x**2+y**2 )**2
+	if use == "focus":
+		return (x/xt)**2+(y/yt)**2
+	if use == "focus_signed":
+		return -x/xt # positive dz is downstream, negative dz is upstream.
 
 # scipy minimize will update element:attribute (setKeys) based on (vals), and for a list of cases (see below), initiate rays at z1 and check focus at z2. z1,z2 can be floats or element names.
 # "cases" is a list of nested dicts, each dict describes the focusing condition:
 # [ { "from":107.5, "to":"P3", "settables": {"P1": {"strength": 0.300}, "P2": {"strength": 0.451} } } ]
 # describes focusing a beam originating from z0 into P3, where P1 and P2 strengths are set accordingly
-def dz_focus_to(vals,setKeys,cases,microscope,plotting=False):
+def dz_focus_to(vals,setKeys,cases,microscope,use="diameter",plotting=False):
 	# update microscope
 	settings = setkeys_to_settables_dict(vals,setKeys)
 	microscope.update_with_settings(settings)
@@ -921,7 +926,7 @@ def dz_focus_to(vals,setKeys,cases,microscope,plotting=False):
 		if plotting and "name" in scenario.keys():
 			print(scenario["name"])
 		ax = None if not plotting else axs[i]
-		deltas.append( helper_focus_to(microscope,initializeAt,focusTo,plotting=ax) )
+		deltas.append( helper_focus_to(microscope,initializeAt,focusTo,plotting=ax,use=use) )
 	if plotting:
 		plt.show()
 	return np.sum(deltas)
