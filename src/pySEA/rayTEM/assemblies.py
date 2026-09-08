@@ -956,10 +956,10 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 	#	if self._planes is None:
 	#
 
-	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True):
+	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True,plt_ax=None):
 		if self.rays is None or regenerate:
 			r1 = self.propagate_ray()
-		plot2D(self.rays,zpts = self.named_positions, filename=filename ,title=title, ylims=ylims,xlims=zlims)
+		plot2D(self.rays,zpts = self.named_positions, filename=filename ,title=title, ylims=ylims,xlims=zlims,plt_ax=plt_ax)
 
 	#def save(self,filename):
 	#	with open(filename+".pkl",'wb') as f:

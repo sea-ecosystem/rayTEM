@@ -859,12 +859,16 @@ def zFromFractional(zs,z): # e.g. 1.2 is 20% of the distance through element ind
 # scipy.optimize.minimize will pass a list of values, but update_with_settings takes a nested dict: {"P4":{"strength":0.451,"calibration":1.05},"P3":{"strength":0.69}}
 def setkeys_to_settables_dict(vals,setKeys):
 	settings = { k:{} for k in setKeys.keys() }	# empty dict for each key (don't do a dict comprehension for vals or you'll overwrite)
-	for (k,kk),v in zip(setKeys.items(),vals):
-		settings[k][kk] = v		# "PL1":"strength", and "0.451" --> {"PL1":{"strength"}}
+	i = 0
+	for e,k in setKeys.items():	# "PL1":"strength", and "0.451" --> {"PL1":{"strength"}}
+		if isinstance(k,str):					# "VOA":["radius","dz"], loop through "radius" and "dz":
+			k=[k]
+		for kk in k:
+			settings[e][kk] = vals[i] ; i+=1
 	return settings
 
 # given a Microscope Object, initialize rays at one element ("initializeAt"), measure beam diameter at another ("focusTo"). this is used to construct an error function to fit lens parameters. check out /media/qwe/Data/Various Code/rayTEM/refreshing20260804/TWP20260724/src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py
-def helper_focus_to(microscope,initializeAt,focusTo,plotting=False):
+def helper_focus_to(microscope,initializeAt,focusTo,plotting=None):
 	scope = microscope[initializeAt:] # all elements after/including first element
 	# scope[0][0] = Drift(length=microscope[initializeAt].length,position=microscope[initializeAt].position)# REPLACE L WITH DRIFT
 	if isinstance(initializeAt,str) and scope[initializeAt].kind not in [ "Drift", "Source" ]:
@@ -879,10 +883,13 @@ def helper_focus_to(microscope,initializeAt,focusTo,plotting=False):
 		#	scope[0][1].length-=.01
 	if scope[0][0].kind != "Source":
 		scope.insert(0,Source(np_xy=(0,0))) # num_points=0 --> point-source rays
-	if plotting:
+	if plotting is not None:
 		print(initializeAt,focusTo)
 		print(repr(scope))
-		scope.show(title=str(initializeAt)+" focuses to "+str(focusTo))
+		if isinstance(plotting,bool):
+			scope.show(title=str(initializeAt)+" focuses to "+str(focusTo))
+		else:
+			scope.show(title=str(initializeAt)+" focuses to "+str(focusTo),plt_ax=plotting)
 	scope.propagate_ray()
 	z = scope.get_element_position(focusTo)
 	if scope[focusTo].kind != "Drift":
@@ -900,14 +907,23 @@ def dz_focus_to(vals,setKeys,cases,microscope,plotting=False):
 	microscope.update_with_settings(settings)
 	# run through z1,z2 pairs
 	deltas = []
-	for scenario in cases:
+	if plotting:
+		NxM = int(np.ceil(np.sqrt(len(cases))))
+		NxM = (NxM,NxM)
+		while NxM[0]*(NxM[1]-1) > len(cases):
+			NxM[1]-=1
+		fig,axs = plt.subplots(nrows=NxM[1],ncols=NxM[0],squeeze=False) ; axs=axs.ravel()
+	for i,scenario in enumerate(cases):
 		initializeAt = scenario["from"]
 		focusTo = scenario["to"]
 		settings = scenario["settables"]
 		microscope.update_with_settings(settings)
 		if plotting and "name" in scenario.keys():
 			print(scenario["name"])
-		deltas.append( helper_focus_to(microscope,initializeAt,focusTo,plotting) )
+		ax = None if not plotting else axs[i]
+		deltas.append( helper_focus_to(microscope,initializeAt,focusTo,plotting=ax) )
+	if plotting:
+		plt.show()
 	return np.sum(deltas)
 
 
