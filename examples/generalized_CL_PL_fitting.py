@@ -30,7 +30,7 @@ def assemble():
 
 	microscope = Microscope(name="generic",sections=[condenser,objective,projector])
 	#microscope.show()
-	microscope.save("microscope")
+	microscope.save("microscope",versioned=True)
 
 # Loads real positions from a text file, re-saves microscope object. file should be rows of "lensname \t value \n" pairs
 def adjust_element_positions():
@@ -48,11 +48,12 @@ def adjust_element_positions():
 			microscope.move_element(lens,z=z,allow_unsafe=True)
 	check_lengths(microscope)
 	#microscope.show()
-	microscope.save("microscope")
+	microscope.save("microscope",versioned=True)
 	#sys.exit()
 
 # General premise for fitting CLs: C1 / VOA / C2 / C3 means you can't necessarily forwards-focus C1 into C2/C3 or back-focus C2/C3 into C1 directly. Instead, focus C2 into C3 and vice versa at a range of C1 values. this controls the convergence/divergence into C2, and the system of equations can be solved. We'll adjust GL.strength, C1.calibration, C2.calibration, C3.calibration, until all focusing conditions are met.
 # Input file convention: rows of "whichLens","focusedToWhichLens","atValue","additionalLens=Value". e.g. "P2,P4,.56789,P1=500" uses P2 to focus to P4, at 567.89 mA, with P1 also set to 500 mA.
+# dz_focus_to can use "diameter" or "focus" arg. "diameter" simply checks the beam diameter at target-dz. this is robust, but scaling-dependent. "focus" checks the distance between the actual focus point and target position. diameter-based residual depends on ray angles: parallel rays into GL at x=2e-3 will be dominated by point-source beam in back-propagation case emitted at xt=1). focus-based residual has discontinuities passing between diverging/converging beams (highely-negative vs hugely-positive focus dz). THEREFORE, WE USE DIAMETER-BASED FOR COARSE FITTING (fit_CLs) AND FOCUS-BASED FOR FINER REFINEMENT (fit_CLVOA).
 def fit_CLs(file_in,mode="fit"):
 	lines = open(file_in).readlines()
 	states = [ l.split(",") for l in lines if len(l)>0 and l[0]!="#" ]
@@ -91,20 +92,22 @@ def fit_CLs(file_in,mode="fit"):
 	print(cases)
 	if "loaded" in mode:
 		print(microscope[:"P1"].propagate_ray())
-		deltas = dz_focus_to([],{},cases,microscope[:"P1"],plotting=True)
+		deltas = dz_focus_to([],{},cases,microscope[:"P1"],plotting=True,use="diameter")
 		print("loaded deltas",np.sum(deltas))
 	if "guesses" in mode:
-		deltas = dz_focus_to(x0,setKeys,cases,microscope[:"P1"],plotting=True)
+		deltas = dz_focus_to(x0,setKeys,cases,microscope[:"P1"],plotting=True,use="diameter")
 	if "fit" in mode or "iterative" in mode:
 		#print(deltas)
-		res = minimize(dz_focus_to,x0=x0,args=(setKeys,cases,microscope),bounds=bounds,method=method,options={"xtol":1e-10})#,method='L-BFGS-B')#,method='Nelder-Mead')
+		res = minimize(dz_focus_to,x0=x0,args=(setKeys,cases,microscope,"diameter"),bounds=bounds,method=method,options={"xtol":1e-10})#,method='L-BFGS-B')#,method='Nelder-Mead')
 		print(res)
 		#dz_focus_to(res['x'],setKeys,cases,microscope,plotting=True)
 
 		microscope = load_microscope(microscope_file)
+		if microscope["VOA"].radius == .1: # FIRST RUN ONLY (in case we run iterative for VOA fitting later)
+			microscope["VOA"].radius = guesses["VOA"]["radius"]
 		settings = setkeys_to_settables_dict(res['x'],setKeys)
 		microscope.update_with_settings(settings)
-		microscope.save("microscope")
+		microscope.save("microscope",versioned=True)
 
 # General premise for fitting VOA: measure and fit a beam current vs C1 curve
 def fit_VOA(file_in,mode="fit"):
@@ -145,10 +148,138 @@ def fit_VOA(file_in,mode="fit"):
 	plt.plot(C1s,I2)
 	plt.title(str(res)+" "+str(np.sqrt(np.sum((Is-I2)**2))))
 	plt.show()
-	microscope.save("microscope")
+	microscope.save("microscope",versioned=True)
+
+# Ponderance: in fit_CLs, are GL and C1 under-defined? (we can adjust either to achieve the correct angle for the downstream cases). fit_VOA must move the VOA to position the butte correctly, but changing GL can also position the butte. and moving the VOA incorrectly can give bogus calibrations for C2/C3, which go directly into Table 1. If this hypothesis is correct, then we might just get lucky/unlucky with the GL/C1 calibration, adjust VOA position correctly/incorrectly with the curent curve, and then correctly/incorrectly calibrate C2/C3 as a result? I think we really ought to combine these two functions. let the minimization of CL focal conditions also minimize a residual for the current curve. then GL/C1 are no longer under-defined, maybe we don't need to move VOA.
+# dz_focus_to can use "diameter" or "focus" arg. "diameter" simply checks the beam diameter at target-dz. this is robust, but scaling-dependent. "focus" checks the distance between the actual focus point and target position. diameter-based residual depends on ray angles: parallel rays into GL at x=2e-3 will be dominated by point-source beam in back-propagation case emitted at xt=1). focus-based residual has discontinuities passing between diverging/converging beams (highely-negative vs hugely-positive focus dz). THEREFORE, WE USE DIAMETER-BASED FOR COARSE FITTING (fit_CLs) AND FOCUS-BASED FOR FINER REFINEMENT (fit_CLVOA).
+def fit_CLVOA(file_in_CL,file_in_current,mode="fit"):
+
+	# LOAD IN CL FOCUS STATES (copied from fit_CLs above)
+	lines = open(file_in_CL).readlines()
+	states = [ l.split(",") for l in lines if len(l)>0 and l[0]!="#" ]
+	microscope = load_microscope(microscope_file)
+
+	# PARSE OUT FOCUS STATES (copied from fit_CLs above)
+	cases = []
+	for s in states: # e.g. C2,C3,0.45654321,C1=0.3
+		target = {"name":str(s), "settables":{ "C"+str(n):{"strength":0} for n in range(1,4)}}
+		if len(s)==3:
+			L1,L2,v = s
+		else:
+			L1,L2,v,p = s
+		# in all cases, L1's strength is a settable:
+		target["settables"][L1] = { "strength":float(v) }
+		# simple "backwards focus" case: "C3,C2,0.7654567654321" --> beam originating at C2 focuses to z5, and again to sample
+		if int(L1[-1]) > int(L2[-1]):
+			target["from"] = L2 ; target["to"] = "sample"
+		# simple forwards case: "C2,C3,0.123454321" --> beam enters C2, focuses to C3, at 123.454321 mA
+		else:
+			target["from"] = 0 ; target["to"] = L2
+		if len(s)==4:
+			L3,v3 = p.split("=") ; v3 = float(v3)
+			target["settables"][L3]={"strength":v3}
+		# SPECIAL CASE: wobbling C1 controls angles (but not size) through VOA, so if wobbling C1 does not show a change in beam size at a particular C2 or C3, this actually means the VOA plane is being projected to the detector
+		if target["from"] == "C1":
+			target["from"] = "VOA"
+		cases.append(target)
+	print(cases)
+
+	# LOAD IN BEAM CURRENT VS C1 DATA (copied from fit_VOA above)
+	data = np.loadtxt(file_in_current,delimiter=",")
+	C1s,Is = data.T ; Is/=np.amax(Is)
+	# thresholding with window. Any values above threshold (and any spurious datapointss between) are excluded
+	I_threshold = .6 ; mask = np.zeros(len(C1s))
+	mask[Is>I_threshold]=1
+	for i in range(len(C1s)):
+		if mask[i]==0 and sum(mask[:i])>0 and sum(mask[i:])>0:
+			mask[i]=1
+	C1s = C1s[mask==0] ; Is = Is[mask==0] ; Is/=np.amax(Is)
+
+	# MODEL CURRENT FUNCTION, GENERATE CURRENT TREND BY INTEROGATING MICROSCOPE MODEL (copied from fit_VOA above)
+	z0 = microscope.get_element_position("VOA")
+	def I(C1s,vals,setKeys):
+		# update microscope
+		settings = setkeys_to_settables_dict(vals,setKeys)
+		microscope.update_with_settings(settings)
+		#if "VOA" in setKeys.keys() and setKeys["VOA"]=="dz":
+		#	microscope.move_element("VOA",z=z0+dz_VOA)
+		#print(repr(microscope))
+		Is = []
+		for C1 in C1s:
+			microscope["C1"].strength = C1
+			r1 = microscope.propagate_ray()
+			I = microscope["VOA"].transmitted_fraction(r1.at_z(microscope.get_element_position("VOA")))
+			Is.append(I)
+		Is = np.asarray(Is)/np.amax(Is)
+		return Is
+
+	# PREPARE FOR FITTING (copied/adapted from fit_CLs above)
+	setKeys = {"GL":"strength", "C1":"calibration", "C2":"calibration", "C3":"calibration", "O1":"strength","VOA":["radius","position"]}
+	guesses = load_guesses("guesses.txt") # e.g. { 'GL': {'strength': 0.25}, ... }
+	if "iterative" in mode:
+		guesses = { k : { kk:getattr(microscope[k],kk) for kk in v.keys() } for k,v in guesses.items() }
+	x0 = []
+	for k,v in setKeys.items():
+		if isinstance(v,str):
+			x0.append(guesses[k].get(v,getattr(microscope[k],v)))
+		else:
+			for vv in v:
+				x0.append(guesses[k].get(vv,getattr(microscope[k],vv)))
+	bounds=None ; method="BFGS"
+	if "iterative" in mode:
+		bounds = [ [v*.98,v*1.02] for v in x0 ] ; method="Powell"
+
+	print("sK",setKeys) ; print("x0",x0) ; print("BO",bounds) #; sys.exit()
+
+	# VIEWING AND FITTING (combined from fit_CLs and fit_VOA above)
+	if "loaded" in mode:
+		print(microscope[:"P1"].propagate_ray())
+		# preview focus conditions
+		deltas = dz_focus_to([],{},cases,microscope[:"P1"],plotting=True,use="focus")
+		res = { 'x': [ ] }
+		for k,v in setKeys.items():
+			if isinstance(v,str):
+				res['x'].append( getattr(microscope[k],v) )
+			else:
+				for vv in v:
+					res['x'].append( getattr(microscope[k],vv) )
+		#res = [microscope["VOA"].radius,0] # used for plotting I vs C1 curve below
+		print("loaded deltas",np.sum(deltas))
+	if "guesses" in mode:
+		#deltas = dz_focus_to(x0,setKeys,cases,microscope[:"P1"],plotting=True)
+		res = { 'x': x0 }
+	if "fit" in mode or "iterative" in mode:
+		#print(deltas)
+
+		def dz(vals,setKeys,cases,microscope):
+			deltas = dz_focus_to(vals,setKeys,cases,microscope,use="focus")	# underlying function passed to minimize by fit_CLs
+			# fit_VOA used curve_fit, so we need to calculate our own MSE here: res,err = curve_fit(I,C1s,Is,p0=(guess,0))
+			I2 = I(C1s,vals,setKeys)
+			deltas += np.sum((I2-Is)**2)/len(I2) # deltas was sum(deltas**2), so we can just add one more MSE to the sum
+			return deltas
+		res = minimize(dz,x0=x0,args=(setKeys,cases,microscope),bounds=bounds,method=method,options={"xtol":1e-10})#,method='L-BFGS-B')#,method='Nelder-Mead')
+		print(res)
+		#dz_focus_to(res['x'],setKeys,cases,microscope,plotting=True)
+		#deltas = dz_focus_to(res['x'],setKeys,cases,microscope[:"P1"],plotting=True)
+		#rad=res['x']
+		#microscope = load_microscope(microscope_file)
+		#settings = setkeys_to_settables_dict(res['x'],setKeys)
+		#microscope.update_with_settings(settings)
+		microscope.save("microscope",versioned=True)
+
+	# always plot beam current curve
+	if "loaded" in mode: # or "fit" in mode or "iterative" in mode:
+		I2 = I(C1s,res['x'],setKeys)
+		plt.plot(C1s,Is)
+		plt.plot(C1s,I2)
+		plt.title(str(res)+" "+str(np.sqrt(np.sum((Is-I2)**2))))
+		plt.show()
+
+
 
 # General premise for fitting PLs: P1 / P2 / P3 / P4, focusing each to each from CCD.
 # Input file convention: rows of "whichLens","focusedToWhichLens","atValue","additionalLens=Value". e.g. "P2,P4,.56789,P1=500" uses P2 to focus to P4, at 567.89 mA, with P1 also set to 500 mA.
+# dz_focus_to can use "diameter" or "focus" arg. "diameter" simply checks the beam diameter at target-dz. this is robust, but scaling-dependent. "focus" checks the distance between the actual focus point and target position. diameter-based residual depends on ray angles: parallel rays into GL at x=2e-3 will be dominated by point-source beam in back-propagation case emitted at xt=1). focus-based residual has discontinuities passing between diverging/converging beams (highely-negative vs hugely-positive focus dz). THEREFORE WE USE DIAMETER FOR INITIAL FIT (mode="fit"), BUT FOCUS FOR FINER REFINEMENT ("mode=iterative"). Note: much less a big deal for PLs than it was for CLs, since the introduced Source terms (whether at "sample" or elsewhere) is the same. but there still is some difference based on scaling from propagation distance and then tighter-angle focusing)
 def fit_PLs(file_in,mode="fit"):
 	lines = open(file_in).readlines()
 	states = [ l.split(",") for l in lines if len(l)>0 and l[0]!="#" ]
@@ -195,19 +326,22 @@ def fit_PLs(file_in,mode="fit"):
 
 	# use truncated scope for all previewing and fitting
 	if "loaded" in mode:
-		deltas = dz_focus_to([],{},cases,microscope["sample":],plotting=True)
+		deltas = dz_focus_to([],{},cases,microscope["sample":],plotting=True,use="diameter")
 		print("loaded deltas",np.sum(deltas))
 	if "guesses" in mode:
-		deltas = dz_focus_to(x0,setKeys,cases,microscope["sample":],plotting=True)
+		deltas = dz_focus_to(x0,setKeys,cases,microscope["sample":],plotting=True,use="diameter")
 	if "fit" in mode or "iterative" in mode:
-		res = minimize(dz_focus_to,x0=x0,args=(setKeys,cases,microscope["sample":]),bounds=bounds,method=method)#,method='L-BFGS-B')#,method='Nelder-Mead')
+		focus_or_diameter = "diameter"
+		if "iterative" in mode:
+			focus_or_diameter = "focus"
+		res = minimize(dz_focus_to, x0=x0, args=(setKeys,cases,microscope["sample":],focus_or_diameter), bounds=bounds,method=method)#,method='L-BFGS-B')#,method='Nelder-Mead')
 		print(res)
 		#dz_focus_to(res['x'],setKeys,cases,microscope,plotting=True)
 
 		#microscope = load_microscope("microscope")
 		settings = setkeys_to_settables_dict(res['x'],setKeys)
 		microscope.update_with_settings(settings)
-		microscope.save("microscope")
+		microscope.save("microscope",versioned=True)
 
 # General premise for fitting PL lengths: measure beam rotation per amp for each lens. if focusing follows K^2 L and rotation follows K L, and K = I C, then you can adjust L and C simultaneously to preserve focal lengths at a given current while adjusting beam rotation
 def fit_rotation(file_in,mode="fit"):
@@ -222,7 +356,7 @@ def fit_rotation(file_in,mode="fit"):
 		microscope.move_element(PL,dz=-L_new/2+L/2) # LENS POSITION SHOULD BE OPTICAL CENTER
 		microscope[PL].calibration = C_new
 
-	microscope.save("microscope")
+	microscope.save("microscope",versioned=True)
 
 # fitting for PLs and O2 establishes an image plane position (switching to the spectroscopy DQCM mode (instead of 4DSTEM) focuses an image plane onto the detector along the dispersive axis (tightly-focused zero-loss beam came from a tightly-focused probe at the sample plane).
 # this image plane can be preserved if the position and strength of O2 are simultaneously adjusted, but this will move the post-OL diffraction plane.
@@ -276,10 +410,12 @@ def adjustOL(settings_list):
 	microscope.save("microscope_OL")
 
 #step = "fresh,fitCL,viewCL,guessPL,fitPL,viewPL,fitOL"
-step = "viewCL,viewPL"
+#step = "viewCL,viewPL"
 #step = "fitPL,viewPL"
 #step = "fitOL"
-
+step = "fresh,fitCL,CLVOA,fitPL,viewPL"
+#step = "CLVOA"
+#step = "viewCL"
 
 if "fresh" in step:
 	assemble()
@@ -302,6 +438,18 @@ if "fitCL" in step:
 	fit_VOA("C1_vs_beamcurrent.csv",mode="iterative")
 	for i in range(10):
 		fit_CLs("CLs_critical.csv",mode="iterative")
+if "CLVOA" in step:
+	#fit_CLs("CLs_critical.csv",mode="fit")
+	#for i in range(5):
+	#	fit_CLVOA("CLs_critical.csv","C1_vs_beamcurrent.csv",mode="iterative")
+	for i in range(50):
+	#	fit_CLs("CLs_critical.csv",mode="iterative")
+		fit_CLVOA("CLs_critical.csv","C1_vs_beamcurrent.csv",mode="iterative")
+
+	#for i in range(0):
+		#fit_CLVOA("CLs_critical.csv","C1_vs_beamcurrent.csv",mode="iterative")
+
+	fit_CLVOA("CLs_critical.csv","C1_vs_beamcurrent.csv",mode="loaded")
 if "viewCL" in step:
 	# PREVIEWS
 	fit_VOA("C1_vs_beamcurrent.csv",mode="loaded")

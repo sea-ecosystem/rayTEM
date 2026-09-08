@@ -897,6 +897,7 @@ def helper_focus_to(microscope,initializeAt,focusTo,plotting=None,use="diameter"
 	x,y,xt,yt,R,I = measureAtZ(z,rays=scope.rays)
 	if use == "diameter":
 		return np.sqrt( x**2+y**2 )**2
+	# TODO consider using rotationally-invariant: dz = -(x*xt + y*yt) / (xt**2 + yt**2)
 	if use == "focus":
 		return (x/xt)**2+(y/yt)**2
 	if use == "focus_signed":
