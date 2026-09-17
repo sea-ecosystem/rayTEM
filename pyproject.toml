@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "raytem"
 version = "0.0.1beta"
-description = "Ray-tracing TEM simulator and calibration framework for the SEA ecosystem."
+description = "Ray-tracing TEM simulator and calibration framework"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
