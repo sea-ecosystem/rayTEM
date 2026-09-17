@@ -1306,7 +1306,7 @@ def test_rotation_commutes_with_propagation():
 
 def test_thick_lens_wave_rotation_matches_ray_larmor():
 	# with rotate=True the wave picks up the same Larmor angle the ray path
-	# applies (Lens.rotation = -K L): an off-axis blob's azimuth must agree
+	# applies (Lens.larmor_rotation = -K L): an off-axis blob's azimuth must agree
 	lens = Lens(strength=34.72, length=0.02)
 	K, L = lens.calibrated_strength, lens.length
 	n, dxi = 128, 1e-7
@@ -1322,8 +1322,8 @@ def test_thick_lens_wave_rotation_matches_ray_larmor():
 													 np.inf, K**2)
 	U_rot, *_ = wo.propagate_quadratic_segment_scaled(U0, dxi, dxi, LAM, L, 1.0,
 													  np.inf, K**2, rotate=-K * L)
-	lens.transfer_matrix()					# sets lens.rotation as the ray path does
-	assert np.isclose(lens.rotation, -K * L, rtol=1e-12)
+	lens.transfer_matrix()					# sets lens.larmor_rotation as the ray path does
+	assert np.isclose(lens.larmor_rotation, -K * L, rtol=1e-12)
 	assert np.isclose(azimuth(U_no), 0.0, atol=1e-6)			# default: no rotation
 	assert np.isclose(azimuth(U_rot), -K * L, atol=1e-3)		# opt-in: ray's angle
 	# and the element is what declares that angle -- the propagator never
@@ -1822,7 +1822,7 @@ def test_mid_element_crossover_lands_on_the_analytic_plane():
 	# free-space plane to check too.
 	from pySEA.rayTEM.assemblies import Microscope, MicroscopeSection
 	from pySEA.rayTEM.elements import Source, Drift, Lens
-	from pySEA.rayTEM.microscopes.basic_column import strength_for_focal_length
+	from pySEA.rayTEM.microscopes.basic_column import solve_strength_for_focal_length
 	from pySEA.rayTEM.seashells import make_scaled_wavefield_signal
 
 	def thick_fixture():
@@ -1830,13 +1830,13 @@ def test_mid_element_crossover_lands_on_the_analytic_plane():
 			Source(voltage=200, wave_shape=(64, 64), wave_extent=20e-6,
 				   wave_kind="gaussian"),
 			Drift(length=0.05),
-			Lens(name="L1", strength=strength_for_focal_length(0.185, 0.02),
+			Lens(name="L1", strength=solve_strength_for_focal_length(0.185, 0.02),
 				 length=0.02),
 			Drift(length=0.25),
-			Lens(name="TL", strength=strength_for_focal_length(0.09, 0.02),
+			Lens(name="TL", strength=solve_strength_for_focal_length(0.09, 0.02),
 				 length=0.02),
 			Drift(length=0.08),
-			Lens(name="L2", strength=strength_for_focal_length(0.05, 0.02),
+			Lens(name="L2", strength=solve_strength_for_focal_length(0.05, 0.02),
 				 length=0.02),
 			Drift(length=0.12)])])
 
@@ -1977,12 +1977,7 @@ def test_thick_body_aberration_matches_the_perturbed_ray_equation():
 	# integration of x'' = -K^2 x - c x r^2 through the body -- an independent
 	# route that uses none of the transfer-block machinery.
 	from scipy.integrate import solve_ivp
-	# Cs was 1e-3 when focal_power meant the EFL power K*sin(KL); the measured
-	# focal_length on main makes a thick lens's power K*tan(KL) instead (464/m
-	# here, was 125/m), and the test's perturbation coefficient scales as P^4,
-	# so the same Cs left the first-order regime this comparison lives in.
-	# 5e-6 restores the old perturbation strength; the check is unchanged.
-	K, L, Cs = 129.80, 0.010, 5e-6			# OL1's real K and L
+	K, L, Cs = 129.80, 0.010, 1e-3			# OL1's real parameters
 	lens = Lens(strength=K, length=L, aberrations={'C30': Cs})
 	c = Cs * lens.focal_power**4 / L
 	A, B = np.cos(K * L), np.sin(K * L) / K
@@ -2644,9 +2639,11 @@ def test_merging_a_complex_screen_into_a_real_volume_converts_it_meaningfully():
 def _thick_strength(f: float, L: float) -> float:
 	"""Strength K solving the back-focal relation ``1/f = K tan(K L)``.
 
-	The tests build thick lenses by focal length, and `Lens.focal_length` uses
-	that relation, so inverting it here keeps a test lens's f meaning what it
-	says rather than being whatever `sqrt(1/f)` happens to give for a body.
+	The tests here build thick lenses by their exit-face-to-focus distance,
+	i.e. `Lens.back_focal_distance`, so inverting that relation keeps a test
+	lens's f meaning what it says rather than being whatever `sqrt(1/f)`
+	happens to give for a body. (The EFL inverse, `1/f = K sin(K L)`, lives
+	in `basic_column.solve_strength_for_focal_length`.)
 	"""
 	from scipy.optimize import brentq
 	return float(brentq(lambda K: K * np.tan(K * L) - 1.0 / f, 1e-6, np.pi / (2 * L) - 1e-6))

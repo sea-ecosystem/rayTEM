@@ -1,4 +1,4 @@
-from .elements import columnByName,fix_mat_dims,Drift,Source
+from .elements import columnByName,fix_mat_dims,Drift,Source,Rays
 import numpy as np
 from scipy.optimize import minimize,brute
 import matplotlib.pyplot as plt
@@ -12,9 +12,14 @@ from matplotlib.cm import plasma as cmap
 # Basic 2D plotting (along z, and in whatever axis you have chosen)
 # TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
 # For now, plot2D assumes it is given unrotated-reference-frame rays, and should likely call convert_to_rotating_reference_frame.
-def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None,title=None,plt_ax=None):
+def plot2D(r1,axis="x",filename=None, zpts="",sections=None, xlims=None,ylims=None, title=None,plt_ax=None, aperture_handling="rescale"):
 	planes = findPlanes(r1,axis=axis)
-	r1 = convert_to_rotating_reference_frame(r1)
+	# two options for plotting the beam through an aperture:
+	# "rescale": historically used, beam was rescaled by elements.py > Aperture > propagate_ray, so we could simply plot rescaled rays.
+	# "ghosting": masked (dead) rays stop being drawn at the plane where their intensity hits zero.
+	# If you use too-few rays (or wish to see a continously-rescaled beam, as opposed to step-functions as rays cross the aperture border), then you should use "rescale". I have made this the default to preserve historical behavior (and for sensible plotting when using the minimal number of rays required for plane finding)
+	I = getattr(r1, "I_per_ray", None)
+	r1 = r1.convert_to_rotating_reference_frame()
 	if plt_ax is None:
 		fig,ax = plt.subplots()
 	else:
@@ -24,15 +29,33 @@ def plot2D(r1,axis="x",filename=None,zpts="",sections=None,xlims=None,ylims=None
 
 	# loop through rays
 	i,j=columnByName(axis),columnByName("z")
-	for ys,xs,c in zip( r1[:,:,i].T , r1[:,:,j].T , linecolors ):
+	Y = np.array(np.asarray(r1)[:,:,i], dtype=float)
+	boundary_ray = np.asarray(r1.boundary_ray)
+	boundary_i = {"x":0,"y":1}[axis]
+	if boundary_ray.ndim == 2:
+		boundary_ray = boundary_ray[None,boundary_i]
+	else:
+		boundary_ray = boundary_ray[:,boundary_i]
+	if aperture_handling == "rescale":
+		extent = np.max(np.abs(Y),axis=1)
+		scale = np.divide(np.abs(boundary_ray[:,i]),extent,out=np.ones_like(extent),where=extent != 0)
+		Y *= scale[:,None]
+	elif aperture_handling == "ghosting" and I is not None:
+		Y[np.asarray(I) <= 0] = np.nan
+	elif aperture_handling not in ["rescale","ghosting"]:
+		raise ValueError("aperture_handling must be 'rescale' or 'ghosting'")
+	for ys,xs,c in zip( Y.T , np.asarray(r1)[:,:,j].T , linecolors ):
 		ax.plot(xs,ys,linestyle="-",color=c,marker='',linewidth=1)
+	marker = "o" if len(boundary_ray) == 1 else ''
+	ax.plot(boundary_ray[:,j],boundary_ray[:,i],linestyle="--",color="k",marker=marker,linewidth=2,label="boundary ray")
 
 	# add all image/diffraction planes
 	ct=0 ; zs=r1[:,0,j]
 	#print(planes)
 	nplanes=len(planes[axis]["diff"]["z"])+len(planes[axis]["image"]["z"])+len(zpts)
 	if ylims is None:
-		ylims = [ np.amin(r1[:,:,i]) , np.amax(r1[:,:,i]) ]
+		bounds = np.concatenate((Y.ravel(),boundary_ray[:,i]))
+		ylims = [np.nanmin(bounds),np.nanmax(bounds)]
 	for imdiff in ["diff","image"]:
 		Z=planes[axis][imdiff]["z"]
 		M=planes[axis][imdiff]["M"]
@@ -344,46 +367,6 @@ def findPlanes4(rays,axes="x"):
 
 	return returnable
 
-# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
-# This function provides easy return to the rotated reference frame
-def convert_to_rotating_reference_frame(rays):
-	"""Rotate rays into the beam's rotating (Larmor) reference frame.
-
-	Cumulative rotation ``R`` is read from the supplied :class:`Rays` object.
-	Each ray at each plane is
-	rotated by its accumulated angle so that image/diffraction-plane detection can
-	operate in the unrotated frame.
-
-	Parameters
-	----------
-	rays : Rays
-		Geometric rays, shape ``(n_planes, n_rays, len(convention))``.
-
-	Returns
-	-------
-	np.ndarray
-		Rays rotated into the rotating reference frame, same shape as ``rays``.
-
-	Related
-	-------
-	findPlanes : Calls this before detecting planes.
-	Lens.transfer_matrix : Source of the accumulated rotation.
-	"""
-	R = rays.R
-	nl,nr,nc = rays.shape
-	converted = np.zeros(rays.shape)
-	for l in range(nl):
-		for r in range(nr):
-			Rv = R[l,r]
-			C = np.cos(Rv)
-			S = np.sin(Rv)
-			M = np.asarray([[C,S,0,0],[-S,C,0,0],[0,0,C,S],[0,0,-S,C]])
-			M = fix_mat_dims(M,["x","y","xt","yt"])
-			converted[l,r,:] = np.matmul(M,rays[l,r,:])
-	return converted
-
-
-
 # Returns a dict for each axis, image vs diffraction planes, and the magnification and z position (NOTE: Z IS IN FRACTIONAL COORDINATES: 4.2 = 20% of the way through the 4th element)
 warned = []
 # TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
@@ -392,7 +375,11 @@ def findPlanes(rays,axis="xy"):
 	if axis=="xy" or axis=="yx":
 		return findPlanes(rays,axis='x') | findPlanes(rays,axis='y')
 	R = rays.R
-	rays = convert_to_rotating_reference_frame(rays)
+	# per-ray intensity, if the caller passed a Rays object: dead (masked)
+	# rays must not report planes -- an aperture selects the pupil zone, and
+	# with aberrations the ghost pair's crossing is the WRONG focal plane
+	I = getattr(rays, "I_per_ray", None)
+	rays = rays.convert_to_rotating_reference_frame()
 	global warned
 	# Infer which rays we'll use for detecting the planes! we should not require the user to understand the above criteria (and pass them) nor should we make assumptions on how the user constructed their list of rays
 	diffRays=[] ; imageRays=[]
@@ -411,28 +398,54 @@ def findPlanes(rays,axis="xy"):
 
 	# diffraction ray is the first ray emitted at zero angle (nonzero position!)
 	# image ray is the first ray emitted from zero at non-zero angle
+	# ALL candidates are collected (in scan order, so with nothing masked the
+	# first two are chosen and behavior is bit-for-bit the old first-two);
+	# per interval the first two candidates STILL ALIVE stand in when a
+	# masking aperture killed the original pair
 	n_rays = len(rays[0])
+	diffCands=[] ; imageCands=[]
 	for r in range(n_rays):
-		# diff X first ray is: zero angle x and y, nonzero x, zero y
-		if len(diffRays)==0 and rays[0,r,x]!=0 and rays[0,r,xt]==0:
-				diffRays.append(r)
-				for rr in range(n_rays):
-					if np.all(rays[0,r]==-rays[0,rr]):
-						diffRays.append(rr)
-						break
-		# second is same, but opposite x position. TWP 20260317 edit: or, just a different x position?? changing all "==-" to "!="
-		if len(diffRays)==1 and rays[0,r,x]!=0 and rays[0,r,xt]==0 and \
-				rays[0,r,x]!=rays[0,diffRays[0],x]: # TWP 20260317 edit: or, just a different x position?? changing all "==-" to "!="
-					diffRays.append(r)
-		# image X first ray is: nonzero angle x, zero angle y, zero x, zero y
-		if len(imageRays)==0 and rays[0,r,xt]!=0 and rays[0,r,x]==0:
-				imageRays.append(r)
-		# second is same, but opposite x angle
-		if len(imageRays)==1 and rays[0,r,xt]!=0 and \
-			rays[0,r,x]==0 and rays[0,r,xt]!=rays[0,imageRays[0],xt]:
-					imageRays.append(r)
-		if len(diffRays)==2 and len(imageRays)==2:
-				break
+		if rays[0,r,x]!=0 and rays[0,r,xt]==0:
+			diffCands.append(r)
+		if rays[0,r,xt]!=0 and rays[0,r,x]==0:
+			imageCands.append(r)
+
+	def live_pair(cands, col, i):
+		"""First two candidates alive at plane ``i`` with distinct seeds.
+
+		Parameters
+		----------
+		cands : list of int
+			Candidate ray indices, in scan order.
+		col : int
+			Ray column whose plane-0 value must differ within the pair
+			(position for the parallel family, angle for the axial one).
+		i : int
+			Plane index the pair must have survived to (``I[i] > 0``).
+
+		Returns
+		-------
+		list of int or None
+			``[a, b]``, or ``None`` when fewer than two live distinct
+			candidates remain — no plane is detectable from beam that
+			still exists.
+
+		Raises
+		------
+		None
+		"""
+		first = None
+		for r in cands:
+			#if I is not None and not I[i, r] > 0: # TWP 20260902 don't ignore blocked rays. heck, if we're only using pairs of rays to detect image and diffraction planes, we're already ignoring all the aberrations affecting other rays!
+			#	continue
+			if first is None:
+				first = r
+			elif rays[0,r,col] != rays[0,first,col]:
+				return [first, r]
+		return None
+
+	diffRays  = live_pair(diffCands,  x,  0) or diffCands[:1]
+	imageRays = live_pair(imageCands, xt, 0) or imageCands[:1]
 	#if len(diffRays)!=2 or len(imageRays)!=2:
 		#print("WARNING: diffraction and/or image rays could not be inferred by findPlanes(). no planes found")
 	if len(diffRays)<2 and "diff" not in warned:
@@ -482,6 +495,14 @@ def findPlanes(rays,axis="xy"):
 		return (ya-yb)/(ta-tb)
 
 	for i in range(1,len(rays)):
+		# per interval, plane detection only trusts rays that STILL CARRY
+		# INTENSITY at its end: a masked (dead) tracer must not report a
+		# plane for beam that no longer exists, and with aberrations the
+		# aperture selects the pupil zone -- a ghost pair's crossing is the
+		# wrong focal plane. Reselection walks the candidate lists, so with
+		# nothing masked the pair (and the result) is the old first-two.
+		diffRays  = live_pair(diffCands,  x,  i) or []
+		imageRays = live_pair(imageCands, xt, i) or []
 		if len(diffRays)>=2:
 			# CHECK DIFFRACTION: where originally-parallel rays cross
 			(xa1,xb1),(xa2,xb2)=rays[i-1:i+1,diffRays,x]
@@ -773,6 +794,59 @@ def findPlanes2(rays):
 	#return {"x":{"diff":{"z":Zdx,"M":Mdx},"image":{"z":Zix,"M":Mix}},
 	#		"y":{"diff":{"z":Zdy,"M":Mdy},"image":{"z":Ziy,"M":Miy}}}
 
+def dedupe(ary):
+	ary = np.asarray(list(sorted(ary)))
+	grad = np.diff(ary)
+	mask = np.concatenate(([True],grad>np.mean(grad)/10)) # get rid of dA/dx equal or close to zero
+	return ary[mask]
+
+# find groups (not just pairs) of diffraction rays, measure bundle diameter (out-of-focus-ness of diffraction spots) and bundle separation (magnification of out-of-focus diffraction image)
+def diffraction_bundles_at_z(z,rays):
+	# step 1, infer bundled rays (all rays emitted at the same angle, but from different positions)
+	bundles = {}
+	rays = rays.convert_to_rotating_reference_frame()
+	for r in range(len(rays[0])): # whichelement,whichray,xyxtyt...
+		x,y = rays[0].x[r] , rays[0].y[r]
+		xt,yt = rays[0].xt[r] , rays[0].yt[r]
+		#if yt!=0 or y!=0 or # TODO do i care?
+		#	continue
+		k = str(xt)+","+str(yt)
+		if k not in bundles.keys():
+			bundles[k] = []
+		bundles[k].append(r)
+	# step 2, get ray positions at z:
+	rays = rays.at_z(z)
+	# analyze. use std to calculate spreading per-bundle and between-bundles
+	x = [] ; y = [] ; stdx = [] ; stdy = [] # each bundle's x,y position and std WITHIN EACH bundle
+	for k,rs in bundles.items():
+		rx = dedupe( rays.x[rs] )
+		ry = dedupe( rays.y[rs] ) #; print("rx",rx,"ry",ry)
+		x.append( np.mean(rx) )
+		y.append( np.mean(ry) )
+		# std = sqrt( sum( (xi-mu)^2 )/N )
+		#stx = np.sqrt( np.std(rx)**2*len(rx)/2 )
+		#sty = np.sqrt( np.std(ry)**2*len(rx)/2 )
+		# TODO above is bad if na_xy np_xy !=3. and maybe a bit convoluted. should we just use stdev instead? or peak-to-peak
+		stx = np.ptp(rx)/2 ; sty = np.ptp(ry)/2
+		stdx.append( stx )
+		stdy.append( sty )
+		#bundles[k]
+		#if np_xy is not None: # std = sqrt( sum( (xi-mu)^2 )/N ). so if you want "beam extent", then square, multiply, div/2
+		#	stdx[-1] = np.sqrt( stdx[-1]**2*(len(rs)-np_xy[0]) )/2 # need to know number of "duplicate" rays (n_points)
+		#	stdy[-1] = np.sqrt( stdy[-1]**2*(len(rs)-np_xy[1]) )/2
+		#print("rays.x",np.round(rays.x[rs],3),"-->",np.round(rx,3),"-->",np.mean(rx),"+/-",np.std(rx))
+		#print("rays.y",np.round(rays.y[rs],3),"-->",np.round(ry,3),"-->",np.mean(ry),"+/-",np.std(ry))
+	size_x = np.mean(stdx) ; size_y = np.mean(stdy)
+	x = dedupe(x) ; y = dedupe(y)
+	#spread_x = np.sqrt( np.std(x)**2*len(x)/2 )
+	#spread_y = np.sqrt( np.std(y)**2*len(y)/2 )
+	spread_x = np.ptp(x)/2 ; spread_y = np.ptp(y)/2
+	#if na_xy is not None:
+	#	spread_x = np.sqrt( spread_x**2*(len(bundles)-na_xy[0]) )/2
+	#	spread_y = np.sqrt( spread_y**2*(len(bundles)-na_xy[1]) )/2
+	return { "bundle_size": { "x":size_x , "y":size_y },
+				"bundle_spread": { "x":spread_x , "y":spread_y } }
+
 def zFromFractional(zs,z): # e.g. 1.2 is 20% of the distance through element index 1
 	i,di=int(z),z-int(z) # 1.2 --> i=1, and di=0.2
 	z0=zs[i] ; z1=zs[i+1]
@@ -785,12 +859,16 @@ def zFromFractional(zs,z): # e.g. 1.2 is 20% of the distance through element ind
 # scipy.optimize.minimize will pass a list of values, but update_with_settings takes a nested dict: {"P4":{"strength":0.451,"calibration":1.05},"P3":{"strength":0.69}}
 def setkeys_to_settables_dict(vals,setKeys):
 	settings = { k:{} for k in setKeys.keys() }	# empty dict for each key (don't do a dict comprehension for vals or you'll overwrite)
-	for (k,kk),v in zip(setKeys.items(),vals):
-		settings[k][kk] = v		# "PL1":"strength", and "0.451" --> {"PL1":{"strength"}}
+	i = 0
+	for e,k in setKeys.items():	# "PL1":"strength", and "0.451" --> {"PL1":{"strength"}}
+		if isinstance(k,str):					# "VOA":["radius","dz"], loop through "radius" and "dz":
+			k=[k]
+		for kk in k:
+			settings[e][kk] = vals[i] ; i+=1
 	return settings
 
 # given a Microscope Object, initialize rays at one element ("initializeAt"), measure beam diameter at another ("focusTo"). this is used to construct an error function to fit lens parameters. check out /media/qwe/Data/Various Code/rayTEM/refreshing20260804/TWP20260724/src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py
-def helper_focus_to(microscope,initializeAt,focusTo,plotting=False):
+def helper_focus_to(microscope,initializeAt,focusTo,plotting=None,use="diameter"):
 	scope = microscope[initializeAt:] # all elements after/including first element
 	# scope[0][0] = Drift(length=microscope[initializeAt].length,position=microscope[initializeAt].position)# REPLACE L WITH DRIFT
 	if isinstance(initializeAt,str) and scope[initializeAt].kind not in [ "Drift", "Source" ]:
@@ -805,35 +883,53 @@ def helper_focus_to(microscope,initializeAt,focusTo,plotting=False):
 		#	scope[0][1].length-=.01
 	if scope[0][0].kind != "Source":
 		scope.insert(0,Source(np_xy=(0,0))) # num_points=0 --> point-source rays
-	if plotting:
+	if plotting is not None:
 		print(initializeAt,focusTo)
 		print(repr(scope))
-		scope.show(title=str(initializeAt)+" focuses to "+str(focusTo))
+		if isinstance(plotting,bool):
+			scope.show(title=str(initializeAt)+" focuses to "+str(focusTo))
+		else:
+			scope.show(title=str(initializeAt)+" focuses to "+str(focusTo),plt_ax=plotting)
 	scope.propagate_ray()
 	z = scope.get_element_position(focusTo)
 	if scope[focusTo].kind != "Drift":
 		z += scope[focusTo].length/2
 	x,y,xt,yt,R,I = measureAtZ(z,rays=scope.rays)
-	return np.sqrt( x**2+y**2 )**2
+	if use == "diameter":
+		return np.sqrt( x**2+y**2 )**2
+	# TODO consider using rotationally-invariant: dz = -(x*xt + y*yt) / (xt**2 + yt**2)
+	if use == "focus":
+		return (x/xt)**2+(y/yt)**2
+	if use == "focus_signed":
+		return -x/xt # positive dz is downstream, negative dz is upstream.
 
 # scipy minimize will update element:attribute (setKeys) based on (vals), and for a list of cases (see below), initiate rays at z1 and check focus at z2. z1,z2 can be floats or element names.
 # "cases" is a list of nested dicts, each dict describes the focusing condition:
 # [ { "from":107.5, "to":"P3", "settables": {"P1": {"strength": 0.300}, "P2": {"strength": 0.451} } } ]
 # describes focusing a beam originating from z0 into P3, where P1 and P2 strengths are set accordingly
-def dz_focus_to(vals,setKeys,cases,microscope,plotting=False):
+def dz_focus_to(vals,setKeys,cases,microscope,use="diameter",plotting=False):
 	# update microscope
 	settings = setkeys_to_settables_dict(vals,setKeys)
 	microscope.update_with_settings(settings)
 	# run through z1,z2 pairs
 	deltas = []
-	for scenario in cases:
+	if plotting:
+		NxM = int(np.ceil(np.sqrt(len(cases))))
+		NxM = (NxM,NxM)
+		while NxM[0]*(NxM[1]-1) > len(cases):
+			NxM[1]-=1
+		fig,axs = plt.subplots(nrows=NxM[1],ncols=NxM[0],squeeze=False) ; axs=axs.ravel()
+	for i,scenario in enumerate(cases):
 		initializeAt = scenario["from"]
 		focusTo = scenario["to"]
 		settings = scenario["settables"]
 		microscope.update_with_settings(settings)
 		if plotting and "name" in scenario.keys():
 			print(scenario["name"])
-		deltas.append( helper_focus_to(microscope,initializeAt,focusTo,plotting) )
+		ax = None if not plotting else axs[i]
+		deltas.append( helper_focus_to(microscope,initializeAt,focusTo,plotting=ax,use=use) )
+	if plotting:
+		plt.show()
 	return np.sum(deltas)
 
 
@@ -1208,8 +1304,8 @@ def measureAtZ(z,rays=None,I=None,R=None,section=None,live_only=False):
 		if section.rays is None:
 			section.propagate_ray()
 		rays = section.rays
-	if hasattr(rays,"I"):
-		I = rays.I if I is None else I
+	if hasattr(rays,"I_per_ray"):
+		I = rays.I_per_ray if I is None else I
 		R = rays.R if R is None else R
 	if section is not None:
 		if I is None:

@@ -2,6 +2,180 @@
 
 Newest entries at top.
 
+## 2026-08-30 — [Done] Covariance propagation + aberration resolution example
+**Goal:** A moments-only beam model good enough to answer, quantitatively,
+how much of the column's final resolution comes from the source emittance,
+from OL1, from OL2, from the two together, and from chromatic spread.
+**Why:** The covariance mode can now carry aberrations, but the Gaussian
+closure is hard-coded and invisible, there is no chromatic coupling at all,
+and nothing reports resolution as an ellipse rather than a single width.
+- [x] explicit MomentClosure / GaussianMomentClosure / CovarianceBeam
+- [x] chromatic: source energy spread + element C_c + bilinear covariance term
+- [x] resolution quantities (emittance, Sigma_rr / Sigma_uu eigen-analysis)
+- [x] example 08: four cases + chromatic overlay
+- [x] tests + docs + wiki
+**Outcome:** New `moments.py` separates the beam state (`CovarianceBeam`) from
+the assumption used to extend it (`MomentClosure` /
+`GaussianMomentClosure`, any central moment by Wick pairing at any order).
+The nonlinear kick reaches it as a polynomial recovered from the existing
+`deflection_at` (`Element.aberration_monomials`), so every Krivanek order
+through C56 now closes — rotated terms included — where before only C30 did,
+by hand. Chromatic is new physics: `Element.chromatic_aberration` +
+`Source.energy_spread`, bilinear in (x, E) and therefore not
+matrix-expressible, with an *exact* covariance term rather than a closed one.
+Three defects fixed along the way: the ensemble mean was taken from the
+centroid ray (losing an even-order aberration's mean shift into the width);
+the per-axis closure dropped cross-plane terms that match the retained ones in
+size on a coupled beam; and `apply_aberrations=False` left chromatic running.
+`examples/08_covariancePropagation.py` answers the study question on
+`basic_column`: OL1 spherical multiplies the detector emittance 9.71x, OL2
+1.26x, both 9.76x — additive to +0.45%, and that residual IS the OL1-OL2
+coupling. The aberration is a 1e-4 share of the angular variance yet 10x in
+emittance, because emittance is a determinant. Decision point: Gaussian
+closure is sufficient here (excess kurtosis discarded = 1.6e-6). 194/194;
+docs + wiki synced; site rebuilt.
+
+## 2026-08-30 — [Done] Analytic aberrations: zone-ABCD + covariance
+**Goal:** Aberrations enter the two remaining analytic representations: the
+frame/ABCD plane machinery (zone-modified blocks -> closed-form focal
+surface) and the covariance mode (Gaussian-closure moment updates).
+**Why:** The ray path applies aberrations exactly and the wave path carries
+chi, but moments ignored aberrations entirely and the frame method could
+only describe the ideal planes — no analytic aberrated waist/resolution.
+- [x] zone_power_shift + frame focal surface
+- [x] Gaussian-closure covariance update
+- [x] Monte-Carlo pinning tests
+**Outcome:** `Element.zone_power_shift(h)` turns the analytic kick into a
+per-axis zone power change (−Δθ(h)/h via deflection_at, no per-term code);
+`focal_surface(method='frame')` walks zone-modified ABCD (each aberrated
+element's block rebuilt about its principal planes with the zone's power,
+crossings solved linearly per free span in `_zone_focus`) — matches the
+traced surface to machine precision on a thin lens, ideal columns exactly
+flat. `Element.propagate_moments` now closes aberrations analytically:
+C10/aligned-C12 fold into the matrix exactly, C30 via Isserlis Gaussian
+closure in `_aberration_moment_pieces` — verified against Monte-Carlo
+statistics of the exact per-ray kick (agreement at MC noise, ~0.3%).
+Assumptions documented: centered Gaussian, decoupled planes, thin-at-element
+for thick bodies, orders >3 carried only by ray/wave. 161/161; docs
+(propagation_modes, dev docs) + wiki synced; site rebuilt.
+
+## 2026-08-30 — [Done] Rename: solve_strength_for_focal_length
+**Goal:** Action-oriented name for the f→K inversion (Eric's call).
+**Why:** `strength_for_focal_length` read like a property; it is a solve
+(brentq on K·sin(KL) = 1/f, first branch).
+**Outcome:** Renamed across basic_column, example 07, tests, terminology
+page, wiki. 159/159.
+
+## 2026-08-30 — [Done] findPlanes ignores dead rays
+**Goal:** Plane detection only trusts rays that still carry intensity: per
+interval, a crossing counts only if both tracer rays are alive, reselecting
+among same-signature live candidates when a masked aperture killed the
+original pair.
+**Why:** With masking apertures, ghost tracers kept reporting planes for
+beam that no longer exists — with aberrations, that is the WRONG focal
+plane (the aperture selects the pupil zone; the ghost pair reports the cut
+zone's z).
+- [x] intensity-aware findPlanes (unchanged bit-for-bit when nothing masked)
+- [x] test: aberrated lens + aperture -> plane follows the LIVE pupil zone
+**Outcome:** findPlanes collects full candidate lists and per interval uses
+the first two LIVE same-signature candidates (I > 0 at the interval end);
+plain-array input (no I) keeps the old behavior exactly, and with nothing
+masked the pair is the old first-two bit-for-bit (159/159, incl. the hash
+tests). New test: ideal lens — cutting the outer zone doesn't move the
+plane; C30 lens — the detected plane moves downstream to the live inner
+zone; all candidates cut — no plane reported. Thomas's fitting paths are
+unaffected when nothing is masked, and now correct when something is.
+
+## 2026-08-30 — [Done] Backlog a+b: waveoptics wiki refresh; sibling merges
+**Goal:** Bring wiki/waveoptics.md up to date with the hybrid engine, and
+land the sibling-repo branches on their mains.
+**Why:** The page predated the mid-restoration handoff fixes and never
+documented the body walker; sea-eco's JSON round-trip fixes and fifth-order
+abb_C sat 4 ahead / 38 behind main.
+**Outcome:** waveoptics.md gains the pending-marker handoff rules and a
+propagate_quadratic_segment_hybrid section (in-body crossover logging, the
+z_end − B/D exit projection). sea-eco: main merged into the branch (LOG
+union), tests compared before/after — 19 failures PRE-EXIST on main (15
+notebook-parse + 4 code: backgrounds/pipeline_graph_model/tree_html),
+untouched by the merge, which adds 2 passing round-trip tests; main
+fast-forwarded. sea-ecosystem: the branch's only net diff was auto-generated
+index stamps — regenerated fresh on main instead. NOTE: the push proxy
+refuses ref deletions, so the stale claude/raytem-beam-propagation-3mi4up
+branches on sea-eco and sea-ecosystem need a GitHub-UI delete.
+
+## 2026-08-30 — [Done] Aperture masking + rotation rename
+**Goal:** Ray-path apertures become true masks (blocked rays get I = 0,
+geometry untouched); `skew` becomes `rotation` (roll about z) with the
+Larmor bookkeeping moved to `larmor_rotation`.
+**Why:** Masking is faithful for crossover fitting, plotting, and
+resolution (the rescale compresses emittance and mislabels pupil zones for
+aberrations, and Thomas's own comment documents its one-aperture limit);
+"skew" suggests shear when the element is simply rotated.
+- [x] rotation rename
+- [x] aperture mask + plotting truncation
+- [x] ex07/tests/docs adapted
+**Outcome:** `Quadrapole.rotation` (was skew) with Larmor bookkeeping moved
+to `larmor_rotation`; old .sea lenses with a stale `rotation` key reload
+harmlessly (round lenses ignore the roll; larmor_rotation is recomputed
+every run). Aperture ray path = true mask (Thomas's original option 1):
+geometry passes, blocked rays get I = 0 and stay dead; survivors
+unattenuated; masks compose across apertures (the rescale's documented
+one-aperture limit is gone); current = sum(I), sampled and quantized by
+I_total/n_rays. plot2D truncates dead rays at their death plane. ex07's
+predict_probe is now the same circular cut as the trace (prediction ==
+traced exactly; the Larmor lab-frame corner bookkeeping evaporated —
+a circular mask is rotation-invariant). fit_VOA rewired to the new smooth
+Aperture.transmitted_fraction (the masked current is a staircase, which
+starves curve_fit — the old scale_x*scale_y formula lives on as the
+FITTING surface, mask stays the propagation truth). every_element fixture
+regenerated (rescale-era hash). 158/158; examples 01/02/03/05 run.
+FLAGGED, not done: findPlanes still lets ghost (I=0) rays participate in
+plane detection — fine for laminar fans, biased for finite sources through
+a cutting aperture; MACSTEM VOA scripts still assume rescale semantics
+(left per 'leave it').
+
+## 2026-08-30 — [Done] Three-name focal API
+**Goal:** `focal_power` / `focal_length` (EFL, reciprocal pair) /
+`back_focal_distance` (signed −A/C, the measured exit-face quantity), plus
+the interactive thick-lens geometry figure in the docs.
+**Why:** The current "focal_power is deliberately not 1/focal_length" state
+is correct but a standing trap; the planning session settled the clean
+naming and the geometry story (real vs virtual BFP, in-body crossovers).
+- [x] properties + docstrings
+- [x] physics test list
+- [x] docs figure + terminology + wiki
+- [x] issue #11 proposal comment
+**Outcome:** `focal_power = −C` (unchanged) and `focal_length = 1/P` (EFL)
+are exact reciprocals again; the measured exit-face quantity lives on the
+new signed `back_focal_distance = −A/C` (negative past KL = π/2 = virtual
+BFP; real crossover in-body at π/2K). Thin-lens plumbing and .sea round
+trips untouched. Physics tests: matrix defs, BFD = A·EFL, traced angle =
+P·h, drift-of-BFD zeroes accumulated A, thin limit, strong-lens
+virtual-vs-in-body case, serialization. Terminology page carries the
+three-name table plus the interactive thick-lens geometry figure
+(docs/_static/thick_lens_focal_geometry.html — both ray families, sliders
+across π/2), scrubbed to pure physics. Proposed to Thomas on issue #11
+(commit a4b7e63). Suite 157/157.
+
+## 2026-08-29 — [Done] Finishing propagation additions (power split + ex06)
+**Goal:** New workflow (branch `finishing_propagation_additions`, merged to
+`dev` every commit) and the two items gated on the thick-lens focal-power
+question: settle K·sin(KL) vs K·tan(KL) for the aberration pupil scale, then
+re-derive example 06's narrative.
+**Why:** main's measured `focal_length` redefined `focal_power` for thick
+lenses, silently rescaling every aberration pupil; example 06's header has
+been stale since the column rebuild.
+- [x] branch + CI scoped to dev/main
+- [x] focal-power decision + implementation
+- [x] example 06 narrative re-derived
+**Outcome:** Eric's call: focal_power = EFL power K·sin(KL) (the pupil-angle
+number, restored); focal_length = Thomas's measured BFD (kept). Regression
+test pins the split; thick-body test back at C30=1e-3; terminology page +
+wiki explain EFL vs BFD. Example 06 re-derived (F_OL 2→3 mm, C30 4.5 µm →
+Strehl 0.632, delivered 0.969 measured in panel E). Merge fallout fixed in
+examples 01/02/03/05. Issue #11 opened for Thomas with the full write-up.
+155/155.
+
 ## 2026-08-28 — [Done] Merge main into Signal_and_propagation_additions_new (PR #9)
 **Goal:** Land Thomas's post-#7 fixes from main here, resolve the conflicts,
 keep our new functionality and docs, and merge PR #9.

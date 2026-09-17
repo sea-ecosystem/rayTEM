@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>rayTEM Thick-Lens Focal Geometry</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f8fb;
+      --paper: #ffffff;
+      --ink: #172033;
+      --muted: #5b667a;
+      --line: #d5dbe6;
+      --soft: #eef2f8;
+      --blue: #1769aa;
+      --orange: #d06b18;
+      --green: #23845b;
+      --magenta: #a33b82;
+      --purple: #7056b8;
+      --code-bg: #101827;
+      --code-ink: #eef4ff;
+      --shadow: 0 12px 36px rgba(25, 38, 64, 0.10);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1420;
+        --paper: #171e2b;
+        --ink: #edf2fb;
+        --muted: #aeb8c9;
+        --line: #374256;
+        --soft: #222c3c;
+        --blue: #69b7f0;
+        --orange: #f2a45f;
+        --green: #62d5a4;
+        --magenta: #ed8dd0;
+        --purple: #b4a2f5;
+        --code-bg: #0a0f18;
+        --code-ink: #eef4ff;
+        --shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.58;
+    }
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 28px auto 64px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    header {
+      padding: 42px clamp(24px, 5vw, 66px) 34px;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 11%, var(--paper)), var(--paper) 55%);
+      border-bottom: 1px solid var(--line);
+    }
+    article { padding: 10px clamp(24px, 5vw, 66px) 54px; }
+    section { padding-top: 34px; }
+    h1, h2, h3 { line-height: 1.22; font-weight: 650; letter-spacing: -0.02em; }
+    h1 { margin: 0 0 10px; font-size: clamp(2rem, 5vw, 3.2rem); }
+    h2 { margin: 0 0 16px; font-size: clamp(1.45rem, 3vw, 2rem); }
+    h3 { margin: 22px 0 8px; font-size: 1.08rem; }
+    p { margin: 0 0 14px; }
+    .subtitle { color: var(--muted); font-size: 1.08rem; max-width: 820px; }
+    .summary {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .summary > div, .callout {
+      background: color-mix(in srgb, var(--soft) 75%, transparent);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .summary strong { display: block; margin-bottom: 4px; }
+    .summary span { color: var(--muted); font-size: 0.92rem; }
+    .lead { font-size: 1.06rem; }
+    .quiet { color: var(--muted); }
+    .equation {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 16px;
+      margin: 17px 0;
+      padding: 12px 16px;
+      border-left: 3px solid color-mix(in srgb, var(--blue) 68%, var(--line));
+      background: color-mix(in srgb, var(--soft) 52%, transparent);
+      border-radius: 0 10px 10px 0;
+      overflow-x: auto;
+    }
+    .equation math { justify-self: center; font-size: 1.12rem; min-width: max-content; }
+    .eqno { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .ratio-grid, .plane-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 18px 0;
+    }
+    .ratio-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+      background: var(--paper);
+    }
+    .ratio-card h3 { margin-top: 0; }
+    .ratio-card p:last-child { margin-bottom: 0; }
+    .tag {
+      display: inline-block;
+      margin-bottom: 8px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      color: var(--blue);
+      background: color-mix(in srgb, var(--blue) 12%, transparent);
+      font-size: 0.82rem;
+      font-weight: 650;
+    }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th, td { padding: 11px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-size: 0.87rem; letter-spacing: 0.02em; }
+    td code, p code, li code { color: var(--blue); background: color-mix(in srgb, var(--blue) 9%, transparent); padding: 1px 5px; border-radius: 4px; }
+    pre {
+      margin: 12px 0 20px;
+      padding: 17px 18px;
+      overflow-x: auto;
+      border-radius: 12px;
+      background: var(--code-bg);
+      color: var(--code-ink);
+      font: 0.87rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      tab-size: 4;
+    }
+    ol, ul { padding-left: 1.35rem; }
+    li { margin: 7px 0; }
+    .coordinate-strip {
+      margin: 20px 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: color-mix(in srgb, var(--soft) 42%, transparent);
+    }
+    .coordinate-strip svg { display: block; width: 100%; height: auto; }
+
+    /* Interactive optical geometry */
+    #interactive-optics {
+      margin: 22px 0 8px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--soft) 30%, var(--paper));
+    }
+    .optic-controls { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: end; margin-bottom: 15px; }
+    .optic-control { flex: 1 1 235px; min-width: 0; }
+    .control-label { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; font-size: 0.9rem; font-weight: 620; }
+    .mode-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+    button {
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--ink);
+      background: var(--paper);
+      font: inherit;
+      cursor: pointer;
+    }
+    button[aria-pressed="true"] { color: white; background: var(--blue); border-color: var(--blue); }
+    button:focus-visible, input:focus-visible { outline: 3px solid color-mix(in srgb, var(--blue) 35%, transparent); outline-offset: 2px; }
+    input[type="range"] { width: 100%; accent-color: var(--blue); }
+    .optic-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .optic-panel { min-width: 0; }
+    .optic-heading { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; margin-bottom: 3px; }
+    .optic-heading h3 { margin: 0; }
+    .optic-state { color: var(--muted); font-size: 0.82rem; text-align: right; }
+    .optic-canvas { width: 100%; min-height: 330px; }
+    .optic-canvas svg { display: block; width: 100%; height: auto; overflow: visible; }
+    .lens-fill { fill: var(--soft); }
+    .axis-line { stroke: var(--line); stroke-width: 1.3; }
+    .physical-ray { fill: none; stroke: var(--blue); stroke-width: 1.8; }
+    .virtual-ray { fill: none; stroke: var(--orange); stroke-width: 1.5; stroke-dasharray: 6 5; }
+    .plane-line { stroke: var(--line); stroke-width: 1.2; stroke-dasharray: 3 4; }
+    .principal-line { stroke: var(--purple); stroke-width: 1.5; stroke-dasharray: 2 4; }
+    .focal-line { stroke: var(--orange); stroke-width: 1.8; }
+    .image-line { stroke: var(--green); stroke-width: 1.8; }
+    .cross-line { stroke: var(--magenta); stroke-width: 1.8; stroke-dasharray: 7 4; }
+    .measure-line { stroke: var(--ink); stroke-width: 1.05; }
+    .optic-canvas text { fill: var(--ink); font: 12px ui-sans-serif, system-ui, sans-serif; }
+    .optic-canvas .muted-label { fill: var(--muted); }
+    .optic-canvas .bf-label { fill: var(--orange); }
+    .optic-canvas .image-label { fill: var(--green); }
+    .optic-canvas .cross-label { fill: var(--magenta); }
+    .image-point { fill: var(--green); }
+    .focus-point { fill: var(--orange); }
+    .cross-point { fill: var(--magenta); }
+    .optic-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 9px; color: var(--muted); font-size: 0.82rem; }
+    .optic-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-line { width: 20px; height: 2px; display: inline-block; background: var(--blue); }
+    .legend-line.virtual { background: var(--orange); }
+    .legend-line.image { background: var(--green); }
+    .legend-line.cross { background: var(--magenta); }
+    .optic-status { margin-top: 9px; min-height: 1.5em; color: var(--muted); font-size: 0.9rem; }
+    footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.86rem; }
+
+    @media (max-width: 800px) {
+      .summary, .ratio-grid, .plane-grid, .optic-grid { grid-template-columns: 1fr; }
+      main { width: min(100% - 16px, 1120px); margin-top: 8px; border-radius: 12px; }
+      header { padding-top: 30px; }
+      .equation math { justify-self: start; }
+    }
+    @media print {
+      :root { --bg: #fff; --paper: #fff; --ink: #111; --muted: #555; --line: #bbb; --soft: #f2f2f2; }
+      body { background: white; }
+      main { width: 100%; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
+      header, article { padding-left: 30px; padding-right: 30px; }
+      button, input[type="range"] { display: none; }
+      #interactive-optics { break-inside: avoid; }
+      pre { white-space: pre-wrap; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>rayTEM thick-lens focal geometry</h1>
+    <p class="subtitle">The three focal quantities of a thick lens, where each is referenced, and an interactive ray geometry for exploring them.</p>
+    <div class="summary" aria-label="Recommended terminology summary">
+      <div><strong><code>focal_power</code></strong><span>Equivalent power, <em>P</em> = −<em>C</em>; used by aberrations.</span></div>
+      <div><strong><code>focal_length</code></strong><span>Effective focal length, EFL = 1/<em>P</em>.</span></div>
+      <div><strong><code>back_focal_distance</code></strong><span>Signed exit-face-to-BFP distance, −<em>A</em>/<em>C</em>.</span></div>
+    </div>
+  </header>
+
+  <article>
+    <section id="outcome">
+      <h2>The three focal properties</h2>
+      <p class="lead">A thick lens yields two valid focal quantities from the same traced ray, using ray heights referenced to different planes. rayTEM carries both, with the reference planes explicit in the naming.</p>
+      <p>The API:</p>
+      <table>
+        <thead><tr><th>Name</th><th>Definition</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td><code>focal_power</code></td><td><em>P</em> = −<em>C</em></td><td>Entrance-height-to-exit-angle conversion; aberration pupil scale.</td></tr>
+          <tr><td><code>focal_length</code></td><td>EFL = −1/<em>C</em> = 1/<em>P</em></td><td>Conventional effective focal length, referenced to the rear principal plane.</td></tr>
+          <tr><td><code>back_focal_distance</code></td><td>BFD = −<em>A</em>/<em>C</em> = <em>A</em>/<em>P</em></td><td>Signed distance from the exit face to the output-space back focal plane.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout"><strong>There is deliberately no “BFD power”.</strong> The reciprocal of BFD is a valid exit-height-to-angle ratio, but it is not the equivalent optical power and must never be used as the pupil scale.</div>
+    </section>
+
+    <section id="physics">
+      <h2>Two readings of one matrix</h2>
+      <p>For one transverse axis in the Larmor frame, the full thick-lens body is represented by one entrance-to-exit matrix:</p>
+
+      <div class="equation">
+        <math display="block" aria-label="M equals the two by two thick lens matrix">
+          <mrow>
+            <mi>M</mi><mo>=</mo><mo>[</mo>
+            <mtable columnspacing="1.25em" rowspacing="0.55em">
+              <mtr><mtd><mrow><mi>cos</mi><mo>(</mo><mi>K</mi><mi>L</mi><mo>)</mo></mrow></mtd><mtd><mfrac><mrow><mi>sin</mi><mo>(</mo><mi>K</mi><mi>L</mi><mo>)</mo></mrow><mi>K</mi></mfrac></mtd></mtr>
+              <mtr><mtd><mrow><mo>−</mo><mi>K</mi><mi>sin</mi><mo>(</mo><mi>K</mi><mi>L</mi><mo>)</mo></mrow></mtd><mtd><mrow><mi>cos</mi><mo>(</mo><mi>K</mi><mi>L</mi><mo>)</mo></mrow></mtd></mtr>
+            </mtable><mo>]</mo>
+          </mrow>
+        </math>
+        <span class="eqno">(1)</span>
+      </div>
+
+      <p>A parallel ray entering at height <em>h</em> exits with height <em>Ah</em> and slope <em>Ch</em>:</p>
+      <div class="equation">
+        <math display="block" aria-label="Exit height equals A h and exit slope equals C h">
+          <mrow><msub><mi>x</mi><mtext>exit</mtext></msub><mo>=</mo><mi>A</mi><mi>h</mi><mo>,</mo><mspace width="1.5em"/><msubsup><mi>x</mi><mtext>exit</mtext><mo>′</mo></msubsup><mo>=</mo><mi>C</mi><mi>h</mi></mrow>
+        </math>
+        <span class="eqno">(2)</span>
+      </div>
+
+      <div class="ratio-grid">
+        <div class="ratio-card">
+          <span class="tag">Entrance reference</span>
+          <h3>Equivalent power and EFL</h3>
+          <p>Divide the converging exit angle by the <strong>entrance height</strong>:</p>
+          <div class="equation">
+            <math display="block" aria-label="P equals negative C equals K sine K L and EFL equals one over P">
+              <mrow><mi>P</mi><mo>=</mo><mo>−</mo><mi>C</mi><mo>=</mo><mi>K</mi><mi>sin</mi><mo>(</mo><mi>K</mi><mi>L</mi><mo>)</mo><mo>,</mo><mspace width="1em"/><mi>EFL</mi><mo>=</mo><mfrac><mn>1</mn><mi>P</mi></mfrac></mrow>
+            </math>
+            <span class="eqno">(3)</span>
+          </div>
+          <p>This is the angle scale needed by the Krivanek aberration expressions.</p>
+        </div>
+        <div class="ratio-card">
+          <span class="tag">Exit reference</span>
+          <h3>Back focal distance</h3>
+          <p>Divide the same exit angle by the <strong>exit height</strong>:</p>
+          <div class="equation">
+            <math display="block" aria-label="Inverse BFD equals negative C over A equals K tangent K L">
+              <mrow><mfrac><mn>1</mn><mi>BFD</mi></mfrac><mo>=</mo><mo>−</mo><mfrac><mi>C</mi><mi>A</mi></mfrac><mo>=</mo><mi>K</mi><mi>tan</mi><mo>(</mo><mi>K</mi><mi>L</mi><mo>)</mo></mrow>
+            </math>
+            <span class="eqno">(4)</span>
+          </div>
+          <p>This gives the drift geometry from the exit state to the BFP.</p>
+        </div>
+      </div>
+
+      <p>The sine-versus-tangent difference is therefore the factor <em>A</em> = cos(<em>KL</em>) introduced by using the smaller exit height. Both ratios are valid; the trap is using 1/BFD as though it were the equivalent focal power — through the aberration kick’s P⁴ dependence, that misscales every thick-lens aberration.</p>
+    </section>
+
+    <section id="visual">
+      <h2>Interactive ray geometry</h2>
+      <p>Use the ray-family buttons to switch between the back focal plane and a finite-conjugate image plane. Move either slider to see how the cardinal planes and physical rays evolve on opposite sides of <em>KL</em> = π/2. Lengths in the figure are normalized by 1/<em>K</em>.</p>
+
+      <div id="interactive-optics">
+        <div class="optic-controls" aria-label="Interactive ray controls">
+          <div class="optic-control">
+            <div class="control-label"><span>Ray family</span></div>
+            <div class="mode-buttons" role="group" aria-label="Ray family">
+              <button type="button" id="parallel-mode" aria-pressed="true">Same input angle</button>
+              <button type="button" id="object-mode" aria-pressed="false">Same object point</button>
+            </div>
+          </div>
+          <label class="optic-control" for="weak-phase">
+            <span class="control-label"><span>Below π/2</span><span id="weak-value">1.30</span></span>
+            <input id="weak-phase" type="range" min="0.45" max="1.54" step="0.01" value="1.30">
+          </label>
+          <label class="optic-control" for="strong-phase">
+            <span class="control-label"><span>Above π/2</span><span id="strong-value">2.25</span></span>
+            <input id="strong-phase" type="range" min="1.60" max="2.30" step="0.01" value="2.25">
+          </label>
+        </div>
+
+        <div class="optic-grid">
+          <section class="optic-panel" aria-labelledby="weak-panel-title">
+            <div class="optic-heading"><h3 id="weak-panel-title">KL &lt; π/2</h3><span id="weak-state" class="optic-state"></span></div>
+            <div id="weak-canvas" class="optic-canvas"></div>
+          </section>
+          <section class="optic-panel" aria-labelledby="strong-panel-title">
+            <div class="optic-heading"><h3 id="strong-panel-title">KL &gt; π/2</h3><span id="strong-state" class="optic-state"></span></div>
+            <div id="strong-canvas" class="optic-canvas"></div>
+          </section>
+        </div>
+
+        <div class="optic-legend" aria-label="Figure legend">
+          <span><i class="legend-line"></i>physical ray</span>
+          <span><i class="legend-line virtual"></i>backward drift extrapolation</span>
+          <span><i class="legend-line image"></i>finite-conjugate image</span>
+          <span><i class="legend-line cross"></i>actual internal crossover</span>
+        </div>
+        <div id="optic-status" class="optic-status" aria-live="polite"></div>
+      </div>
+
+      <div class="plane-grid">
+        <div class="callout"><strong>Back focal plane</strong><br>Rays sharing one incident angle meet at one point. Different incident angles map to different positions across the angular or diffraction plane.</div>
+        <div class="callout"><strong>Image plane</strong><br>Rays leaving one finite object point at different angles reunite at one image point. Its location depends on the object conjugate.</div>
+      </div>
+
+      <p>The corresponding matrix conditions are:</p>
+      <div class="equation">
+        <math display="block" aria-label="A total equals zero at a back focal plane and B total equals zero at an image plane">
+          <mrow><msub><mi>A</mi><mtext>total</mtext></msub><mo>=</mo><mn>0</mn><mspace width="1.2em"/><mtext>at a BFP</mtext><mo>,</mo><mspace width="2em"/><msub><mi>B</mi><mtext>total</mtext></msub><mo>=</mo><mn>0</mn><mspace width="1.2em"/><mtext>at an image plane</mtext></mrow>
+        </math>
+        <span class="eqno">(5)</span>
+      </div>
+
+      <p>For representative rayTEM objectives, <em>KL</em> = 0.16 and approximately 1.3, so the left-hand case applies: EFL and BFD reach the same real downstream BFP from two different origins. The right-hand case is a useful edge condition. Once <em>KL</em> exceeds π/2, the physical parallel bundle has already crossed inside the field, while −<em>A</em>/<em>C</em> describes a virtual output-space BFP obtained by backward drift extrapolation of the exit rays.</p>
+    </section>
+
+    <section id="coordinate">
+      <h2>Meaning of L and the lens center</h2>
+      <p>In these expressions, <em>L</em> is the propagation length through the lens body, and the full matrix maps the entrance face to the exit face. Saying “<em>L</em> = 0 at the entrance” is shorthand for saying that the accumulated transfer begins there:</p>
+      <div class="equation">
+        <math display="block" aria-label="M of zero equals identity and M of L maps entrance to exit">
+          <mrow><mi>M</mi><mo>(</mo><mn>0</mn><mo>)</mo><mo>=</mo><mi>I</mi><mo>,</mo><mspace width="2em"/><mi>M</mi><mo>(</mo><mi>L</mi><mo>)</mo><mo>=</mo><msub><mi>M</mi><mtext>entrance→exit</mtext></msub></mrow>
+        </math>
+        <span class="eqno">(6)</span>
+      </div>
+
+      <div class="coordinate-strip">
+        <svg viewBox="0 0 900 150" role="img" aria-labelledby="coord-title coord-desc">
+          <title id="coord-title">Lens coordinate convention</title>
+          <desc id="coord-desc">The partial transfer begins at the entrance, the physical field center is halfway through the body, and the full transfer ends at the exit.</desc>
+          <rect x="155" y="46" width="590" height="54" rx="8" fill="var(--soft)" stroke="var(--line)"/>
+          <line x1="70" y1="73" x2="825" y2="73" stroke="var(--muted)" stroke-width="2"/>
+          <path d="M825 73 l-12 -7 v14 z" fill="var(--muted)"/>
+          <line x1="155" y1="34" x2="155" y2="112" stroke="var(--blue)" stroke-width="2"/>
+          <line x1="450" y1="34" x2="450" y2="112" stroke="var(--purple)" stroke-width="2" stroke-dasharray="5 4"/>
+          <line x1="745" y1="34" x2="745" y2="112" stroke="var(--blue)" stroke-width="2"/>
+          <text x="155" y="25" text-anchor="middle" fill="var(--ink)" font-size="15">entrance</text>
+          <text x="450" y="25" text-anchor="middle" fill="var(--ink)" font-size="15">field center</text>
+          <text x="745" y="25" text-anchor="middle" fill="var(--ink)" font-size="15">exit</text>
+          <text x="155" y="132" text-anchor="middle" fill="var(--muted)" font-size="14">dz = 0</text>
+          <text x="450" y="132" text-anchor="middle" fill="var(--muted)" font-size="14">dz = L/2</text>
+          <text x="745" y="132" text-anchor="middle" fill="var(--muted)" font-size="14">dz = L</text>
+          <text x="825" y="99" text-anchor="end" fill="var(--muted)" font-size="14">propagation</text>
+        </svg>
+      </div>
+
+      <p>The magnetic field can be spatially symmetric about the center without making that center a crossover. For a parallel ray evaluated with the existing partial-length variable <code>dz</code>,</p>
+      <div class="equation">
+        <math display="block" aria-label="x of d z equals h cosine K d z and the first crossover is at d z equals pi over two K">
+          <mrow><mi>x</mi><mo>(</mo><mi>dz</mi><mo>)</mo><mo>=</mo><mi>h</mi><mi>cos</mi><mo>(</mo><mi>K</mi><mi>dz</mi><mo>)</mo><mo>,</mo><mspace width="2em"/><msub><mi>dz</mi><mtext>cross</mtext></msub><mo>=</mo><mfrac><mi>π</mi><mrow><mn>2</mn><mi>K</mi></mrow></mfrac></mrow>
+        </math>
+        <span class="eqno">(7)</span>
+      </div>
+      <p>The first crossover lies at the center only in the special case <em>KL</em> = π. Larmor rotation accumulates through the field, but the field center is not inherently a focal, image, or crossover plane.</p>
+    </section>
+
+    
+
+    
+
+    
+
+    
+
+    
+  </article>
+</main>
+
+<script>
+(() => {
+  const root = document.getElementById('interactive-optics');
+  const weakInput = root.querySelector('#weak-phase');
+  const strongInput = root.querySelector('#strong-phase');
+  const parallelButton = root.querySelector('#parallel-mode');
+  const objectButton = root.querySelector('#object-mode');
+  const status = root.querySelector('#optic-status');
+  let mode = 'parallel';
+
+  function fmt(value) {
+    const clean = Math.abs(value) < 0.0005 ? 0 : value;
+    return clean.toFixed(2);
+  }
+
+  function pathFrom(points, sx, sy) {
+    return points.map((point, index) => `${index ? 'L' : 'M'} ${sx(point.z).toFixed(2)} ${sy(point.x).toFixed(2)}`).join(' ');
+  }
+
+  function draw(panelName, phase) {
+    const container = root.querySelector(`#${panelName}-canvas`);
+    const width = Math.max(320, container.clientWidth || 480);
+    const height = 330;
+    const margin = { left: 18, right: 18, top: 34, bottom: 82 };
+    const L = phase;
+    const A = Math.cos(phase);
+    const B = Math.sin(phase);
+    const C = -Math.sin(phase);
+    const D = A;
+    const efl = -1 / C;
+    const bfd = -A / C;
+    const principalOffset = efl - bfd;
+    const rearPrincipal = L - principalOffset;
+    const backFocal = L + bfd;
+    const internalCross = Math.PI / 2;
+    const objectDistance = 1;
+    const objectHeight = 0.24;
+    const imageDistance = -(A * objectDistance + B) / (C * objectDistance + D);
+    const imageZ = L + imageDistance;
+    const imageHeight = (A + imageDistance * C) * objectHeight;
+
+    const zMin = mode === 'object' ? -1.18 : -0.18;
+    const zMax = mode === 'object'
+      ? Math.max(L + 0.55, imageZ + 0.38)
+      : Math.max(L + 0.72, backFocal + 0.42);
+    const transverseExtent = mode === 'object' ? 1.22 : 1.04;
+    const sx = z => margin.left + (z - zMin) / (zMax - zMin) * (width - margin.left - margin.right);
+    const sy = x => margin.top + (transverseExtent - x) / (2 * transverseExtent) * (height - margin.top - margin.bottom);
+    const axisY = sy(0);
+    const plotTop = margin.top;
+    const plotBottom = height - margin.bottom;
+    const pieces = [];
+
+    pieces.push(`<svg viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="${panelName}-svg-title ${panelName}-svg-desc">`);
+    pieces.push(`<title id="${panelName}-svg-title">Thick-lens ray geometry for KL equal to ${phase.toFixed(2)}</title>`);
+    pieces.push(`<desc id="${panelName}-svg-desc">Physical rays through a uniform thick lens with entrance, exit, principal, focal, crossover, and image planes labeled.</desc>`);
+    pieces.push(`<rect class="lens-fill" x="${sx(0)}" y="${plotTop}" width="${sx(L) - sx(0)}" height="${plotBottom - plotTop}"></rect>`);
+    pieces.push(`<line class="axis-line" x1="${sx(zMin)}" y1="${axisY}" x2="${sx(zMax)}" y2="${axisY}"></line>`);
+
+    function plane(z, className, label, anchor, labelY) {
+      const px = sx(z);
+      let textClass = 'muted-label';
+      if (className === 'focal-line') textClass = 'bf-label';
+      if (className === 'image-line') textClass = 'image-label';
+      if (className === 'cross-line') textClass = 'cross-label';
+      pieces.push(`<line class="${className}" x1="${px}" y1="${plotTop}" x2="${px}" y2="${plotBottom}"></line>`);
+      pieces.push(`<text class="${textClass}" x="${px + (anchor === 'end' ? -4 : 4)}" y="${labelY}" text-anchor="${anchor}">${label}</text>`);
+    }
+
+    plane(0, 'plane-line', 'entrance', 'start', plotTop + 14);
+    plane(L, 'plane-line', 'exit', 'end', plotTop + 14);
+    plane(rearPrincipal, 'principal-line', 'H′', 'start', plotTop + 30);
+
+    if (mode === 'parallel') {
+      [-0.82, -0.42, 0.42, 0.82].forEach(heightIn => {
+        const inside = [];
+        for (let index = 0; index <= 72; index += 1) {
+          const z = L * index / 72;
+          inside.push({ z, x: heightIn * Math.cos(z) });
+        }
+        const exitHeight = heightIn * A;
+        const exitSlope = heightIn * C;
+        const after = [
+          { z: L, x: exitHeight },
+          { z: zMax, x: exitHeight + exitSlope * (zMax - L) }
+        ];
+        pieces.push(`<path class="physical-ray" d="${pathFrom(inside, sx, sy)}"></path>`);
+        pieces.push(`<path class="physical-ray" d="${pathFrom(after, sx, sy)}"></path>`);
+        if (phase > Math.PI / 2) {
+          pieces.push(`<path class="virtual-ray" d="${pathFrom([{ z: backFocal, x: 0 }, { z: L, x: exitHeight }], sx, sy)}"></path>`);
+        }
+      });
+
+      if (phase < Math.PI / 2) {
+        plane(backFocal, 'focal-line', 'BFP = real crossover', 'end', plotTop + 30);
+        pieces.push(`<circle class="focus-point" cx="${sx(backFocal)}" cy="${axisY}" r="4"></circle>`);
+      } else {
+        plane(backFocal, 'focal-line', 'virtual BFP', 'end', plotTop + 30);
+        plane(internalCross, 'cross-line', 'real crossover', 'start', plotTop + 46);
+        pieces.push(`<circle class="focus-point" cx="${sx(backFocal)}" cy="${axisY}" r="4"></circle>`);
+        pieces.push(`<circle class="cross-point" cx="${sx(internalCross)}" cy="${axisY}" r="4"></circle>`);
+      }
+
+      function bracket(z1, z2, y, label) {
+        const x1 = sx(z1);
+        const x2 = sx(z2);
+        pieces.push(`<line class="measure-line" x1="${x1}" y1="${y}" x2="${x2}" y2="${y}"></line>`);
+        pieces.push(`<line class="measure-line" x1="${x1}" y1="${y - 4}" x2="${x1}" y2="${y + 4}"></line>`);
+        pieces.push(`<line class="measure-line" x1="${x2}" y1="${y - 4}" x2="${x2}" y2="${y + 4}"></line>`);
+        pieces.push(`<text x="${(x1 + x2) / 2}" y="${y + 16}" text-anchor="middle">${label}</text>`);
+      }
+      bracket(rearPrincipal, backFocal, height - 54, `EFL ${fmt(efl)}/K`);
+      bracket(L, backFocal, height - 25, `signed BFD ${fmt(bfd)}/K`);
+    } else {
+      const objectZ = -objectDistance;
+      [-0.62, -0.30, 0.08, 0.46].forEach(slope => {
+        const entranceHeight = objectHeight + slope * objectDistance;
+        const before = [{ z: objectZ, x: objectHeight }, { z: 0, x: entranceHeight }];
+        const inside = [];
+        for (let index = 0; index <= 72; index += 1) {
+          const z = L * index / 72;
+          inside.push({ z, x: entranceHeight * Math.cos(z) + slope * Math.sin(z) });
+        }
+        const exitHeight = A * entranceHeight + B * slope;
+        const exitSlope = C * entranceHeight + D * slope;
+        const after = [{ z: L, x: exitHeight }, { z: imageZ, x: exitHeight + exitSlope * imageDistance }];
+        pieces.push(`<path class="physical-ray" d="${pathFrom(before, sx, sy)}"></path>`);
+        pieces.push(`<path class="physical-ray" d="${pathFrom(inside, sx, sy)}"></path>`);
+        pieces.push(`<path class="physical-ray" d="${pathFrom(after, sx, sy)}"></path>`);
+      });
+      plane(backFocal, 'focal-line', phase < Math.PI / 2 ? 'BFP' : 'virtual BFP', 'end', plotTop + 30);
+      plane(imageZ, 'image-line', 'image plane', 'start', plotTop + 46);
+      pieces.push(`<circle class="image-point" cx="${sx(objectZ)}" cy="${sy(objectHeight)}" r="4"></circle>`);
+      pieces.push(`<text class="image-label" x="${sx(objectZ) + 5}" y="${sy(objectHeight) - 7}">object point</text>`);
+      pieces.push(`<circle class="image-point" cx="${sx(imageZ)}" cy="${sy(imageHeight)}" r="4"></circle>`);
+      pieces.push(`<text class="image-label" x="${sx(imageZ) + 5}" y="${sy(imageHeight) - 7}">image point</text>`);
+    }
+
+    pieces.push(`<text class="muted-label" x="${(sx(0) + sx(L)) / 2}" y="${plotBottom - 8}" text-anchor="middle">uniform lens field</text>`);
+    pieces.push(`<text class="muted-label" x="${sx(zMax)}" y="${axisY - 7}" text-anchor="end">z</text>`);
+    pieces.push('</svg>');
+    container.innerHTML = pieces.join('');
+
+    const panelState = root.querySelector(`#${panelName}-state`);
+    panelState.textContent = mode === 'parallel'
+      ? (phase < Math.PI / 2 ? 'real BFP after exit' : 'internal crossing; virtual BFP')
+      : `image ${fmt(imageDistance)}/K from exit`;
+    return { backFocal };
+  }
+
+  function redraw() {
+    const weakPhase = Number(weakInput.value);
+    const strongPhase = Number(strongInput.value);
+    root.querySelector('#weak-value').textContent = weakPhase.toFixed(2);
+    root.querySelector('#strong-value').textContent = strongPhase.toFixed(2);
+    draw('weak', weakPhase);
+    const strong = draw('strong', strongPhase);
+    status.textContent = mode === 'parallel'
+      ? `Below π/2, the BFP is the real downstream crossover. Above π/2, the real crossing remains at K·dz = π/2; the complete exit matrix gives a virtual BFP at K·z = ${fmt(strong.backFocal)}.`
+      : 'A finite object point sends different angles through the lens; those rays reunite at a conjugate image plane, not generally at the BFP.';
+  }
+
+  function setMode(nextMode) {
+    mode = nextMode;
+    parallelButton.setAttribute('aria-pressed', String(mode === 'parallel'));
+    objectButton.setAttribute('aria-pressed', String(mode === 'object'));
+    redraw();
+  }
+
+  parallelButton.addEventListener('click', () => setMode('parallel'));
+  objectButton.addEventListener('click', () => setMode('object'));
+  weakInput.addEventListener('input', redraw);
+  strongInput.addEventListener('input', redraw);
+  const resizeObserver = new ResizeObserver(redraw);
+  resizeObserver.observe(root.querySelector('#weak-canvas'));
+  resizeObserver.observe(root.querySelector('#strong-canvas'));
+  redraw();
+})();
+</script>
+</body>
+</html>

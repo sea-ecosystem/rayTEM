@@ -20,11 +20,12 @@ onto, and the quantity a thick lens's Larmor rotation is built from
 (`R = KL`). It is a property of the *field*, not of the imaging: two lenses
 with the same `K` but different lengths focus differently.
 
-**Focal length `f`** (m) is the classical light-optics quantity: the
-back-focal distance of the equivalent thin lens. It is what a microscopist
-quotes and what column geometry is designed around. For a thin element the
-two are tied by `1/f = sign(K)·K²`; for a thick body by Brown's focusing
-relation
+**Focal length `f`** (m) is the focal distance from the principal plane (critically, neither the entrance or exit planes for a thick lens). This is the focal
+length of the equivalent thin lens (the EFL; the exit-face
+`back_focal_distance` is a separate number, next section). It is what a
+microscopist quotes and what column geometry is designed around. For a thin
+element the two are tied by `1/f = sign(K)·K²`; for a thick body by Brown's
+focusing relation
 
 ```
 1/f = K · sin(K·L)
@@ -32,9 +33,11 @@ relation
 
 (`Lens.focal_power` implements exactly this pair). Note the thick relation
 is not monotonic: past `KL = π/2` a stronger field gives a *longer* focal
-length, which is why `strength_for_focal_length` in
+length, which is why `solve_strength_for_focal_length` in
 `microscopes/basic_column.py` restricts itself to the first branch,
 `f ≥ 2L/π`.
+
+**principal plane** For a thick lens, this denotes the position of the equivalent thin lens. focus position can be found by taking lens position (entrance plane) plus distance to principal plane plus focal distance.
 
 **Focal power `P = 1/f`** (1/m, the light-optics *dioptre*) is the
 reciprocal, and it is not a redundant synonym — it is the quantity that
@@ -52,6 +55,104 @@ powers:
 Rule of thumb: `strength` when talking to the field or the matrix, `focal
 length` when talking to the instrument, `focal power` whenever anything is
 being *summed per axis*.
+
+### EFL vs BFD: two focal lengths per thick lens
+
+For a **thick** lens there are two different "f"s, and rayTEM deliberately
+carries both. Send a parallel ray in at height `x_1`: inside the body it
+curves, and at the exit face it emerges with angle `θ_2 = K·sin(KL)·x_1` at
+height `x_2 = cos(KL)·x_1`.
+
+| Quantity | Definition | Value | rayTEM property | Job |
+|---|---|---|---|---|
+| **Equivalent power** | `θ_2/x_1` — angle out per height in (`P = −C`) | `K·sin(KL)` | `Lens.focal_power` | The **angle** number: the pupil scale for aberrations (`α = P·x_1` is the angle the ray *actually crosses the focus at*), the wave-path χ, and the power that composes additively |
+| **EFL** (effective focal length) | `1/P`, referenced to the rear principal plane | `1/(K·sin KL)` | `Lens.focal_length` | The conventional focal length of the equivalent thin lens |
+| **BFD** (back focal distance) | `x_2/θ_2` — **signed** exit face to the BFP (`−A/C`) | `1/(K·tan KL)` | `Lens.back_focal_distance` | The **geometry** number: where the focus physically sits — placing a sample or detector, bench comparison |
+
+`focal_power` and `focal_length` are exact reciprocals. It is
+**`back_focal_distance` that is not**: EFL and BFD differ by exactly
+`cos(KL)` (3.7× for an OL1-class lens with `KL ≈ 1.3`) and coincide for a
+thin lens, which is why the distinction only matters once lenses have
+bodies. Using `1/BFD` as the pupil scale silently rescales every
+aberration: a `C30` interpreted against the BFD power means a pupil angle
+`1/cos(KL)` larger than the beam actually has, and the ray-side kick
+coefficient scales as `P⁴`. The BFD is signed: for `π/2 < KL < π` it goes
+**negative** — a *virtual* output-space BFP reached by backward drift
+extrapolation, while the physical parallel bundle has already crossed
+*inside* the body at `dz = π/(2K)` (located by `transfer_block(dz)`, never
+by the BFD). And the BFP (`A_total = 0`, rays sharing one *angle* meet) is
+not an image plane (`B_total = 0`, rays leaving one *object point* meet) —
+the two conditions are independent, which is exactly how
+`conjugate_planes` distinguishes its `diff` and `image` families.
+
+Explore all of this interactively — both ray families, either side of
+`KL = π/2` — in the
+<a href="_static/thick_lens_focal_geometry.html">thick-lens focal geometry
+figure</a>.
+
+#### The matrix view: both numbers come from one matrix
+
+There is only one thick-lens matrix — the two focal quantities are two
+*readings* of it. In the rotating (Larmor) frame, each transverse axis is
+the harmonic body block (with `c = cos KL`, `s = sin KL`; the full 6×6 in
+`Lens.transfer_matrix` is this block on each axis multiplied by the Larmor
+rotation `R(−KL)`, which mixes x↔y but never changes the magnitudes read
+below):
+
+```
+        ⎡ A  B ⎤   ⎡   c      s/K ⎤            ⎡x ⎤   position
+  M  =  ⎢      ⎥ = ⎢              ⎥   acts on  ⎢  ⎥
+        ⎣ C  D ⎦   ⎣ −K·s      c  ⎦            ⎣x′⎦   angle
+```
+
+Trace one parallel ray `(x_1, 0)ᵀ` through it: `M·(x_1,0)ᵀ = (c·x_1, −K·s·x_1)ᵀ`,
+i.e. exit **height** `x_2 = cos(KL)·x_1` (the `A` entry) and exit **angle**
+`θ_2 = K·sin(KL)·x_1` (the `−C` entry). Then:
+
+- **`focal_power = −C`** — angle out per height in, `K·sin(KL)`;
+  `focal_length` is its reciprocal, the EFL.
+- **`back_focal_distance = −A/C`** — exit height over exit angle, the
+  distance the ray still needs to reach the axis: `1/(K·tan KL)`, signed.
+
+Same matrix, one ray: one reading takes the angle row, the other the ratio.
+The `cos(KL)` connecting them is literally the `A` entry — how far inward
+the body has already pulled the ray by the exit face.
+
+**Why the EFL is the unique thin-equivalent power.** Purely as
+pencil-and-paper algebra about `M` — the lens stays a single object with a
+single matrix in the code; no drifts exist inside it — the face-to-face
+block factors uniquely as drift · thin lens · drift:
+
+```
+  ⎡  c    s/K ⎤     ⎡ 1  d ⎤ ⎡  1   0 ⎤ ⎡ 1  d ⎤               1 − cos KL
+  ⎢           ⎥  =  ⎢      ⎥ ⎢        ⎥ ⎢      ⎥ ,   with  d = ───────────
+  ⎣ −K·s   c  ⎦     ⎣ 0  1 ⎦ ⎣ −P   1 ⎦ ⎣ 0  1 ⎦                K·sin KL
+```
+
+Matching the `C` entry forces `P = K·sin(KL)` with no freedom, and the two
+(fictitious, equal) drifts locate the **principal planes**, a symmetric
+distance `(1−cos KL)/(K·sin KL)` inside each face. The bookkeeping closes
+exactly: `EFL − BFD = (1−c)/(K·s) = d`, so the EFL (from the principal
+plane) and the BFD (from the exit face) describe the *same* crossover point
+— the difference is precisely the principal plane sitting `d` inside the
+body. (Sanity check on the `B` entry: `2d − d²P = (1−c²)/(K·s) = s/K`.)
+
+The factorization is exact only for the face-to-face matrix; it is **not**
+a license to model the body as a kick between drifts. Interior physics
+still needs the body's own law at partial length — planes inside the body
+come from `transfer_block(dz)` (the base class deliberately refuses to fake
+that with a kick), and distributed aberrations integrate along the body
+rather than acting at the equivalent thin plane. Thin limit: `L → 0` ⇒
+`A → 1`, the principal plane migrates to the lens plane, and the two
+numbers collapse into one — which is why the distinction never shows on
+thin lenses.
+
+**Orthogonal to the aberration-power story.** The EFL/BFD split exists for
+a perfectly *ideal* thick lens (`ΔP = 0`): it is a choice of reference
+plane, pure geometry. Aberrations then change the *power* itself,
+`P → P + ΔP` per axis (previous section); the resulting focal distance can
+be quoted from either plane. No value of `ΔP` turns one reference plane
+into the other.
 
 ### Aberrations as power changes
 

@@ -85,8 +85,8 @@ def test_high_state_passes_the_full_current(solved_high):
 
 
 def test_low_state_is_cut_by_the_aperture(solved_high, solved_low):
-	# the ray-path CA rescales the beam and attenuates by the area ratio, so
-	# the low state's current is scale_x*scale_y of the stated 1 nA
+	# the ray-path CA is a mask: blocked rays carry zero intensity, so the
+	# low state's current is the surviving fraction of the stated 1 nA
 	assert solved_low["predicted"]["current_fraction"] < 0.5
 	scope = _configured(solved_low)
 	scope.propagate_ray()

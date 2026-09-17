@@ -296,7 +296,8 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		if isinstance(item,slice):	# convert "sample:" (which results in "item" being a slice) to an integer-indexed slice, e.g. slice(3,None,None)
 			a,b,n=item.start,item.stop,item.step
 			trim_first = 0 ; trim_last = 0
-			a,b,n=[ self.index(v) if isinstance(v,str) else v for v in [a,b,n] ] # convert "PL1:" to whatever the index is for PL1
+			a,b,n = [self.index(v) if isinstance(v,str) else v
+					 for v in [a,b,n]] # convert "PL1:" to whatever the index is for PL1
 			if isinstance(a,float):
 				trim_first = a
 				positions = xp.asarray([ e.position for e in self.elements ])
@@ -538,7 +539,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		Raises
 		------
 		NotImplementedError
-			If an element cannot provide a per-axis block (e.g. a skewed
+			If an element cannot provide a per-axis block (e.g. a rotated
 			quadrupole).
 
 		Related
@@ -585,8 +586,8 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		return els
 
 	def propagate_ray(self, r0:xp.ndarray=None,
-					   I0:xp.ndarray=None, R0:xp.ndarray=None,
-					   z: float = None,
+					   I0_per_ray:xp.ndarray=None, I0_per_plane:xp.ndarray=None,
+					   I_initial:float=None, R0:xp.ndarray=None, z: float = None,
 					   verbose=False, apply_aberrations:bool=True):
 		"""Propagate rays through every element in the section, bottom-up.
 
@@ -629,53 +630,76 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		"""
 		if not apply_aberrations:
 			with suspended_aberrations(list(self.elements or ()) + [self]):
-				return self.propagate_ray(r0, I0, R0, z=z, verbose=verbose)
+				return self.propagate_ray(r0=r0, I0_per_ray=I0_per_ray, I0_per_plane=I0_per_plane, I_initial=I_initial, R0=R0, z=z, verbose=verbose)
 		#print("Section r0",r0)
 		if r0 is None:
 			if isinstance(self.elements[0], Source):
 				r0 = self.elements[0].rays()
 			else:
 				raise UserWarning("First element is not a Source, and no r0 provided to propagate_ray. Please provide initial rays or ensure first element is a Source.")
+		boundary_ray = None
 		if isinstance(r0,Rays):
-			I0 = r0.I if I0 is None else I0
+			if r0.boundary_ray.ndim == 3:
+				boundary_ray = r0.boundary_ray[-1].copy()
+			else:
+				boundary_ray = r0.boundary_ray.copy()
+			I0_per_ray = r0.I_per_ray if I0_per_ray is None else I0_per_ray
+			I0_per_plane = r0.I_per_plane if I0_per_plane is None else I0_per_plane
 			R0 = r0.R if R0 is None else R0
 			r0 = xp.asarray(r0)
 		n_rays = len(r0)
-		if I0 is None:
+		if I0_per_ray is None:
 			# Seed in AMPS, shared over the rays, so I.sum() is the current at
 			# every plane and an aperture reduces it just by scaling. Sections
 			# with no Source of their own inherit I0 from the previous section.
 			current = getattr(self.elements[0], "beam_current", None)
-			I0 = (xp.full(n_rays, float(current) / n_rays) if current is not None
+			I0_per_ray = (xp.full(n_rays, float(current) / n_rays) if current is not None
 				  else xp.ones(n_rays))
+		if I0_per_plane is None:
+			I0_per_plane = float(xp.sum(I0_per_ray))
+		if I_initial is None:
+			I_initial = I0_per_plane
 		if R0 is None:
 			R0 = xp.zeros(n_rays)
-		ri=[r0] ; Ii=[I0] ; Ri=[R0]
+		planes = [Rays(r0,R=R0,I_per_ray=I0_per_ray,I_per_plane=I0_per_plane)]
+		if boundary_ray is not None:
+			planes[0].boundary_ray = boundary_ray
 		for i,ele in enumerate(self._propagation_elements()):
 			if verbose:
-				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(ri[-1][:,columnByName("x")]),xp.amax(ri[-1][:,columnByName("y")])) #,"xt,yt",xp.amax(ri[-1][:,columnByName("xt")]),xp.amax(ri[-1][:,columnByName("yt")]))
+				print("propate:",ele.name,"@",ele.position,"x,y",xp.amax(planes[-1].x),xp.amax(planes[-1].y))
 			# intensity/rotation are evaluated relative to the incoming rays; rotation
-			# must follow propagate_ray so thick-lens self.rotation is already set.
+			# must follow propagate_ray so thick-lens self.larmor_rotation is already set.
 			# The element is told the current ARRIVING at it, so Element.beam_current
 			# can be a derived read rather than a second place a current is stated.
 			# Recorded on the element, so it is saved with .I and .rays.
-			ele._arriving_current = float(xp.sum(Ii[-1]))
-			ele_I  = ele.apply_intensity(Ii[-1], ri[-1])
-			ele_ri = ele.propagate_ray(ri[-1], z=z)
-			ele_R  = ele.apply_rotation(Ri[-1])
+			ele._arriving_current = float(xp.sum(planes[-1].I_per_ray))
+			result = ele.propagate_ray(planes[-1],z=z)
+			result.boundary_ray = ele.propagate_ray(planes[-1].boundary_ray,z=z)
+			if ele.kind == "Aperture":
+				ix,ixt,iy,iyt = (columnByName(k) for k in ("x","xt","y","yt"))
+				for r,k in enumerate((ix,iy)):
+					extent = xp.abs(result.boundary_ray[r,k])
+					if extent > ele.radius:
+						result.boundary_ray[r,[ix,ixt,iy,iyt]] *= ele.radius/extent
+				result.I_per_plane = xp.minimum(planes[-1].I_per_plane,I_initial * ele.transmitted_fraction(planes[-1].rays))
+
+			else:
+				result.I_per_plane = planes[-1].I_per_plane
 			#ele_ri[...,-2] += ele.position # TWP 2025/08/27 - do not add distance. drift already should update z
 			#print(ele_ri.shape,r0.shape)
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
-				ri.append(ele_ri[:,:]) ; Ii.append(ele_I) ; Ri.append(ele_R)
+				planes.append(result)
+				#zi.append( self.position+ele.position+getattr(ele,"length",0) )
 			else:
-				ri[-1]=ele_ri[:,:] ; Ii[-1]=ele_I ; Ri[-1]=ele_R
-		self.rays = Rays(xp.asarray(ri),R=xp.asarray(Ri),I=xp.asarray(Ii))
-		self.I = self.rays.I
+				planes[-1] = result
+		self.rays = Rays.stack(planes)
+		self.I = self.rays.I_per_ray
 		self.R = self.rays.R
 		return self.rays
 
 	def propagate_moments(self, mu0:xp.ndarray=None, Sigma0:xp.ndarray=None,
-						   z: float = None, apply_aberrations:bool=True):
+						   z: float = None, apply_aberrations:bool=True,
+						   closure=None):
 		"""Propagate beam moments (mean + covariance) through every element.
 
 		The envelope-mode analog of :meth:`propagate_ray`: transports a mean state
@@ -701,6 +725,12 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			element ideal, which is how an aberrated result is compared
 			against its own unaberrated reference. Costs nothing when
 			nothing is aberrated.
+		closure : moments.MomentClosure, optional
+			How moments above second order are supplied where a nonlinear
+			element needs them, by default
+			:class:`moments.GaussianMomentClosure`. Passed to every element,
+			so the assumption in force is chosen once, at the call, rather
+			than buried in the elements.
 		Returns
 		-------
 		xp.ndarray
@@ -714,7 +744,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		"""
 		if not apply_aberrations:
 			with suspended_aberrations(list(self.elements or ()) + [self]):
-				return self.propagate_moments(mu0, Sigma0, z=z)
+				return self.propagate_moments(mu0, Sigma0, z=z, closure=closure)
 		if mu0 is None or Sigma0 is None:
 			if isinstance(self.elements[0], Source):
 				mu0, Sigma0 = self.elements[0].moments()
@@ -722,7 +752,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 				raise UserWarning("First element is not a Source, and no (mu0, Sigma0) provided to propagate_moments. Please provide initial moments or ensure first element is a Source.")
 		mui=[mu0] ; Si=[Sigma0]
 		for ele in self._propagation_elements():
-			mu, S = ele.propagate_moments(mui[-1], Si[-1])
+			mu, S = ele.propagate_moments(mui[-1], Si[-1], closure=closure)
 			if getattr(ele,"length",0) != 0 or ele.kind == "Aperture":
 				mui.append(mu) ; Si.append(S)
 			else:
@@ -732,6 +762,44 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		self.covariance_matrix = make_covariance_signal(xp.asarray(Si), self.mu[:, columnByName('z')],
 														convention, name=(self.name or 'section') + ' covariance')
 		return self.covariance_matrix
+
+	@property
+	def covariance_beam(self):
+		"""The propagated moments as a :class:`moments.CovarianceBeam`.
+
+		A **view** over ``self.mu`` and ``self.covariance_matrix``, not a
+		second copy: the driver keeps storing exactly what it always stored,
+		and this wraps it so the resolution quantities — rms widths,
+		position-angle correlations, emittance, and the principal axes of the
+		real-space and angular blocks — are available without every caller
+		re-deriving them from raw matrix entries.
+
+		Returns
+		-------
+		moments.CovarianceBeam or None
+			The beam, or ``None`` when nothing has been propagated yet.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		propagate_moments : Produces the state this wraps.
+		moments.CovarianceBeam : What the quantities mean.
+
+		Examples
+		--------
+		>>> section.propagate_moments()                    # doctest: +SKIP
+		>>> section.covariance_beam.emittance('x')[-1]     # doctest: +SKIP
+		"""
+		from .seashells import as_ndarray
+		from .moments import CovarianceBeam
+		if self.mu is None or self.covariance_matrix is None:
+			return None
+		source = next((e for e in (self.elements or ()) if isinstance(e, Source)), None)
+		return CovarianceBeam(self.mu, as_ndarray(self.covariance_matrix),
+							  wavelength=getattr(source, "wavelength", None))
 
 	def propagate_wave(self, wave0=None, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, absorb:float=0.1,
@@ -888,10 +956,10 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 	#	if self._planes is None:
 	#
 
-	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True):
+	def show(self,filename=None,title=None,ylims=None,zlims=None,regenerate=True,plt_ax=None):
 		if self.rays is None or regenerate:
 			r1 = self.propagate_ray()
-		plot2D(self.rays,zpts = self.named_positions, filename=filename ,title=title, ylims=ylims,xlims=zlims)
+		plot2D(self.rays,zpts = self.named_positions, filename=filename ,title=title, ylims=ylims,xlims=zlims,plt_ax=plt_ax)
 
 	#def save(self,filename):
 	#	with open(filename+".pkl",'wb') as f:
@@ -1054,6 +1122,8 @@ class Microscope(SealedAttributes, SEASerializable):
 				b = self.index(b)
 			# since self.index(namedElement) might be a tuple (sectionIndex,elementIndex), we need to filter to section indices
 			a1,b1,n1 = [ v[0] if isinstance(v,tuple) else v for v in [a,b,n] ]
+			if isinstance(b,tuple) and b[1]>0: # retain the named stop's section so its preceding elements can be included
+				b1 += 1
 			item = slice(a1,b1,n1)
 		# DEEP COPY MYSELF, SLICE SECTIONS, MAKE ADJUSTMENTS TO POSITIONS AND LENGTHS
 		new = self.copy()
@@ -1067,6 +1137,8 @@ class Microscope(SealedAttributes, SEASerializable):
 		if trim_first > 0:
 			new.sections[0] = new.sections[0][trim_first:]	# let MicroscopeSection.__getattr__ handle section trimming
 			new.sections[0].position+=trim_first		# then "scoot it back" so it ends where it ended previously
+		if isinstance(b,tuple) and b[1]<len(new.sections[-1].elements): # trim the retained section at the named stop
+			new.sections[-1] = new.sections[-1][:b[1]]
 		p0 = new.sections[0].position
 		for i,s in enumerate(new.sections):
 			new.sections[i].position -= p0		# shift all sections positions so first is at zero
@@ -1310,7 +1382,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		return self.wave_current_at(-1)
 
 	def convergence_angle_at(self, z:float) -> float:
-		"""Convergence **semi**-angle of the outermost ray at a plane.
+		"""Convergence **semi**-angle of the outermost non-blocked ray at a plane.
 
 		Semi-angle: the half-angle of the cone, measured from the optic axis —
 		not the full opening angle. This is the alpha every axial aberration is
@@ -1355,17 +1427,18 @@ class Microscope(SealedAttributes, SEASerializable):
 		# picked by residuals and under-reads the cone. A masked ray keeps
 		# flying geometrically with I = 0, and an aperture is precisely the
 		# thing that DEFINES this angle, so dead rays do not count.
-		rays = xp.asarray(self.rays)
+		rays = xp.asarray(self.rays.boundary_ray)
 		zs = rays[:, 0, columnByName('z')]
 		i = int(xp.where(zs <= float(z))[0][-1])		# plane entering z
-		live = xp.asarray(self.I)[i] > 0
-		if not live.any():
-			raise ValueError(f"no ray carries intensity at z={z}: an upstream "
-							 "aperture blocked the whole fan, so there is no "
-							 "live beam whose convergence could be measured.")
-		xt = rays[i, live, columnByName('xt')]
-		yt = rays[i, live, columnByName('yt')]
-		return float(xp.hypot(xt, yt).max())
+		#live = xp.asarray(self.I)[i] > 0
+		#if not live.any():
+		#	raise ValueError(f"no ray carries intensity at z={z}: an upstream "
+		#					 "aperture blocked the whole fan, so there is no "
+		#					 "live beam whose convergence could be measured.")
+		#xt = rays[i, live, columnByName('xt')]
+		#yt = rays[i, live, columnByName('yt')]
+		#return float(xp.hypot(xt, yt).max())
+		return xp.sqrt( rays[i,0,columnByName('xt')]**2 + rays[i,1,columnByName('yt')]**2 )
 
 	@property
 	def convergence_angle(self) -> float:
@@ -2134,7 +2207,8 @@ class Microscope(SealedAttributes, SEASerializable):
 
 	def focal_surface(self, family:Literal['diff','image']='diff',
 					  aperture:float=1e-4, radii:int=6, azimuths:int=8,
-					  reference=None, near=None, window:float=None) -> dict:
+					  reference=None, near=None, window:float=None,
+					  method:Literal['ray','frame']='ray') -> dict:
 		r"""Where the beam actually focuses, as a function of aperture position.
 
 		:meth:`conjugate_planes` answers the paraxial question, and its answer is
@@ -2175,6 +2249,16 @@ class Microscope(SealedAttributes, SEASerializable):
 		reference : str, float, or None, optional
 			Forwarded to :meth:`conjugate_planes` for the paraxial reference
 			plane, by default None (the column entrance).
+		method : {'ray', 'frame'}, optional
+			``'ray'`` (default) traces a sampled bundle and measures each
+			ray's closest approach — sees everything the ray path applies,
+			including in-body foci. ``'frame'`` computes the surface in
+			**closed form** by zone-modified ABCD: each aberrated element's
+			block is rebuilt with the zone's own power
+			(:meth:`elements.Element.zone_power_shift`), and the zone ray's
+			axis crossing is solved analytically. No rays, no sampling; the
+			azimuths are fixed to the two lab axes, and crossings inside
+			powered bodies are not searched.
 		near : int, float, str, or None, optional
 			**Which** focus to describe. A real column has several planes of a
 			given family, and a ray bundle crosses the axis at every one of
@@ -2249,6 +2333,22 @@ class Microscope(SealedAttributes, SEASerializable):
 			window = float(others.min()) / 2 if others.size else xp.inf
 
 		rho = xp.linspace(0.0, 1.0, int(radii) + 1)[1:]		# skip the axis
+		if method == 'frame':
+			# closed form, no rays: each zone height gets its own ABCD walk
+			# with the aberrated elements' powers shifted by zone_power_shift.
+			# The walk is per-axis, so the azimuths are the two lab axes.
+			RRf = xp.concatenate([rho, rho])
+			PPf = xp.concatenate([xp.zeros_like(rho), xp.full_like(rho, xp.pi / 2)])
+			z_focus = xp.asarray([
+				self._zone_focus(family, float(r) * aperture,
+								 'x' if p == 0 else 'y',
+								 reference, z_paraxial, window)
+				for r, p in zip(RRf, PPf)], dtype=float)
+			finite = xp.isfinite(z_focus)
+			sag = float(z_focus[finite].max() - z_focus[finite].min()) if finite.any() else 0.0
+			return {'radius': RRf * aperture, 'azimuth': PPf, 'z': z_focus,
+					'z_paraxial': z_paraxial, 'sag': sag,
+					'fit': self._fit_surface(RRf, PPf, z_focus)}
 		phi = xp.linspace(0.0, 2 * xp.pi, int(azimuths), endpoint=False)
 		RR, PP = xp.meshgrid(rho, phi, indexing='ij')
 		RR, PP = RR.ravel(), PP.ravel()
@@ -2282,6 +2382,106 @@ class Microscope(SealedAttributes, SEASerializable):
 		return {'radius': RR * aperture, 'azimuth': PP, 'z': z_focus,
 				'z_paraxial': z_paraxial, 'sag': sag,
 				'fit': self._fit_surface(RR, PP, z_focus)}
+
+	def _zone_focus(self, family:Literal['diff','image'], launch:float,
+					axis:Literal['x','y'], reference, z_paraxial:float,
+					window:float) -> float:
+		r"""Closed-form focus of one pupil zone, by zone-modified ABCD.
+
+		The analytic aberrated ray: a single reference ray for the zone is
+		transported through the column's blocks, except that every aberrated
+		element's block is rebuilt about its principal planes with the zone's
+		own power, ``P + zone_power_shift(h_local)`` — the drift·kick·drift
+		factorization of the ideal block with the kick strengthened by the
+		zone's aberration. The focus is where the zone ray crosses the axis,
+		solved linearly inside each free span. Everything stays closed form.
+
+		Parameters
+		----------
+		family : {'diff', 'image'}
+			``'diff'`` launches the zone ray parallel at height ``launch``;
+			``'image'`` launches it from the axis at angle ``launch``.
+		launch : float
+			Zone coordinate at the reference plane — metres for ``'diff'``,
+			radians for ``'image'``.
+		axis : {'x', 'y'}
+			Which transverse axis's blocks (and zone power shift) to use.
+		reference : str, float, or None
+			The object plane, as in :meth:`conjugate_planes`.
+		z_paraxial : float
+			The paraxial plane this surface describes; the crossing nearest
+			it is returned.
+		window : float
+			Half-width around ``z_paraxial`` outside which crossings belong
+			to a different focus; ``inf`` disables the filter.
+
+		Returns
+		-------
+		float
+			Absolute z of the zone's focus (metres), or ``nan`` when the zone
+			ray never crosses in range.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		elements.Element.zone_power_shift : The per-element power change.
+		focal_surface : The consumer (``method='frame'``).
+
+		Notes
+		-----
+		Crossings **inside powered bodies** are not searched — the frame
+		surface reports free-space foci (the traced ``method='ray'`` covers
+		in-body cases). Zero-power (drift-like) element interiors are linear
+		and are searched.
+		"""
+		iaxis = 0 if axis == 'x' else 1
+		z_ref = 0.0
+		if reference is not None:
+			z_ref = (self.named_positions[reference] if isinstance(reference, str)
+					 else float(reference))
+		v = xp.asarray([launch, 0.0] if family == 'diff' else [0.0, launch],
+					   dtype=float)
+		roots = []
+		z_prev = z_ref
+		for z0, ele, L, M, block in self._accumulate_blocks(axis=axis,
+															 reference=reference):
+			start = max(z0, z_ref)
+			gap = start - z_prev
+			if gap > 1e-12:						# free space between elements
+				if v[1] != 0:
+					dz = -v[0] / v[1]
+					if 0 < dz <= gap + 1e-15:
+						roots.append(z_prev + dz)
+				v = xp.asarray([[1.0, gap], [0.0, 1.0]]) @ v
+			E = xp.asarray(block(z0 + L - start), dtype=float)
+			dP = ele.zone_power_shift(float(v[0]))[iaxis]
+			P_id = -float(E[1, 0])
+			if dP:
+				if abs(P_id) > 1e-15:
+					# rebuild about the principal planes with the zone power
+					d = (1.0 - float(E[0, 0])) / P_id
+					Dd = xp.asarray([[1.0, d], [0.0, 1.0]])
+					E = Dd @ xp.asarray([[1.0, 0.0], [-(P_id + dP), 1.0]]) @ Dd
+				else:							# a pure plate: just the kick
+					E = xp.asarray([[1.0, 0.0], [-dP, 1.0]]) @ E
+			elif P_id == 0 and v[1] != 0 and L > 0:
+				dz = -v[0] / v[1]				# drift-like interior is linear
+				if 0 < dz <= (z0 + L - start) + 1e-15:
+					roots.append(start + dz)
+			v = E @ v
+			z_prev = z0 + L
+		if v[1] != 0:							# open segment past the column
+			dz = -v[0] / v[1]
+			if dz > 0:
+				roots.append(z_prev + dz)
+		if xp.isfinite(window):
+			roots = [z for z in roots if abs(z - z_paraxial) <= window]
+		if not roots:
+			return float('nan')
+		return float(min(roots, key=lambda z: abs(z - z_paraxial)))
 
 	@staticmethod
 	def _axis_approach(ray_track:xp.ndarray, z_min:float=None,
@@ -2565,26 +2765,23 @@ class Microscope(SealedAttributes, SEASerializable):
 		if not apply_aberrations:
 			with suspended_aberrations(self._all_elements()):
 				return self.propagate_ray(r0, z=z, verbose=verbose)
-		r=r0 ; I=None ; R=None #; print("Microscope r0",r0)# starting rays/intensity/rotation fed into section.propagate
-		rs=[] ; Is=[] ; Rs=[]
+		r=r0 ; I_initial=None ; stacks=[]
 		for n,s in enumerate(self.sections):
 			#print("section",s)
-			r1 = s.propagate_ray(z=z,r0=r,I0=I,R0=R,verbose=verbose) # r1 is shape nthElement,nthRay,xythetaetc
-			#print(r1.shape)
-			for k in range(len(r1)):
-				#r[:,columnByName('z')]#+=s.position
-				rs.append(xp.asarray(r1[k])) ; Is.append(r1.I[k]) ; Rs.append(r1.R[k])
-			#print(r1[-1,0,:])
-			r=xp.asarray(r1[-1]) ; I=r1.I[-1] ; R=r1.R[-1] # rays/intensity/rotation fed into subsequent section are those exiting this section
-		self.rays = Rays(xp.asarray(rs),R=xp.asarray(Rs),I=xp.asarray(Is))
-		self.I = self.rays.I
+			r1 = s.propagate_ray(z=z,r0=r,I_initial=I_initial,verbose=verbose)
+			if I_initial is None:
+				I_initial = r1.I_per_plane[0]
+			stacks.append(r1)
+			r = r1[-1]
+		self.rays = Rays.concatenate(stacks)
+		self.I = self.rays.I_per_ray
 		self.R = self.rays.R
 		#print(self.rays.shape)
 		self._planes = None
 		return self.rays
 
 	def propagate_moments(self, mu0:xp.ndarray=None, Sigma0:xp.ndarray=None, z: float = None,
-						   apply_aberrations:bool=True):
+						   apply_aberrations:bool=True, closure=None):
 		"""Propagate beam moments through every section, chaining across boundaries.
 
 		Envelope-mode analog of :meth:`propagate_ray`. Each section's exit moments
@@ -2607,6 +2804,12 @@ class Microscope(SealedAttributes, SEASerializable):
 			element ideal, which is how an aberrated result is compared
 			against its own unaberrated reference. Costs nothing when
 			nothing is aberrated.
+		closure : moments.MomentClosure, optional
+			How moments above second order are supplied where a nonlinear
+			element needs them, by default
+			:class:`moments.GaussianMomentClosure`. Passed to every element,
+			so the assumption in force is chosen once, at the call, rather
+			than buried in the elements.
 		Returns
 		-------
 		xp.ndarray
@@ -2615,12 +2818,12 @@ class Microscope(SealedAttributes, SEASerializable):
 		"""
 		if not apply_aberrations:
 			with suspended_aberrations(self._all_elements()):
-				return self.propagate_moments(mu0, Sigma0, z=z)
+				return self.propagate_moments(mu0, Sigma0, z=z, closure=closure)
 		from .seashells import make_covariance_signal, as_ndarray
 		mu=mu0 ; S=Sigma0
 		mus=[] ; Ss=[]
 		for s in self.sections:
-			s.propagate_moments(mu0=mu, Sigma0=S, z=z)
+			s.propagate_moments(mu0=mu, Sigma0=S, z=z, closure=closure)
 			cov = as_ndarray(s.covariance_matrix)		# raw (n_planes, 6, 6) for chaining
 			for k in range(len(cov)):
 				mus.append(s.mu[k]) ; Ss.append(cov[k])
@@ -2629,6 +2832,45 @@ class Microscope(SealedAttributes, SEASerializable):
 		self.covariance_matrix = make_covariance_signal(xp.asarray(Ss), self.mu[:, columnByName('z')],
 														convention, name=(self.name or 'microscope') + ' covariance')
 		return self.covariance_matrix
+
+	@property
+	def covariance_beam(self):
+		"""The propagated moments as a :class:`moments.CovarianceBeam`.
+
+		A **view** over ``self.mu`` and ``self.covariance_matrix``, not a
+		second copy: the driver keeps storing exactly what it always stored,
+		and this wraps it so the resolution quantities — rms widths,
+		position-angle correlations, emittance, and the principal axes of the
+		real-space and angular blocks — are available without every caller
+		re-deriving them from raw matrix entries.
+
+		Returns
+		-------
+		moments.CovarianceBeam or None
+			The beam, or ``None`` when nothing has been propagated yet.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		propagate_moments : Produces the state this wraps.
+		moments.CovarianceBeam : What the quantities mean.
+
+		Examples
+		--------
+		>>> scope.propagate_moments()                      # doctest: +SKIP
+		>>> scope.covariance_beam.emittance('x')[-1]       # doctest: +SKIP
+		"""
+		from .seashells import as_ndarray
+		from .moments import CovarianceBeam
+		if self.mu is None or self.covariance_matrix is None:
+			return None
+		source = next((e for sec in (self.sections or ())
+					   for e in (sec.elements or ()) if isinstance(e, Source)), None)
+		return CovarianceBeam(self.mu, as_ndarray(self.covariance_matrix),
+							  wavelength=getattr(source, "wavelength", None))
 
 	def propagate_wave(self, wave0=None, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, absorb:float=0.1,
@@ -3205,7 +3447,7 @@ class Microscope(SealedAttributes, SEASerializable):
 					 "_wave_scaled_planes", "crossovers", "image_planes",
 					 "diffraction_planes")
 
-	def save(self, filename:str) -> None:
+	def save(self, filename:str,versioned=False) -> None:
 		"""Write this microscope to ``<filename>.json``.
 
 		Uses the flat rayTEM microscope layout shared with TWP20260820:
@@ -3240,6 +3482,18 @@ class Microscope(SealedAttributes, SEASerializable):
 		SEA-envelope JSON written by earlier versions of this branch remains
 		readable by :func:`load_microscope`.
 		"""
+
+		# Versioning: if "microscope.json" exists, along with "microscope-v0.001.json" and "microscope-v0.002.json", then we'll rename existing file as "microscope-v0.003.json" before saving. so "microscope.json" is always the latest
+		if versioned:
+			if os.path.exists(filename+".json"):
+				v=.0001
+				while True:
+					candidate = filename+"-v"+str(xp.round(v,4))+".json"
+					if not os.path.exists(candidate):
+						shutil.copy(filename+".json",candidate)
+						break
+					v+=.0001
+
 		import json
 		skip = set(self._JSON_EXCLUDE_RESULTS) | {"_arriving_current","format","sea_type","payload"}
 		def clean(v):

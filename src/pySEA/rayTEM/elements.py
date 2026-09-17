@@ -9,7 +9,8 @@ import traceback,inspect
 from warnings import warn
 
 from .seashells import SEASerializable
-from .aberrations import Aberrations
+from .aberrations import Aberrations, KRIVANEK_TERMS
+from .moments import GaussianMomentClosure, center_monomials, kick_moments
 
 from copy import deepcopy
 from functools import wraps
@@ -27,7 +28,7 @@ from weakref import WeakSet
 # The columnByName function is used universally, so additional geometric columns can be added
 # (or reordered) without every Element needing to be updated.
 
-convention = ["x","xt","y","yt","z","E"]
+convention = ["x","xt","y","yt","z","E"] # TODO: should z be in the rays matrix? i *think* we want path_length in the rays matrix (since this is the phase of an electron), but right now we use z to denote the plane position. if we switch to path_length, we MUST ALSO implement z as a Rays object attribute (like R or I) which denotes the z position of the planes in the rays matrix. I have already started implementing this (propagate_rays needs to track a list of z values), but left it commented out
 # given a keyword, return the column associated. r0[:,columnByName('x')] should return every ray's x position
 def columnByName(name):
 	return convention.index(name)
@@ -45,19 +46,93 @@ def fix_ray_dims(rays,columnNames):
 		new[:,columnByName(name)]=rays[:,i]
 	return new
 
-# Rays object contains an array with element,ray,xyxtytetc indices, and tracks current and rotation parameters. if we did matrix operations on rays (as arrays) previously, we should still be able to do that
+# Rays object contains an array with n_planes,n_rays,xyxtytetc indices (all rays at all points in the column) or n_rays,xyxtytetc indices (a set of rays at a given point in the column), and tracks current and rotation parameters. if we did matrix operations on rays (as arrays) previously, we should still be able to do that
+# Intensity is tracked per-ray (masked rays are zeroed), and per-plane (tracking the total beam intensity as apertures reduce the total intensity). mean(I_per_ray) for a given plane should yield similar result (but not exactly) to I_per_plane, since I_per_plane will use the smooth Aperture.transmitted_fraction() (non-stepped function for intensity, as rays cross the aperture edge).
 class Rays():
-	def __init__(self, rays:xp.ndarray, R:float, I:float):
+	def __init__(self, rays:xp.ndarray, R:float=0, I_per_ray:float=1,reference_frame:str="stationary",I_per_plane:float=None):
 		self.rays = xp.asarray(rays)
-		shape = self.rays.shape[:-1]
-		self.R = xp.broadcast_to(xp.asarray(R),shape).copy()
-		self.I = xp.broadcast_to(xp.asarray(I),shape).copy()
+		shape = self.rays.shape[:-1]							# indices: n_planes,n_rays,xyxtyt or n_rays,xyxtyt or just xyxtyt
+		self.R = xp.broadcast_to(xp.asarray(R),shape).copy()	# indices: n_planes,n_rays or just n_rays
+		self.I_per_ray = xp.broadcast_to(xp.asarray(I_per_ray),shape).copy()
+		self.reference_frame = reference_frame
+		self.I_per_plane = (xp.sum(self.I_per_ray,axis=-1 if self.I_per_ray.ndim else None)
+								if I_per_plane is None else xp.asarray(I_per_plane).copy())
+		if I_per_plane is not None and self.rays.ndim == 3:
+			self.I_per_plane = xp.broadcast_to(self.I_per_plane,len(self.rays)).copy()
+		self.boundary_ray = self._default_boundary_ray(self.rays)
+
+		#self.z = z												# indices: n_planes, or just a float
+	@staticmethod
+	def _default_boundary_ray(rays):
+		if rays.ndim == 1:
+			return xp.stack((rays,rays)).copy()
+		def edge(plane,pos,angle):
+			vals = xp.abs(plane[:,columnByName(pos)])
+			inds = xp.flatnonzero(vals == xp.amax(vals))
+			return plane[inds[xp.argmax(xp.abs(plane[inds,columnByName(angle)]))]]
+		planes = rays[None,:] if rays.ndim == 2 else rays
+		boundary = xp.stack([xp.stack((edge(plane,"x","xt"),edge(plane,"y","yt"))) for plane in planes])
+		return boundary[0].copy() if rays.ndim == 2 else boundary.copy()
 	def __array__(self, dtype=None):
 		return xp.asarray(self.rays, dtype=dtype)
 	def __getattr__(self, key):
 		return getattr(self.rays, key)
+	def __str__(self):
+		return "\n".join([ k+": "+str(getattr(self,k)) for k in ["rays","R","I_per_ray","I_per_plane"] ])
 	def copy(self):
-		return Rays(self.rays.copy(),self.R.copy(),self.I.copy())
+		result = object.__new__(type(self))
+		result.__dict__ = deepcopy(self.__dict__)
+		return result
+	@staticmethod
+	def _same(a,b):
+		if type(a) is not type(b):
+			return False
+		if isinstance(a,dict):
+			return a.keys() == b.keys() and all(Rays._same(a[k],b[k]) for k in a)
+		if isinstance(a,(list,tuple)):
+			return len(a) == len(b) and all(Rays._same(x,y) for x,y in zip(a,b))
+		if hasattr(a,"__dict__"):
+			return Rays._same(vars(a),vars(b))
+		try:
+			return bool(xp.all(a == b))
+		except Exception:
+			return False
+	@classmethod
+	def _combine(cls, items, ndim):
+		items = list(items)
+		if not items or any(not isinstance(r,Rays) or r.rays.ndim != ndim for r in items):
+			raise ValueError(f"expected one or more {ndim}-D Rays objects")
+		shape = items[0].rays.shape[1:] if ndim == 3 else items[0].rays.shape
+		if any((r.rays.shape[1:] if ndim == 3 else r.rays.shape) != shape for r in items):
+			raise ValueError("all Rays objects must have matching ray shapes")
+		if any(r.reference_frame != items[0].reference_frame for r in items[1:]):
+			raise ValueError("all Rays objects must use the same reference frame")
+		core = {"rays","R","I_per_ray","I_per_plane","reference_frame","boundary_ray"}
+		extra = set(vars(items[0])) - core
+		if any(set(vars(r))-core != extra or any(not cls._same(getattr(items[0],k),getattr(r,k)) for k in extra) for r in items[1:]):
+			raise ValueError("extra Rays attributes must match")
+		return items,items[0].copy()
+	@classmethod
+	def stack(cls, planes):
+		"""Stack single-plane ray states into one propagation history."""
+		planes,result = cls._combine(planes,2)
+		result.rays = xp.stack([r.rays for r in planes])
+		result.R = xp.stack([r.R for r in planes])
+		result.I_per_ray = xp.stack([r.I_per_ray for r in planes])
+		result.I_per_plane = xp.stack([xp.asarray(r.I_per_plane) for r in planes])
+		result.boundary_ray = xp.stack([r.boundary_ray for r in planes])
+		return result
+	@classmethod
+	def concatenate(cls, stacks,drop_shared=False):
+		"""Join propagation histories, optionally omitting repeated boundary planes."""
+		stacks,result = cls._combine(stacks,3)
+		parts = [slice(None)] + [slice(1,None) if drop_shared else slice(None)] * (len(stacks)-1)
+		result.rays = xp.concatenate([r.rays[k] for r,k in zip(stacks,parts)])
+		result.R = xp.concatenate([r.R[k] for r,k in zip(stacks,parts)])
+		result.I_per_ray = xp.concatenate([r.I_per_ray[k] for r,k in zip(stacks,parts)])
+		result.I_per_plane = xp.concatenate([r.I_per_plane[k] for r,k in zip(stacks,parts)])
+		result.boundary_ray = xp.concatenate([r.boundary_ray[k] for r,k in zip(stacks,parts)])
+		return result
 	def __len__(self):
 		return len(self.rays)
 	def __getitem__(self, key):
@@ -73,9 +148,94 @@ class Rays():
 		if not isinstance(coord,slice) or any(v is not None for v in (coord.start,coord.stop,coord.step)):
 			return out
 		meta = tuple(keys[:-1])
-		return Rays(out,self.R[meta],self.I[meta])
+		result = self.copy()
+		result.rays = result.rays[key]
+		result.R = result.R[meta]
+		result.I_per_ray = result.I_per_ray[meta]
+		result.I_per_plane = result.I_per_plane[keys[0]] if self.rays.ndim==3 else result.I_per_plane
+		result.boundary_ray = result.boundary_ray[keys[0]] if self.rays.ndim==3 else result.boundary_ray
+		return result
 	def __setitem__(self, key, value):
 		self.rays[key]=value
+
+	# TODO is there a way to programmatically generate these?
+	@property
+	def x(self):
+		return self.rays[...,columnByName('x')]
+	@property
+	def xt(self):
+		return self.rays[...,columnByName('xt')]
+	@property
+	def y(self):
+		return self.rays[...,columnByName('y')]
+	@property
+	def yt(self):
+		return self.rays[...,columnByName('yt')]
+	@property
+	def E(self):
+		return self.rays[...,columnByName('E')]
+	@property
+	def z(self):
+		return self.rays[...,columnByName('z')]
+
+	# returns an interpolated slice of the rays (n_rays,xyxtytetc) at arbitrary z
+	def at_z(self,z):
+		zs = self.z									# n_plane
+		i = xp.where(zs < z)[0][-1]
+		xi,yi = self.x[i],self.y[i]					# n_plane,n_ray,xyxtyt --> n_ray
+		xf,yf = self.x[i+1],self.y[i+1]
+		def interp(z,z1,z2,y1,y2):
+			return y1+(z-z1)/(z2-z1)*(y2-y1)
+		xs = interp(z,zs[i],zs[i+1],xi,xf)			# lateral position of all rays between elements i and i+1
+		ys = interp(z,zs[i],zs[i+1],yi,yf)
+		result = self[i].copy()
+		result.rays[...,columnByName('x')]=xs ; result.rays[...,columnByName('y')]=ys ; result.rays[...,columnByName('z')]=z
+		return result
+
+	def convert_to_rotating_reference_frame(self): # TODO NEEDS A WARNING IF YOU TRY TO PASS IT AN ALREADY-ROTATED REFERENCE FRAME
+		"""Ray propagation follows a fixed reference plane (solenoids rotate the beam). This function returns a new Rays object with the rays in a rotating (Larmor) reference frame.
+
+		Cumulative rotation ``R`` is read from the supplied :class:`Rays` object.
+		Each ray at each plane is
+		rotated by its accumulated angle so that image/diffraction-plane detection can
+		operate in the unrotated frame.
+
+		Parameters
+		----------
+		rays : Rays
+			Geometric rays, shape ``(n_planes, n_rays, len(convention))``.
+
+		Returns
+		-------
+		np.ndarray
+			Rays rotated into the rotating reference frame, same shape as ``rays``.
+
+		Related
+		-------
+		findPlanes : Calls this before detecting planes.
+		Lens.transfer_matrix : Source of the accumulated rotation.
+		"""
+		if self.reference_frame=="rotating":
+			return self
+		R = self.R
+		nl,nr,nc = self.shape
+		converted = xp.zeros(self.shape)
+		boundary_ray = self.boundary_ray.copy()
+		for l in range(nl):
+			for r in range(nr):
+				Rv = R[l,r]
+				C = xp.cos(Rv)
+				S = xp.sin(Rv)
+				M = xp.asarray([[C,S,0,0],[-S,C,0,0],[0,0,C,S],[0,0,-S,C]])
+				M = fix_mat_dims(M,["x","y","xt","yt"])
+				converted[l,r,:] = xp.matmul(M,self[l,r,:])
+			boundary_ray[l] = xp.einsum('mn,in->im',M,boundary_ray[l])
+		result = self.copy()
+		result.rays = converted
+		result.boundary_ray = boundary_ray
+		result.reference_frame = "rotating"
+		return result
+
 
 """General microscope element class. Only the basic/required attributes (name and kind) are populated, as additional"""
 
@@ -264,6 +424,10 @@ class suspended_aberrations:
 		The elements being managed.
 	suspend : bool
 		Whether this context detaches anything.
+	_saved : list of tuple
+		``(element, aberrations, chromatic_aberration)`` per managed element
+		while the context is open, the last being ``None`` for anything that
+		has no chromatic coefficient (a section); empty otherwise.
 
 	Methods
 	-------
@@ -280,6 +444,8 @@ class suspended_aberrations:
 	-------
 	assemblies.Microscope.propagate_ray : One of the callers.
 	Element.aberration_kick : What goes quiet while suspended.
+	Element.chromatic_kick : Silenced with it, since an "ideal" column has to
+		mean an achromatic one as well.
 
 	Notes
 	-----
@@ -326,8 +492,13 @@ class suspended_aberrations:
 		if not self.suspend:
 			return self
 		for e in self.elements:
-			self._saved.append((e, getattr(e, "aberrations", None)))
+			# a section carries aberrations but no chromatic coefficient, so the
+			# chromatic half is recorded as None and skipped for those
+			chromatic = getattr(e, "chromatic_aberration", None)
+			self._saved.append((e, getattr(e, "aberrations", None), chromatic))
 			e.aberrations = None
+			if chromatic is not None:
+				e.chromatic_aberration = 0.0	# "ideal" has to mean achromatic too
 		return self
 
 	def __exit__(self, *exc) -> bool:
@@ -347,8 +518,10 @@ class suspended_aberrations:
 		------
 		None
 		"""
-		for e, ab in self._saved:
+		for e, ab, cc in self._saved:
 			e.aberrations = ab
+			if cc is not None:
+				e.chromatic_aberration = cc
 		self._saved = []
 		return False
 
@@ -619,7 +792,7 @@ def _split_quadratic_aberrations(aberrations, pupil_power:float,
 	``C10`` (defocus) adds :math:`\Delta P = C_{10}P^2` isotropically, and an
 	**aligned** ``C12`` (twofold astigmatism, zero imaginary part) adds
 	:math:`\pm C_{12}P^2` per axis. Everything of second order and above, and
-	any *skew* ``C12``, is genuinely non-quadratic per axis and stays in the
+	any *rotated* ("skew") ``C12``, is genuinely non-quadratic per axis and stays in the
 	residual. Shared by :meth:`Lens.aberration_powers` (base = the lens's own
 	power) and :class:`AberrationScreen` (base = 0), so the split cannot
 	drift between the two.
@@ -678,8 +851,32 @@ class Element(SealedAttributes, SEASerializable):
 	tilt_x = 0.0
 	tilt_y = 0.0
 	#: Larmor rotation accumulated through this element (radians). Set by the
-	#: elements that have an axial field; 0 for everything else.
+	#: elements that have an axial field (a side effect of transfer_matrix);
+	#: 0 for everything else. A RESULT, not a setting.
+	larmor_rotation = 0.0
+	#: Roll of the element about the optical axis (radians, from lab +x
+	#: toward +y). A SETTING: consumed by elements whose physics is not
+	#: rotationally symmetric (currently Quadrapole); a round lens is
+	#: invariant and ignores it. Distinct from larmor_rotation above.
 	rotation = 0.0
+	#: Chromatic aberration coefficient C_c (metres). A SETTING, and
+	#: deliberately NOT one of :attr:`aberrations`: the Krivanek C_{n,m} are
+	#: functions of pupil coordinate alone, whereas chromatic couples the
+	#: pupil to the beam's *energy* column, which makes it a different kind
+	#: of term (bilinear, so it cannot live in the transfer matrix). 0 means
+	#: achromatic, which is every element until someone says otherwise.
+	#: For a round magnetic lens C_c is of order f and always positive -
+	#: there is no round-lens achromat. Two caveats on the *value*: it is
+	#: referenced to the NON-relativistic fractional deviation (E - E0)/E0
+	#: that the E column carries directly, and a coefficient quoted against
+	#: the relativistically corrected potential is larger by about 10% at
+	#: 200 kV; and only the beam's own energy spread reaches it, so lens-
+	#: current ripple and high-tension instability - the other two terms of
+	#: the usual chromatic budget - have to be folded into
+	#: :attr:`Source.energy_spread` by hand if they are wanted.
+	#: Read by elements resolving a scalar ``focal_power``; a Quadrapole
+	#: states ``focal_powers`` per axis and is not chromatic yet.
+	chromatic_aberration = 0.0
 
 	def __init__(self, name:str='', kind:str=None,
 				 aberrations=None, screen=None ) -> SEASerializable:
@@ -979,10 +1176,10 @@ class Element(SealedAttributes, SEASerializable):
 		step = L if dz is None else float(dz)
 		power = 0.0
 		if isinstance(self, Quadrapole):
-			if getattr(self, 'skew', 0.0):
+			if getattr(self, 'rotation', 0.0):
 				raise NotImplementedError(
-					f"Quadrapole {self.name or ''!r} has skew={self.skew}, which couples x and y: "
-					"no independent per-axis 2x2 block exists. Locate planes with skew "
+					f"Quadrapole {self.name or ''!r} has rotation={self.rotation}, which couples x and y: "
+					"no independent per-axis 2x2 block exists. Locate planes with rotation "
 					"temporarily set to 0, or work in the element's principal frame.")
 			power = self.focal_powers[0 if axis == 'x' else 1]
 		elif hasattr(self, "focal_power"):
@@ -1706,9 +1903,19 @@ class Element(SealedAttributes, SEASerializable):
 			rf[:,columnByName("y")] += dy
 			rf[:,columnByName("xt")] += dxt
 			rf[:,columnByName("yt")] += dyt
+		# chromatic: not a pupil aberration but an energy-dependent power, so
+		# it is declared and applied separately (see chromatic_kick).
+		chromatic = self.chromatic_kick(rays)
+		if chromatic is not None:
+			rf[:,columnByName("xt")] += chromatic[0]
+			rf[:,columnByName("yt")] += chromatic[1]
 
 		if paired:
-			return Rays(rf,self.apply_rotation(r0.R),self.apply_intensity(r0.I,rays))
+			result = r0.copy()
+			result.rays = rf
+			result.R = self.apply_rotation(r0.R)
+			result.I_per_ray = self.apply_intensity(r0.I_per_ray,rays)
+			return result
 		return rf
 
 	def apply_intensity(self, I:xp.ndarray, r0:xp.ndarray) -> xp.ndarray:
@@ -1742,8 +1949,10 @@ class Element(SealedAttributes, SEASerializable):
 		"""Return the cumulative Larmor rotation after this element.
 
 		Rotation is tracked as a parallel array rather than as a ray coordinate.
-		Thick lenses accumulate rotation via self.rotation (set as a side effect
-		of :meth:transfer_matrix), so this must be called *after* propagate_ray.
+		Thick lenses accumulate rotation via self.larmor_rotation (set as a side
+		effect of :meth:transfer_matrix), so this must be called *after*
+		propagate_ray. (Not to be confused with self.rotation, the user-set
+		roll of an element about the optical axis.)
 
 		Parameters
 		----------
@@ -1758,11 +1967,11 @@ class Element(SealedAttributes, SEASerializable):
 
 		Related
 		-------
-		Lens.transfer_matrix : Sets self.rotation for finite-thickness lenses.
+		Lens.transfer_matrix : Sets self.larmor_rotation for finite-thickness lenses.
 		"""
-		return R + getattr(self, "rotation", 0)
+		return R + getattr(self, "larmor_rotation", 0)
 
-	def propagate_moments(self, mu:xp.ndarray, Sigma:xp.ndarray) -> tuple:
+	def propagate_moments(self, mu:xp.ndarray, Sigma:xp.ndarray, closure=None) -> tuple:
 		r"""Propagate the beam's first and second moments through this element.
 
 		Describes the ensemble by a mean state mu and covariance Sigma over
@@ -1777,12 +1986,33 @@ class Element(SealedAttributes, SEASerializable):
 		(drift length, dipole tilt, ...). Covariance is invariant to the affine
 		offset a, so the mean is obtained by reusing :meth:propagate_ray.
 
+		An element carrying :attr:`aberrations` or a nonzero
+		:attr:`chromatic_aberration` also updates the covariance
+		**analytically**. Terms linear in the ray vector (``C10``, aligned
+		``C12``) fold into the matrix exactly. What is left is a genuinely
+		nonlinear kick, and its statistics come from the kick written as a
+		polynomial (:meth:`aberration_monomials`,
+		:meth:`chromatic_monomials`) evaluated through a **moment closure** —
+		by default :class:`moments.GaussianMomentClosure`, which supplies the
+		higher central moments by Isserlis' theorem. No sampling, no
+		integrals, and no aberration-specific algebra.
+
+		The closure is an explicit, replaceable argument rather than an
+		assumption baked into this method. Using it does not make the beam
+		Gaussian: it records what was assumed at one nonlinear step, which is
+		exactly the distinction that matters when a *second* aberrated element
+		acts on a distribution the first one already distorted.
+
 		Parameters
 		----------
 		mu : xp.ndarray
 			Mean state vector, shape (len(convention),).
 		Sigma : xp.ndarray
 			Covariance matrix, shape (len(convention), len(convention)).
+		closure : moments.MomentClosure, optional
+			How moments above second order are supplied to a nonlinear kick,
+			by default :class:`moments.GaussianMomentClosure`. An ideal
+			element ignores it, needing no moments it does not already carry.
 
 		Returns
 		-------
@@ -1793,16 +2023,391 @@ class Element(SealedAttributes, SEASerializable):
 		-------
 		propagate_ray : Ray transport sharing the same transfer matrix.
 		Source.moments : Seeds the initial (mu, Sigma).
+		_aberration_moment_pieces : The closure terms.
 
 		Notes
 		-----
 		Valid in the paraxial/linear regime, where the transfer matrix acts as a
-		linear map on phase space and a Gaussian ensemble stays Gaussian.
+		linear map on phase space and a Gaussian ensemble stays Gaussian. The
+		aberration closure is exact for a **centered** Gaussian with decoupled
+		transverse planes passing one aberrated element; through several
+		aberrated elements the beam re-Gaussianizes at each (the standard rms
+		treatment of nonlinearities). A thick body applies its aberration as if
+		thin at the element, the same first-order compromise the fixed wave
+		path makes. Every Krivanek order the pupil carries is closed, not only
+		the third: the kick is recovered as a polynomial and the closure
+		answers at any degree. Chromatic is the exception to the closure
+		caveat entirely — its covariance term needs only a fourth moment that
+		factorizes when the energy spread is independent of the transverse
+		coordinates, so it is exact rather than closed.
 		"""
 		M = self.transfer_matrix()
-		Sigma_out = M @ Sigma @ M.T
-		mu_out = self.propagate_ray(mu.reshape(1, -1))[0]
+		ab = self.aberrations
+		P = getattr(self, "pupil_power", None) or (getattr(self, "focal_power", 0.0) or 0.0)
+		if not ((ab or self.chromatic_aberration) and P):
+			Sigma_out = M @ Sigma @ M.T
+			mu_out = self.propagate_ray(mu.reshape(1, -1))[0]
+			return mu_out, Sigma_out
+		M_l, delta_mean, C, D = self._aberration_moment_pieces(M, Sigma, ab, float(P),
+															   mu, closure)
+		Sigma_out = M_l @ Sigma @ M_l.T + M_l @ C + C.T @ M_l.T + D
+		# The mean moves by the ENSEMBLE-average kick, which is not what the
+		# centroid ray feels: propagate_ray would apply delta(mu). Take the
+		# ideal ray for the affine terms (z, shifts, tilts), then add the
+		# aberration's linear and nonlinear contributions explicitly.
+		with suspended_aberrations([self]):
+			mu_out = self.propagate_ray(mu.reshape(1, -1))[0]
+		mu_out = mu_out + (M_l - M) @ mu + delta_mean
 		return mu_out, Sigma_out
+
+	def aberration_monomials(self, P:float) -> dict:
+		r"""This element's nonlinear angular kick, written as a polynomial.
+
+		The ray path evaluates the kick numerically, one value per ray
+		(:meth:`aberration_kick`). The covariance path cannot: it has no rays,
+		only moments, so it needs the kick as an **algebraic** object whose
+		moments can be taken. A Krivanek term of order ``n`` deflects by a
+		polynomial that is homogeneous of degree ``n`` in ``(x, y)`` — the
+		:math:`\theta^n` in :meth:`aberrations.Aberrations.deflection_at`
+		times an azimuthal factor that always collapses to one — so the
+		polynomial is fully determined by its values on the unit circle.
+
+		This recovers it there: evaluate the existing deflection at ``n+1``
+		directions and solve for the coefficients of
+		:math:`x^{n-j}y^{j}`. That keeps the repository's "no per-aberration
+		code" property intact on this path too — a term the covariance mode
+		has never seen is handled the day it is added to
+		:data:`aberrations.KRIVANEK_TERMS`, with no algebra written by hand.
+
+		Only the **residual** terms appear. ``C10`` and an aligned ``C12`` are
+		linear in the ray vector, so :func:`_split_quadratic_aberrations`
+		folds them into the transfer matrix exactly and they are not kicks at
+		all.
+
+		Parameters
+		----------
+		P : float
+			The pupil power (1/metres) the coefficients are defined against.
+
+		Returns
+		-------
+		dict
+			Maps the ``xt`` and ``yt`` column indices to lists of
+			``(coefficient, indices)`` monomials in **absolute** coordinates,
+			where ``indices`` is a tuple of ``x``/``y`` column indices with
+			repetition. Empty when the element is ideal, has no pupil power,
+			or carries only terms the matrix already absorbed.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		aberration_kick : The same kick, evaluated per ray.
+		moments.center_monomials : Converts the result to central coordinates.
+		_aberration_moment_pieces : The consumer.
+
+		Notes
+		-----
+		The recovery is exact up to floating point, and
+		``test_aberration_monomials_reproduce_the_kick`` pins it against
+		:meth:`aberrations.Aberrations.deflection_at` at random coordinates.
+		Homogeneity is what makes sampling on the unit circle legitimate: the
+		coefficients carry no length scale of their own.
+
+		Examples
+		--------
+		>>> Lens(focal_length=0.01, aberrations={'C30': 1e-3}).aberration_monomials(100.0)  # doctest: +SKIP
+		{1: [(-100000.0, (0, 0, 0)), (-100000.0, (0, 2, 2))], 3: [...]}
+		"""
+		ix, ixt = columnByName("x"), columnByName("xt")
+		iy, iyt = columnByName("y"), columnByName("yt")
+		ab = self.aberrations
+		P = float(P)
+		if not ab or P == 0:
+			return {}
+		_, _, residual = _split_quadratic_aberrations(ab, P, P, P)
+		out = {ixt: [], iyt: []}
+		for name, c in residual.items():
+			n = KRIVANEK_TERMS[name][0]
+			angles = xp.pi * xp.arange(n + 1) / (n + 1)		# spread over a half turn
+			cs, sn = xp.cos(angles), xp.sin(angles)
+			basis = xp.stack([cs**(n - j) * sn**j for j in range(n + 1)], axis=1)
+			dxt, dyt = Aberrations({name: c}).deflection_at(cs, sn, P)
+			for j, (ax, ay) in enumerate(zip(xp.linalg.solve(basis, dxt),
+											 xp.linalg.solve(basis, dyt))):
+				idx = (ix,) * (n - j) + (iy,) * j
+				if ax:
+					out[ixt].append((float(ax), idx))
+				if ay:
+					out[iyt].append((float(ay), idx))
+		return {col: terms for col, terms in out.items() if terms}
+
+	def chromatic_monomials(self, P:float, mu:xp.ndarray) -> dict:
+		r"""This element's chromatic kick, as a polynomial in central coordinates.
+
+		Chromatic aberration is the one term here that is not a function of
+		the pupil coordinate alone: an off-energy electron is focused at a
+		different power, so the deflection is proportional to the *product* of
+		the ray height and its energy deviation. With
+		:math:`\delta = (E - E_0)/E_0` the fractional deviation and
+		:math:`C_c` the chromatic coefficient,
+
+		.. math::
+
+			\Delta f = C_c\,\delta \;\Longrightarrow\;
+			\Delta P = -C_c P^2 \delta \;\Longrightarrow\;
+			\delta\theta_x = -\Delta P\,x = C_c P^2 \delta\,x
+
+		and likewise in y. Being **bilinear** — a product of two state
+		components — this cannot be folded into the 6×6 transfer matrix the
+		way ``C10`` defocus can, even though both are "just a power change":
+		the power change is different for each member of the ensemble.
+
+		The reference :math:`E_0` is the beam's own mean energy, so what this
+		models is chromatic **blur** from the energy *spread*. A beam
+		uniformly off its design energy is a defocus, not an aberration, and
+		is deliberately not applied here.
+
+		Parameters
+		----------
+		P : float
+			The pupil power (1/metres).
+		mu : xp.ndarray
+			Mean state vector, shape ``(len(convention),)``. Supplies both the
+			reference energy :math:`E_0 = \mu_E` and the beam offset, since a
+			displaced beam turns part of the bilinear term into one linear in
+			the energy deviation alone.
+
+		Returns
+		-------
+		dict
+			Maps the ``xt`` and ``yt`` column indices to lists of
+			``(coefficient, indices)`` monomials in **central** coordinates
+			(deviations from ``mu``), ready for
+			:func:`moments.kick_moments`. Empty when the element is
+			achromatic, has no pupil power, or the beam carries no energy.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		chromatic_kick : The same kick, evaluated per ray.
+		aberration_monomials : The geometric counterpart.
+
+		Notes
+		-----
+		Unlike the geometric monomials these are emitted already centered:
+		the energy factor is a deviation by definition, so passing them
+		through :func:`moments.center_monomials` would wrongly re-expand it
+		about :math:`\mu_E`.
+
+		The resulting covariance contribution
+		:math:`\Delta\Sigma_{\theta\theta} = \kappa^2\sigma_\delta^2\sigma_x^2`
+		is **exact** rather than a closure approximation whenever the energy
+		spread is independent of the transverse coordinates, because the only
+		fourth moment it needs factorizes.
+		"""
+		ix, ixt = columnByName("x"), columnByName("xt")
+		iy, iyt = columnByName("y"), columnByName("yt")
+		iE = columnByName("E")
+		Cc, P = float(self.chromatic_aberration or 0.0), float(P)
+		E0 = float(mu[iE])
+		if Cc == 0.0 or P == 0.0 or E0 == 0.0:
+			return {}
+		kappa = Cc * P**2 / E0
+		out = {ixt: [(kappa * float(mu[ix]), (iE,)), (kappa, (iE, ix))],
+			   iyt: [(kappa * float(mu[iy]), (iE,)), (kappa, (iE, iy))]}
+		return {col: [(c, i) for c, i in terms if c] for col, terms in out.items()}
+
+	def chromatic_kick(self, r0:xp.ndarray):
+		r"""This element's chromatic angular kick, per ray.
+
+		The ray-path companion to :meth:`chromatic_monomials`, and the
+		reference the covariance closure is checked against. Each ray is
+		deflected by :math:`C_c P^2 \delta\,x` with
+		:math:`\delta = (E - E_0)/E_0` its own fractional energy deviation,
+		measured against the **mean energy of the incoming rays** — so a
+		monoenergetic bundle is unaffected, which is correct: chromatic
+		aberration blurs because of spread, not because of an offset.
+
+		Parameters
+		----------
+		r0 : xp.ndarray
+			Rays entering the element, shape ``(n_rays, len(convention))``.
+
+		Returns
+		-------
+		tuple of xp.ndarray or None
+			``(delta_xt, delta_yt)`` in radians, or ``None`` when the element
+			is achromatic, has no pupil power, or the rays carry no energy.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		chromatic_monomials : The same kick, as an algebraic object.
+		aberration_kick : The geometric counterpart.
+
+		Notes
+		-----
+		Applied as one impulsive kick at the element, as the fixed wave path
+		treats aberrations in a thick body — a first-order compromise for a
+		body of finite length.
+		"""
+		Cc = float(self.chromatic_aberration or 0.0)
+		if Cc == 0.0:
+			return None
+		P = getattr(self, "pupil_power", None) or (getattr(self, "focal_power", 0.0) or 0.0)
+		if not P:
+			return None
+		rays = xp.asarray(r0)
+		E = rays[:, columnByName("E")]
+		E0 = float(xp.mean(E))
+		if E0 == 0.0:
+			return None
+		kappa = Cc * float(P)**2 / E0
+		delta = E - E0
+		return kappa * delta * rays[:, columnByName("x")], kappa * delta * rays[:, columnByName("y")]
+
+	def _aberration_moment_pieces(self, M:xp.ndarray, Sigma:xp.ndarray,
+								  ab, P:float, mu:xp.ndarray=None,
+								  closure=None) -> tuple:
+		r"""The covariance pieces of an aberrated element, from its kick polynomial.
+
+		The aberrated map is :math:`r' = M_l r + \delta(r)`. Terms that are
+		*linear* in the ray vector are not kicks at all — ``C10`` and an
+		aligned ``C12`` are power changes, so
+		:func:`_split_quadratic_aberrations` folds them into :math:`M_l`
+		exactly. What is left is genuinely nonlinear, and its statistics come
+		from :meth:`aberration_monomials` and :meth:`chromatic_monomials`
+		(the kick as a polynomial) evaluated through ``closure`` (the moments
+		that polynomial needs but the beam state does not carry).
+
+		Nothing here is aberration-specific. The closure is asked for central
+		moments by column index and answers for any order, so a term added to
+		:data:`aberrations.KRIVANEK_TERMS` reaches this path with no algebra
+		written by hand — and swapping ``closure`` genuinely changes the
+		physics rather than relabelling it.
+
+		Parameters
+		----------
+		M : xp.ndarray
+			The element's ideal transfer matrix.
+		Sigma : xp.ndarray
+			Entrance covariance, shape ``(len(convention),)*2``.
+		ab : aberrations.Aberrations
+			The element's aberration function.
+		P : float
+			The pupil power (EFL power, or an ``AberrationScreen``'s
+			``pupil_power``).
+		mu : xp.ndarray, optional
+			Entrance mean state, shape ``(len(convention),)``. Defaults to a
+			centered beam. Needed because a kick is written in absolute
+			coordinates while moments are central, and because chromatic
+			needs the reference energy.
+		closure : moments.MomentClosure, optional
+			Supplies the moments above second order, by default
+			:class:`moments.GaussianMomentClosure`.
+
+		Returns
+		-------
+		tuple of xp.ndarray
+			``(M_l, delta_mean, C, D)`` — the matrix with the linear
+			aberration kicks folded in, the ensemble-mean kick
+			``<delta>``, the state-kick cross-covariance
+			``C[a, c] = Cov(r_a, delta_c)``, and the kick self-covariance
+			``D[c, d] = Cov(delta_c, delta_d)``.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		propagate_moments : The consumer.
+		aberration_monomials, chromatic_monomials : The kick, as a polynomial.
+		moments.kick_moments : Where the closure is actually applied.
+		_split_quadratic_aberrations : Supplies the linear (power-change) part.
+
+		Notes
+		-----
+		``delta_mean`` is returned separately rather than absorbed, because an
+		even-order aberration shifts the ensemble mean by an amount the
+		*centroid ray* does not feel: the centroid picks up
+		:math:`\delta(\mu)`, the ensemble picks up
+		:math:`\langle\delta(r)\rangle`, and for a centered beam with a
+		quadratic kick the first is zero while the second is not. Discarding
+		the difference would silently move a real mean shift into the width.
+		"""
+		ix, ixt = columnByName("x"), columnByName("xt")
+		iy, iyt = columnByName("y"), columnByName("yt")
+		n = len(convention)
+		if mu is None:
+			mu = xp.zeros(n)
+		# linear terms (C10, aligned C12) are power changes: exact in the matrix
+		P_x, P_y, _ = _split_quadratic_aberrations(ab, P, P, P)
+		M_l = xp.array(M, dtype=float)
+		M_l[ixt, ix] -= (P_x - P)
+		M_l[iyt, iy] -= (P_y - P)
+		monomials = {}
+		for col, terms in self.aberration_monomials(P).items():		# absolute -> central
+			monomials.setdefault(col, []).extend(center_monomials(terms, mu))
+		for col, terms in self.chromatic_monomials(P, mu).items():	# already central
+			monomials.setdefault(col, []).extend(terms)
+		if not monomials:
+			return M_l, xp.zeros(n), xp.zeros((n, n)), xp.zeros((n, n))
+		delta_mean, C, D = kick_moments(monomials, Sigma,
+										closure if closure is not None else GaussianMomentClosure())
+		return M_l, delta_mean, C, D
+
+	def zone_power_shift(self, h:float) -> tuple:
+		r"""Per-axis focal-power change this element applies to a pupil zone.
+
+		The analytic bridge from aberrations to ABCD optics: a ray in the
+		zone at height ``h`` picks up the extra deflection
+		:math:`\Delta\theta = (1/k)\nabla\chi`, and dividing by ``h`` turns
+		that into an equivalent **power change** for the zone,
+		:math:`\Delta P(h) = -\Delta\theta(h)/h` (spherical:
+		:math:`C_{30}P^4h^2`; defocus: :math:`C_{10}P^2`; and every other
+		term through :meth:`aberrations.Aberrations.deflection_at`, with no
+		per-term code). Zone-modified transfer blocks built from this are how
+		:meth:`assemblies.Microscope.focal_surface` computes the aberrated
+		focal surface in closed form.
+
+		Parameters
+		----------
+		h : float
+			Zone height at this element (metres); the x value is evaluated at
+			``(h, 0)`` and the y value at ``(0, h)``.
+
+		Returns
+		-------
+		tuple of float
+			``(dP_x, dP_y)`` in 1/metres; ``(0, 0)`` for an ideal element,
+			zero pupil power, or ``h = 0`` (the axis has no zone).
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		aberration_kick : The same deflection, applied per ray.
+		assemblies.Microscope.focal_surface : The frame-method consumer.
+		"""
+		ab = self.aberrations
+		P = getattr(self, "pupil_power", None) or (getattr(self, "focal_power", 0.0) or 0.0)
+		if not ab or P == 0 or h == 0:
+			return 0.0, 0.0
+		dxt_x, _ = ab.deflection_at(xp.asarray([h]), xp.asarray([0.0]), float(P))
+		_, dyt_y = ab.deflection_at(xp.asarray([0.0]), xp.asarray([h]), float(P))
+		return float(-dxt_x[0] / h), float(-dyt_y[0] / h)
 
 	def propagate_wave(self, signal, mode:Literal['fixed','scaled','hybrid']='fixed',
 					   s_min:float=1e-3, log:list=None, absorb:float=0.1,
@@ -2123,6 +2728,18 @@ class Source(Element):
 			wavelength (used by wave-optics/envelope propagation) and populates the
 			per-ray E (beam energy, keV) column. When None (default), E
 			stays 0 and no wavelength is defined, preserving purely geometric behavior.
+		energy_spread : float, optional
+			RMS energy spread of the emitted beam in **kilovolts**, matching
+			the units of voltage and of the E column, by default 0
+			(monoenergetic). This is a primary source specification: it seeds
+			the E variance for beam-envelope propagation, which is what
+			gives an element with a nonzero
+			:attr:`Element.chromatic_aberration` something to act on. A cold
+			field emitter is around 3e-4 (0.3 eV); a thermionic source an
+			order of magnitude more. It does not change the ray table, whose
+			energies stay at voltage — the ray path is the reference
+			calculation, and a caller wanting a Monte-Carlo chromatic check
+			perturbs the E column itself.
 		wave_shape : tuple, optional
 			Wave-optics grid (ny, nx), by default (128, 128).
 		wave_extent : float, optional
@@ -2152,12 +2769,14 @@ class Source(Element):
 			position:float=None,
 			voltage:float=None,
 			beam_current:float=1e-9,	# amps emitted into the traced rays
+			energy_spread:float=0.0,	# rms energy spread (keV), matching the E column
 			wave_shape:tuple=(128,128),	# wave-optics grid (ny, nx)
 			wave_extent:float=None,		# wave-optics grid physical size (m); None -> derived from size
 			wave_kind:Literal['plane','gaussian','point','aperture']='gaussian',
 			aperture_radius:float=None) -> SEASerializable:	# radius (m) for wave_kind='aperture'
 		super().__init__(name=name, kind='Source')
 		self.beam_current = beam_current
+		self.energy_spread = energy_spread
 
 		self.size = size
 		self.np_xy = np_xy
@@ -2259,7 +2878,7 @@ class Source(Element):
 		array=fix_ray_dims(array,["x","y","xt","yt"])
 		if self.voltage is not None:					# beam energy (keV) rides in the E column when defined
 			array[:,columnByName("E")] = self.voltage
-		return Rays(array,R=xp.zeros(len(array)),I=xp.full(len(array),self.beam_current/len(array)))
+		return Rays(array,I_per_ray=xp.full(len(array),self.beam_current/len(array)),I_per_plane=self.beam_current)
 
 	# dummy propagation in case someone tries to propagate through since this is technically an element
 	def propagate_ray(self, r0:xp.ndarray | Rays, **kwargs) -> xp.ndarray:
@@ -2271,7 +2890,11 @@ class Source(Element):
 		The analog of :meth:rays for :meth:propagate_moments. Builds a centered
 		mean (mu0 = 0, with the E component set to voltage when defined)
 		and a diagonal covariance whose entries are the squared source size (real
-		space) and angle (angular spread), i.e. these are treated as RMS values.
+		space), angle (angular spread) and energy_spread, i.e. these are
+		treated as RMS values. The energy variance is what an element with a
+		nonzero chromatic_aberration reads; it is zero for a
+		monoenergetic source, which leaves the beam achromatic no matter what
+		C_c the optics carry.
 
 		Returns
 		-------
@@ -2289,13 +2912,14 @@ class Source(Element):
 		var[columnByName("y")]  = self.size[1]**2
 		var[columnByName("xt")] = self.angle[0]**2
 		var[columnByName("yt")] = self.angle[1]**2
+		var[columnByName("E")]  = self.energy_spread**2
 		Sigma0 = xp.diag(var)
 		mu0 = xp.zeros(len(convention))
 		if self.voltage is not None:
 			mu0[columnByName("E")] = self.voltage
 		return mu0, Sigma0
 
-	def propagate_moments(self, mu:xp.ndarray, Sigma:xp.ndarray) -> tuple:
+	def propagate_moments(self, mu:xp.ndarray, Sigma:xp.ndarray, closure=None) -> tuple:
 		"""Pass moments through unchanged (the source only originates the beam).
 
 		Mirrors :meth:propagate_ray, which returns r0 untouched. The driver
@@ -2308,6 +2932,10 @@ class Source(Element):
 			Mean state vector.
 		Sigma : xp.ndarray
 			Covariance matrix.
+		closure : moments.MomentClosure, optional
+			Accepted for signature compatibility and unused: this element
+			applies no nonlinear map, so it needs no moments beyond the
+			second.
 
 		Returns
 		-------
@@ -2555,7 +3183,11 @@ class Gun(Source):
 		self.kind = 'Gun'
 
 class Aperture(Element):
-	"""Aperture element class. An aperture serves to crop the beam, and the total beam intensity is reduced dependent on the area of the beam and the area of aperture.
+	"""Aperture element class. An aperture MASKS the beam: rays outside the
+		radius keep propagating geometrically but carry zero intensity from
+		this plane on, so ``sum(I)`` at any downstream plane is the beam
+		current that survived. This matches the wave path, which masks the
+		field with the same transmission.
 
 		Parameters
 		----------
@@ -2574,6 +3206,7 @@ class Aperture(Element):
 		self._position = position
 		self.radius = radius
 		self.calibration = calibration
+		self.shape_factor = xp.pi/4 # pi/4 is a shape factor: square grid of rays to round
 
 	#def transfer_matrix(self) -> xp.ndarray:
 	#	r"""Transfer matrix for ray propogation.
@@ -2583,7 +3216,7 @@ class Aperture(Element):
 	#	m = xp.eye(4) # drift tube updates x from xθ and y from yθ
 	#	return fix_mat_dims(m,["x","xt","y","yt"])
 
-	# TWO WAYS TO IMPLEMENT AN APERTURE:
+	# TWP: TWO WAYS TO IMPLEMENT AN APERTURE:
 	# 1) set the intensity of any rays "outside" the aperture to zero. this is fine for plotting and we can capture beam current by looking at how many rays are zeroed out. *BUT*, this will be problematic during fitting, as rays which "pop" into and out of view will yield an intensity vs [whatever] function with step edges.
 	# def propagate_ray(self, r0:xp.ndarray,
 	#				  z:float=None, z0:float=0) -> xp.ndarray:
@@ -2592,69 +3225,147 @@ class Aperture(Element):
 	#	rf[radii>self.radius,columnByName("I")]=0
 	#	return rf
 	# 2) aperture can rescale all rays based on the outer ray's position, or the area covered by the rays. we can thus calculate reductions in beam current based on the aperture's reduction in intensity (area cropped out). we're effectively pretending the originating rays were less divergent or something, which is actually sort of what we see IRL; you can't tell the divergence of the beam from the gun because the VOA masks out a bunch of it. This will only work for one aperture in the system though (otherwise second aperture undoes the scaling of the first one? or should we only allow the aperture to scale-down, so if the first aperture scales down, second scales down further (second is smaller), or first scale down, second leaves it alone (second is larger, we'd be able to see our first aperture in the CCD for example). and how do we handle apertures of different shapes??
-	def _aperture_scales(self, r0:xp.ndarray) -> tuple:
-		"""Return the x and y demagnification factors imposed by the aperture.
+	# 2026-08-30 ERH: option 1 (masking) is now the implementation. The rescale
+	# (option 2) had the one-aperture limitation described above, compressed
+	# the survivors' emittance instead of truncating the distribution (finite
+	# sources), and relabeled outer rays inward so downstream aberrations
+	# acted on coordinates the rays never had. The two coincide only for a
+	# laminar (point-source) fan. Masking composes correctly across any
+	# number of apertures; the cost is that the transmitted current becomes a
+	# SAMPLED estimate, quantized in units of I_total/n_rays.
+	# 2026-09-01: *must* have a smooth total-beam-intensity function though. i see transmitted_fraction, but it requires passing rays at the aperture plane, and the aperture element doesn't know its rays. adding a "total intensity"
+	# 2026-09-01: while trying to implement ^^^, it became apparent that if MicroscopeSection is handling intensity, then we don't even need to do anything here! editing intensity here was overwritten by MicroscopeSection's intensity code!
+	#def propagate_ray(self, r0:xp.ndarray | Rays,
+	#				  z:float=None, z0:float=0) -> xp.ndarray:
+	#	"""Pass rays through geometrically unchanged; the mask acts on I.
 
-		The aperture rescales the beam based on the outermost ray's position
-		relative to the aperture radius (see the class-level discussion). The same
-		factors drive both the geometric rescaling (in :meth:propagate_ray) and
-		the intensity attenuation (in :meth:apply_intensity), so they are computed
-		once here from the incoming rays.
+	#	Overrides :meth:`Element.propagate_ray` (the aperture has no ray
+	#	matrix). Coordinates are untouched — blocked rays become *ghosts*
+	#	that keep propagating with zero intensity (see
+	#	:meth:`apply_intensity`), which keeps array shapes stable, keeps the
+	#	plotted trajectories honest up to the aperture plane, and lets every
+	#	current read stay ``sum(I)``.
 
-		Parameters
-		----------
-		r0 : xp.ndarray
-			Incoming ray table (geometric coordinates).
+	#	Parameters
+	#	----------
+	#	r0 : xp.ndarray or Rays
+	#		Rays arriving at the aperture plane, shape
+	#		``(n_rays, len(convention))``.
+	#	z : float, optional
+	#		Unused (zero-length element), by default ``None``.
+	#	z0 : float, optional
+	#		Unused, by default 0.
 
-		Returns
-		-------
-		tuple of float
-			(scale_x, scale_y), each in (0, 1].
-		"""
-		xmax = xp.amax(r0[:,columnByName("x")])
-		ymax = xp.amax(r0[:,columnByName("y")])
-		scale_x = 1 if xmax<self.radius else self.radius/xmax
-		scale_y = 1 if ymax<self.radius else self.radius/ymax
-		return scale_x, scale_y
+	#	Returns
+	#	-------
+	#	xp.ndarray or Rays
+	#		The rays, geometrically unchanged; a ``Rays`` input comes back
+	#		paired with its masked intensity.
 
-	def propagate_ray(self, r0:xp.ndarray | Rays,
-					  z:float=None, z0:float=0) -> xp.ndarray:
-		paired = isinstance(r0,Rays)
-		rays = xp.asarray(r0)
-		scale_x, scale_y = self._aperture_scales(rays)
-		#print("Aperture",self.name,"radius",self.radius,"scale x,y",scale_x,scale_y)
-		rf=xp.zeros(rays.shape)+rays
-		rf[:,columnByName("x")]*=scale_x
-		rf[:,columnByName("xt")]*=scale_x
-		rf[:,columnByName("y")]*=scale_y
-		rf[:,columnByName("yt")]*=scale_y
-		if paired:
-			return Rays(rf,r0.R,self.apply_intensity(r0.I,rays))
-		return rf
+	#	Raises
+	#	------
+	#	None
+
+	#	Related
+	#	-------
+	#	apply_intensity : Where the mask actually acts.
+	#	phase_shift : The wave path's identical transmission mask.
+	#	"""
+	#	#paired = isinstance(r0,Rays)
+	#	return r0.copy()
+	#	rays = xp.asarray(r0)
+	#	rf = xp.zeros(rays.shape)+rays
+	#	return Rays(rays=rf)
+	#	#if not paired: # matrix-only
+	#	#	return rf
+	#	print(r0,r0.shape)
+	#	# Rays object
+	#	I_pr  = self.apply_intensity(r0.I_per_ray,rays)
+	#	I_pp = xp.concatenate((r0.I_per_plane,[self.transmitted_fraction(r0[-1])]))
+	#	print("NEW I_pp",I_pp)
+	#	return Rays(rays=rf,R=r0.R, I_per_ray=I_pr, I_per_plane = I_pp )
+	#		# 	def __init__(self, rays:xp.ndarray, R:float, I_per_ray:float,reference_frame:str="stationary",I_at_planes:float=1):
+	#	return rf
 
 	def apply_intensity(self, I:xp.ndarray, r0:xp.ndarray) -> xp.ndarray:
-		"""Attenuate intensity by the fraction of beam area the aperture passes.
+		"""Zero the intensity of rays outside the aperture radius (the MASK).
 
-		Extends :meth:Element.apply_intensity. The transmitted fraction is
-		scale_x * scale_y (the cropped-area fraction), matching the geometric
-		rescaling applied to the ray positions in :meth:propagate_ray.
+		Extends :meth:`Element.apply_intensity`. A ray at lab-frame radius
+		``sqrt(x² + y²) > radius`` at the aperture plane is blocked: its
+		intensity becomes exactly 0 and stays 0 downstream (nothing ever
+		re-raises a dead ray). Rays inside pass **unattenuated** — a real
+		diaphragm does not dim the survivors. The transmitted current is
+		therefore the sampled sum over surviving rays, quantized in units of
+		``I_total/n_rays``; refine the source's ``np_xy``/``na_xy`` when the
+		quantization matters.
 
 		Parameters
 		----------
 		I : xp.ndarray
-			Per-ray intensity entering the aperture, shape (n_rays,).
+			Per-ray intensity entering the aperture, shape ``(n_rays,)``.
 		r0 : xp.ndarray
-			Incoming ray table, used to compute the demagnification factors.
+			Rays at the aperture plane (geometric coordinates), used for the
+			in/out test.
 
 		Returns
 		-------
 		xp.ndarray
-			Attenuated per-ray intensity, shape (n_rays,).
-		"""
-		scale_x, scale_y = self._aperture_scales(r0)
-		return I * scale_x * scale_y
+			Masked per-ray intensity, shape ``(n_rays,)``.
 
-	def propagate_moments(self, mu:xp.ndarray, Sigma:xp.ndarray) -> tuple:
+		Raises
+		------
+		None
+
+		Related
+		-------
+		propagate_ray : Leaves the geometry untouched.
+		assemblies.MicroscopeSection.propagate_ray : Calls this with the
+			rays *arriving* at the element, i.e. at the aperture plane.
+		"""
+		x = r0[:,columnByName("x")]
+		y = r0[:,columnByName("y")]
+		return I * (x**2 + y**2 <= self.radius**2)
+
+	def transmitted_fraction(self, r0:xp.ndarray) -> float:
+		"""Smooth continuum estimate of the fraction of current this passes.
+
+		The per-axis area-ratio model the ray path itself used before it
+		became a mask: ``scale_x * scale_y`` with
+		``scale = min(1, radius/max)`` per axis. It exists for **fitting**:
+		the masked current (``sum(I)`` after :meth:`apply_intensity`) is a
+		staircase in any upstream parameter — quantized by the ray count —
+		which starves gradient-based fits; this estimate is smooth in lens
+		strengths and aperture radius, which is what a fit needs. It is an
+		estimate, exact only for a beam filling its bounding box; the mask
+		remains the propagation truth.
+
+		Parameters
+		----------
+		r0 : xp.ndarray
+			Rays at the aperture plane (geometric coordinates), shape
+			``(n_rays, len(convention))``.
+
+		Returns
+		-------
+		float
+			Estimated transmitted fraction, in ``(0, 1]``.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		apply_intensity : The mask actually applied during propagation.
+		generalized_CL_PL_fitting.fit_VOA : The fitting consumer.
+		"""
+		xmax = xp.amax(xp.abs(r0[:,columnByName("x")]))
+		ymax = xp.amax(xp.abs(r0[:,columnByName("y")]))
+		scale_x = 1.0 if xmax < self.radius else self.radius / xmax
+		scale_y = 1.0 if ymax < self.radius else self.radius / ymax
+		return float(scale_x * scale_y)*self.shape_factor
+
+	def propagate_moments(self, mu:xp.ndarray, Sigma:xp.ndarray, closure=None) -> tuple:
 		"""Pass moments through unchanged (aperture is treated as non-truncating here).
 
 		Overrides :meth:Element.propagate_moments. An aperture has no ray-transfer
@@ -2670,6 +3381,10 @@ class Aperture(Element):
 			Mean state vector.
 		Sigma : xp.ndarray
 			Covariance matrix.
+		closure : moments.MomentClosure, optional
+			Accepted for signature compatibility and unused: this element
+			applies no nonlinear map, so it needs no moments beyond the
+			second.
 
 		Returns
 		-------
@@ -3019,7 +3734,7 @@ class Quadrapole(Element):
 	def __init__(self, name:str='',
 				 position:float=None, length:float=0.,
 				 strength:float=0, calibration:float=None,
-				 skew:float=0.0) -> SEASerializable:
+				 rotation:float=0.0) -> SEASerializable:
 
 		"""Quadripole.
 
@@ -3036,14 +3751,15 @@ class Quadrapole(Element):
 			see equations in brown1983), by default 0
 		calibration : float, optional
 			Currnet calibration of the lens in units of ???/A, by default None
-		skew : float, optional
+		rotation : float, optional
 			Roll of the focusing axis about z, in **radians** from lab +x
-			toward +y, by default 0. A nonzero skew couples the transverse
-			planes: ``skew=pi/4`` is the classic 45° (skew) stigmator, whose
-			thin kick is ``Δθ_x = -P·y``, ``Δθ_y = -P·x``. The ray path
-			supports any skew (the 4×4 matrix is conjugated by the roll);
+			toward +y, by default 0. A rotated quadrupole couples the
+			transverse planes: ``rotation=pi/4`` is the classic 45°
+			stigmator (the literature's "skew quadrupole"), whose thin kick
+			is ``Δθ_x = -P·y``, ``Δθ_y = -P·x``. The ray path supports any
+			rotation (the 4×4 matrix is conjugated by the roll);
 			per-lab-axis machinery (``transfer_block``, the scaled-wave
-			curvature) raises for a skewed quadrupole, because a coupled
+			curvature) raises for a rotated quadrupole, because a coupled
 			plane has no independent per-axis description.
 		label : bool, optional
 			If the element should be labeled when plotted, by default False
@@ -3059,7 +3775,7 @@ class Quadrapole(Element):
 		self.length = length
 		self.strength = strength
 		self.calibration = calibration
-		self.skew = skew
+		self.rotation = rotation
 
 	@property
 	def calibrated_strength(self) -> float:
@@ -3219,7 +3935,7 @@ class Quadrapole(Element):
 		Raises
 		------
 		NotImplementedError
-			If ``skew != 0``: a rolled quadrupole couples x and y, so no
+			If ``rotation != 0``: a rotated quadrupole couples x and y, so no
 			independent per-axis block exists.
 
 		Notes
@@ -3227,10 +3943,10 @@ class Quadrapole(Element):
 		Delegates to :meth:_body_block, the same helper :meth:transfer_matrix
 		uses, so plane finding and ray tracing cannot disagree.
 		"""
-		if getattr(self, 'skew', 0.0):
+		if getattr(self, 'rotation', 0.0):
 			raise NotImplementedError(
-				f"Quadrapole {self.name or ''!r} has skew={self.skew}, which couples x and y: "
-				"no independent per-axis 2x2 block exists. Locate planes with skew "
+				f"Quadrapole {self.name or ''!r} has rotation={self.rotation}, which couples x and y: "
+				"no independent per-axis 2x2 block exists. Locate planes with rotation "
 				"temporarily set to 0, or work in the element's principal frame.")
 		L = self.length or 0.0
 		step = L if dz is None else float(dz)
@@ -3269,11 +3985,11 @@ class Quadrapole(Element):
 		"""
 		K = self.calibrated_strength
 		if self.length > 0 and K != 0:
-			if self.skew:
+			if self.rotation:
 				raise NotImplementedError(
-					f"Quadrapole {self.name or ''!r} has skew={self.skew}: the scaled frame's "
+					f"Quadrapole {self.name or ''!r} has rotation={self.rotation}: the scaled frame's "
 					"per-axis curvature (R_x, R_y) cannot represent a coupled saddle. "
-					"Use mode='fixed' near this element, or skew=0.")
+					"Use mode='fixed' near this element, or rotation=0.")
 			kappa = float(K**2)
 			pair = (kappa, -kappa) if self._axis_focuses('x') else (-kappa, kappa)
 			return ('quadratic', pair, 0.0)
@@ -3300,7 +4016,7 @@ class Quadrapole(Element):
 		tuple of float
 			(power_x, power_y) in 1/metres; (0, 0) at zero strength.
 			These are powers along the quadrupole's **principal axes** — for a
-			skewed quadrupole (skew != 0) they are the element-frame
+			rotated quadrupole (rotation != 0) they are the element-frame
 			values, not lab-frame ones (no independent lab-frame pair exists
 			once the planes couple).
 
@@ -3354,14 +4070,14 @@ class Quadrapole(Element):
 		giving det = cos(2|KL|) - 0.75 over a 30 mm body, so a quarter of
 		the phase-space area vanished and the block's halves did not compose.
 
-		A **skew** (rolled) quadrupole is supported here by conjugation: the
-		element's own matrix (two independent 2×2 blocks in its principal
-		frame) is rotated into the lab frame, ``M_lab = G(-skew)·M·G(skew)``,
-		which fills the coupling entries. Per-axis views
-		(:meth:`transfer_block`, :meth:`focal_powers` read in the lab frame,
-		the scaled-wave curvature) remain undefined for ``skew != 0`` and
-		raise, because a coupled plane has no independent per-axis
-		description.
+		A **rotated** quadrupole (the literature's "skew quadrupole") is
+		supported here by conjugation: the element's own matrix (two
+		independent 2×2 blocks in its principal frame) is rotated into the
+		lab frame, ``M_lab = G(-rotation)·M·G(rotation)``, which fills the
+		coupling entries. Per-axis views (:meth:`transfer_block`,
+		:meth:`focal_powers` read in the lab frame, the scaled-wave
+		curvature) remain undefined for ``rotation != 0`` and raise, because
+		a coupled plane has no independent per-axis description.
 
 		References
 		----------
@@ -3397,10 +4113,10 @@ class Quadrapole(Element):
 		#m2 = xp.eye(4) ; m2[0,0] = c ; m2[0,1] = 1/K*s ; m2[1,0] = -K*s ; m2[1,1]=c
 		#m2[2,2] = ch ; m2[2,3] = 1/K*sh ; m2[3,2] = K*sh ; m2[3,3]=ch
 		#print(m-fix_mat_dims(m2,["x","xt","y","yt"]))
-		if self.skew:
+		if self.rotation:
 			# roll the principal frame into the lab frame: lab -> element is
-			# G(skew) on (x, xt, y, yt), so M_lab = G(-skew) @ M_elem @ G(skew)
-			c = float(xp.cos(self.skew)) ; s_ = float(xp.sin(self.skew))
+			# G(rot) on (x, xt, y, yt), so M_lab = G(-rot) @ M_elem @ G(rot)
+			c = float(xp.cos(self.rotation)) ; s_ = float(xp.sin(self.rotation))
 			G  = fix_mat_dims(xp.asarray([[ c,0, s_,0],[0, c,0, s_],
 										  [-s_,0, c,0],[0,-s_,0, c]]),
 							  ["x","xt","y","yt"])
@@ -3444,32 +4160,32 @@ class Quadrapole(Element):
 		Raises
 		------
 		NotImplementedError
-			scaled=True with skew != 0: the per-axis curvature state
+			scaled=True with rotation != 0: the per-axis curvature state
 			cannot represent a coupled saddle. The fixed path instead
-			evaluates χ on the rolled coordinates, so a skewed quadrupole is
-			usable there.
+			evaluates χ on the rotated coordinates, so a rotated quadrupole
+			is usable there.
 		"""
 		from .waveoptics import quadratic_phase, transverse_coordinates
 		from .seashells import grid_of
 		P_x, P_y = self.focal_powers
 		ny, nx, dy, dx = grid_of(dimensions)
 		if scaled:
-			if self.skew and (P_x or P_y):
+			if self.rotation and (P_x or P_y):
 				raise NotImplementedError(
-					f"Quadrapole {self.name or ''!r} has skew={self.skew}: the scaled frame's "
+					f"Quadrapole {self.name or ''!r} has rotation={self.rotation}: the scaled frame's "
 					"per-axis curvature (R_x, R_y) cannot represent a coupled saddle. "
-					"Use mode='fixed' near this element, or skew=0.")
+					"Use mode='fixed' near this element, or rotation=0.")
 			screen = self._scaled_screen(None, (ny, nx), dx, dy, s,
 										 self.name or "quadrupole")
 			if P_x == 0 and P_y == 0:
 				return 0.0, screen
 			return (float(P_x), float(P_y)), screen
-		if self.skew and (P_x or P_y):
+		if self.rotation and (P_x or P_y):
 			# the saddle is separable only in the element's principal frame:
 			# evaluate chi on the rolled coordinates instead of raising, since a
 			# fixed-grid screen has no per-axis constraint
 			X, Y = transverse_coordinates((ny, nx), dx, dy)
-			c = float(xp.cos(self.skew)) ; s_ = float(xp.sin(self.skew))
+			c = float(xp.cos(self.rotation)) ; s_ = float(xp.sin(self.rotation))
 			Xe = c * X + s_ * Y ; Ye = -s_ * X + c * Y
 			k = 2 * xp.pi / wavelength
 			chi = -k * (P_x * Xe**2 + P_y * Ye**2) / 2
@@ -3725,17 +4441,27 @@ class Lens(Element):
 			The position of the element along the z-axis, by default None
 		rotation : bool, optional
 			if set to False, lens rotation for finite-thickness lenses is overridden and turned off.
+		chromatic_aberration : float, optional
+			Chromatic aberration coefficient C_c in metres, by default 0
+			(achromatic). Stated as a constructor argument rather than left to
+			:attr:Element.chromatic_aberration alone so a chromatic lens
+			survives a ``.json`` reload, which rebuilds elements from their
+			constructor arguments only. See that attribute for what the
+			coefficient must be referenced against, and
+			:meth:Element.chromatic_monomials for what it does.
 		"""
 	def __init__(self, name:str='', length:float=0.,
 				 strength:float=0, calibration:float=None, focal_length:float=None,
 				 aberrations:dict=None,
 				 position:float=None,
-				 allow_diverging:bool=False) -> SEASerializable:
+				 allow_diverging:bool=False,
+				 chromatic_aberration:float=0.0) -> SEASerializable:
 		
 		if length == 0: kind = 'Thin lens'
 		else:		   kind = 'QLens'
 
 		super().__init__(name=name,kind=kind)
+		self.chromatic_aberration = chromatic_aberration	# stated here so it survives a JSON reload
 		self._position = position
 		self.length = length
 		self.strength = strength
@@ -3743,7 +4469,7 @@ class Lens(Element):
 			focal_length = xp.inf if strength == 0 else 1 / (xp.sign(strength) * strength**2)
 		self._focal_length = focal_length if length == 0 else None
 		self.calibration = calibration
-		self.rotation = 0
+		self.larmor_rotation = 0
 		# One nested Aberrations object, not a scatter of flat scalars: it is a
 		# SEASerializable itself, so .sea and JSON carry it as a child node, and
 		# every order is applied by one generic expression rather than per term.
@@ -3752,40 +4478,41 @@ class Lens(Element):
 
 	@property
 	def calibrated_strength(self) -> float:
-		K = self.strength
+		return self.calibrated(self.strength)
+	@property
+	def calibrated_f(self):
+		K = xp.sqrt(1/self._focal_length) # 1/f = K^2
+		K = self.calibrated(K)
+		return 1/(K**2)
+	def calibrated(self,val):
 		if self.calibration is not None:
 			if isinstance(self.calibration, (int, float)):
-				K *= self.calibration
+				val *= self.calibration
 			else:
-				K = sum([self.calibration[0]] + [v * K**(1 / (i + 1)) for i, v in enumerate(self.calibration[1:])])
-		return K
+				val = sum([self.calibration[0]] + [v * val**(1 / (i + 1)) for i, v in enumerate(self.calibration[1:])])
+		return val
 
-	@property
-	def focal_power(self) -> float:
-		f = self.focal_length
-		return 0.0 if xp.isinf(f) else float(1 / f)
-
-	def transfer_matrix(self) -> xp.ndarray:
+	def transfer_matrix(self,rotation=True) -> xp.ndarray:
 		r"""Transfer matrix for ray propogation.
 		"""
 
 		K = self.calibrated_strength
 
 		# FINITE LENGTH LENS, ZERO STRENGTH = DRIFT (try inserting a zero-strength lens and seeing if the result changes)
-		if (self.length == 0 and xp.isinf(self.focal_length)) or (self.length > 0 and K == 0):
+		if (self.length == 0 and xp.isinf(self._focal_length)) or (self.length > 0 and K == 0):
 			m = xp.eye(4) # IDENTITY MATRIX, OR DRIFT-EQUIVALENT
 			m[0,1]=self.length
 			m[2,3]=self.length
-			self.rotation = 0
+			self.larmor_rotation = 0
 			return fix_mat_dims(m,["x","xt","y","yt"])
 
 		# THIN LENS, NO ROTATION (thick lens math will have sine term going to zero)
 		if self.length==0:
 			X=xp.asarray([[    1   , 0 ],
-					     [ -self.focal_power , 1 ]])
+					     [ -1/self.calibrated_f , 1 ]])
 			Y=xp.asarray([[    1   , 0 ],
-						 [ -self.focal_power , 1 ]])
-			self.rotation = 0
+						 [ -1/self.calibrated_f , 1 ]])
+			self.larmor_rotation = 0
 			return xp.matmul( fix_mat_dims(X,["x","xt"]) , fix_mat_dims(Y,["y","yt"]) )
 
 		# THICK LENS, FINITE K (zero K will have iK going to infinite)
@@ -3815,24 +4542,186 @@ class Lens(Element):
 		#	XY*=zeroer
 		#print("lens",self.name,"adds rotation",kL)
 		# TWP 2026-07-23: upon discussion with Eric, we decided to always rotate. R is still tracked to allow you to return to the rotating reference frame for the purposes of quick-and-easy plane detection etc, although that stuff should be improved too (e.g., once we add aberrations, we will need to look for a beam waist. interpolate between drift endpoints, calculate Diameter(z) from all rays, d^2 diameter / dz^2 tells you where the beam is at a minimum diameter. check bundles of rays for diffraction planes?)
-		XY = xp.matmul(R,XY)
-		self.rotation = -kL
-		M = fix_mat_dims(XY,["x","xt","y","yt"])
-		return M
+		self.larmor_rotation = -kL
+		M = fix_mat_dims(xp.matmul(R,XY),["x","xt","y","yt"])
+		if rotation:
+			return M
+		return XY
+
+	# 1-axis transfer matrix, used for calculating various named lens properties
+	def ABCD(self):
+		columns = [columnByName(k) for k in ["x", "xt"]]
+		return self.transfer_matrix(rotation=False)[columns, :][:, columns]
+
+	# Terminology
+	#  zL      zP   zE    zF		self.position: zL, position of the lens entrance plane
+	# __|______|     |     |		self.length: lens length, exit plane is zL, zL = self.position+self.length
+	#   |'-.    '.   |     |		"back focal distance": distance from lens exit (zE) to focal point (zF): zF-zE
+	#   |    '-.  '. |     |		"principal_distance": position of principal plane (zP) relative to entrance (zL): zP-zL
+	#   |      | '-.'.     |		"focal length": distance from principal plane (zP) to focal point (zF): zF-zP
+	#   |      |     |'.   |
+	#   |      |     |  '. |
+	# __|______|_____|____'.
+	#
+	@property
+	def principal_distance(self):
+		A,B,C,D = self.ABCD().flat
+		return self.length-(D-1)/C
 
 	@property
 	def focal_length(self):
-		if self.length == 0:
-			return self._focal_length if self.allow_diverging else abs(self._focal_length)
-		if self.calibrated_strength == 0:
-			return xp.inf
-		columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]
-		M = self.transfer_matrix()[columns, :][:, columns]
-		r1 = xp.matmul(M, [1, 0, 1, 0])
-		x = xp.sqrt(r1[0]**2 + r1[2]**2)
-		xt = xp.sqrt(r1[1]**2 + r1[3]**2)
-		return x / xt
+		r"""The effective focal length (EFL), ``f = -1/C`` (metres).
 
+		The conventional focal length of the equivalent paraxial system,
+		referenced to the **rear principal plane** (which sits inside a
+		thick body). It satisfies ``focal_length == 1/focal_power`` for
+		nonzero power: thin lens, the stored definition ``_focal_length``;
+		thick lens, ``1/(K*sin(K*L))``.
+
+		It is **not** generally the distance from the exit face to the back
+		focal plane — for a thick lens that geometry number is smaller by
+		``cos(K*L)``. Use :attr:`back_focal_distance` for placing a sample
+		or detector.
+
+		Returns
+		-------
+		float
+			EFL in metres; ``inf`` at zero strength. Thin lenses return the
+			signed stored value when ``allow_diverging``, else its
+			magnitude.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		focal_power : Its reciprocal, ``P = -C``.
+		back_focal_distance : The exit-face-to-BFP geometry number.
+		"""
+
+		A,B,C,D = self.ABCD().flat
+		return -1/C
+
+		# TWP CODE: DO NOT DELETE: this is referenced to the entrance plane
+		#columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]
+		#M = self.transfer_matrix()[columns, :][:, columns]
+		#r1 = xp.matmul(M, [1, 0, 1, 0])		# parallel entering rays, finite x_1,y_1, zero xt_1,yt_1
+		#x = xp.sqrt(r1[0]**2 + r1[2]**2)
+		#xt = xp.sqrt(r1[1]**2 + r1[3]**2)
+		#return self.length + x / xt						# focuses to: ratio of x_2/xt_2
+
+		# OLD ERIC CLODE: DO NOT DELETE: should match -C, this is referenced to self.principal_plane
+		#if self.length == 0:
+		#	return self._focal_length if self.allow_diverging else abs(self._focal_length)
+		#K = self.calibrated_strength
+		#if K == 0:
+		#	return xp.inf
+		#return float(1.0 / (K * xp.sin(K * self.length)))
+
+	@property
+	def back_focal_distance(self):
+		r"""The signed back focal distance, ``BFD = -A/C`` (metres).
+
+		Referenced to the lens **exit face**: it is the output drift ``b``
+		for which the accumulated ``A + b*C = 0``, so rays sharing one
+		incident angle meet at one position in the back focal plane. For a
+		parallel input at height ``h`` the exit state is
+		``(A*h, C*h) = (cos(KL)*h, -K*sin(KL)*h)``, giving
+		``BFD = cos(K*L)/(K*sin(K*L)) = 1/(K*tan(K*L))`` for a thick body
+		and ``BFD == focal_length`` for a thin lens. This is the geometry
+		number: use it to place a sample or detector after the lens.
+
+		**Positive** BFD is a real downstream BFP. **Negative** BFD
+		(``pi/2 < K*L < pi``) is a *virtual* output-space BFP obtained by
+		backward drift extrapolation of the exit rays — the physical
+		parallel bundle has already crossed *inside* the body, at
+		``dz = pi/(2K)``. A negative BFD is not an in-body crossover
+		locator; physical interior planes come from :meth:`transfer_block`
+		at partial length or the plane-finding machinery.
+
+		Generally **not** reciprocal to :attr:`focal_power` for a thick
+		lens (the two products give ``cos(K*L)``, the ``A`` entry).
+
+		Returns
+		-------
+		float
+			Signed exit-face-to-BFP distance in metres; ``inf`` at zero
+			strength.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		focal_length : The EFL (principal-plane referenced).
+		focal_power : The equivalent power ``-C`` (the aberration scale).
+		transfer_block : Locates physical planes inside the body.
+		"""
+
+		A,B,C,D = self.ABCD().flat
+		return -A/C
+
+		# TWP CODE: DO NOT DELETE: use this to prove to yourself you get the same result.
+		#columns = [columnByName(k) for k in ["x", "xt", "y", "yt"]]
+		#M = self.transfer_matrix()[columns, :][:, columns]
+		#r1 = xp.matmul(M, [1, 0, 1, 0])		# parallel entering rays, finite x_1,y_1, zero xt_1,yt_1
+		#x = xp.sqrt(r1[0]**2 + r1[2]**2)
+		#xt = xp.sqrt(r1[1]**2 + r1[3]**2)
+		#return x / xt						# focuses to: ratio of x_2/xt_2
+
+		# OLD ERIC CLODE: DO NOT DELETE: should match -A/C
+		#if self.length == 0:
+		#	return self.focal_length
+		#K = self.calibrated_strength
+		#if K == 0:
+		#	return xp.inf
+		#return float(xp.cos(K * self.length) / (K * xp.sin(K * self.length)))
+
+	@property
+	def focal_power(self) -> float:
+		r"""The equivalent paraxial focal power ``P = -C`` (1/metres).
+
+		The lens's matrix maps the entrance face to the exit face; for an
+		on-axis parallel ray at height ``h``, the exit angle is
+		``x' = C*h = -P*h``. So ``P`` converts entrance pupil height into
+		the converging exit angle — the angle the ray actually crosses the
+		focus at — which is why it is the scale used by the ray- and
+		wave-path aberration expressions, and the quantity that composes
+		additively when lenses stack. Thin lens: ``1/focal_length``. Thick
+		lens: Brown's focusing relation ``K*sin(K*L)``.
+
+		This is reciprocal to :attr:`focal_length` (the EFL), but generally
+		**not** reciprocal to :attr:`back_focal_distance` for a thick lens
+		(the two differ by ``cos(K*L)``). See the Terminology page of the
+		docs for the full derivation.
+
+		Returns
+		-------
+		float
+			Equivalent power ``P = -C`` (1/metres); 0 for a zero-strength
+			lens.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		focal_length : The EFL, ``1/focal_power``.
+		back_focal_distance : The exit-face-to-BFP geometry number.
+		aberration_kick : Consumes this as the pupil scale on the ray path.
+		phase_shift : Consumes this on the wave path.
+		"""
+		A,B,C,D = self.ABCD().flat
+		return -C
+
+		#if self.length == 0:
+		#	f = self._focal_length
+		#	return 0.0 if xp.isinf(f) else float(1 / f)
+		#K = self.calibrated_strength
+		#return 0.0 if K == 0 else float(K * xp.sin(K * self.length))
 
 	# unlike below(?), here we'll *measure* focal length at the current K=I*C and L, then adjust C and L to preserve focal length and set beam rotation (K*L) to match R in radians at this current I.
 	def get_C_L_from_rotation_at_I(self,I,R):
@@ -3840,16 +4729,18 @@ class Lens(Element):
 		print(self.name,I,R)
 		def FR(C,L):
 			new = Lens(strength = I, calibration = C, length = L)
-			columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
-			M = new.transfer_matrix()[columns,:][:,columns]
-			r0 = [1,0,1,0] # parallel starting ray
-			r1 = xp.matmul(M,r0)
-			x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
-			f = x/xt # f = x/theta
-			rot = new.rotation
-			return f,rot
+			return new.focal_length, new.larmor_rotation
+			#columns = [ columnByName(k) for k in ["x","xt","y","yt"] ]
+			#M = new.transfer_matrix()[columns,:][:,columns]
+			#r0 = [1,0,1,0] # parallel starting ray
+			#r1 = xp.matmul(M,r0)
+			#x = xp.sqrt(r1[0]**2+r1[2]**2) ; xt = xp.sqrt(r1[1]**2+r1[3]**2)
+			#f = x/xt # f = x/theta
+			#rot = new.larmor_rotation
+			#return f,rot
 		f0,_ = FR(self.calibration,self.length)	# initial focal length
 		print("currently focuses to",f0)
+
 		def dz(vals):
 			f,rot = FR(*vals)
 			return ((f-f0)/f0)**2 + ((R-rot)/R)**2
@@ -3933,8 +4824,12 @@ class Lens(Element):
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
 		r"""Round-lens phase: :math:\chi = -k(x^2+y^2)/(2f) (handoff Eq 12).
 
-		Extends :meth:Element.phase_shift. The focal power is the reciprocal of
-		:meth:focal_length, so ray and wave paths use the same focus definition.
+		Extends :meth:Element.phase_shift. The focal power comes from
+		:meth:focal_power — the EFL power (thin: 1/focal_length; thick:
+		K*sin(K*L), Brown 1983) — so the ray and wave paths scale their
+		aberrations against the same physical pupil angle. Note this is NOT
+		1/:attr:focal_length for a thick lens (that is the measured
+		back-focal distance); see the Terminology docs page.
 
 		Any :attr:aberrations are added as the wave aberration function
 		:math:\chi, whatever terms they happen to contain - the same
@@ -4110,10 +5005,10 @@ class Lens(Element):
 		-----
 		C12 is absorbed only when it is **aligned** with the grid axes,
 		which for a complex coefficient means a zero imaginary part. A rotated
-		quadratic is a *skew* astigmatism, which a per-axis :math:(R_x, R_y)
+		quadratic is a *rotated* ("skew") astigmatism, which a per-axis :math:(R_x, R_y)
 		frame cannot represent - the frame would need off-diagonal terms - so a
-		skew C12 is left in the residual screen instead. Same limitation as
-		a skew quadrupole.
+		rotated C12 is left in the residual screen instead. Same limitation
+		as a rotated quadrupole.
 		"""
 		P = float(self.focal_power)
 		return _split_quadratic_aberrations(self.aberrations, P, P, P)

@@ -47,15 +47,14 @@ made to answer for each other:
   the wave run's own crossovers, and the covariance waists — and tabulated
   with their deltas.
 
-Physics worth noticing in the output: this repository's ray-path aperture is
-a beam **rescale**, not a per-ray mask — ``Aperture.propagate_ray`` shrinks
-every ray (positions and angles) by ``radius / xmax`` and attenuates the
-intensity by the area ratio, while the **wave** path masks genuinely. So in
-the low-current state the traced current drops to ``scale_x * scale_y`` of
-the stated 1 nA, yet the condensers can still pump the (rescaled) angle back
-up to the 30 mrad target — and at CA the figure shows the two models differ
-by design: rays compress through the hole, the coherent wave is clipped by
-it.
+Physics worth noticing in the output: the ray-path aperture is a true
+**mask**, exactly like the wave path's — rays outside CA keep their
+geometry but carry zero intensity from that plane on, so in the low-current
+state the traced current drops to the surviving fraction of the stated
+1 nA (and :func:`predict_probe` reproduces it exactly, because prediction
+and trace share the same grid and the same circular cut). The condensers
+then pump the *surviving* cone back up to the 30 mrad target. Rays and wave
+agree at CA by construction: both are clipped by the same hole.
 
 Run ``python 07_eightConfigurations.py`` from this directory; add ``--fast``
 to skip the wave runs (the solves, settings files, and tables still print).
@@ -77,9 +76,8 @@ from scipy.optimize import brentq
 
 sys.path.insert(1, "../")
 from pySEA.rayTEM.assemblies import Microscope, load_microscope, _scaled_wave_cross_section
-from pySEA.rayTEM.postprocessing import convert_to_rotating_reference_frame
 from pySEA.rayTEM.elements import columnByName, convention
-from pySEA.rayTEM.microscopes.basic_column import strength_for_focal_length
+from pySEA.rayTEM.microscopes.basic_column import solve_strength_for_focal_length
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 BASE_SEA = os.path.join(_HERE, "..", "src", "pySEA", "rayTEM", "microscopes",
@@ -257,14 +255,13 @@ def predict_probe(scope: Microscope) -> dict:
 	"""Predict the probe the configured column forms, per-ray, from its blocks.
 
 	Sends the source grid through the source->CA and source->sample blocks
-	and applies CA the way the **ray path** applies it: this repository's
-	``Aperture.propagate_ray`` does not mask individual rays — it *rescales*
-	the whole beam (positions and angles, per axis, by ``radius / xmax``) and
-	attenuates every intensity by the area ratio ``scale_x * scale_y``. The
-	rescale commutes with the linear optics downstream, so the sample-plane
-	quantities are simply the unmasked ones times the scales. (The wave path
-	is different by design: there CA is a genuine mask.) Exact for the ideal
-	column, and smooth in the lens strengths — good to solve against.
+	and applies CA the way the **ray path** applies it: ``Aperture`` is a
+	circular MASK, so rays whose radius at the CA plane exceeds the aperture
+	radius carry zero intensity from there on, and the sample-plane
+	quantities are taken over the survivors. A circular mask is invariant
+	under the Larmor rotation accumulated upstream (the radius does not
+	rotate), so no lab-frame bookkeeping is needed. The wave path masks the
+	field with the same transmission, so the two agree by construction.
 
 	Parameters
 	----------
@@ -274,9 +271,9 @@ def predict_probe(scope: Microscope) -> dict:
 	Returns
 	-------
 	dict
-		``current_fraction`` (the transmitted intensity fraction,
-		``scale_x * scale_y``), ``alpha`` (max total angle at the sample,
-		rad), ``size`` (max radius at the sample, m).
+		``current_fraction`` (the surviving fraction of the source grid),
+		``alpha`` (max total angle at the sample among survivors, rad),
+		``size`` (max radius at the sample among survivors, m).
 
 	Raises
 	------
@@ -287,24 +284,16 @@ def predict_probe(scope: Microscope) -> dict:
 	Ms = block_between(scope, 0.0, sample_plane(scope))
 	Mca = block_between(scope, 0.0, Z["CA"])
 	x0, t0, y0, ty0 = _source_grid(scope).T
-	x_rot = Mca[0, 0] * x0 + Mca[0, 1] * t0
-	y_rot = Mca[0, 0] * y0 + Mca[0, 1] * ty0
-	# the aperture reads per-axis maxima in the LAB frame, and the fan is a
-	# square grid: rotated by the Larmor angle accumulated upstream, its
-	# corner grows the per-axis maximum by up to cos+sin (~8% at C1's 5 deg
-	# in the overfocused low state) -- taking the rotating-frame max instead
-	# made the predicted cut, and with it the solved angle, ~9% optimistic
-	phi = sum(l.strength * l.length for n, l in _lens_map(scope).items()
-			  if Z[n] < Z["CA"])
-	x_ca = np.cos(phi) * x_rot - np.sin(phi) * y_rot
-	y_ca = np.sin(phi) * x_rot + np.cos(phi) * y_rot
-	sx = min(1.0, ca_r / float(np.max(x_ca)))	# amax of the SIGNED positions,
-	sy = min(1.0, ca_r / float(np.max(y_ca)))	# mirroring Aperture._aperture_scales
-	alpha = np.hypot(sx * (Ms[1, 0] * x0 + Ms[1, 1] * t0),
-					 sy * (Ms[1, 0] * y0 + Ms[1, 1] * ty0))
-	size = np.hypot(sx * (Ms[0, 0] * x0 + Ms[0, 1] * t0),
-					sy * (Ms[0, 0] * y0 + Ms[0, 1] * ty0))
-	return dict(current_fraction=float(sx * sy),
+	r_ca = np.hypot(Mca[0, 0] * x0 + Mca[0, 1] * t0,
+					Mca[0, 0] * y0 + Mca[0, 1] * ty0)
+	inside = r_ca <= ca_r
+	if not inside.any():
+		return dict(current_fraction=0.0, alpha=0.0, size=0.0)
+	alpha = np.hypot(Ms[1, 0] * x0 + Ms[1, 1] * t0,
+					 Ms[1, 0] * y0 + Ms[1, 1] * ty0)[inside]
+	size = np.hypot(Ms[0, 0] * x0 + Ms[0, 1] * t0,
+					Ms[0, 0] * y0 + Ms[0, 1] * ty0)[inside]
+	return dict(current_fraction=float(inside.mean()),
 				alpha=float(alpha.max()), size=float(size.max()))
 
 
@@ -394,8 +383,8 @@ def solve_column(current: str, probe: str, detector: str) -> dict:
 	# 1 mm) rather than up to the first-branch cap: with thin bores the cap
 	# sits orders of magnitude above any strength a column would run, and a
 	# scan stretched to it would step right over the working region
-	krange = {n: (strength_for_focal_length(2.0, l.length),
-				  strength_for_focal_length(0.001, l.length))
+	krange = {n: (solve_strength_for_focal_length(2.0, l.length),
+				  solve_strength_for_focal_length(0.001, l.length))
 			  for n, l in lens.items()}
 	solved = {}
 
@@ -727,7 +716,7 @@ def ray_over_wave_figure(scope: Microscope, title: str, filename: str) -> list:
 	dense.propagate(kind="wave-hybrid")
 	r0 = wave_matched_rays(scope)
 	rays = dense.propagate_ray(r0=r0)
-	rot = convert_to_rotating_reference_frame(rays, dense.R)
+	rot = rays.convert_to_rotating_reference_frame()
 	fig, ax = plt.subplots(figsize=(13, 5))
 	_scaled_wave_cross_section(dense._wave_scaled_planes, ax,
 							   named_positions=dense.named_positions,
