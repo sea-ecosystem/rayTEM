@@ -1,6 +1,6 @@
 # PLAN — Classing rayTEM's simulated microscopes (proposal, not implemented)
 
-**Owner:** Eric. **TODO:** [TODO_ACTIVE_simulation-clsids.md](TODO_ACTIVE_simulation-clsids.md)
+**Owner:** Eric. **TODO:** [TODO_DONE_simulation-clsids.md](TODO_DONE_simulation-clsids.md)
 (rayTEM). Ecosystem context: sea-sand
 `notes/eric/PLAN_2026-09-21_identity-and-container-clsids.md`.
 

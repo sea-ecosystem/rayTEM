@@ -10,12 +10,12 @@ inherit sea-eco's default container id. Class them at the seam so a `.sea`
 from rayTEM says so in its SEAID, and propose how the *microscope* itself
 should be classed (it is an instrument model, not a container).
 
-- [ ] `seashells.simulation_provenance(clsid)` — guarded sea-sand import,
+- [x] `seashells.simulation_provenance(clsid)` — guarded sea-sand import,
       `None` when sea-sand is absent (same degrade-gracefully style as
       `sea_available`)
-- [ ] pass `Provenance=simulation_provenance("SS101")` at every `_Signal(`
+- [x] pass `Provenance=simulation_provenance("SS101")` at every `_Signal(`
       and `"SSS01"` at every `_SignalSet(` in seashells.py (13 + 2 sites)
-- [ ] test: a wavefield Signal and a rays SignalSet carry `SS101` / `SSS01`
-- [ ] wiki seashells.md entry for the helper
-- [ ] proposal note for classing `Microscope` (TWN / M0D), not implemented
-- [ ] suite green before and after; push `simulation-clsids`
+- [x] test: a wavefield Signal and a rays SignalSet carry `SS101` / `SSS01`
+- [x] wiki seashells.md entry for the helper
+- [x] proposal note for classing `Microscope` (TWN / M0D), not implemented
+- [x] suite green before and after; push `simulation-clsids`

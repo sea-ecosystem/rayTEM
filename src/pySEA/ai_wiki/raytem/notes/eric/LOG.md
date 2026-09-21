@@ -2,7 +2,7 @@
 
 Newest entries at top.
 
-## 2026-09-21 — [Under Construction] Simulation CLSIDs on emitted containers
+## 2026-09-21 — [Done] Simulation CLSIDs on emitted containers
 **Goal:** Every Signal/SignalSet rayTEM builds in `seashells.py` mints a
 simulation-class SEAID (`SS101` / `SSS01`) instead of sea-eco's default, and a
 written proposal says how the `Microscope` object itself should be classed.
@@ -10,9 +10,20 @@ written proposal says how the `Microscope` object itself should be classed.
 unclassified container id, so a simulated `.sea` is indistinguishable by id
 from an acquisition; sea-sand now resolves the org from identity preferences
 and registers `SS*` containers, so the seam can class its outputs in one place.
-- [ ] `simulation_provenance()` helper + `Provenance=` at 15 construction sites
-- [ ] test on one wavefield Signal and one rays SignalSet
-- [ ] wiki + proposal note (TWN/M0D for microscopes)
+- [x] `simulation_provenance()` helper + `Provenance=` at 15 construction sites
+- [x] test on one wavefield Signal and one rays SignalSet
+- [x] wiki + proposal note (TWN/M0D for microscopes)
+**Outcome:** `seashells.simulation_provenance(clsid)` mints via a guarded
+`pySEA.sea_sand.generate_sea_id` (org from identity prefs; `None` when
+sea-sand is absent) and all 13 `_Signal(` + 2 `_SignalSet(` sites in the seam
+pass it as `Provenance=` (`SS101` / `SSS01`). One new test; suite 201 -> 202
+passed, no regressions. Wiki seashells.md synced. The `Microscope` object is
+*not* classed yet: `PLAN_2026-09-21_simulation-clsids.md` recommends `TWN01`
+for MACSTEM-derived twins (`microscopes/MACSTEM/builder.py:56`), `M0D01` as the
+constructor default for template columns (`assemblies.py:991`,
+`basic_column.py:279`, `objective_section.py:125`), sections/elements
+inheriting the parent's class; both prefixes are registered (`proposed`).
+Branch `simulation-clsids`, from `dev`.
 
 ## 2026-08-30 — [Done] Covariance propagation + aberration resolution example
 **Goal:** A moments-only beam model good enough to answer, quantitatively,
