@@ -2,6 +2,18 @@
 
 Newest entries at top.
 
+## 2026-09-21 — [Under Construction] Simulation CLSIDs on emitted containers
+**Goal:** Every Signal/SignalSet rayTEM builds in `seashells.py` mints a
+simulation-class SEAID (`SS101` / `SSS01`) instead of sea-eco's default, and a
+written proposal says how the `Microscope` object itself should be classed.
+**Why:** The 2026-09-21 ecosystem audit found rayTEM inherits sea-eco's
+unclassified container id, so a simulated `.sea` is indistinguishable by id
+from an acquisition; sea-sand now resolves the org from identity preferences
+and registers `SS*` containers, so the seam can class its outputs in one place.
+- [ ] `simulation_provenance()` helper + `Provenance=` at 15 construction sites
+- [ ] test on one wavefield Signal and one rays SignalSet
+- [ ] wiki + proposal note (TWN/M0D for microscopes)
+
 ## 2026-08-30 — [Done] Covariance propagation + aberration resolution example
 **Goal:** A moments-only beam model good enough to answer, quantitatively,
 how much of the column's final resolution comes from the source emittance,
