@@ -98,6 +98,14 @@ warning) when sea_eco is absent:
   contract (`space='position'` screens vs `'scattering'` kernels).
 - `grid_of(dimensions)` — `(ny, nx, dy, dx)` from a Dimensions or the
   `((ny, nx), dx, dy)` fallback tuple; `as_ndarray(x)` — Signal-or-array data.
+- `simulation_provenance(clsid="SS101")` — mints the SEA ID every factory
+  passes as `Provenance=`: `SS101` (Simulation Signal) on each `_Signal(`,
+  `SSS01` (Simulation SignalSet) on each `_SignalSet(`, so a `.sea` written by
+  rayTEM is classed as simulation in its id. Guarded
+  `from pySEA.sea_sand import generate_sea_id`; returns `None` (the container
+  keeps its own default id) when sea-sand is absent. The org field comes from
+  sea-sand's identity preferences, never from rayTEM. The `Microscope` itself
+  is not classed yet — see `notes/eric/PLAN_2026-09-21_simulation-clsids.md`.
 
 ### `safeReinstantiate(source, cls)`
 

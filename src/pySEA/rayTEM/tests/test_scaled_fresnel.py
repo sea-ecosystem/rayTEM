@@ -3173,3 +3173,20 @@ def test_beam_current_survives_a_sea_round_trip(tmp_path):
 	after = [e.beam_current for e in reloaded.sections[0].elements]
 	assert after == before
 	assert reloaded.beam_current == mic.beam_current
+
+
+# --- container SEAIDs: everything rayTEM emits is a simulation ------------------
+@pytest.mark.skipif(not sea_available, reason="container SEAIDs require sea_eco")
+def test_emitted_containers_carry_simulation_clsids():
+	# the seam stamps the registered simulation classes on what it builds:
+	# SS101 (Simulation Signal) on every Signal, SSS01 (Simulation SignalSet) on
+	# every SignalSet -- the org field is sea-sand's to resolve, so only the
+	# CLSID field is asserted. See notes/eric/PLAN_2026-09-21_simulation-clsids.md.
+	from pySEA.rayTEM.seashells import make_wavefield_signal, make_rays_signalset
+	wave = make_wavefield_signal(np.ones((8, 8), complex), 1e-9, 1e-9, LAM, z=0.0)
+	assert str(wave.Provenance).split("-")[1] == "SS101"
+	rays = np.zeros((3, 5, 6))
+	rays[:, :, 4] = np.arange(3)[:, None] * 1e-3		# distinct plane z
+	rset = make_rays_signalset(rays, np.ones((3, 5)), np.zeros((3, 5)),
+							   ["x", "xt", "y", "yt", "z", "E"])
+	assert str(rset.Provenance).split("-")[1] == "SSS01"

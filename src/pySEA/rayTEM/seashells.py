@@ -75,6 +75,40 @@ else:
 			print("WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead")
 
 
+def simulation_provenance(clsid: str = "SS101") -> str | None:
+	"""Mint a simulation-class SEA ID for a container built by rayTEM.
+
+	Every Signal or SignalSet that rayTEM emits is a simulation product, so the
+	factories in this module stamp it with a ``S``-role container CLSID from the
+	sea-sand registry (``SS101`` Simulation Signal, ``SSS01`` Simulation
+	SignalSet) instead of sea-eco's unclassified default. The organisation field
+	is resolved by sea-sand from the identity preferences, not hardcoded here.
+	When sea-sand cannot be imported the function returns ``None`` so the
+	container falls back to its own default id -- the same degrade-gracefully
+	behaviour as ``sea_available``.
+
+	Parameters
+	----------
+	clsid : str, optional
+		Registered 5-character classification id, by default ``"SS101"``.
+
+	Returns
+	-------
+	str or None
+		A hyphenated SEA ID string (``ORG-CLSID-YYMMDD-HHMMSS-RRRRRR``), or
+		``None`` when sea-sand is unavailable.
+
+	Related
+	-------
+	make_wavefield_signal, make_rays_signalset : Callers passing ``SS101`` / ``SSS01``.
+	"""
+	try:
+		from pySEA.sea_sand import generate_sea_id
+	except Exception:
+		return None
+	return generate_sea_id(clsid=clsid)
+
+
 class _Wavefield:
 	"""Lightweight fallback wavefield container used when sea_eco is unavailable.
 
@@ -170,7 +204,7 @@ def make_wavefield_signal(data, dx, dy, wavelength, z=None, name="wavefield"):
 	else:
 		meta["z_m"] = float(z) if z is not None else 0.0
 		dimensions = [ydim, xdim]
-	return _Signal(data=data, name=name, dimensions=dimensions, metadata=meta, signal_type="Image")
+	return _Signal(data=data, name=name, dimensions=dimensions, metadata=meta, signal_type="Image", Provenance=simulation_provenance("SS101"))
 
 
 def make_rays_signalset(rays, I, R, components, name="rays"):
@@ -221,10 +255,10 @@ def make_rays_signalset(rays, I, R, components, name="rays"):
 	rdim = _Dimension(name="ray", scale=1, offset=0, size=n_rays, units="", unstructured=True)
 	cdim = _Dimension(name="component", scale=1, offset=0, size=n_comp, units="", unstructured=True)
 	ray_sig = _Signal(data=rays, name="rays", dimensions=[zdim, rdim, cdim],
-					  metadata={"components": list(components)})
-	I_sig = _Signal(data=I, name="I", dimensions=[zdim, rdim])
-	R_sig = _Signal(data=R, name="R", dimensions=[zdim, rdim])
-	return _SignalSet(signals=[ray_sig, I_sig, R_sig], main_signal=0, name=name)
+					  metadata={"components": list(components)}, Provenance=simulation_provenance("SS101"))
+	I_sig = _Signal(data=I, name="I", dimensions=[zdim, rdim], Provenance=simulation_provenance("SS101"))
+	R_sig = _Signal(data=R, name="R", dimensions=[zdim, rdim], Provenance=simulation_provenance("SS101"))
+	return _SignalSet(signals=[ray_sig, I_sig, R_sig], main_signal=0, name=name, Provenance=simulation_provenance("SSS01"))
 
 
 class _Phase:
@@ -308,7 +342,7 @@ def make_screen_phase_signal(data, dx, dy, name="phase screen"):
 		# the leading axis is an index rather than a calibrated z
 		dims = [_Dimension(name="slice", scale=1, offset=0, size=data.shape[0],
 						   units="", unstructured=True)] + dims
-	return _Signal(data=data, name=name, dimensions=dims, signal_type="Image")
+	return _Signal(data=data, name=name, dimensions=dims, signal_type="Image", Provenance=simulation_provenance("SS101"))
 
 
 def make_kernel_phase_signal(data, fx, fy, name="propagator phase"):
@@ -346,7 +380,7 @@ def make_kernel_phase_signal(data, fx, fy, name="propagator phase"):
 					   values=_np.asarray(fx, float), units="1/m", unstructured=True)
 	fydim = _Dimension(name="f_y", space="scattering", scale=1, offset=0, size=len(fy),
 					   values=_np.asarray(fy, float), units="1/m", unstructured=True)
-	return _Signal(data=data, name=name, dimensions=[fydim, fxdim], signal_type="Image")
+	return _Signal(data=data, name=name, dimensions=[fydim, fxdim], signal_type="Image", Provenance=simulation_provenance("SS101"))
 
 
 def phase_space_of(phase):
@@ -462,7 +496,7 @@ def make_covariance_signal(covariance, z, components, name="covariance"):
 	rowdim = _Dimension(name="row", scale=1, offset=0, size=ncomp, units="", unstructured=False)
 	coldim = _Dimension(name="col", scale=1, offset=0, size=ncomp, units="", unstructured=False)
 	return _Signal(data=covariance, name=name, dimensions=[zdim, rowdim, coldim],
-				   metadata={"components": list(components)}, signal_type="Image")
+				   metadata={"components": list(components)}, signal_type="Image", Provenance=simulation_provenance("SS101"))
 
 
 def read_wavefield(signal):
@@ -635,7 +669,7 @@ def make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=None,
 				meta["z_cross_y_m"] = float(z_cross[1])
 	if tag is not None:
 		meta["frame_tag"] = str(tag)
-	return _Signal(data=U, name=name, dimensions=[etadim, xidim], metadata=meta, signal_type="Image")
+	return _Signal(data=U, name=name, dimensions=[etadim, xidim], metadata=meta, signal_type="Image", Provenance=simulation_provenance("SS101"))
 
 
 def read_scaled_wavefield(signal):
@@ -798,7 +832,7 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None
 	if tags is not None:
 		meta["plane_tags"] = ",".join(tag or "" for tag in tags)
 	U_sig = _Signal(data=U, name="U", dimensions=[zdim, etadim, xidim], metadata=meta,
-					signal_type="Image")
+					signal_type="Image", Provenance=simulation_provenance("SS101"))
 	signals = [U_sig]
 
 	def _axes(seq):
@@ -810,17 +844,17 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None
 	for label, seq in (("s", s), ("R", R), ("tau", tau)):
 		xs, ys = _axes(seq)
 		if _np.array_equal(xs, ys):		# isotropic run: one scalar companion
-			signals.append(_Signal(data=xs, name=label, dimensions=[zdim]))
+			signals.append(_Signal(data=xs, name=label, dimensions=[zdim], Provenance=simulation_provenance("SS101")))
 		else:							# anisotropic: per-axis companions
-			signals.append(_Signal(data=xs, name=label + "_x", dimensions=[zdim]))
-			signals.append(_Signal(data=ys, name=label + "_y", dimensions=[zdim]))
+			signals.append(_Signal(data=xs, name=label + "_x", dimensions=[zdim], Provenance=simulation_provenance("SS101")))
+			signals.append(_Signal(data=ys, name=label + "_y", dimensions=[zdim], Provenance=simulation_provenance("SS101")))
 	if tags is not None:
 		# integer frame index: increments at each frame switch (per-axis
 		# switches like 'flatten-x' count too)
 		frame = _np.cumsum([1 if (tag or "").startswith(("flatten", "rediverge", "jump"))
 							else 0 for tag in tags])
-		signals.append(_Signal(data=frame.astype(float), name="frame", dimensions=[zdim]))
-	return _SignalSet(signals=signals, main_signal=0, name=name)
+		signals.append(_Signal(data=frame.astype(float), name="frame", dimensions=[zdim], Provenance=simulation_provenance("SS101")))
+	return _SignalSet(signals=signals, main_signal=0, name=name, Provenance=simulation_provenance("SSS01"))
 
 
 #SEASerializable.from_sea will create a purely-SEASerializable object. rayTEM objects (Element, MicroscopeSection, Microscope, etc) will have inherited from SEASerializable, so we may need to reinstantiate rayTEM objects to ensure they have the rayTEM-specific functionality (e.g. "scope=Microscope(); scope.from_sea" will find scope.sections is a list of purely-SEASerializable objects without functions like "propagate_ray").
