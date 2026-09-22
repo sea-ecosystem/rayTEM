@@ -100,7 +100,16 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">.postprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot2D</span><span class="p">,</span><span class="n">findPlanes</span><span class="p">,</span><span class="n">zFromFractional</span><span class="p">,</span><span class="n">measureAtZ</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span><span class="p">,</span><span class="n">Source</span><span class="p">,</span><span class="n">Drift</span><span class="p">,</span><span class="n">Lens</span><span class="p">,</span><span class="n">Dipole</span><span class="p">,</span><span class="n">Quadrapole</span><span class="p">,</span><span class="n">Rays</span><span class="p">,</span><span class="n">columnByName</span><span class="p">,</span><span class="n">Aperture</span><span class="p">,</span><span class="n">convention</span><span class="p">,</span><span class="n">_propagate_method_name</span><span class="p">,</span><span class="n">suspended_aberrations</span><span class="p">,</span><span class="n">SealedAttributes</span><span class="p">,</span><span class="n">AberrationScreen</span><span class="p">,</span><span class="n">_as_aberrations</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">SEASerializable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">SEASerializable</span><span class="p">,</span> <span class="n">new_seaid</span>
+
+<span class="c1">#: CLSID class prefix + serial stamped on every :class:`Microscope` (sea-sand</span>
+<span class="c1">#: ``registries.db``: ``TWN`` = digital twin). A rayTEM column is a simulated</span>
+<span class="c1">#: instrument, not an instrument, so it is a twin rather than a ``TEM`` -- the</span>
+<span class="c1">#: distinction is what tells a reader which of the ecosystem's two</span>
+<span class="c1">#: ``Microscope`` classes wrote a file, since the ``sea_type`` attribute alone</span>
+<span class="c1">#: cannot. The serial is ``01`` rather than ``00``, which is reserved for the</span>
+<span class="c1">#: class base; instance identity lives in the ID's date/time/random fields.</span>
+<span class="n">MICROSCOPE_CLSID</span> <span class="o">=</span> <span class="s2">"TWN01"</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
 
@@ -1124,6 +1133,7 @@
 				 <span class="n">sections</span><span class="p">:</span><span class="n">ArrayLike</span><span class="o">=</span><span class="kc">None</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">sections</span> <span class="o">=</span> <span class="n">sections</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">Provenance</span> <span class="o">=</span> <span class="n">new_seaid</span><span class="p">(</span><span class="n">MICROSCOPE_CLSID</span><span class="p">)</span>	<span class="c1"># what this column IS, in sea-sand's vocabulary: a digital twin. None when sea_eco is absent.</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">rays</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_planes</span> <span class="o">=</span> <span class="kc">None</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">I</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">;</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span> <span class="o">=</span> <span class="kc">None</span>		<span class="c1"># per-plane, per-ray intensity and cumulative rotation (parallel to self.rays)</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">mu</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">;</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span> <span class="o">=</span> <span class="kc">None</span>	<span class="c1"># beam-envelope mode results</span>
@@ -4048,6 +4058,15 @@
 		<span class="k">return</span> <span class="n">_load_legacy_microscope_json</span><span class="p">(</span><span class="n">jdict</span><span class="p">)</span>
 	<span class="k">return</span> <span class="n">Microscope</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">jdict</span><span class="p">)</span></div>
 
+
+
+<span class="c1">#: What this class is in sea-sand's registered vocabulary; see</span>
+<span class="c1">#: :attr:`~pySEA.sea_eco.architecture.base_structure.SEASerializable.seaid_clsid_prefixes`.</span>
+<span class="c1">#: Assigned after the class body because the attribute is defined by sea_eco's</span>
+<span class="c1">#: base, which :mod:`seashells` stubs out when sea_eco is absent -- the stub has</span>
+<span class="c1">#: no such attribute, and rayTEM must still import without the ecosystem.</span>
+<span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">Microscope</span><span class="p">,</span> <span class="s2">"seaid_clsid_prefixes"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+	<span class="n">Microscope</span><span class="o">.</span><span class="n">seaid_clsid_prefixes</span> <span class="o">=</span> <span class="p">(</span><span class="n">MICROSCOPE_CLSID</span><span class="p">[:</span><span class="mi">3</span><span class="p">],)</span>
 </pre></div>
 
            </div>

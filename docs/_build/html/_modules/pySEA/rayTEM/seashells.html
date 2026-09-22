@@ -113,7 +113,7 @@
 
 <span class="k">if</span> <span class="n">sea_available</span><span class="p">:</span>
 	<span class="k">class</span><span class="w"> </span><span class="nc">SEASerializable</span><span class="p">(</span><span class="n">_SEASerializable</span><span class="p">):</span>
-		<span class="k">def</span><span class="w"> </span><span class="nf">to_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">):</span>												<span class="c1"># sea_eco's SEASerializable will default naming like "Drift_2" but we'll set them to None so we can easily undo the naming later</span>
+		<span class="k">def</span><span class="w"> </span><span class="nf">to_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">,</span><span class="n">force_datasets</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">validate_seaid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>		<span class="c1"># sea_eco's SEASerializable will default naming like "Drift_2" but we'll set them to None so we can easily undo the naming later</span>
 			<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">"sections"</span><span class="p">):</span>										<span class="c1"># user might to_sea a Microscope object (loop section &gt; elements)</span>
 				<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
 					<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"None_Microscope"</span>
@@ -129,7 +129,9 @@
 				<span class="k">for</span> <span class="n">e</span><span class="p">,</span><span class="n">ele</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">):</span>
 					<span class="k">if</span> <span class="n">ele</span><span class="o">.</span><span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">ele</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
 						<span class="n">ele</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"None_"</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
-			<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">to_sea</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+			<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">to_sea</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span>
+						   <span class="n">force_datasets</span><span class="o">=</span><span class="p">[]</span> <span class="k">if</span> <span class="n">force_datasets</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">list</span><span class="p">(</span><span class="n">force_datasets</span><span class="p">),</span>
+						   <span class="n">validate_seaid</span><span class="o">=</span><span class="n">validate_seaid</span><span class="p">)</span>
 		<span class="k">def</span><span class="w"> </span><span class="nf">from_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">):</span>											<span class="c1"># sea_eco will reaload purely-SEASerializable objects, so reinitalize as our shared-inheritance object</span>
 			<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">from_sea</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
 			<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">"sections"</span><span class="p">):</span>
@@ -164,7 +166,7 @@
 			<span class="k">pass</span>
 <div class="viewcode-block" id="SEASerializable.to_sea">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.SEASerializable.to_sea">[docs]</a>
-		<span class="k">def</span><span class="w"> </span><span class="nf">to_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">):</span>
+		<span class="k">def</span><span class="w"> </span><span class="nf">to_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">,</span><span class="n">force_datasets</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">validate_seaid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 			<span class="nb">print</span><span class="p">(</span><span class="s2">"WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead"</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SEASerializable.from_sea">
@@ -172,6 +174,74 @@
 		<span class="k">def</span><span class="w"> </span><span class="nf">from_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">):</span>
 			<span class="nb">print</span><span class="p">(</span><span class="s2">"WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead"</span><span class="p">)</span></div>
 </div>
+
+
+
+<div class="viewcode-block" id="new_seaid">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.new_seaid">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">new_seaid</span><span class="p">(</span><span class="n">clsid</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Mint a SEA ID for a rayTEM object, through the sea_eco seam.</span>
+
+<span class="sd">	rayTEM does not import sea_eco (or sea_sand) directly -- everything that</span>
+<span class="sd">	crosses into the pySEA data layer goes through this module, so that a</span>
+<span class="sd">	rayTEM installed on its own still runs. Minting is no different: with the</span>
+<span class="sd">	ecosystem present this returns a real registered identifier, and without it</span>
+<span class="sd">	returns ``None`` and the object simply has no ID.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	clsid : str</span>
+<span class="sd">		The five-character CLSID to mint under, prefix plus serial (for</span>
+<span class="sd">		example ``"TWN01"`` for a digital twin). Serial ``00`` is the class</span>
+<span class="sd">		base; real instances of a non-enumerated class use ``01``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	str | None</span>
+<span class="sd">		The hyphenated canonical SEA ID, or ``None`` when the pySEA data layer</span>
+<span class="sd">		is not installed.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+<span class="sd">		A missing or unhappy minter yields ``None`` rather than raising: an ID</span>
+<span class="sd">		is provenance, and failing to stamp one must never stop a simulation</span>
+<span class="sd">		from running.</span>
+
+<span class="sd">	Warnings</span>
+<span class="sd">	--------</span>
+<span class="sd">	sea-sand *normalizes* rather than rejects: it silently substitutes the</span>
+<span class="sd">	characters Crockford Base32 omits and pads or truncates to five, so</span>
+<span class="sd">	``"TOOLONG"`` mints as ``T0010`` and ``"TEMUU"`` as ``TEM00``. Nothing</span>
+<span class="sd">	here can catch a typo -- that is what</span>
+<span class="sd">	:func:`~pySEA.sea_eco.seaid_conformance.validate_seaid_conformance` is</span>
+<span class="sd">	for, which compares the minted prefix against what the class declares.</span>
+
+<span class="sd">	See Also</span>
+<span class="sd">	--------</span>
+<span class="sd">	pySEA.sea_eco.seaid_conformance.validate_seaid_conformance</span>
+<span class="sd">		The check that a minted ID matches the class carrying it.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	The ID is stamped once, at construction. It is stored as text rather than</span>
+<span class="sd">	as a ``SEAID`` object because that is what survives an HDF5 round trip --</span>
+<span class="sd">	sea_eco writes it as a plain group attribute beside ``sea_type`` -- and it</span>
+<span class="sd">	matches how sea_eco's own pipelines store theirs.</span>
+
+<span class="sd">	Examples</span>
+<span class="sd">	--------</span>
+<span class="sd">	&gt;&gt;&gt; new_seaid("TWN01")                       # doctest: +SKIP</span>
+<span class="sd">	'0CE-TWN01-260922-084500-K3QM7A'</span>
+<span class="sd">	"""</span>
+
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">sea_available</span><span class="p">:</span>
+		<span class="k">return</span> <span class="kc">None</span>
+	<span class="k">try</span><span class="p">:</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.sea_eco.architecture.base_structure</span><span class="w"> </span><span class="kn">import</span> <span class="n">SEAID</span>
+		<span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">SEAID</span><span class="p">(</span><span class="n">clsid</span><span class="o">=</span><span class="n">clsid</span><span class="p">))</span>
+	<span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>														<span class="c1"># sea_eco/sea_sand absent, or the CLSID is not one they will mint; see Raises</span>
+		<span class="k">return</span> <span class="kc">None</span></div>
 
 
 
