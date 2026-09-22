@@ -205,6 +205,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.suspended_aberrations.__exit__"><code class="docutils literal notranslate"><span class="pre">suspended_aberrations.__exit__()</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MICROSCOPE_CLSID"><code class="docutils literal notranslate"><span class="pre">MICROSCOPE_CLSID</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope"><code class="docutils literal notranslate"><span class="pre">Microscope</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.adjust_element_length"><code class="docutils literal notranslate"><span class="pre">Microscope.adjust_element_length()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.beam_current"><code class="docutils literal notranslate"><span class="pre">Microscope.beam_current</span></code></a></li>
@@ -370,6 +371,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.make_scaled_wavefield_signal"><code class="docutils literal notranslate"><span class="pre">make_scaled_wavefield_signal()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.make_screen_phase_signal"><code class="docutils literal notranslate"><span class="pre">make_screen_phase_signal()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.make_wavefield_signal"><code class="docutils literal notranslate"><span class="pre">make_wavefield_signal()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.new_seaid"><code class="docutils literal notranslate"><span class="pre">new_seaid()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.phase_space_of"><code class="docutils literal notranslate"><span class="pre">phase_space_of()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.read_scaled_wavefield"><code class="docutils literal notranslate"><span class="pre">read_scaled_wavefield()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.read_wavefield"><code class="docutils literal notranslate"><span class="pre">read_wavefield()</span></code></a></li>
@@ -3125,7 +3127,19 @@ leave a microscope silently de-aberrated.</p>
 </div>
 </dd></dl>
 
-<dl class="py class" id="module-pySEA.rayTEM.assemblies">
+<dl class="py data" id="module-pySEA.rayTEM.assemblies">
+<dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.MICROSCOPE_CLSID">
+<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.assemblies.</span></span><span class="sig-name descname"><span class="pre">MICROSCOPE_CLSID</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'TWN01'</span></span><a class="headerlink" href="#pySEA.rayTEM.assemblies.MICROSCOPE_CLSID" title="Link to this definition"></a></dt>
+<dd><p>CLSID class prefix + serial stamped on every <a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope" title="pySEA.rayTEM.assemblies.Microscope"><code class="xref py py-class docutils literal notranslate"><span class="pre">Microscope</span></code></a> (sea-sand
+<code class="docutils literal notranslate"><span class="pre">registries.db</span></code>: <code class="docutils literal notranslate"><span class="pre">TWN</span></code> = digital twin). A rayTEM column is a simulated
+instrument, not an instrument, so it is a twin rather than a <code class="docutils literal notranslate"><span class="pre">TEM</span></code> – the
+distinction is what tells a reader which of the ecosystem’s two
+<code class="docutils literal notranslate"><span class="pre">Microscope</span></code> classes wrote a file, since the <code class="docutils literal notranslate"><span class="pre">sea_type</span></code> attribute alone
+cannot. The serial is <code class="docutils literal notranslate"><span class="pre">01</span></code> rather than <code class="docutils literal notranslate"><span class="pre">00</span></code>, which is reserved for the
+class base; instance identity lives in the ID’s date/time/random fields.</p>
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.Microscope">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.assemblies.</span></span><span class="sig-name descname"><span class="pre">Microscope</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sections</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#Microscope"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes" title="pySEA.rayTEM.elements.SealedAttributes"><code class="xref py py-class docutils literal notranslate"><span class="pre">SealedAttributes</span></code></a>, <a class="reference internal" href="#pySEA.rayTEM.seashells.SEASerializable" title="pySEA.rayTEM.seashells.SEASerializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">SEASerializable</span></code></a></p>
@@ -7136,7 +7150,7 @@ All objects we then expect to integrate with sea_eco then inherit the SEASeriali
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.seashells.SEASerializable.to_sea">
-<span class="sig-name descname"><span class="pre">to_sea</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/seashells.html#SEASerializable.to_sea"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.seashells.SEASerializable.to_sea" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">to_sea</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_datasets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validate_seaid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/seashells.html#SEASerializable.to_sea"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.seashells.SEASerializable.to_sea" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -7468,6 +7482,62 @@ stack. Stack positions become an unstructured z axis.</p></li>
 <dt><a class="reference internal" href="#pySEA.rayTEM.seashells.read_wavefield" title="pySEA.rayTEM.seashells.read_wavefield"><code class="xref py py-obj docutils literal notranslate"><span class="pre">read_wavefield</span></code></a></dt><dd><p>Inverse accessor returning <code class="docutils literal notranslate"><span class="pre">(data,</span> <span class="pre">dx,</span> <span class="pre">dy,</span> <span class="pre">wavelength,</span> <span class="pre">z)</span></code>.</p>
 </dd>
 </dl>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pySEA.rayTEM.seashells.new_seaid">
+<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.seashells.</span></span><span class="sig-name descname"><span class="pre">new_seaid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">clsid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/seashells.html#new_seaid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.seashells.new_seaid" title="Link to this definition"></a></dt>
+<dd><p>Mint a SEA ID for a rayTEM object, through the sea_eco seam.</p>
+<p>rayTEM does not import sea_eco (or sea_sand) directly – everything that
+crosses into the pySEA data layer goes through this module, so that a
+rayTEM installed on its own still runs. Minting is no different: with the
+ecosystem present this returns a real registered identifier, and without it
+returns <code class="docutils literal notranslate"><span class="pre">None</span></code> and the object simply has no ID.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>clsid</strong> (<em>str</em>) – The five-character CLSID to mint under, prefix plus serial (for
+example <code class="docutils literal notranslate"><span class="pre">&quot;TWN01&quot;</span></code> for a digital twin). Serial <code class="docutils literal notranslate"><span class="pre">00</span></code> is the class
+base; real instances of a non-enumerated class use <code class="docutils literal notranslate"><span class="pre">01</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The hyphenated canonical SEA ID, or <code class="docutils literal notranslate"><span class="pre">None</span></code> when the pySEA data layer
+is not installed.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str | <a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None">None</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>None</strong> – A missing or unhappy minter yields <code class="docutils literal notranslate"><span class="pre">None</span></code> rather than raising: an ID
+    is provenance, and failing to stamp one must never stop a simulation
+    from running.</p>
+</dd>
+</dl>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>sea-sand <em>normalizes</em> rather than rejects: it silently substitutes the
+characters Crockford Base32 omits and pads or truncates to five, so
+<code class="docutils literal notranslate"><span class="pre">&quot;TOOLONG&quot;</span></code> mints as <code class="docutils literal notranslate"><span class="pre">T0010</span></code> and <code class="docutils literal notranslate"><span class="pre">&quot;TEMUU&quot;</span></code> as <code class="docutils literal notranslate"><span class="pre">TEM00</span></code>. Nothing
+here can catch a typo – that is what
+<code class="xref py py-func docutils literal notranslate"><span class="pre">validate_seaid_conformance()</span></code> is
+for, which compares the minted prefix against what the class declares.</p>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">pySEA.sea_eco.seaid_conformance.validate_seaid_conformance</span></code></dt><dd><p>The check that a minted ID matches the class carrying it.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Notes</p>
+<p>The ID is stamped once, at construction. It is stored as text rather than
+as a <code class="docutils literal notranslate"><span class="pre">SEAID</span></code> object because that is what survives an HDF5 round trip –
+sea_eco writes it as a plain group attribute beside <code class="docutils literal notranslate"><span class="pre">sea_type</span></code> – and it
+matches how sea_eco’s own pipelines store theirs.</p>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">new_seaid</span><span class="p">(</span><span class="s2">"TWN01"</span><span class="p">)</span>
+<span class="go">'0CE-TWN01-260922-084500-K3QM7A'</span>
+</pre></div>
 </div>
 </dd></dl>
 

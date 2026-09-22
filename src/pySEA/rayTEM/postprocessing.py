@@ -1032,6 +1032,7 @@ def error_at_position(microscope,settings,targets,absolute=True): # settings is 
 	deltas = []
 	for z,kv in targets.items():
 		x,y,xt,yt,R,I = measureAtZ(z,rays=r1)
+		I = microscope.rays.I_per_plane[-1] # 'I' from measureAtZ is (as of recently) the non-blocked rays' intensity. I_per_plane is calculated from smooth function transmitted_fraction during propagation TODO LAST POSITION IS TECHNICALLY WRONG BUT USUALLY OKAY, BUT WE SHOULD FIX THIS
 		dic = {"x":x,"y":y,"xt":xt,"yt":yt,"R":R,"I":I}
 		for k,v in kv.items():
 			if absolute:

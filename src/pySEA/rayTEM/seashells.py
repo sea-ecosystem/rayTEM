@@ -22,7 +22,7 @@ except Exception as e:
 
 if sea_available:
 	class SEASerializable(_SEASerializable):
-		def to_sea(self,filename):												# sea_eco's SEASerializable will default naming like "Drift_2" but we'll set them to None so we can easily undo the naming later
+		def to_sea(self,filename,force_datasets=None,validate_seaid=None):		# sea_eco's SEASerializable will default naming like "Drift_2" but we'll set them to None so we can easily undo the naming later
 			if hasattr(self,"sections"):										# user might to_sea a Microscope object (loop section > elements)
 				if self.name is None or len(self.name)==0:
 					self.name = "None_Microscope"
@@ -38,7 +38,9 @@ if sea_available:
 				for e,ele in enumerate(self.elements):
 					if ele.name is None or len(ele.name)==0:
 						ele.name = "None_"+str(e)
-			super().to_sea(filename)
+			super().to_sea(filename,
+						   force_datasets=[] if force_datasets is None else list(force_datasets),
+						   validate_seaid=validate_seaid)
 		def from_sea(self,filename):											# sea_eco will reaload purely-SEASerializable objects, so reinitalize as our shared-inheritance object
 			super().from_sea(filename)
 			if hasattr(self,"sections"):
@@ -69,10 +71,75 @@ else:
 	class SEASerializable():
 		def __init__(self):
 			pass
-		def to_sea(self,filename):
+		def to_sea(self,filename,force_datasets=None,validate_seaid=None):
 			print("WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead")
 		def from_sea(self,filename):
 			print("WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead")
+
+
+def new_seaid(clsid: str) -> str | None:
+	"""Mint a SEA ID for a rayTEM object, through the sea_eco seam.
+
+	rayTEM does not import sea_eco (or sea_sand) directly -- everything that
+	crosses into the pySEA data layer goes through this module, so that a
+	rayTEM installed on its own still runs. Minting is no different: with the
+	ecosystem present this returns a real registered identifier, and without it
+	returns ``None`` and the object simply has no ID.
+
+	Parameters
+	----------
+	clsid : str
+		The five-character CLSID to mint under, prefix plus serial (for
+		example ``"TWN01"`` for a digital twin). Serial ``00`` is the class
+		base; real instances of a non-enumerated class use ``01``.
+
+	Returns
+	-------
+	str | None
+		The hyphenated canonical SEA ID, or ``None`` when the pySEA data layer
+		is not installed.
+
+	Raises
+	------
+	None
+		A missing or unhappy minter yields ``None`` rather than raising: an ID
+		is provenance, and failing to stamp one must never stop a simulation
+		from running.
+
+	Warnings
+	--------
+	sea-sand *normalizes* rather than rejects: it silently substitutes the
+	characters Crockford Base32 omits and pads or truncates to five, so
+	``"TOOLONG"`` mints as ``T0010`` and ``"TEMUU"`` as ``TEM00``. Nothing
+	here can catch a typo -- that is what
+	:func:`~pySEA.sea_eco.seaid_conformance.validate_seaid_conformance` is
+	for, which compares the minted prefix against what the class declares.
+
+	See Also
+	--------
+	pySEA.sea_eco.seaid_conformance.validate_seaid_conformance
+		The check that a minted ID matches the class carrying it.
+
+	Notes
+	-----
+	The ID is stamped once, at construction. It is stored as text rather than
+	as a ``SEAID`` object because that is what survives an HDF5 round trip --
+	sea_eco writes it as a plain group attribute beside ``sea_type`` -- and it
+	matches how sea_eco's own pipelines store theirs.
+
+	Examples
+	--------
+	>>> new_seaid("TWN01")                       # doctest: +SKIP
+	'0CE-TWN01-260922-084500-K3QM7A'
+	"""
+
+	if not sea_available:
+		return None
+	try:
+		from pySEA.sea_eco.architecture.base_structure import SEAID
+		return str(SEAID(clsid=clsid))
+	except Exception:														# sea_eco/sea_sand absent, or the CLSID is not one they will mint; see Raises
+		return None
 
 
 class _Wavefield:
