@@ -220,18 +220,14 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 - `src/pySEA/rayTEM/AS2.py`
 - `src/pySEA/rayTEM/assemblies.py`
 - `src/pySEA/rayTEM/elements.py`
-- `src/pySEA/rayTEM/generalized_CL_PL_fitting.py`
 - `src/pySEA/rayTEM/microscopes/basic_column.py` — Builder for the default generic TEM column (``basic_column.sea``).
 - `src/pySEA/rayTEM/microscopes/MACSTEM/builder.py`
-- `src/pySEA/rayTEM/microscopes/MACSTEM/CLs-v0.001.py`
 - `src/pySEA/rayTEM/microscopes/MACSTEM/CLs.py`
 - `src/pySEA/rayTEM/microscopes/MACSTEM/diffraction.py`
 - `src/pySEA/rayTEM/microscopes/MACSTEM/DQCM.py`
 - `src/pySEA/rayTEM/microscopes/MACSTEM/OLs.py`
-- `src/pySEA/rayTEM/microscopes/MACSTEM/PLs-v0.001.py`
 - `src/pySEA/rayTEM/microscopes/MACSTEM/PLs.py`
 - `src/pySEA/rayTEM/microscopes/MACSTEM/rederive.py`
-- `src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate-v0.001.py`
 - `src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py`
 - `src/pySEA/rayTEM/microscopes/objective_section.py` — Builder for the standalone objective section (``objective_section.sea``).
 - `src/pySEA/rayTEM/moments.py` — Beam-envelope state and moment-closure models for rayTEM.
@@ -241,6 +237,7 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 - `src/pySEA/rayTEM/tests/test_covariance_propagation.py` — Tests for covariance propagation, moment closure, and examples/08.
 - `src/pySEA/rayTEM/tests/test_eight_configurations.py` — Tests driving examples/07_eightConfigurations.py.
 - `src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py`
+- `src/pySEA/rayTEM/tests/test_microscope_identity.py`
 - `src/pySEA/rayTEM/tests/test_scaled_fresnel.py`
 - `src/pySEA/rayTEM/tests/test_wave_and_envelope.py`
 - `src/pySEA/rayTEM/utilities.py`

@@ -9,7 +9,16 @@ import sys,inspect,os,datetime,shutil
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
 from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,Rays,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes,AberrationScreen,_as_aberrations
 from typing import Literal
-from .seashells import SEASerializable
+from .seashells import SEASerializable, new_seaid
+
+#: CLSID class prefix + serial stamped on every :class:`Microscope` (sea-sand
+#: ``registries.db``: ``TWN`` = digital twin). A rayTEM column is a simulated
+#: instrument, not an instrument, so it is a twin rather than a ``TEM`` -- the
+#: distinction is what tells a reader which of the ecosystem's two
+#: ``Microscope`` classes wrote a file, since the ``sea_type`` attribute alone
+#: cannot. The serial is ``01`` rather than ``00``, which is reserved for the
+#: class base; instance identity lives in the ID's date/time/random fields.
+MICROSCOPE_CLSID = "TWN01"
 
 from copy import deepcopy
 
@@ -992,6 +1001,7 @@ class Microscope(SealedAttributes, SEASerializable):
 				 sections:ArrayLike=None ) -> SEASerializable:
 		self.name = name
 		self.sections = sections
+		self.Provenance = new_seaid(MICROSCOPE_CLSID)	# what this column IS, in sea-sand's vocabulary: a digital twin. None when sea_eco is absent.
 		self.rays = None ; self._planes = None
 		self.I = None ; self.R = None		# per-plane, per-ray intensity and cumulative rotation (parallel to self.rays)
 		self.mu = None ; self.covariance_matrix = None	# beam-envelope mode results
@@ -3810,3 +3820,12 @@ def load_microscope(filename:str) -> "Microscope":
 	if "Sections" in jdict or "Microscope name" in jdict:
 		return _load_legacy_microscope_json(jdict)
 	return Microscope.from_json(jdict)
+
+
+#: What this class is in sea-sand's registered vocabulary; see
+#: :attr:`~pySEA.sea_eco.architecture.base_structure.SEASerializable.seaid_clsid_prefixes`.
+#: Assigned after the class body because the attribute is defined by sea_eco's
+#: base, which :mod:`seashells` stubs out when sea_eco is absent -- the stub has
+#: no such attribute, and rayTEM must still import without the ecosystem.
+if getattr(Microscope, "seaid_clsid_prefixes", None) is not None:
+	Microscope.seaid_clsid_prefixes = (MICROSCOPE_CLSID[:3],)
