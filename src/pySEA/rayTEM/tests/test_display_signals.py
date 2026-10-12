@@ -471,3 +471,20 @@ def test_display_signals_never_copy_the_column(hybrid_column, monkeypatch):
 	assert read_display_signal(scope["O"].envelope_signal())[2]
 	assert _kinds(read_display_signal(hybrid_column.wave_cross_section_signal())[2])["image"]
 	assert _shown_cross_section(hybrid_column)[0].shape[0] == 600		# show() too
+
+
+def test_envelope_and_cross_section_survive_sea_round_trips(hybrid_column, tmp_path):
+	"""The categorical quantity axis, per-row units and every marker reload intact."""
+	from pySEA.sea_eco.io import load_sea
+	scope = build_basic_column()
+	scope.propagate_moments()
+	for sig in (scope.envelope_signal(), hybrid_column.wave_cross_section_signal()):
+		path = str(tmp_path / (sig.name.replace(" ", "_") + ".sea"))
+		sig.to_sea(path)
+		reloaded = load_sea(path)
+		before, after = read_display_signal(sig), read_display_signal(reloaded)
+		assert np.array_equal(after[0], before[0])
+		assert [(n, u) for n, v, u in after[1]] == [(n, u) for n, v, u in before[1]]
+		assert all(np.array_equal(a[1], b[1]) for a, b in zip(after[1], before[1]))
+		assert after[2] == before[2] and after[3] == before[3]
+		assert reloaded.signal_type == sig.signal_type
