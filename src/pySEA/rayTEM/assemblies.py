@@ -94,6 +94,102 @@ def _stack_scaled_wavefields(planes, name="scaled wave"):
 									  s=ss, R=Rs, tau=taus, z=zs, tags=tags, name=name)
 
 
+def _ray_diagram_arrays(rays, I, R, axis:Literal['x','y']='x',
+						frame:Literal['rotating','lab']='rotating') -> tuple:
+	"""Every ray's transverse position per logged plane, as a ray diagram draws it.
+
+	The data behind the overlaid-rays figure, computed the way
+	:func:`postprocessing.plot2D` computes it: ``frame='rotating'`` converts
+	through :meth:`elements.Rays.convert_to_rotating_reference_frame` (the
+	frame plot2D always draws in), ``frame='lab'`` keeps the stored columns;
+	and a ray whose intensity is zero at a plane is NaN there -- plot2D's
+	``aperture_handling='ghosting'`` -- which, since an aperture never gives
+	intensity back, is every plane from the one that blocked it on.
+
+	Parameters
+	----------
+	rays : elements.Rays or numpy.ndarray
+		Stored rays, shape ``(n_planes, n_rays, len(convention))``. A plain
+		array (a column reloaded from ``.sea``) is wrapped with ``I``/``R``.
+	I : numpy.ndarray or None
+		Per-plane, per-ray intensity, used when ``rays`` is a plain array.
+	R : numpy.ndarray or None
+		Per-plane, per-ray cumulative rotation (radians), likewise.
+	axis : {'x', 'y'}, optional
+		Transverse coordinate to return, by default ``'x'``.
+	frame : {'rotating', 'lab'}, optional
+		Reference frame, by default ``'rotating'``.
+
+	Returns
+	-------
+	tuple
+		``(positions, z)``: positions shape ``(n_rays, n_planes)`` in metres
+		(NaN where ghosted), and the ``n_planes`` plane positions in metres.
+
+	Raises
+	------
+	ValueError
+		If ``axis`` or ``frame`` is not one of the documented values.
+
+	Related
+	-------
+	postprocessing.plot2D : The matplotlib figure this matches.
+	seashells.make_ray_diagram_signal : Wraps the result.
+	"""
+	if axis not in ('x', 'y'):
+		raise ValueError(f"axis must be 'x' or 'y', not {axis!r}.")
+	if frame not in ('rotating', 'lab'):
+		raise ValueError(f"frame must be 'rotating' (Larmor frame, as plot2D draws) or "
+						 f"'lab' (the stored columns), not {frame!r}.")
+	if not isinstance(rays, Rays):
+		rays = Rays(rays, R=0 if R is None else R, I_per_ray=1 if I is None else I)
+	live = xp.asarray(rays.I_per_ray)
+	if frame == 'rotating':
+		rays = rays.convert_to_rotating_reference_frame()
+	table = xp.asarray(rays)
+	positions = xp.array(table[:, :, columnByName(axis)], dtype=float)
+	positions[live <= 0] = xp.nan
+	z = xp.array(table[:, 0, columnByName('z')], dtype=float)
+	return positions.T, z
+
+
+def _conjugate_plane_label(family:Literal['diff','image'], z:float, M:float, R:float) -> str:
+	"""Label a conjugate plane the way :func:`postprocessing.plot2D` annotates it.
+
+	Same fields and rounding as plot2D's figure text -- family, z (m, three
+	decimals), magnification ``M`` (three decimals) and rotation ``R``
+	(degrees, one decimal) -- on one line, since a marker label is drawn
+	along a line rather than as a block of text.
+
+	Parameters
+	----------
+	family : {'diff', 'image'}
+		Which conjugate family the plane belongs to.
+	z : float
+		Plane position (metres).
+	M : float
+		Magnification at the plane (camera length, m/rad, for ``diff``);
+		NaN when it could not be measured.
+	R : float
+		Cumulative Larmor rotation at the plane (radians).
+
+	Returns
+	-------
+	str
+		e.g. ``"image @ z=0.188, M=-1.234, R=-12.5"``.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	Microscope.conjugate_planes : Supplies ``M`` and ``R`` (``method='ray'``).
+	"""
+	return (f"{family} @ z={xp.round(z, 3)}, M={xp.round(M, 3)}, "
+			f"R={xp.round(R * 180 / xp.pi, 1)}")
+
+
 def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None,
 							   image_planes=None, title=None):
 	"""Draw the |ψ(x, y=0, z)| cross-section of a scaled-wave run into an axis.
@@ -920,6 +1016,108 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			self.propagate_ray()
 		return make_rays_signalset(self.rays, self.I, self.R, convention,
 								   name=(self.name or 'section') + ' rays')
+
+	def _display_markers(self, z0:float) -> list:
+		"""The markers a display Signal of this section carries.
+
+		A section knows its own extent and its own elements, so that is what
+		it marks: one span for its z-range and one line per named element.
+		Positions are placed in the **result's** z frame -- the section's
+		element positions are relative to its start, and the stored result's
+		first plane is that start, whether the section was propagated alone
+		(z from 0) or inside a :class:`Microscope` (absolute z).
+
+		Parameters
+		----------
+		z0 : float
+			z of the stored result's first plane (metres).
+
+		Returns
+		-------
+		list of dict
+			``{"kind": "section", "label", "z0", "z1"}`` (omitted for a
+			zero-length section) followed by ``{"kind": "element", "label",
+			"z"}`` per entry of :attr:`named_positions` with a non-empty name.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		Microscope._display_markers : The column-level counterpart, which
+			adds conjugate planes.
+
+		Notes
+		-----
+		No conjugate planes: a section does not know the optics upstream of
+		it, so it cannot say where the column entrance's image and
+		diffraction planes fall. Use the :class:`Microscope` view and its
+		markers for those.
+		"""
+		markers = []
+		if self.length > 0:
+			markers.append({"kind": "section", "label": self.name or "section",
+							"z0": z0, "z1": z0 + self.length})
+		markers += [{"kind": "element", "label": k, "z": z0 + z}
+					for k, z in self.named_positions.items() if k]
+		return markers
+
+	def ray_diagram_signal(self, axis:Literal["x","y"]="x",
+						   frame:Literal["rotating","lab"]="rotating"):
+		"""This section's stored rays as a ray-diagram Signal, with markers.
+
+		A **derived** view, built on every call and never stored: the stored
+		``rays``/``I``/``R`` are the storage. Shape ``[ray, plane_z]``, values
+		the transverse position (metres) of every ray at every plane the
+		section logged, in the chosen frame; a ray an aperture blocked is NaN
+		from that plane on. The section's span and its named elements travel
+		as PLOT-8 annotations.
+
+		Parameters
+		----------
+		axis : {'x', 'y'}, optional
+			Transverse coordinate to show, by default ``'x'``.
+		frame : {'rotating', 'lab'}, optional
+			``'rotating'`` (default) converts to the Larmor frame exactly as
+			:func:`postprocessing.plot2D` does; ``'lab'`` uses the stored
+			columns.
+
+		Returns
+		-------
+		Signal or seashells._DisplaySignal
+			See :func:`seashells.make_ray_diagram_signal` for dimensions,
+			units and metadata. The fallback is returned when sea_eco is
+			absent.
+
+		Raises
+		------
+		RuntimeError
+			If no rays are stored -- this never propagates.
+		ValueError
+			If ``axis`` or ``frame`` is not one of the documented values.
+
+		Related
+		-------
+		Microscope.ray_diagram_signal : The whole column, plus conjugate planes.
+		_display_markers : What is marked, and why there are no conjugate planes.
+		rays_signalset : The raw ray result as a SignalSet.
+
+		Examples
+		--------
+		>>> scope.propagate_ray()                                # doctest: +SKIP
+		>>> scope["O"].ray_diagram_signal().dimensions.get_names()  # doctest: +SKIP
+		['ray', 'plane_z']
+		"""
+		from .seashells import make_ray_diagram_signal
+		if self.rays is None:
+			raise RuntimeError(f"section {self.name or '(unnamed)'!r} has no stored rays; call "
+							   "propagate_ray() (on it or on its Microscope) first -- "
+							   "ray_diagram_signal derives from the stored result and never "
+							   "propagates.")
+		positions, z = _ray_diagram_arrays(self.rays, self.I, self.R, axis, frame)
+		return make_ray_diagram_signal(positions, z, self._display_markers(float(z[0])),
+									   axis=axis, frame=frame, source=self.name or "section")
 
 	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray", **kwargs):
 		"""Unified propagation dispatcher across the three modes.
@@ -2155,6 +2353,12 @@ class Microscope(SealedAttributes, SEASerializable):
 			'diff_offset': ndarray, 'image_offset': ndarray}`` — absolute plane
 			positions (metres) in column order, the reference position, and the
 			same planes as offsets from it (signed, downstream positive).
+			Also ``'diff_M'``, ``'image_M'`` (magnification at each plane --
+			a camera length, m/rad, for ``diff``) and ``'diff_R'``,
+			``'image_R'`` (cumulative Larmor rotation there, radians), aligned
+			with ``'diff'``/``'image'``: measured by ``method='ray'`` (the
+			values plot2D prints), NaN from ``method='frame'``, which does not
+			compute them.
 
 		Raises
 		------
@@ -2201,6 +2405,8 @@ class Microscope(SealedAttributes, SEASerializable):
 			for family in ('diff', 'image'):
 				idx = [min(float(f), len(zs) - 1 - 1e-9) for f in found[family]['z']]
 				out[family] = xp.asarray([zFromFractional(zs, f) for f in idx])
+				out[family + '_M'] = xp.asarray(found[family]['M'], dtype=float)
+				out[family + '_R'] = xp.asarray(found[family]['R'], dtype=float)
 		else:
 			out = {'diff': [], 'image': []}
 			for z0, ele, L, M, block in self._accumulate_blocks(axis=axis,
@@ -2210,6 +2416,9 @@ class Microscope(SealedAttributes, SEASerializable):
 					out[family] += [z0 + dz for dz
 									in self._element_roots(ele, L, block, P0, Q0)]
 			out = {k: xp.asarray(sorted(v)) for k, v in out.items()}
+			for family in ('diff', 'image'):		# not computed by the frame walk
+				out[family + '_M'] = xp.full(len(out[family]), xp.nan)
+				out[family + '_R'] = xp.full(len(out[family]), xp.nan)
 		out['z_reference'] = z_ref
 		out['diff_offset'] = out['diff'] - z_ref
 		out['image_offset'] = out['image'] - z_ref
@@ -3240,6 +3449,116 @@ class Microscope(SealedAttributes, SEASerializable):
 			self.propagate_ray()
 		return make_rays_signalset(self.rays, self.I, self.R, convention,
 								   name=(self.name or 'microscope') + ' rays')
+
+	def _display_markers(self, axis:Literal['x','y']='x') -> list:
+		"""The markers a display Signal of this column carries.
+
+		The overlays :meth:`show` draws on the ray diagram, as data: a span
+		per section (:attr:`named_sections`), a line per named element
+		(:attr:`named_positions`), and a line per diffraction and image plane
+		of the column entrance (:meth:`conjugate_planes`), labelled with the
+		magnification and rotation plot2D prints.
+
+		Parameters
+		----------
+		axis : {'x', 'y'}, optional
+			Axis whose conjugate planes are marked, by default ``'x'``.
+
+		Returns
+		-------
+		list of dict
+			Sections first (``{"kind": "section", "label", "z0", "z1"}``,
+			zero-length ones omitted), then elements (``{"kind": "element",
+			"label", "z"}``, unnamed ones omitted), then ``diff`` and
+			``image`` planes, all in metres.
+
+		Raises
+		------
+		None
+
+		Related
+		-------
+		MicroscopeSection._display_markers : The section-level counterpart.
+		conjugate_planes : The plane positions, magnifications and rotations.
+
+		Notes
+		-----
+		Costs one four-ray reference trace on a copy of the column, the same
+		trace :meth:`show` runs for its cross-section image planes.
+		"""
+		markers = [{"kind": "section", "label": k, "z0": a, "z1": b}
+				   for k, (a, b) in self.named_sections.items() if b > a]
+		markers += [{"kind": "element", "label": k, "z": z}
+					for k, z in self.named_positions.items() if k]
+		planes = self.conjugate_planes(axis=axis)
+		for family in ('diff', 'image'):
+			for z, M, R in zip(planes[family], planes[family + '_M'], planes[family + '_R']):
+				markers.append({"kind": family, "z": float(z),
+								"label": _conjugate_plane_label(family, z, M, R)})
+		return markers
+
+	def ray_diagram_signal(self, axis:Literal["x","y"]="x",
+						   frame:Literal["rotating","lab"]="rotating"):
+		"""The stored rays as a ray-diagram Signal, with column markers.
+
+		The data behind :meth:`show`'s ray diagram, for a renderer that is
+		not matplotlib. A **derived** view, built on every call and never
+		stored -- the stored ``rays``/``I``/``R`` are the storage (see
+		``notes/eric/PLAN_2026-08-25_derived-signal-properties.md``).
+
+		Shape ``[ray, plane_z]``: the transverse position (metres) of every
+		ray at every logged plane, in the chosen frame, NaN once an aperture
+		has blocked the ray (plot2D's ``'ghosting'``). ``plane_z`` carries the
+		logged plane positions as they are, repeats at section boundaries and
+		zero-length apertures included. Section spans, named elements and the
+		column's conjugate planes travel as PLOT-8 ``Span``/``Line``
+		annotations along ``plane_z``.
+
+		Parameters
+		----------
+		axis : {'x', 'y'}, optional
+			Transverse coordinate to show, by default ``'x'``. The conjugate
+			planes marked are this axis's.
+		frame : {'rotating', 'lab'}, optional
+			``'rotating'`` (default) converts to the Larmor frame exactly as
+			:func:`postprocessing.plot2D` does; ``'lab'`` uses the stored
+			columns.
+
+		Returns
+		-------
+		Signal or seashells._DisplaySignal
+			See :func:`seashells.make_ray_diagram_signal` for dimensions,
+			units and metadata. The fallback is returned when sea_eco is
+			absent.
+
+		Raises
+		------
+		RuntimeError
+			If no rays are stored -- this never propagates.
+		ValueError
+			If ``axis`` or ``frame`` is not one of the documented values.
+
+		Related
+		-------
+		MicroscopeSection.ray_diagram_signal : One section's share.
+		show : The matplotlib figure of the same data.
+		seashells.read_display_signal : Reads the data and markers back.
+
+		Examples
+		--------
+		>>> scope.propagate_ray()                                # doctest: +SKIP
+		>>> sig = scope.ray_diagram_signal(axis='y', frame='lab')   # doctest: +SKIP
+		>>> sig.data.shape == (len(scope.rays[0]), len(scope.rays))  # doctest: +SKIP
+		True
+		"""
+		from .seashells import make_ray_diagram_signal
+		if self.rays is None:
+			raise RuntimeError("this Microscope has no stored rays; call propagate_ray() first -- "
+							   "ray_diagram_signal derives from the stored result and never "
+							   "propagates.")
+		positions, z = _ray_diagram_arrays(self.rays, self.I, self.R, axis, frame)
+		return make_ray_diagram_signal(positions, z, self._display_markers(axis),
+									   axis=axis, frame=frame, source=self.name or "microscope")
 
 	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray", **kwargs):
 		"""Unified propagation dispatcher across the three modes.

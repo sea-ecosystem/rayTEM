@@ -15,6 +15,7 @@ try:
 	sys.path.insert(1,"../../")
 	from pySEA.sea_eco.architecture.base_structure import SEASerializable as _SEASerializable
 	from pySEA.sea_eco.architecture.base_structure import Signal as _Signal, Dimension as _Dimension, SignalSet as _SignalSet
+	from pySEA.sea_eco.architecture.base_structure import Metadata as _Metadata
 	sea_available = True
 except Exception as e:
 	print(str(e)+". This is just a warning from rayTEM.seashells: rayTEM pySEA integration will not work.")
@@ -955,6 +956,589 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None
 							else 0 for tag in tags])
 		signals.append(_Signal(data=frame.astype(float), name="frame", dimensions=[zdim]))
 	return _SignalSet(signals=signals, main_signal=0, name=name)
+
+
+# --- DISPLAY SIGNALS ---------------------------------------------------------
+# Views of a stored propagation result (ray diagram, beam envelope, scaled-wave
+# cross-section), built here so the only sea_eco imports stay in this module.
+# They are derived on every call and never stored on the column: the stored
+# result is the storage (notes/eric/PLAN_2026-08-25_derived-signal-properties.md).
+
+#: First part of every marker annotation's name. A marker is named
+#: ``raytem.<kind>.<nnn>.<label>`` -- ``kind`` is one of the keys below (or
+#: ``section``), ``nnn`` counts that kind from 000 in drawing order -- so a
+#: renderer, or :func:`read_display_signal`, can tell the kinds apart.
+_MARKER_PREFIX = "raytem"
+
+#: Colour stored on each line-marker kind (PLOT-8 honours ``style.color``).
+#: Mid-tones, so they read on a light line plot and on the magma cross-section.
+_MARKER_COLORS = {"element": "#808080", "diff": "#00ffff", "crossover": "#00ffff",
+				  "image": "#ff00ff"}
+
+#: Colours section spans cycle through: plot2D's g/b/r section shading.
+_SECTION_COLORS = ("#008000", "#0000ff", "#ff0000")
+
+
+class _DisplaySignal:
+	"""Lightweight fallback display Signal used when sea_eco is unavailable.
+
+	Mirrors what :func:`read_display_signal` reads from a real display Signal
+	-- the data, its axes, the markers and the descriptive metadata -- so a
+	caller that draws from a display Signal (:meth:`assemblies.Microscope.show`
+	for the scaled-wave cross-section) works the same without the pySEA data
+	layer. Serialization (``to_sea``) is not available in this mode.
+
+	Parameters
+	----------
+	data : numpy.ndarray
+		The displayed values, in the axis order of ``axes``.
+	name : str
+		Display name, e.g. ``"ray diagram (x)"``.
+	axes : Sequence[tuple]
+		One ``(name, values, units)`` per data axis, in data-axis order.
+	markers : Sequence[Mapping]
+		Marker records as :func:`read_display_signal` returns them.
+	metadata : Mapping
+		Descriptive metadata (``kind`` and the view's own keys).
+
+	Attributes
+	----------
+	data : numpy.ndarray
+		The displayed values.
+	name : str
+		Display name.
+	axes : list of tuple
+		``(name, values, units)`` per data axis.
+	markers : list of dict
+		Marker records.
+	metadata : dict
+		Descriptive metadata.
+
+	Methods
+	-------
+	None
+		A plain container.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	read_display_signal : Reads this and a real display Signal alike.
+	_Wavefield : The same fallback pattern for wavefields.
+
+	Notes
+	-----
+	The axes are deliberately not called ``dimensions``: :func:`as_ndarray`
+	treats any object with a ``dimensions`` attribute as a Signal.
+	"""
+	def __init__(self, data, name, axes, markers, metadata):
+		self.data = data
+		self.name = name
+		self.axes = list(axes)
+		self.markers = [dict(m) for m in markers]
+		self.metadata = dict(metadata)
+
+
+class _AnnotationDraft:
+	"""A bare ``metadata`` holder the display markers are drafted on.
+
+	sea_eco's :func:`~pySEA.sea_eco.annotations.mark_axis_value` and
+	:func:`~pySEA.sea_eco.annotations.mark_axis_span` record one edit per call
+	on a tracked Signal. A display Signal carries dozens of markers, and
+	recording each as a step bloated a 50 kB ray diagram to 1.7 MB of history
+	and took two seconds. Marking this untracked holder instead builds the same
+	``Annotation`` objects with nothing recorded; the finished collection then
+	becomes part of the new Signal's original state.
+
+	Attributes
+	----------
+	metadata : Metadata
+		Receives ``Display.Annotations`` / ``Display.ROI`` as marks are made.
+
+	Methods
+	-------
+	None
+		A plain container.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	_marker_annotations : The only user.
+	"""
+	def __init__(self):
+		self.metadata = _Metadata()
+
+
+def _marker_records(markers):
+	"""Normalize marker requests into records carrying kind, label, position and colour.
+
+	Parameters
+	----------
+	markers : Sequence[Mapping]
+		Requests from the column: ``{"kind", "label", "z"}`` for a line, or
+		``{"kind", "label", "z0", "z1"}`` for a span (positions in metres).
+
+	Returns
+	-------
+	list of dict
+		The same records, ``z``/``z0``/``z1`` as floats, each with the
+		``color`` it is stored with: sections cycle through
+		``_SECTION_COLORS``, lines take ``_MARKER_COLORS[kind]``.
+
+	Raises
+	------
+	KeyError
+		If a request lacks ``kind``, ``label`` or a position.
+
+	Related
+	-------
+	_marker_annotations : Turns these records into sea_eco annotations.
+	"""
+	records = [] ; spans = 0
+	for marker in markers:
+		record = {"kind": str(marker["kind"]), "label": str(marker["label"])}
+		if "z0" in marker:
+			record.update(z0=float(marker["z0"]), z1=float(marker["z1"]),
+						  color=_SECTION_COLORS[spans % len(_SECTION_COLORS)])
+			spans += 1
+		else:
+			record.update(z=float(marker["z"]),
+						  color=_MARKER_COLORS.get(record["kind"], "#ffae42"))
+		records.append(record)
+	return records
+
+
+def _marker_annotations(records, along, extent):
+	"""Build the sea_eco annotations for a display Signal's markers.
+
+	Every marker goes through sea_eco's own constructors -- a span through
+	``mark_axis_span``, a line through ``mark_axis_value`` -- so the stored
+	shape (PLOT-8 ``Span`` / ``Line``, calibrated coordinates) is defined in
+	one place, sea_eco's.
+
+	Parameters
+	----------
+	records : Sequence[Mapping]
+		Marker records from :func:`_marker_records`.
+	along : str
+		The dimension the markers sit on: the horizontal axis of the plot
+		they are authored for.
+	extent : Sequence[float]
+		``(low, high)`` every ``Line`` spans on the other axis, in its units.
+
+	Returns
+	-------
+	tuple
+		``(AnnotationCollection, ROICollection)``; the ROI collection is empty.
+
+	Raises
+	------
+	ValueError
+		If a span's ``z0`` is not below its ``z1``.
+
+	Related
+	-------
+	_AnnotationDraft : Why the marks are made on a holder, not the Signal.
+
+	Notes
+	-----
+	``mark_*`` replaces every annotation whose name starts with its ``owner``,
+	so each marker gets its own owner, ``raytem.<kind>.<nnn>``; the name is
+	``<owner>.<label>`` and ``text`` is the label.
+	"""
+	from pySEA.sea_eco.annotations import (mark_axis_span, mark_axis_value,
+										   get_display_annotations)
+	draft = _AnnotationDraft()
+	counts = {}
+	for record in records:
+		kind = record["kind"]
+		index = counts.get(kind, 0) ; counts[kind] = index + 1
+		owner = f"{_MARKER_PREFIX}.{kind}.{index:03d}"
+		if "z0" in record:
+			mark_axis_span(draft, record["z0"], record["z1"], along, name=record["label"],
+						   owner=owner, color=record["color"], text=record["label"])
+		else:
+			mark_axis_value(draft, record["z"], along, name=record["label"], owner=owner,
+							extent=extent, color=record["color"], text=record["label"])
+	return get_display_annotations(draft)
+
+
+def _finite_range(data):
+	"""Low and high finite value of an array, for the extent a line marker spans.
+
+	Parameters
+	----------
+	data : numpy.ndarray
+		Values that may contain NaN (ghosted rays).
+
+	Returns
+	-------
+	tuple of float
+		``(min, max)`` over the finite values, or ``(0.0, 0.0)`` when there are
+		none.
+
+	Raises
+	------
+	None
+	"""
+	import numpy as _np
+	finite = _np.asarray(data, dtype=float)
+	finite = finite[_np.isfinite(finite)]
+	return (float(finite.min()), float(finite.max())) if finite.size else (0.0, 0.0)
+
+
+def _plane_z_dimension(name, z):
+	"""An unstructured, explicitly valued z axis in metres.
+
+	The same construction the existing result factories use for plane z: the
+	values are genuinely non-uniform and repeat at zero-length elements and
+	section boundaries, and a representative scale/offset is passed so sea_eco
+	skips its values-without-scale inference.
+
+	Parameters
+	----------
+	name : str
+		Dimension name (``"plane_z"`` or ``"z"``).
+	z : numpy.ndarray
+		Plane positions (metres).
+
+	Returns
+	-------
+	Dimension
+		The sea_eco dimension.
+
+	Raises
+	------
+	None
+	"""
+	zscale = float(z[1] - z[0]) if len(z) > 1 else 1.0
+	return _Dimension(name=name, space="position", scale=zscale, offset=float(z[0]),
+					  size=len(z), values=z, units="m", unstructured=True)
+
+
+def _display_signal(data, dimensions, records, along, extent, name, quantity, metadata,
+					signal_type=None):
+	"""Assemble a display Signal from prepared parts, markers attached.
+
+	Parameters
+	----------
+	data : numpy.ndarray
+		The displayed values.
+	dimensions : Sequence[Dimension]
+		One sea_eco dimension per data axis.
+	records : Sequence[Mapping]
+		Marker records from :func:`_marker_records`.
+	along : str
+		Dimension the markers sit on.
+	extent : Sequence[float]
+		``(low, high)`` the line markers span.
+	name : str
+		Signal name.
+	quantity : Mapping
+		The signal quantity, ``{"name", "units"}``.
+	metadata : Mapping
+		Descriptive metadata stored beside ``Display``.
+	signal_type : str or None, optional
+		sea_eco semantic type hint, by default ``None``.
+
+	Returns
+	-------
+	Signal
+		The display Signal; markers live in ``metadata.Display.Annotations``.
+
+	Raises
+	------
+	ValueError
+		If a span marker does not order.
+	"""
+	annotations, rois = _marker_annotations(records, along, extent)
+	meta = _Metadata(dict(metadata))
+	meta.Display = _Metadata()
+	meta.Display.Annotations = annotations
+	meta.Display.ROI = rois
+	return _Signal(data=data, name=name, dimensions=list(dimensions),
+				   signal_quantities=[dict(quantity)], metadata=meta,
+				   signal_type=signal_type)
+
+
+def make_ray_diagram_signal(positions, z, markers, axis="x", frame="rotating",
+							name=None, source=""):
+	"""Wrap a ray diagram -- every ray's transverse position per plane -- as a sea_eco Signal.
+
+	The overlaid-rays view of a ray-mode result, as data a renderer can draw:
+	shape ``[ray, plane_z]``, values the transverse position (metres) of each
+	ray at each logged plane, NaN once a ray is ghosted. Section spans,
+	element positions and conjugate planes travel with it as PLOT-8
+	annotations along ``plane_z``. When sea_eco is unavailable a
+	:class:`_DisplaySignal` fallback is returned instead (with a warning).
+
+	Parameters
+	----------
+	positions : numpy.ndarray
+		Transverse positions, shape ``(n_rays, n_planes)`` (metres).
+	z : Sequence[float]
+		The ``n_planes`` plane positions (metres), as logged -- repeats at
+		zero-length elements and section boundaries are kept.
+	markers : Sequence[Mapping]
+		``{"kind", "label", "z"}`` lines and ``{"kind", "label", "z0", "z1"}``
+		spans, positions in metres. ``kind`` is ``section``, ``element``,
+		``diff`` or ``image``.
+	axis : {'x', 'y'}, optional
+		Which transverse coordinate ``positions`` holds, by default ``'x'``.
+	frame : {'rotating', 'lab'}, optional
+		The frame the positions are in, by default ``'rotating'``.
+	name : str or None, optional
+		Signal name, by default ``"ray diagram (<axis>)"``.
+	source : str, optional
+		Name of the section or column the rays came from, stored as metadata
+		``source``, by default ``""``.
+
+	Returns
+	-------
+	Signal or _DisplaySignal
+		Dimensions ``ray`` (unitless index) and ``plane_z`` (unstructured,
+		values in m); signal quantity ``<axis>`` in m; metadata ``kind =
+		"ray-diagram"``, ``axis``, ``frame``, ``source``.
+
+	Raises
+	------
+	ValueError
+		If a span marker does not order.
+
+	Related
+	-------
+	assemblies.Microscope.ray_diagram_signal : Builds the inputs.
+	read_display_signal : Inverse accessor.
+
+	Notes
+	-----
+	Line markers span the finite range of ``positions``: the vertical axis of
+	the line plot they are authored for (PLOT-8 clips, never rescales).
+	"""
+	import numpy as _np
+	positions = _np.asarray(positions, dtype=float)
+	z = _np.asarray(z, dtype=float)
+	name = name or f"ray diagram ({axis})"
+	records = _marker_records(markers)
+	metadata = {"kind": "ray-diagram", "axis": str(axis), "frame": str(frame), "source": str(source)}
+	if not sea_available:
+		warn("sea_eco is not installed; make_ray_diagram_signal returns a lightweight "
+			 "_DisplaySignal fallback (no .sea serialization).")
+		axes = [("ray", _np.arange(positions.shape[0]), ""), ("plane_z", z, "m")]
+		return _DisplaySignal(positions, name, axes, records, metadata)
+	rdim = _Dimension(name="ray", scale=1, offset=0, size=positions.shape[0], units="")
+	return _display_signal(positions, [rdim, _plane_z_dimension("plane_z", z)], records,
+						   "plane_z", _finite_range(positions), name,
+						   {"name": str(axis), "units": "m"}, metadata)
+
+
+def make_envelope_signal(widths, z, quantities, units, markers, name="beam envelope",
+						 source=""):
+	"""Wrap per-plane RMS beam widths as a sea_eco Signal with column markers.
+
+	The beam-envelope view of a covariance-mode result: shape
+	``[quantity, z]``, one row per RMS width. The quantities do not share a
+	unit -- positions are metres, angles radians -- so the signal quantity is
+	unitless and each row's unit is stored in metadata ``quantity_units``.
+	When sea_eco is unavailable a :class:`_DisplaySignal` fallback is
+	returned instead (with a warning).
+
+	Parameters
+	----------
+	widths : numpy.ndarray
+		RMS widths, shape ``(n_quantities, n_planes)``.
+	z : Sequence[float]
+		The ``n_planes`` plane positions (metres).
+	quantities : Sequence[str]
+		Row labels, the categorical values of the ``quantity`` dimension
+		(e.g. ``sigma_x``).
+	units : Sequence[str]
+		The unit of each row, same order as ``quantities``.
+	markers : Sequence[Mapping]
+		As for :func:`make_ray_diagram_signal`.
+	name : str, optional
+		Signal name, by default ``"beam envelope"``.
+	source : str, optional
+		Name of the section or column, stored as metadata ``source``, by
+		default ``""``.
+
+	Returns
+	-------
+	Signal or _DisplaySignal
+		Dimensions ``quantity`` (categorical, values ``quantities``) and ``z``
+		(unstructured, values in m); signal quantity ``rms width`` (unitless);
+		metadata ``kind = "beam-envelope"``, ``quantity_units``, ``source``.
+
+	Raises
+	------
+	ValueError
+		If ``units`` and ``quantities`` differ in length, or a span marker
+		does not order.
+
+	Related
+	-------
+	assemblies.Microscope.envelope_signal : Builds the inputs.
+	read_display_signal : Inverse accessor.
+
+	Notes
+	-----
+	Line markers span the finite range of all rows together, so they cover
+	the view of whichever row is drawn.
+	"""
+	import numpy as _np
+	widths = _np.asarray(widths, dtype=float)
+	z = _np.asarray(z, dtype=float)
+	quantities = [str(q) for q in quantities] ; units = [str(u) for u in units]
+	if len(units) != len(quantities):
+		raise ValueError(f"make_envelope_signal needs one unit per quantity; got "
+						 f"{len(units)} units for {len(quantities)} quantities.")
+	records = _marker_records(markers)
+	metadata = {"kind": "beam-envelope", "quantity_units": units, "source": str(source)}
+	if not sea_available:
+		warn("sea_eco is not installed; make_envelope_signal returns a lightweight "
+			 "_DisplaySignal fallback (no .sea serialization).")
+		axes = [("quantity", _np.asarray(quantities), ""), ("z", z, "m")]
+		return _DisplaySignal(widths, name, axes, records, metadata)
+	qdim = _Signal.build_component_dimension(quantities, units="", name="quantity")
+	return _display_signal(widths, [qdim, _plane_z_dimension("z", z)], records, "z",
+						   _finite_range(widths), name, {"name": "rms width", "units": ""},
+						   metadata)
+
+
+def make_wave_cross_section_signal(profile, z, x, markers, name="wave cross-section",
+								   source=""):
+	"""Wrap a scaled-wave |ψ(x, 0, z)| cross-section as a sea_eco image Signal.
+
+	The wave analog of the ray diagram: shape ``[x, z]`` -- z is the
+	**last** (horizontal) axis, the orientation the figure has always been
+	drawn in and the one its markers are authored for (a PLOT-8 ``Line`` or
+	``Span`` marks the horizontal axis). Element, crossover and image-plane
+	markers travel with it. When sea_eco is unavailable a
+	:class:`_DisplaySignal` fallback is returned instead (with a warning).
+
+	Parameters
+	----------
+	profile : numpy.ndarray
+		Per-plane peak-normalized ``|ψ(x, 0)|``, shape ``(n_x, n_planes)``.
+	z : Sequence[float]
+		The ``n_planes`` plane positions (metres), ascending.
+	x : Sequence[float]
+		The common, uniform transverse axis (metres), symmetric about 0.
+	markers : Sequence[Mapping]
+		``{"kind", "label", "z"}`` lines; ``kind`` is ``element``,
+		``crossover`` or ``image``.
+	name : str, optional
+		Signal name, by default ``"wave cross-section"``.
+	source : str, optional
+		Name of the column, stored as metadata ``source``, by default ``""``.
+
+	Returns
+	-------
+	Signal or _DisplaySignal
+		Dimensions ``x`` (structured, m) and ``z`` (unstructured, values in
+		m); signal quantity ``|psi| / peak`` (unitless); signal type
+		``Image``; metadata ``kind = "wave-cross-section"``,
+		``normalization = "peak per plane"``, ``source``.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	assemblies.Microscope.wave_cross_section_signal : Builds the inputs.
+	read_display_signal : Inverse accessor.
+
+	Notes
+	-----
+	Line markers span the x axis, ``(x[0], x[-1])``. ``x`` is stored as
+	``offset = x[0]`` and a uniform scale, so ``-x[0]`` recovers the axis
+	half-width exactly.
+	"""
+	import numpy as _np
+	profile = _np.asarray(profile, dtype=float)
+	z = _np.asarray(z, dtype=float)
+	x = _np.asarray(x, dtype=float)
+	records = _marker_records(markers)
+	metadata = {"kind": "wave-cross-section", "normalization": "peak per plane",
+				"source": str(source)}
+	if not sea_available:
+		warn("sea_eco is not installed; make_wave_cross_section_signal returns a "
+			 "lightweight _DisplaySignal fallback (no .sea serialization).")
+		return _DisplaySignal(profile, name, [("x", x, "m"), ("z", z, "m")], records, metadata)
+	xscale = float(x[1] - x[0]) if len(x) > 1 else 1.0
+	xdim = _Dimension(name="x", space="position", scale=xscale, offset=float(x[0]),
+					  size=len(x), units="m")
+	return _display_signal(profile, [xdim, _plane_z_dimension("z", z)], records, "z",
+						   (float(x[0]), float(x[-1])), name,
+						   {"name": "|psi| / peak", "units": ""}, metadata,
+						   signal_type="Image")
+
+
+def read_display_signal(signal):
+	"""Read ``(data, axes, markers, metadata)`` from a display Signal or its fallback.
+
+	Inverse of the ``make_*_signal`` display factories. Works for a real
+	sea_eco Signal (including one reloaded from a ``.sea`` file) and for the
+	:class:`_DisplaySignal` fallback, so a caller can draw from either.
+
+	Parameters
+	----------
+	signal : Signal or _DisplaySignal
+		A display Signal from :func:`make_ray_diagram_signal`,
+		:func:`make_envelope_signal` or :func:`make_wave_cross_section_signal`.
+
+	Returns
+	-------
+	tuple
+		``(data, axes, markers, metadata)``: the values; one
+		``(name, values, units)`` per data axis; marker records
+		``{"kind", "label", "color", "z"}`` (lines) or
+		``{"kind", "label", "color", "z0", "z1"}`` (spans) in stored order;
+		and the descriptive metadata (without ``Display`` and without the
+		metadata container's own ``Provenance`` stamp).
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	read_wavefield : The same accessor pattern for wavefields.
+
+	Notes
+	-----
+	Only annotations named with the ``raytem.`` prefix are read back as
+	markers; any a user added to the Signal afterwards are left out.
+	"""
+	import numpy as _np
+	if isinstance(signal, _DisplaySignal):
+		return (signal.data, list(signal.axes), [dict(m) for m in signal.markers],
+				dict(signal.metadata))
+	from pySEA.sea_eco.annotations import get_display_annotations
+	axes = [(d.name, _np.asarray(d.values), d.units) for d in signal.dimensions.dimensions]
+	markers = []
+	for annotation in get_display_annotations(signal)[0]:
+		parts = str(annotation.name).split(".", 3)
+		if len(parts) != 4 or parts[0] != _MARKER_PREFIX:
+			continue
+		coordinates = annotation.coordinates
+		record = {"kind": parts[1], "label": annotation.text,
+				  "color": annotation.style.get("color")}
+		if annotation.annotation_type == "Span":
+			record.update(z0=float(coordinates["x0"]), z1=float(coordinates["x1"]))
+		else:
+			record["z"] = float(coordinates["x0"])
+		markers.append(record)
+	metadata = signal.metadata.to_dict() if signal.metadata is not None else {}
+	for key in ("Display", "Provenance"):		# the markers, and the Metadata's own stamp
+		metadata.pop(key, None)
+	return signal.data, axes, markers, metadata
 
 
 #SEASerializable.from_sea will create a purely-SEASerializable object. rayTEM objects (Element, MicroscopeSection, Microscope, etc) will have inherited from SEASerializable, so we may need to reinstantiate rayTEM objects to ensure they have the rayTEM-specific functionality (e.g. "scope=Microscope(); scope.from_sea" will find scope.sections is a list of purely-SEASerializable objects without functions like "propagate_ray").
