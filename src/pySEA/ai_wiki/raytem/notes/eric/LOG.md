@@ -5,8 +5,8 @@ Newest entries at top.
 ## 2026-10-12 — [Under Construction] Saved microscopes use sea-eco's identity model
 **Goal:** a rayTEM column carries a sea-eco `Provenance` (`Self` `TWN01`) instead of a SEA ID string.
 **Why:** they store the twin id as a plain string and the instrument as a second attribute; Eric: they change to the new version (Provenance = Self + Relations).
-- [ ] `new_provenance`; JSON save; reshape of old string ids
-- [ ] tests, wiki
+- [x] `new_provenance`; JSON save; reshape of old string ids
+- [x] tests, wiki (208 passed)
 TODO: [TODO_ACTIVE_2026-10-12_microscope-identity.md](TODO_ACTIVE_2026-10-12_microscope-identity.md)
 
 ## 2026-08-30 — [Done] Covariance propagation + aberration resolution example
