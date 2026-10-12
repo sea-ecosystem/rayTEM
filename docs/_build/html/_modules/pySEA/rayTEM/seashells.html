@@ -132,6 +132,26 @@
 			<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">to_sea</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span>
 						   <span class="n">force_datasets</span><span class="o">=</span><span class="p">[]</span> <span class="k">if</span> <span class="n">force_datasets</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">list</span><span class="p">(</span><span class="n">force_datasets</span><span class="p">),</span>
 						   <span class="n">validate_seaid</span><span class="o">=</span><span class="n">validate_seaid</span><span class="p">)</span>
+		<span class="k">def</span><span class="w"> </span><span class="nf">from_hdf5_group</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">group</span><span class="p">):</span>
+<span class="w">			</span><span class="sd">"""Populate this object from an HDF5 group, then reshape an old identity.</span>
+
+<span class="sd">			Parameters</span>
+<span class="sd">			----------</span>
+<span class="sd">			group : h5py.Group</span>
+<span class="sd">				The group sea_eco reads this object from.</span>
+
+<span class="sd">			Returns</span>
+<span class="sd">			-------</span>
+<span class="sd">			None</span>
+
+<span class="sd">			Notes</span>
+<span class="sd">			-----</span>
+<span class="sd">			A column saved before 2026-10-12 stores ``Provenance`` as a SEA ID</span>
+<span class="sd">			string; :func:`_reshape_legacy_identity` wraps it. Every read goes</span>
+<span class="sd">			through here, whether the object is a file's root or a child.</span>
+<span class="sd">			"""</span>
+			<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">from_hdf5_group</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
+			<span class="n">_reshape_legacy_identity</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 		<span class="k">def</span><span class="w"> </span><span class="nf">from_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">):</span>											<span class="c1"># sea_eco will reaload purely-SEASerializable objects, so reinitalize as our shared-inheritance object</span>
 			<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">from_sea</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
 			<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">"sections"</span><span class="p">):</span>
@@ -177,16 +197,17 @@
 
 
 
-<div class="viewcode-block" id="new_seaid">
-<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.new_seaid">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">new_seaid</span><span class="p">(</span><span class="n">clsid</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">	</span><span class="sd">"""Mint a SEA ID for a rayTEM object, through the sea_eco seam.</span>
+<div class="viewcode-block" id="new_provenance">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.new_provenance">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">new_provenance</span><span class="p">(</span><span class="n">clsid</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Mint the identity of a rayTEM object, through the sea_eco seam.</span>
 
 <span class="sd">	rayTEM does not import sea_eco (or sea_sand) directly -- everything that</span>
 <span class="sd">	crosses into the pySEA data layer goes through this module, so that a</span>
 <span class="sd">	rayTEM installed on its own still runs. Minting is no different: with the</span>
-<span class="sd">	ecosystem present this returns a real registered identifier, and without it</span>
-<span class="sd">	returns ``None`` and the object simply has no ID.</span>
+<span class="sd">	ecosystem present this returns a sea_eco ``Provenance`` whose ``Self`` is a</span>
+<span class="sd">	newly minted SEA ID, and without it returns ``None`` and the object simply</span>
+<span class="sd">	has no identity.</span>
 
 <span class="sd">	Parameters</span>
 <span class="sd">	----------</span>
@@ -197,9 +218,10 @@
 
 <span class="sd">	Returns</span>
 <span class="sd">	-------</span>
-<span class="sd">	str | None</span>
-<span class="sd">		The hyphenated canonical SEA ID, or ``None`` when the pySEA data layer</span>
-<span class="sd">		is not installed.</span>
+<span class="sd">	pySEA.sea_eco.architecture.base_structure.Provenance | None</span>
+<span class="sd">		The new identity (``Self`` minted, no relations beyond the creator</span>
+<span class="sd">		sea_eco stamps), or ``None`` when the pySEA data layer is not</span>
+<span class="sd">		installed.</span>
 
 <span class="sd">	Raises</span>
 <span class="sd">	------</span>
@@ -219,30 +241,75 @@
 
 <span class="sd">	See Also</span>
 <span class="sd">	--------</span>
+<span class="sd">	pySEA.sea_eco.architecture.base_structure.Provenance</span>
+<span class="sd">		The identity this returns: ``Self`` plus ``Relations``.</span>
 <span class="sd">	pySEA.sea_eco.seaid_conformance.validate_seaid_conformance</span>
 <span class="sd">		The check that a minted ID matches the class carrying it.</span>
 
 <span class="sd">	Notes</span>
 <span class="sd">	-----</span>
-<span class="sd">	The ID is stamped once, at construction. It is stored as text rather than</span>
-<span class="sd">	as a ``SEAID`` object because that is what survives an HDF5 round trip --</span>
-<span class="sd">	sea_eco writes it as a plain group attribute beside ``sea_type`` -- and it</span>
-<span class="sd">	matches how sea_eco's own pipelines store theirs.</span>
+<span class="sd">	The identity is stamped once, at construction, and is written the way</span>
+<span class="sd">	sea_eco writes every identity: a ``Provenance`` group holding ``Self``</span>
+<span class="sd">	(the SEA ID) and, when any are stored, ``Relations``. The id string is</span>
+<span class="sd">	``provenance.Self.seaid``; ``str(provenance)`` is a description.</span>
 
 <span class="sd">	Examples</span>
 <span class="sd">	--------</span>
-<span class="sd">	&gt;&gt;&gt; new_seaid("TWN01")                       # doctest: +SKIP</span>
-<span class="sd">	'0CE-TWN01-260922-084500-K3QM7A'</span>
+<span class="sd">	&gt;&gt;&gt; new_provenance("TWN01").Self.seaid       # doctest: +SKIP</span>
+<span class="sd">	'0CE-TWN01-261012-084500-K3QM7A'</span>
 <span class="sd">	"""</span>
 
 	<span class="k">if</span> <span class="ow">not</span> <span class="n">sea_available</span><span class="p">:</span>
 		<span class="k">return</span> <span class="kc">None</span>
 	<span class="k">try</span><span class="p">:</span>
-		<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.sea_eco.architecture.base_structure</span><span class="w"> </span><span class="kn">import</span> <span class="n">SEAID</span>
-		<span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">SEAID</span><span class="p">(</span><span class="n">clsid</span><span class="o">=</span><span class="n">clsid</span><span class="p">))</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.sea_eco.architecture.base_structure</span><span class="w"> </span><span class="kn">import</span> <span class="n">Provenance</span>
+		<span class="k">return</span> <span class="n">Provenance</span><span class="p">(</span><span class="n">clsid</span><span class="o">=</span><span class="n">clsid</span><span class="p">)</span>
 	<span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>														<span class="c1"># sea_eco/sea_sand absent, or the CLSID is not one they will mint; see Raises</span>
 		<span class="k">return</span> <span class="kc">None</span></div>
 
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_reshape_legacy_identity</span><span class="p">(</span><span class="n">target</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Wrap a SEA ID string read as ``Provenance`` into a sea_eco Provenance.</span>
+
+<span class="sd">	Remove after 2026-12-03. Columns saved between 2026-09-22 and 2026-10-12</span>
+<span class="sd">	stored their twin id as a plain SEA ID string attribute; sea_eco's</span>
+<span class="sd">	identity model stores a ``Provenance`` group (``Self`` plus</span>
+<span class="sd">	``Relations``). Reading the old shape wraps the same id, so the twin keeps</span>
+<span class="sd">	its identity, and warns once per object.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	target : SEASerializable</span>
+<span class="sd">		An object just populated from a file.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Warns</span>
+<span class="sd">	-----</span>
+<span class="sd">	DeprecationWarning</span>
+<span class="sd">		When a string identity is wrapped.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	Wrapping never mints and never stamps a creator: the id is the one the</span>
+<span class="sd">	file recorded.</span>
+<span class="sd">	"""</span>
+
+	<span class="n">identity</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Provenance"</span><span class="p">)</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">identity</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">identity</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">or</span> <span class="n">identity</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"None"</span><span class="p">:</span>
+		<span class="k">return</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.sea_eco.architecture.base_structure</span><span class="w"> </span><span class="kn">import</span> <span class="n">Provenance</span>
+	<span class="n">warn</span><span class="p">(</span><span class="s2">"This column was saved before 2026-10-12 and stores its Provenance as a plain SEA ID; "</span>
+		 <span class="s2">"it is read as a Provenance with that Self. Save it again to rewrite it. Reading the old "</span>
+		 <span class="s2">"layout stops after 2026-12-03."</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+	<span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="s2">"Provenance"</span><span class="p">,</span> <span class="n">Provenance</span><span class="p">(</span><span class="n">identity</span><span class="o">.</span><span class="n">strip</span><span class="p">()))</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">_Wavefield</span><span class="p">:</span>

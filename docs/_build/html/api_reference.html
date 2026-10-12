@@ -371,7 +371,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.make_scaled_wavefield_signal"><code class="docutils literal notranslate"><span class="pre">make_scaled_wavefield_signal()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.make_screen_phase_signal"><code class="docutils literal notranslate"><span class="pre">make_screen_phase_signal()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.make_wavefield_signal"><code class="docutils literal notranslate"><span class="pre">make_wavefield_signal()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.new_seaid"><code class="docutils literal notranslate"><span class="pre">new_seaid()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.new_provenance"><code class="docutils literal notranslate"><span class="pre">new_provenance()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.phase_space_of"><code class="docutils literal notranslate"><span class="pre">phase_space_of()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.read_scaled_wavefield"><code class="docutils literal notranslate"><span class="pre">read_scaled_wavefield()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.read_wavefield"><code class="docutils literal notranslate"><span class="pre">read_wavefield()</span></code></a></li>
@@ -4022,6 +4022,9 @@ instrument, not a run.</p>
 <p class="rubric">Notes</p>
 <p>SEA-envelope JSON written by earlier versions of this branch remains
 readable by <a class="reference internal" href="#pySEA.rayTEM.assemblies.load_microscope" title="pySEA.rayTEM.assemblies.load_microscope"><code class="xref py py-func docutils literal notranslate"><span class="pre">load_microscope()</span></code></a>.</p>
+<p>The column’s <code class="docutils literal notranslate"><span class="pre">Provenance</span></code> is written in sea_eco’s JSON form for that
+object (<code class="docutils literal notranslate"><span class="pre">Self</span></code> and <code class="docutils literal notranslate"><span class="pre">Relations</span></code>). <a class="reference internal" href="#pySEA.rayTEM.assemblies.load_microscope" title="pySEA.rayTEM.assemblies.load_microscope"><code class="xref py py-func docutils literal notranslate"><span class="pre">load_microscope()</span></code></a> builds a
+fresh column from the flat layout, which mints its own.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -7486,14 +7489,15 @@ stack. Stack positions become an unstructured z axis.</p></li>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="pySEA.rayTEM.seashells.new_seaid">
-<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.seashells.</span></span><span class="sig-name descname"><span class="pre">new_seaid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">clsid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/seashells.html#new_seaid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.seashells.new_seaid" title="Link to this definition"></a></dt>
-<dd><p>Mint a SEA ID for a rayTEM object, through the sea_eco seam.</p>
+<dt class="sig sig-object py" id="pySEA.rayTEM.seashells.new_provenance">
+<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.seashells.</span></span><span class="sig-name descname"><span class="pre">new_provenance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">clsid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/seashells.html#new_provenance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.seashells.new_provenance" title="Link to this definition"></a></dt>
+<dd><p>Mint the identity of a rayTEM object, through the sea_eco seam.</p>
 <p>rayTEM does not import sea_eco (or sea_sand) directly – everything that
 crosses into the pySEA data layer goes through this module, so that a
 rayTEM installed on its own still runs. Minting is no different: with the
-ecosystem present this returns a real registered identifier, and without it
-returns <code class="docutils literal notranslate"><span class="pre">None</span></code> and the object simply has no ID.</p>
+ecosystem present this returns a sea_eco <code class="docutils literal notranslate"><span class="pre">Provenance</span></code> whose <code class="docutils literal notranslate"><span class="pre">Self</span></code> is a
+newly minted SEA ID, and without it returns <code class="docutils literal notranslate"><span class="pre">None</span></code> and the object simply
+has no identity.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>clsid</strong> (<em>str</em>) – The five-character CLSID to mint under, prefix plus serial (for
@@ -7501,11 +7505,12 @@ example <code class="docutils literal notranslate"><span class="pre">&quot;TWN01
 base; real instances of a non-enumerated class use <code class="docutils literal notranslate"><span class="pre">01</span></code>.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>The hyphenated canonical SEA ID, or <code class="docutils literal notranslate"><span class="pre">None</span></code> when the pySEA data layer
-is not installed.</p>
+<dd class="field-even"><p>The new identity (<code class="docutils literal notranslate"><span class="pre">Self</span></code> minted, no relations beyond the creator
+sea_eco stamps), or <code class="docutils literal notranslate"><span class="pre">None</span></code> when the pySEA data layer is not
+installed.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>str | <a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None">None</a></p>
+<dd class="field-odd"><p>pySEA.sea_eco.architecture.base_structure.Provenance | <a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None">None</a></p>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><p><strong>None</strong> – A missing or unhappy minter yields <code class="docutils literal notranslate"><span class="pre">None</span></code> rather than raising: an ID
@@ -7525,18 +7530,20 @@ for, which compares the minted prefix against what the class declares.</p>
 <div class="admonition seealso">
 <p class="admonition-title">See also</p>
 <dl class="simple">
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">pySEA.sea_eco.architecture.base_structure.Provenance</span></code></dt><dd><p>The identity this returns: <code class="docutils literal notranslate"><span class="pre">Self</span></code> plus <code class="docutils literal notranslate"><span class="pre">Relations</span></code>.</p>
+</dd>
 <dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">pySEA.sea_eco.seaid_conformance.validate_seaid_conformance</span></code></dt><dd><p>The check that a minted ID matches the class carrying it.</p>
 </dd>
 </dl>
 </div>
 <p class="rubric">Notes</p>
-<p>The ID is stamped once, at construction. It is stored as text rather than
-as a <code class="docutils literal notranslate"><span class="pre">SEAID</span></code> object because that is what survives an HDF5 round trip –
-sea_eco writes it as a plain group attribute beside <code class="docutils literal notranslate"><span class="pre">sea_type</span></code> – and it
-matches how sea_eco’s own pipelines store theirs.</p>
+<p>The identity is stamped once, at construction, and is written the way
+sea_eco writes every identity: a <code class="docutils literal notranslate"><span class="pre">Provenance</span></code> group holding <code class="docutils literal notranslate"><span class="pre">Self</span></code>
+(the SEA ID) and, when any are stored, <code class="docutils literal notranslate"><span class="pre">Relations</span></code>. The id string is
+<code class="docutils literal notranslate"><span class="pre">provenance.Self.seaid</span></code>; <code class="docutils literal notranslate"><span class="pre">str(provenance)</span></code> is a description.</p>
 <p class="rubric">Examples</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">new_seaid</span><span class="p">(</span><span class="s2">"TWN01"</span><span class="p">)</span>
-<span class="go">'0CE-TWN01-260922-084500-K3QM7A'</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">new_provenance</span><span class="p">(</span><span class="s2">"TWN01"</span><span class="p">)</span><span class="o">.</span><span class="n">Self</span><span class="o">.</span><span class="n">seaid</span>
+<span class="go">'0CE-TWN01-261012-084500-K3QM7A'</span>
 </pre></div>
 </div>
 </dd></dl>
