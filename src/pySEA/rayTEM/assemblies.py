@@ -8,7 +8,7 @@ import sys,inspect,os,datetime,shutil
 
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
 from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,Rays,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes,AberrationScreen,_as_aberrations
-from typing import Literal
+from typing import Literal, Sequence
 from .seashells import SEASerializable, new_provenance
 
 #: CLSID class prefix + serial stamped on every :class:`Microscope` (sea-sand
@@ -94,7 +94,7 @@ def _stack_scaled_wavefields(planes, name="scaled wave"):
 									  s=ss, R=Rs, tau=taus, z=zs, tags=tags, name=name)
 
 
-def _as_rays(rays, I, R) -> Rays:
+def _as_rays(rays:Rays|ArrayLike, I:ArrayLike|None, R:ArrayLike|None) -> Rays:
 	"""The stored ray result as a :class:`elements.Rays`, whatever form it is stored in.
 
 	A traced column holds a ``Rays``; one reloaded from ``.sea`` holds the
@@ -277,7 +277,7 @@ _ENVELOPE_COLUMNS = ("x", "y", "xt", "yt")
 _ENVELOPE_UNITS = ("m", "m", "rad", "rad")
 
 
-def _envelope_signal(beam, markers:list, source:str):
+def _envelope_signal(beam, markers:Sequence[dict], source:str):
 	"""Build the beam-envelope display Signal from a covariance beam.
 
 	Shared by :meth:`MicroscopeSection.envelope_signal` and
@@ -314,7 +314,7 @@ def _envelope_signal(beam, markers:list, source:str):
 								_ENVELOPE_UNITS, markers, source=source)
 
 
-def _wave_cross_section_arrays(planes) -> tuple:
+def _wave_cross_section_arrays(planes:Sequence) -> tuple:
 	"""Compute the ``|ψ(x, y=0, z)|`` cross-section of a scaled-wave run.
 
 	The wave analog of the geometric ray diagram: each logged plane is
@@ -376,7 +376,7 @@ def _wave_cross_section_arrays(planes) -> tuple:
 	return prof.T, zs, x_common
 
 
-def _scaled_wave_cross_section(signal, ax, title=None):
+def _scaled_wave_cross_section(signal, ax, title:str|None=None) -> None:
 	"""Draw a wave cross-section display Signal into an axis.
 
 	Renders :meth:`Microscope.wave_cross_section_signal` as a z–x

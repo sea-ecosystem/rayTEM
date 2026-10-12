@@ -8,7 +8,10 @@ All objects we then expect to integrate with sea_eco then inherit the SEASeriali
 """
 
 import sys,inspect
+from typing import Any, Literal, Mapping, Sequence
 from warnings import warn
+
+from numpy.typing import ArrayLike
 
 sea_available = False
 try:
@@ -1033,7 +1036,8 @@ class _DisplaySignal:
 	The axes are deliberately not called ``dimensions``: :func:`as_ndarray`
 	treats any object with a ``dimensions`` attribute as a Signal.
 	"""
-	def __init__(self, data, name, axes, markers, metadata):
+	def __init__(self, data:ArrayLike, name:str, axes:Sequence[tuple],
+				 markers:Sequence[Mapping[str, Any]], metadata:Mapping[str, Any]) -> None:
 		self.data = data
 		self.name = name
 		self.axes = list(axes)
@@ -1070,11 +1074,11 @@ class _AnnotationDraft:
 	-------
 	_marker_annotations : The only user.
 	"""
-	def __init__(self):
+	def __init__(self) -> None:
 		self.metadata = _Metadata()
 
 
-def _marker_records(markers):
+def _marker_records(markers:Sequence[Mapping[str, Any]]) -> list:
 	"""Normalize marker requests into records carrying kind, label, position and colour.
 
 	Parameters
@@ -1113,7 +1117,8 @@ def _marker_records(markers):
 	return records
 
 
-def _marker_annotations(records, along, extent):
+def _marker_annotations(records:Sequence[Mapping[str, Any]], along:str,
+						extent:Sequence[float]) -> tuple:
 	"""Build the sea_eco annotations for a display Signal's markers.
 
 	Every marker goes through sea_eco's own constructors -- a span through
@@ -1168,7 +1173,7 @@ def _marker_annotations(records, along, extent):
 	return get_display_annotations(draft)
 
 
-def _finite_range(data):
+def _finite_range(data:ArrayLike) -> tuple:
 	"""Low and high finite value of an array, for the extent a line marker spans.
 
 	Parameters
@@ -1192,7 +1197,7 @@ def _finite_range(data):
 	return (float(finite.min()), float(finite.max())) if finite.size else (0.0, 0.0)
 
 
-def _plane_z_dimension(name, z):
+def _plane_z_dimension(name:str, z:ArrayLike):
 	"""An unstructured, explicitly valued z axis in metres.
 
 	The same construction the existing result factories use for plane z: the
@@ -1221,8 +1226,9 @@ def _plane_z_dimension(name, z):
 					  size=len(z), values=z, units="m", unstructured=True)
 
 
-def _display_signal(data, dimensions, records, along, extent, name, quantity, metadata,
-					signal_type=None):
+def _display_signal(data:ArrayLike, dimensions:Sequence, records:Sequence[Mapping[str, Any]],
+					along:str, extent:Sequence[float], name:str, quantity:Mapping[str, str],
+					metadata:Mapping[str, Any], signal_type:str|None=None):
 	"""Assemble a display Signal from prepared parts, markers attached.
 
 	Parameters
@@ -1266,8 +1272,9 @@ def _display_signal(data, dimensions, records, along, extent, name, quantity, me
 				   signal_type=signal_type)
 
 
-def make_ray_diagram_signal(positions, z, markers, axis="x", frame="rotating",
-							name=None, source=""):
+def make_ray_diagram_signal(positions:ArrayLike, z:ArrayLike, markers:Sequence[Mapping[str, Any]],
+							axis:Literal["x","y"]="x", frame:Literal["rotating","lab"]="rotating",
+							name:str|None=None, source:str=""):
 	"""Wrap a ray diagram -- every ray's transverse position per plane -- as a sea_eco Signal.
 
 	The overlaid-rays view of a ray-mode result, as data a renderer can draw:
@@ -1337,8 +1344,9 @@ def make_ray_diagram_signal(positions, z, markers, axis="x", frame="rotating",
 						   {"name": str(axis), "units": "m"}, metadata)
 
 
-def make_envelope_signal(widths, z, quantities, units, markers, name="beam envelope",
-						 source=""):
+def make_envelope_signal(widths:ArrayLike, z:ArrayLike, quantities:Sequence[str],
+						 units:Sequence[str], markers:Sequence[Mapping[str, Any]],
+						 name:str="beam envelope", source:str=""):
 	"""Wrap per-plane RMS beam widths as a sea_eco Signal with column markers.
 
 	The beam-envelope view of a covariance-mode result: shape
@@ -1410,8 +1418,9 @@ def make_envelope_signal(widths, z, quantities, units, markers, name="beam envel
 						   metadata)
 
 
-def make_wave_cross_section_signal(profile, z, x, markers, name="wave cross-section",
-								   source=""):
+def make_wave_cross_section_signal(profile:ArrayLike, z:ArrayLike, x:ArrayLike,
+								   markers:Sequence[Mapping[str, Any]],
+								   name:str="wave cross-section", source:str=""):
 	"""Wrap a scaled-wave ``|ψ(x, 0, z)|`` cross-section as a sea_eco image Signal.
 
 	The wave analog of the ray diagram: shape ``[x, z]`` -- z is the
@@ -1481,7 +1490,7 @@ def make_wave_cross_section_signal(profile, z, x, markers, name="wave cross-sect
 						   signal_type="Image")
 
 
-def read_display_signal(signal):
+def read_display_signal(signal:Any) -> tuple:
 	"""Read ``(data, axes, markers, metadata)`` from a display Signal or its fallback.
 
 	Inverse of the ``make_*_signal`` display factories. Works for a real
