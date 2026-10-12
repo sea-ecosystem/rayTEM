@@ -14,3 +14,4 @@
 - [x] `wave_cross_section_signal`; `show(kind="wave-scaled")` draws it (figure unchanged)
 - [x] tests on the basic column
 - [x] docs, wiki, refresh
+- [x] (found in the live loop) `Rays.convert_to_rotating_reference_frame` vectorized: the per-ray loop deep-copied the Rays metadata through `__getitem__` and rebuilt `fix_mat_dims` per ray, ~1.5 s on U200 (57 planes × 225 rays), paid twice per ray diagram and by `plot2D`. Now ~2 ms, bit-identical on U200 and the basic column; `tests/test_rotating_frame.py` keeps the old loop as the reference. A U200 live ray export went from ~4 s to well under 1 s.
