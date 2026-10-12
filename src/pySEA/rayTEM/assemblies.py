@@ -190,6 +190,48 @@ def _conjugate_plane_label(family:Literal['diff','image'], z:float, M:float, R:f
 			f"R={xp.round(R * 180 / xp.pi, 1)}")
 
 
+#: Columns whose RMS widths the beam-envelope view shows, and each one's unit.
+_ENVELOPE_COLUMNS = ("x", "y", "xt", "yt")
+_ENVELOPE_UNITS = ("m", "m", "rad", "rad")
+
+
+def _envelope_signal(beam, markers:list, source:str):
+	"""Build the beam-envelope display Signal from a covariance beam.
+
+	Shared by :meth:`MicroscopeSection.envelope_signal` and
+	:meth:`Microscope.envelope_signal`, which differ only in the markers.
+
+	Parameters
+	----------
+	beam : moments.CovarianceBeam
+		The stored moments, viewed through ``covariance_beam``.
+	markers : list of dict
+		Marker requests from the caller's ``_display_markers``.
+	source : str
+		Name of the section or column.
+
+	Returns
+	-------
+	Signal or seashells._DisplaySignal
+		``[quantity, z]``: RMS ``sigma_x``, ``sigma_y`` (m) and ``sigma_xt``,
+		``sigma_yt`` (rad) per plane.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	moments.CovarianceBeam.sigma : Every row, clipped at zero before the root.
+	postprocessing.beam_widths : The x/y rows, unclipped (they agree).
+	seashells.make_envelope_signal : Wraps the rows.
+	"""
+	from .seashells import make_envelope_signal
+	widths = xp.stack([beam.sigma(name) for name in _ENVELOPE_COLUMNS])
+	return make_envelope_signal(widths, beam.z(), [f"sigma_{n}" for n in _ENVELOPE_COLUMNS],
+								_ENVELOPE_UNITS, markers, source=source)
+
+
 def _scaled_wave_cross_section(planes, ax, named_positions=None, crossovers=None,
 							   image_planes=None, title=None):
 	"""Draw the |ψ(x, y=0, z)| cross-section of a scaled-wave run into an axis.
@@ -1118,6 +1160,47 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		positions, z = _ray_diagram_arrays(self.rays, self.I, self.R, axis, frame)
 		return make_ray_diagram_signal(positions, z, self._display_markers(float(z[0])),
 									   axis=axis, frame=frame, source=self.name or "section")
+
+	def envelope_signal(self):
+		"""This section's stored beam moments as an RMS-envelope Signal, with markers.
+
+		A **derived** view of :attr:`covariance_matrix` (via
+		:attr:`covariance_beam`), built on every call and never stored. Shape
+		``[quantity, z]``: the RMS widths ``sigma_x``, ``sigma_y`` (m) and
+		``sigma_xt``, ``sigma_yt`` (rad) at every plane the section logged.
+		The section's span and its named elements travel as PLOT-8
+		annotations.
+
+		Returns
+		-------
+		Signal or seashells._DisplaySignal
+			See :func:`seashells.make_envelope_signal`: the rows do not share
+			a unit, so each row's unit is in metadata ``quantity_units``.
+
+		Raises
+		------
+		RuntimeError
+			If no moments are stored -- this never propagates.
+
+		Related
+		-------
+		Microscope.envelope_signal : The whole column, plus conjugate planes.
+		ray_diagram_signal : The ray-mode view with the same markers.
+
+		Examples
+		--------
+		>>> scope.propagate_moments()                            # doctest: +SKIP
+		>>> scope["O"].envelope_signal().data.shape[0]           # doctest: +SKIP
+		4
+		"""
+		beam = self.covariance_beam
+		if beam is None:
+			raise RuntimeError(f"section {self.name or '(unnamed)'!r} has no stored moments; call "
+							   "propagate_moments() (on it or on its Microscope) first -- "
+							   "envelope_signal derives from the stored result and never "
+							   "propagates.")
+		return _envelope_signal(beam, self._display_markers(float(beam.z()[0])),
+								self.name or "section")
 
 	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray", **kwargs):
 		"""Unified propagation dispatcher across the three modes.
@@ -3559,6 +3642,46 @@ class Microscope(SealedAttributes, SEASerializable):
 		positions, z = _ray_diagram_arrays(self.rays, self.I, self.R, axis, frame)
 		return make_ray_diagram_signal(positions, z, self._display_markers(axis),
 									   axis=axis, frame=frame, source=self.name or "microscope")
+
+	def envelope_signal(self):
+		"""The stored beam moments as an RMS-envelope Signal, with column markers.
+
+		A **derived** view of :attr:`covariance_matrix` (via
+		:attr:`covariance_beam`), built on every call and never stored. Shape
+		``[quantity, z]``: the RMS widths ``sigma_x``, ``sigma_y`` (m) and
+		``sigma_xt``, ``sigma_yt`` (rad) at every logged plane, with the same
+		section, element and conjugate-plane markers as
+		:meth:`ray_diagram_signal` (conjugate planes of the x axis).
+
+		Returns
+		-------
+		Signal or seashells._DisplaySignal
+			See :func:`seashells.make_envelope_signal`: the rows do not share
+			a unit, so each row's unit is in metadata ``quantity_units``.
+
+		Raises
+		------
+		RuntimeError
+			If no moments are stored -- this never propagates.
+
+		Related
+		-------
+		MicroscopeSection.envelope_signal : One section's share.
+		beam_waists : Where these widths are stationary.
+		postprocessing.beam_widths : The ``sigma_x``/``sigma_y`` rows as an array.
+
+		Examples
+		--------
+		>>> scope.propagate_moments()                            # doctest: +SKIP
+		>>> scope.envelope_signal().dimensions.get_names()       # doctest: +SKIP
+		['quantity', 'z']
+		"""
+		beam = self.covariance_beam
+		if beam is None:
+			raise RuntimeError("this Microscope has no stored moments; call propagate_moments() "
+							   "first -- envelope_signal derives from the stored result and never "
+							   "propagates.")
+		return _envelope_signal(beam, self._display_markers('x'), self.name or "microscope")
 
 	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray", **kwargs):
 		"""Unified propagation dispatcher across the three modes.

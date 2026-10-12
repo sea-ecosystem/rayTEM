@@ -227,3 +227,55 @@ def test_ray_diagram_falls_back_without_sea_eco(monkeypatch):
 	assert np.array_equal(data, expected[0], equal_nan=True)
 	assert [a[0] for a in axes] == ["ray", "plane_z"] and np.array_equal(axes[1][1], expected[1][1][1])
 	assert markers == expected[2] and meta == expected[3]
+
+
+# --- beam envelope ------------------------------------------------------------
+
+def test_envelope_signal_rows_units_and_z():
+	"""[quantity, z]: sigma_x/y (m), sigma_xt/yt (rad), on the covariance's own z."""
+	from pySEA.rayTEM.postprocessing import beam_widths
+	scope = build_basic_column()
+	scope.propagate_moments()
+	sig = scope.envelope_signal()
+	data, axes, markers, meta = read_display_signal(sig)
+	assert sig.dimensions.get_names() == ["quantity", "z"]
+	assert list(axes[0][1]) == ["sigma_x", "sigma_y", "sigma_xt", "sigma_yt"]
+	assert meta["kind"] == "beam-envelope" and list(meta["quantity_units"]) == ["m", "m", "rad", "rad"]
+	assert axes[1][2] == "m" and np.array_equal(axes[1][1], scope.mu[:, columnByName("z")])
+	cov = scope.covariance_matrix.data
+	assert data.shape == (4, len(cov))
+	assert np.allclose(data[:2], beam_widths(scope.covariance_matrix).T)	# the x/y rows
+	for row, name in zip(data, ("x", "y", "xt", "yt")):
+		assert np.allclose(row, np.sqrt(cov[:, columnByName(name), columnByName(name)]))
+	assert sig.data[2, 0] == pytest.approx(1e-4)		# the source's RMS divergence
+	assert sig.dimensions["quantity"].values[3] == "sigma_yt"
+
+
+def test_envelope_signal_carries_the_ray_diagram_markers():
+	"""Same section/element/x-plane markers as the ray diagram."""
+	scope = build_basic_column()
+	scope.propagate_ray()
+	scope.propagate_moments()
+	envelope = read_display_signal(scope.envelope_signal())[2]
+	rays = read_display_signal(scope.ray_diagram_signal())[2]
+	assert envelope == rays
+	planes = scope.conjugate_planes()
+	assert _kinds(envelope) == {"section": len(scope.named_sections),
+								"element": len(_named_elements(scope.named_positions)),
+								"diff": len(planes["diff"]), "image": len(planes["image"])}
+
+
+def test_section_envelope_signal_and_errors():
+	"""A section's envelope covers its own planes; nothing stored raises."""
+	scope = build_basic_column()
+	with pytest.raises(RuntimeError, match="propagate_moments"):
+		scope.envelope_signal()
+	with pytest.raises(RuntimeError, match="propagate_moments"):
+		scope["P"].envelope_signal()
+	scope.propagate_moments()
+	sec = scope["P"]
+	data, axes, markers, meta = read_display_signal(sec.envelope_signal())
+	assert data.shape == (4, len(sec.mu)) and meta["source"] == "P"
+	assert np.array_equal(axes[1][1], sec.mu[:, columnByName("z")])
+	assert _kinds(markers) == {"section": 1, "element": len(_named_elements(sec.named_positions))}
+	assert np.isclose(markers[0]["z0"], sec.position)
