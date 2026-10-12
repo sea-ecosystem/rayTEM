@@ -8,4 +8,4 @@
 - [x] `Microscope.save` writes the Provenance payload to JSON
 - [x] a string `Provenance` read from a file saved before 2026-10-12 is wrapped (isolated, remove after 2026-12-03)
 - [x] tests; wiki refresh
-- [ ] fast-forward `dev` once sea-pearl and Poseidon are green with it
+- [x] fast-forward `dev` once sea-pearl and Poseidon are green with it (sea-pearl 1628 passed; Poseidon 1178 passed; desktop check passed)
