@@ -9,7 +9,7 @@ import sys,inspect,os,datetime,shutil
 from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
 from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,Rays,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes,AberrationScreen,_as_aberrations
 from typing import Literal
-from .seashells import SEASerializable, new_seaid
+from .seashells import SEASerializable, new_provenance
 
 #: CLSID class prefix + serial stamped on every :class:`Microscope` (sea-sand
 #: ``registries.db``: ``TWN`` = digital twin). A rayTEM column is a simulated
@@ -1001,7 +1001,7 @@ class Microscope(SealedAttributes, SEASerializable):
 				 sections:ArrayLike=None ) -> SEASerializable:
 		self.name = name
 		self.sections = sections
-		self.Provenance = new_seaid(MICROSCOPE_CLSID)	# what this column IS, in sea-sand's vocabulary: a digital twin. None when sea_eco is absent.
+		self.Provenance = new_provenance(MICROSCOPE_CLSID)	# what this column IS, in sea-sand's vocabulary: a digital twin (Provenance.Self). None when sea_eco is absent.
 		self.rays = None ; self._planes = None
 		self.I = None ; self.R = None		# per-plane, per-ray intensity and cumulative rotation (parallel to self.rays)
 		self.mu = None ; self.covariance_matrix = None	# beam-envelope mode results
@@ -3491,6 +3491,10 @@ class Microscope(SealedAttributes, SEASerializable):
 		-----
 		SEA-envelope JSON written by earlier versions of this branch remains
 		readable by :func:`load_microscope`.
+
+		The column's ``Provenance`` is written in sea_eco's JSON form for that
+		object (``Self`` and ``Relations``). :func:`load_microscope` builds a
+		fresh column from the flat layout, which mints its own.
 		"""
 
 		# Versioning: if "microscope.json" exists, along with "microscope-v0.001.json" and "microscope-v0.002.json", then we'll rename existing file as "microscope-v0.003.json" before saving. so "microscope.json" is always the latest
@@ -3517,6 +3521,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		jdict = {"Microscope name":self.name,"Sections":[]} | self.__dict__
 		for k in ("sections",):
 			jdict.pop(k,None)
+		identity = jdict.pop("Provenance",None)		# a sea_eco Provenance: written in sea_eco's own JSON form below, not through clean()
 		for section in self.sections:
 			sdict = {"Section name":section.name,"position":section.position,
 					 "length":section.length,"Elements":[]} | section.__dict__
@@ -3531,8 +3536,11 @@ class Microscope(SealedAttributes, SEASerializable):
 					edict.pop(k,None)
 				sdict["Elements"].append(edict)
 			jdict["Sections"].append(sdict)
+		jdict = clean(jdict)
+		if identity is not None:
+			jdict["Provenance"] = json.loads(identity.to_json())["payload"]
 		with open(filename + '.json', 'w') as f:
-			json.dump(clean(jdict),f,indent=4)
+			json.dump(jdict,f,indent=4)
 
 	def copy(self):
 		return deepcopy(self)

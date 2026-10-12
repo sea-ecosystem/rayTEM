@@ -2,16 +2,16 @@
 | Section | Line |
 |---------|------|
 | Overview | 20 |
-| Identity: `new_seaid` | 29 |
-| Module-level variables | 55 |
-|   `sea_available` | 57 |
-| SEASerializable (sea_eco present) | 63 |
-|   `SEASerializable.to_sea(self, filename)` | 67 |
-|   `SEASerializable.from_sea(self, filename)` | 75 |
-| SEASerializable (sea_eco absent) | 83 |
-| Module-level functions | 89 |
-|   Signal factories and readers (the wave/rays/covariance seam) | 91 |
-|   `safeReinstantiate(source, cls)` | 127 |
+| Identity: `new_provenance` | 29 |
+| Module-level variables | 63 |
+|   `sea_available` | 65 |
+| SEASerializable (sea_eco present) | 71 |
+|   `SEASerializable.to_sea(self, filename)` | 75 |
+|   `SEASerializable.from_sea(self, filename)` | 83 |
+| SEASerializable (sea_eco absent) | 91 |
+| Module-level functions | 97 |
+|   Signal factories and readers (the wave/rays/covariance seam) | 99 |
+|   `safeReinstantiate(source, cls)` | 135 |
 <!-- END AUTO-GENERATED TOC -->
 
 # seashells.py
@@ -26,19 +26,27 @@
 
 This is the **only module in the rayTEM package that imports from sea_eco**. All sea_eco coupling is localized here.
 
-## Identity: `new_seaid`
+## Identity: `new_provenance`
 
 rayTEM never imports `sea_eco` or `sea_sand` directly — everything crossing
 into the pySEA data layer goes through this module, so a rayTEM installed on
-its own still runs. Minting a SEA ID is no different: `new_seaid(clsid)`
-returns the hyphenated canonical ID when the ecosystem is present and `None`
-when it is not, because provenance is never worth stopping a simulation for.
+its own still runs. Minting an identity is no different: `new_provenance(clsid)`
+returns a sea_eco `Provenance` whose `Self` is a newly minted SEA ID when the
+ecosystem is present, and `None` when it is not, because provenance is never
+worth stopping a simulation for.
 
 `assemblies.Microscope.__init__` calls it with `MICROSCOPE_CLSID` (`"TWN01"`,
-*digital twin*), so every constructed column is stamped. The ID is stored as
-**text**, not as a `SEAID` object, because that is what survives an HDF5 round
-trip — sea_eco writes it as a plain group attribute beside `sea_type` — and it
-matches how sea_eco's own pipelines store theirs (`Pipeline.ids`).
+*digital twin*), so every constructed column is stamped. The identity is
+written the way sea_eco writes every identity (its identity model,
+2026-10-12): a `Provenance` group holding `Self` (the SEA ID) and, when any are
+stored, `Relations`. The id string is `provenance.Self.seaid`;
+`str(provenance)` is a description, not the id.
+
+**Old string ids.** Columns saved between 2026-09-22 and 2026-10-12 stored the
+twin id as a plain string attribute. The `SEASerializable` wrapper's
+`from_hdf5_group` runs `_reshape_legacy_identity` after every read, which wraps
+that string as the `Self` of a `Provenance` (never minting, never stamping a
+creator) and warns `DeprecationWarning`. Remove it after 2026-12-03.
 
 > **sea-sand normalizes, it does not refuse.** A malformed CLSID is silently
 > substituted and padded or truncated to five characters: `"TOOLONG"` mints as

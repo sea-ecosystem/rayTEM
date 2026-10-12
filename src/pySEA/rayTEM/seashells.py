@@ -41,6 +41,26 @@ if sea_available:
 			super().to_sea(filename,
 						   force_datasets=[] if force_datasets is None else list(force_datasets),
 						   validate_seaid=validate_seaid)
+		def from_hdf5_group(self,group):
+			"""Populate this object from an HDF5 group, then reshape an old identity.
+
+			Parameters
+			----------
+			group : h5py.Group
+				The group sea_eco reads this object from.
+
+			Returns
+			-------
+			None
+
+			Notes
+			-----
+			A column saved before 2026-10-12 stores ``Provenance`` as a SEA ID
+			string; :func:`_reshape_legacy_identity` wraps it. Every read goes
+			through here, whether the object is a file's root or a child.
+			"""
+			super().from_hdf5_group(group)
+			_reshape_legacy_identity(self)
 		def from_sea(self,filename):											# sea_eco will reaload purely-SEASerializable objects, so reinitalize as our shared-inheritance object
 			super().from_sea(filename)
 			if hasattr(self,"sections"):
@@ -77,14 +97,15 @@ else:
 			print("WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead")
 
 
-def new_seaid(clsid: str) -> str | None:
-	"""Mint a SEA ID for a rayTEM object, through the sea_eco seam.
+def new_provenance(clsid: str):
+	"""Mint the identity of a rayTEM object, through the sea_eco seam.
 
 	rayTEM does not import sea_eco (or sea_sand) directly -- everything that
 	crosses into the pySEA data layer goes through this module, so that a
 	rayTEM installed on its own still runs. Minting is no different: with the
-	ecosystem present this returns a real registered identifier, and without it
-	returns ``None`` and the object simply has no ID.
+	ecosystem present this returns a sea_eco ``Provenance`` whose ``Self`` is a
+	newly minted SEA ID, and without it returns ``None`` and the object simply
+	has no identity.
 
 	Parameters
 	----------
@@ -95,9 +116,10 @@ def new_seaid(clsid: str) -> str | None:
 
 	Returns
 	-------
-	str | None
-		The hyphenated canonical SEA ID, or ``None`` when the pySEA data layer
-		is not installed.
+	pySEA.sea_eco.architecture.base_structure.Provenance | None
+		The new identity (``Self`` minted, no relations beyond the creator
+		sea_eco stamps), or ``None`` when the pySEA data layer is not
+		installed.
 
 	Raises
 	------
@@ -117,29 +139,74 @@ def new_seaid(clsid: str) -> str | None:
 
 	See Also
 	--------
+	pySEA.sea_eco.architecture.base_structure.Provenance
+		The identity this returns: ``Self`` plus ``Relations``.
 	pySEA.sea_eco.seaid_conformance.validate_seaid_conformance
 		The check that a minted ID matches the class carrying it.
 
 	Notes
 	-----
-	The ID is stamped once, at construction. It is stored as text rather than
-	as a ``SEAID`` object because that is what survives an HDF5 round trip --
-	sea_eco writes it as a plain group attribute beside ``sea_type`` -- and it
-	matches how sea_eco's own pipelines store theirs.
+	The identity is stamped once, at construction, and is written the way
+	sea_eco writes every identity: a ``Provenance`` group holding ``Self``
+	(the SEA ID) and, when any are stored, ``Relations``. The id string is
+	``provenance.Self.seaid``; ``str(provenance)`` is a description.
 
 	Examples
 	--------
-	>>> new_seaid("TWN01")                       # doctest: +SKIP
-	'0CE-TWN01-260922-084500-K3QM7A'
+	>>> new_provenance("TWN01").Self.seaid       # doctest: +SKIP
+	'0CE-TWN01-261012-084500-K3QM7A'
 	"""
 
 	if not sea_available:
 		return None
 	try:
-		from pySEA.sea_eco.architecture.base_structure import SEAID
-		return str(SEAID(clsid=clsid))
+		from pySEA.sea_eco.architecture.base_structure import Provenance
+		return Provenance(clsid=clsid)
 	except Exception:														# sea_eco/sea_sand absent, or the CLSID is not one they will mint; see Raises
 		return None
+
+
+def _reshape_legacy_identity(target) -> None:
+	"""Wrap a SEA ID string read as ``Provenance`` into a sea_eco Provenance.
+
+	Remove after 2026-12-03. Columns saved between 2026-09-22 and 2026-10-12
+	stored their twin id as a plain SEA ID string attribute; sea_eco's
+	identity model stores a ``Provenance`` group (``Self`` plus
+	``Relations``). Reading the old shape wraps the same id, so the twin keeps
+	its identity, and warns once per object.
+
+	Parameters
+	----------
+	target : SEASerializable
+		An object just populated from a file.
+
+	Returns
+	-------
+	None
+
+	Raises
+	------
+	None
+
+	Warns
+	-----
+	DeprecationWarning
+		When a string identity is wrapped.
+
+	Notes
+	-----
+	Wrapping never mints and never stamps a creator: the id is the one the
+	file recorded.
+	"""
+
+	identity = target.__dict__.get("Provenance")
+	if not isinstance(identity, str) or not identity.strip() or identity.strip() == "None":
+		return
+	from pySEA.sea_eco.architecture.base_structure import Provenance
+	warn("This column was saved before 2026-10-12 and stores its Provenance as a plain SEA ID; "
+		 "it is read as a Provenance with that Self. Save it again to rewrite it. Reading the old "
+		 "layout stops after 2026-12-03.", DeprecationWarning, stacklevel=3)
+	object.__setattr__(target, "Provenance", Provenance(identity.strip()))
 
 
 class _Wavefield:

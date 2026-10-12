@@ -3,39 +3,39 @@
 |---------|------|
 | Overview | 44 |
 | `MICROSCOPE_CLSID` — what a saved column says it is | 50 |
-| Module-level functions | 71 |
-|   `load_section(filename)` | 73 |
-|   `load_microscope(filename)` | 77 |
-| MicroscopeSection | 83 |
-|   `MicroscopeSection.__init__(self, name, elements, position, ignoreLensThickness)` | 87 |
-|   `MicroscopeSection.index(self, item)` | 108 |
-|   `MicroscopeSection.__getitem__ / __setitem__ / __delitem__` | 112 |
-|   `MicroscopeSection.insert(self, index, element)` | 116 |
-|   `MicroscopeSection.append(self, element)` | 122 |
-|   `MicroscopeSection.wobble(self, r0, elementIndex, func, kwargName, valRange, numSteps)` | 126 |
-|   `MicroscopeSection.named_positions` | 130 |
-|   `MicroscopeSection.propagate_ray(self, r0, z, verbose)` | 134 |
-|   `MicroscopeSection.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 140 |
-|   `MicroscopeSection.propagate(self, *args, kind='ray', **kwargs)` | 159 |
-|   `MicroscopeSection.show(self, filename, title, ylims, zlims, regenerate)` | 164 |
-|   `MicroscopeSection.save(self, filename)` | 168 |
-| Microscope | 174 |
-|   `Microscope.__init__(self, name, sections)` | 178 |
-|   `Microscope.index(self, item)` | 182 |
-|   `Microscope.__getitem__` | 186 |
-|   `Microscope.insert(self, index, elementOrSection)` | 192 |
-|   `Microscope.adjust_element_length(self, element, newlength)` | 196 |
-|   `Microscope.named_positions` | 200 |
-|   `Microscope.propagate_ray(self, r0, z, verbose)` | 204 |
-|   `Microscope.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 208 |
-|   `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)` | 219 |
-|   `Element.transfer_block(dz=None, axis='x')` — the shared seam | 221 |
-|   `Microscope.conjugate_planes(axis='x', method='frame', reference=None, x0=1e-6, theta0=1e-6)` | 243 |
-|   `Microscope.beam_waists(axis='x', sigma0=None)` | 274 |
-|   `Microscope.subdivided(zpts)` | 313 |
-|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 357 |
-|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 362 |
-|   `Microscope.save(self, filename)` | 366 |
+| Module-level functions | 72 |
+|   `load_section(filename)` | 74 |
+|   `load_microscope(filename)` | 78 |
+| MicroscopeSection | 84 |
+|   `MicroscopeSection.__init__(self, name, elements, position, ignoreLensThickness)` | 88 |
+|   `MicroscopeSection.index(self, item)` | 109 |
+|   `MicroscopeSection.__getitem__ / __setitem__ / __delitem__` | 113 |
+|   `MicroscopeSection.insert(self, index, element)` | 117 |
+|   `MicroscopeSection.append(self, element)` | 123 |
+|   `MicroscopeSection.wobble(self, r0, elementIndex, func, kwargName, valRange, numSteps)` | 127 |
+|   `MicroscopeSection.named_positions` | 131 |
+|   `MicroscopeSection.propagate_ray(self, r0, z, verbose)` | 135 |
+|   `MicroscopeSection.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 141 |
+|   `MicroscopeSection.propagate(self, *args, kind='ray', **kwargs)` | 160 |
+|   `MicroscopeSection.show(self, filename, title, ylims, zlims, regenerate)` | 165 |
+|   `MicroscopeSection.save(self, filename)` | 169 |
+| Microscope | 175 |
+|   `Microscope.__init__(self, name, sections)` | 179 |
+|   `Microscope.index(self, item)` | 183 |
+|   `Microscope.__getitem__` | 187 |
+|   `Microscope.insert(self, index, elementOrSection)` | 193 |
+|   `Microscope.adjust_element_length(self, element, newlength)` | 197 |
+|   `Microscope.named_positions` | 201 |
+|   `Microscope.propagate_ray(self, r0, z, verbose)` | 205 |
+|   `Microscope.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 209 |
+|   `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)` | 220 |
+|   `Element.transfer_block(dz=None, axis='x')` — the shared seam | 222 |
+|   `Microscope.conjugate_planes(axis='x', method='frame', reference=None, x0=1e-6, theta0=1e-6)` | 244 |
+|   `Microscope.beam_waists(axis='x', sigma0=None)` | 275 |
+|   `Microscope.subdivided(zpts)` | 314 |
+|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 358 |
+|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 363 |
+|   `Microscope.save(self, filename)` | 367 |
 <!-- END AUTO-GENERATED TOC -->
 
 # assemblies.py
@@ -49,7 +49,8 @@ See [elements.md](elements.md) for the Element base class and ray column convent
 
 ## `MICROSCOPE_CLSID` — what a saved column says it is
 
-`Microscope.__init__` stamps `self.Provenance = new_seaid(MICROSCOPE_CLSID)`,
+`Microscope.__init__` stamps `self.Provenance = new_provenance(MICROSCOPE_CLSID)`
+(a sea_eco `Provenance`; the id is `Provenance.Self.seaid`),
 with `MICROSCOPE_CLSID = "TWN01"` — sea-sand's *digital twin* class. A rayTEM
 column is a simulated instrument, not an instrument, which is why it is `TWN`
 and not `TEM`.
@@ -365,4 +366,4 @@ Like `MicroscopeSection.show` but also passes a `sections` dict to `plot2D` so e
 
 ### `Microscope.save(self, filename)`
 
-Writes a human-readable JSON file with nested structure: `Microscope name → Sections → Elements`. Uses `"Microscope name"`, `"Section name"`, `"Element name"` keys (instead of bare `"name"`) to make the hierarchy self-describing. `load_microscope` knows to un-map these keys on reload.
+Writes a human-readable JSON file with nested structure: `Microscope name → Sections → Elements`. Uses `"Microscope name"`, `"Section name"`, `"Element name"` keys (instead of bare `"name"`) to make the hierarchy self-describing. `load_microscope` knows to un-map these keys on reload. The column's `Provenance` is written in sea_eco's JSON form for that object (`{"sea_type": "Provenance", "Self": {...}, "Relations": {...}}`); `load_microscope` builds a fresh column from the flat layout, which mints its own.
