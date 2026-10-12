@@ -94,7 +94,39 @@ def _stack_scaled_wavefields(planes, name="scaled wave"):
 									  s=ss, R=Rs, tau=taus, z=zs, tags=tags, name=name)
 
 
-def _ray_diagram_arrays(rays, I, R, axis:Literal['x','y']='x',
+def _as_rays(rays, I, R) -> Rays:
+	"""The stored ray result as a :class:`elements.Rays`, whatever form it is stored in.
+
+	A traced column holds a ``Rays``; one reloaded from ``.sea`` holds the
+	plain ``(n_planes, n_rays, 6)`` array beside its ``I``/``R`` arrays.
+	Either way the display path needs the ``Rays`` view, which carries the
+	intensity and rotation the frame conversion and plane search read.
+
+	Parameters
+	----------
+	rays : elements.Rays or numpy.ndarray
+		Stored rays, shape ``(n_planes, n_rays, len(convention))``.
+	I : numpy.ndarray or None
+		Per-plane, per-ray intensity, used when ``rays`` is a plain array.
+	R : numpy.ndarray or None
+		Per-plane, per-ray cumulative rotation (radians), likewise.
+
+	Returns
+	-------
+	elements.Rays
+		``rays`` itself, or a new wrapper over the array (no copy of the
+		column is made).
+
+	Raises
+	------
+	None
+	"""
+	if isinstance(rays, Rays):
+		return rays
+	return Rays(rays, R=0 if R is None else R, I_per_ray=1 if I is None else I)
+
+
+def _ray_diagram_arrays(rays:Rays, axis:Literal['x','y']='x',
 						frame:Literal['rotating','lab']='rotating') -> tuple:
 	"""Every ray's transverse position per logged plane, as a ray diagram draws it.
 
@@ -108,13 +140,8 @@ def _ray_diagram_arrays(rays, I, R, axis:Literal['x','y']='x',
 
 	Parameters
 	----------
-	rays : elements.Rays or numpy.ndarray
-		Stored rays, shape ``(n_planes, n_rays, len(convention))``. A plain
-		array (a column reloaded from ``.sea``) is wrapped with ``I``/``R``.
-	I : numpy.ndarray or None
-		Per-plane, per-ray intensity, used when ``rays`` is a plain array.
-	R : numpy.ndarray or None
-		Per-plane, per-ray cumulative rotation (radians), likewise.
+	rays : elements.Rays
+		Stored rays (see :func:`_as_rays`).
 	axis : {'x', 'y'}, optional
 		Transverse coordinate to return, by default ``'x'``.
 	frame : {'rotating', 'lab'}, optional
@@ -141,8 +168,6 @@ def _ray_diagram_arrays(rays, I, R, axis:Literal['x','y']='x',
 	if frame not in ('rotating', 'lab'):
 		raise ValueError(f"frame must be 'rotating' (Larmor frame, as plot2D draws) or "
 						 f"'lab' (the stored columns), not {frame!r}.")
-	if not isinstance(rays, Rays):
-		rays = Rays(rays, R=0 if R is None else R, I_per_ray=1 if I is None else I)
 	live = xp.asarray(rays.I_per_ray)
 	if frame == 'rotating':
 		rays = rays.convert_to_rotating_reference_frame()
@@ -151,6 +176,62 @@ def _ray_diagram_arrays(rays, I, R, axis:Literal['x','y']='x',
 	positions[live <= 0] = xp.nan
 	z = xp.array(table[:, 0, columnByName('z')], dtype=float)
 	return positions.T, z
+
+
+def _stored_plane_markers(rays:Rays, axis:Literal['x','y']='x') -> list:
+	"""Diffraction and image planes of a stored ray trace, as plot2D finds and labels them.
+
+	Runs :func:`postprocessing.findPlanes` on the rays being plotted and
+	converts its fractional plane indices to metres with
+	:func:`postprocessing.zFromFractional` -- exactly the overlay plot2D
+	draws. Nothing is propagated and nothing is copied: the planes come from
+	the stored trace, so a column bound to live hardware (whose backend cannot
+	be deep-copied) is never touched.
+
+	Parameters
+	----------
+	rays : elements.Rays
+		Stored rays of a whole column (see :func:`_as_rays`).
+	axis : {'x', 'y'}, optional
+		Axis to search, by default ``'x'``.
+
+	Returns
+	-------
+	list of dict
+		``{"kind": "diff"|"image", "label", "z"}``, diffraction planes first,
+		each in the order found.
+
+	Raises
+	------
+	None
+
+	Related
+	-------
+	postprocessing.plot2D : The figure whose plane overlay this reproduces.
+	Microscope.conjugate_planes : The same planes from dedicated reference
+		rays -- which needs a deep copy, so the display path does not use it.
+
+	Notes
+	-----
+	findPlanes picks its reference pairs at the trace's **first** plane (rays
+	there parallel to the axis, and rays leaving the axis), so it finds the
+	planes conjugate to the column entrance only when the source launches
+	such rays -- a grid with on-axis and zero-angle members does. A source
+	without them yields no plane markers (and findPlanes prints its usual
+	note), just as plot2D then draws none. A plane found exactly at the last
+	logged plane is clamped inside the trace, as ``conjugate_planes`` does,
+	rather than indexing past it.
+	"""
+	from .postprocessing import findPlanes, zFromFractional
+	zs = xp.asarray(rays)[:, 0, columnByName('z')]
+	found = findPlanes(rays, axis=axis)[axis]
+	markers = []
+	for family in ('diff', 'image'):
+		for f, M, R in zip(found[family]['z'], found[family]['M'], found[family]['R']):
+			z = float(zFromFractional(zs, min(float(f), len(zs) - 1 - 1e-9)))
+			markers.append({"kind": family, "z": z,
+							"label": _conjugate_plane_label(family, z, M, R)})
+	return markers
 
 
 def _conjugate_plane_label(family:Literal['diff','image'], z:float, M:float, R:float) -> str:
@@ -176,7 +257,7 @@ def _conjugate_plane_label(family:Literal['diff','image'], z:float, M:float, R:f
 	Returns
 	-------
 	str
-		e.g. ``"image @ z=0.188, M=-1.234, R=-12.5"``.
+		e.g. ``"image @ z=0.188, M=-0.73, R=-5.4"``.
 
 	Raises
 	------
@@ -184,7 +265,8 @@ def _conjugate_plane_label(family:Literal['diff','image'], z:float, M:float, R:f
 
 	Related
 	-------
-	Microscope.conjugate_planes : Supplies ``M`` and ``R`` (``method='ray'``).
+	_stored_plane_markers : The caller; ``M`` and ``R`` come from
+		:func:`postprocessing.findPlanes`.
 	"""
 	return (f"{family} @ z={xp.round(z, 3)}, M={xp.round(M, 3)}, "
 			f"R={xp.round(R * 180 / xp.pi, 1)}")
@@ -1133,8 +1215,11 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		-----
 		No conjugate planes: a section does not know the optics upstream of
 		it, so it cannot say where the column entrance's image and
-		diffraction planes fall. Use the :class:`Microscope` view and its
-		markers for those.
+		diffraction planes fall -- and running ``findPlanes`` on its own
+		stored rays would pick reference pairs at the section's entrance,
+		reporting planes of a different object (on the basic column it finds
+		two "diffraction planes" in C and none in O). Use the
+		:class:`Microscope` view and its markers for those.
 		"""
 		markers = []
 		if self.length > 0:
@@ -1196,7 +1281,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 							   "propagate_ray() (on it or on its Microscope) first -- "
 							   "ray_diagram_signal derives from the stored result and never "
 							   "propagates.")
-		positions, z = _ray_diagram_arrays(self.rays, self.I, self.R, axis, frame)
+		positions, z = _ray_diagram_arrays(_as_rays(self.rays, self.I, self.R), axis, frame)
 		return make_ray_diagram_signal(positions, z, self._display_markers(float(z[0])),
 									   axis=axis, frame=frame, source=self.name or "section")
 
@@ -2475,12 +2560,6 @@ class Microscope(SealedAttributes, SEASerializable):
 			'diff_offset': ndarray, 'image_offset': ndarray}`` — absolute plane
 			positions (metres) in column order, the reference position, and the
 			same planes as offsets from it (signed, downstream positive).
-			Also ``'diff_M'``, ``'image_M'`` (magnification at each plane --
-			a camera length, m/rad, for ``diff``) and ``'diff_R'``,
-			``'image_R'`` (cumulative Larmor rotation there, radians), aligned
-			with ``'diff'``/``'image'``: measured by ``method='ray'`` (the
-			values plot2D prints), NaN from ``method='frame'``, which does not
-			compute them.
 
 		Raises
 		------
@@ -2527,8 +2606,6 @@ class Microscope(SealedAttributes, SEASerializable):
 			for family in ('diff', 'image'):
 				idx = [min(float(f), len(zs) - 1 - 1e-9) for f in found[family]['z']]
 				out[family] = xp.asarray([zFromFractional(zs, f) for f in idx])
-				out[family + '_M'] = xp.asarray(found[family]['M'], dtype=float)
-				out[family + '_R'] = xp.asarray(found[family]['R'], dtype=float)
 		else:
 			out = {'diff': [], 'image': []}
 			for z0, ele, L, M, block in self._accumulate_blocks(axis=axis,
@@ -2538,9 +2615,6 @@ class Microscope(SealedAttributes, SEASerializable):
 					out[family] += [z0 + dz for dz
 									in self._element_roots(ele, L, block, P0, Q0)]
 			out = {k: xp.asarray(sorted(v)) for k, v in out.items()}
-			for family in ('diff', 'image'):		# not computed by the frame walk
-				out[family + '_M'] = xp.full(len(out[family]), xp.nan)
-				out[family + '_R'] = xp.full(len(out[family]), xp.nan)
 		out['z_reference'] = z_ref
 		out['diff_offset'] = out['diff'] - z_ref
 		out['image_offset'] = out['image'] - z_ref
@@ -3572,27 +3646,20 @@ class Microscope(SealedAttributes, SEASerializable):
 		return make_rays_signalset(self.rays, self.I, self.R, convention,
 								   name=(self.name or 'microscope') + ' rays')
 
-	def _display_markers(self, axis:Literal['x','y']='x') -> list:
-		"""The markers a display Signal of this column carries.
+	def _display_markers(self) -> list:
+		"""The section and element markers a display Signal of this column carries.
 
-		The overlays :meth:`show` draws on the ray diagram, as data: a span
-		per section (:attr:`named_sections`), a line per named element
-		(:attr:`named_positions`), and a line per diffraction and image plane
-		of the column entrance (:meth:`conjugate_planes`), labelled with the
-		magnification and rotation plot2D prints.
-
-		Parameters
-		----------
-		axis : {'x', 'y'}, optional
-			Axis whose conjugate planes are marked, by default ``'x'``.
+		The overlays :meth:`show` draws on the ray diagram that come from the
+		column's own description: a span per section (:attr:`named_sections`)
+		and a line per named element (:attr:`named_positions`). Plane markers
+		depend on a stored result, so each view adds its own.
 
 		Returns
 		-------
 		list of dict
 			Sections first (``{"kind": "section", "label", "z0", "z1"}``,
 			zero-length ones omitted), then elements (``{"kind": "element",
-			"label", "z"}``, unnamed ones omitted), then ``diff`` and
-			``image`` planes, all in metres.
+			"label", "z"}``, unnamed ones omitted), in metres.
 
 		Raises
 		------
@@ -3601,22 +3668,17 @@ class Microscope(SealedAttributes, SEASerializable):
 		Related
 		-------
 		MicroscopeSection._display_markers : The section-level counterpart.
-		conjugate_planes : The plane positions, magnifications and rotations.
+		_stored_plane_markers : The ray diagram's plane markers.
 
 		Notes
 		-----
-		Costs one four-ray reference trace on a copy of the column, the same
-		trace :meth:`show` runs for its cross-section image planes.
+		Reads the description only: nothing is propagated and the column is
+		never copied, so a model bound to a live backend is safe.
 		"""
 		markers = [{"kind": "section", "label": k, "z0": a, "z1": b}
 				   for k, (a, b) in self.named_sections.items() if b > a]
 		markers += [{"kind": "element", "label": k, "z": z}
 					for k, z in self.named_positions.items() if k]
-		planes = self.conjugate_planes(axis=axis)
-		for family in ('diff', 'image'):
-			for z, M, R in zip(planes[family], planes[family + '_M'], planes[family + '_R']):
-				markers.append({"kind": family, "z": float(z),
-								"label": _conjugate_plane_label(family, z, M, R)})
 		return markers
 
 	def ray_diagram_signal(self, axis:Literal["x","y"]="x",
@@ -3633,8 +3695,11 @@ class Microscope(SealedAttributes, SEASerializable):
 		has blocked the ray (plot2D's ``'ghosting'``). ``plane_z`` carries the
 		logged plane positions as they are, repeats at section boundaries and
 		zero-length apertures included. Section spans, named elements and the
-		column's conjugate planes travel as PLOT-8 ``Span``/``Line``
-		annotations along ``plane_z``.
+		diffraction/image planes travel as PLOT-8 ``Span``/``Line``
+		annotations along ``plane_z``. The planes are the ones plot2D overlays
+		-- ``findPlanes`` on these stored rays -- so nothing is re-traced and
+		the column is never copied (a model bound to a live backend cannot
+		be).
 
 		Parameters
 		----------
@@ -3678,9 +3743,11 @@ class Microscope(SealedAttributes, SEASerializable):
 			raise RuntimeError("this Microscope has no stored rays; call propagate_ray() first -- "
 							   "ray_diagram_signal derives from the stored result and never "
 							   "propagates.")
-		positions, z = _ray_diagram_arrays(self.rays, self.I, self.R, axis, frame)
-		return make_ray_diagram_signal(positions, z, self._display_markers(axis),
-									   axis=axis, frame=frame, source=self.name or "microscope")
+		rays = _as_rays(self.rays, self.I, self.R)
+		positions, z = _ray_diagram_arrays(rays, axis, frame)
+		markers = self._display_markers() + _stored_plane_markers(rays, axis)
+		return make_ray_diagram_signal(positions, z, markers, axis=axis, frame=frame,
+									   source=self.name or "microscope")
 
 	def envelope_signal(self):
 		"""The stored beam moments as an RMS-envelope Signal, with column markers.
@@ -3689,8 +3756,14 @@ class Microscope(SealedAttributes, SEASerializable):
 		:attr:`covariance_beam`), built on every call and never stored. Shape
 		``[quantity, z]``: the RMS widths ``sigma_x``, ``sigma_y`` (m) and
 		``sigma_xt``, ``sigma_yt`` (rad) at every logged plane, with the same
-		section, element and conjugate-plane markers as
-		:meth:`ray_diagram_signal` (conjugate planes of the x axis).
+		section and element markers as :meth:`ray_diagram_signal`.
+
+		No diffraction/image-plane markers: the ray diagram takes those from
+		its own stored trace, and the moments carry no trace to search.
+		Borrowing whatever rays happen to be stored could mark planes of an
+		older optics state, and computing fresh ones would mean a reference
+		trace on a copy of the column -- which a model bound to a live backend
+		cannot make.
 
 		Returns
 		-------
@@ -3720,7 +3793,7 @@ class Microscope(SealedAttributes, SEASerializable):
 			raise RuntimeError("this Microscope has no stored moments; call propagate_moments() "
 							   "first -- envelope_signal derives from the stored result and never "
 							   "propagates.")
-		return _envelope_signal(beam, self._display_markers('x'), self.name or "microscope")
+		return _envelope_signal(beam, self._display_markers(), self.name or "microscope")
 
 	def wave_cross_section_signal(self, conjugates:bool=True):
 		"""The stored scaled-wave run as a |ψ(x, y=0, z)| cross-section Signal.
@@ -3735,16 +3808,18 @@ class Microscope(SealedAttributes, SEASerializable):
 		resampled onto one 600-sample x axis (metres) spanning the widest
 		plane. z is the **last** axis, the horizontal one, because that is how
 		the figure is oriented and the axis its markers are authored for. Named
-		elements, the hybrid run's crossovers and (with ``conjugates``) the
-		column's image planes travel as PLOT-8 ``Line`` annotations along
-		``z``.
+		elements, the hybrid run's crossovers and (with ``conjugates``) its
+		logged image planes travel as PLOT-8 ``Line`` annotations along
+		``z``. Every marker comes from the stored run: nothing is propagated
+		and the column is never copied.
 
 		Parameters
 		----------
 		conjugates : bool, optional
-			Also mark the **image** planes from :meth:`conjugate_planes`
-			(axis x), by default True. Costs one four-ray reference trace on a
-			copy; :meth:`show` passes its own ``conjugates`` through.
+			Also mark the **image** planes the hybrid run logged
+			(:attr:`image_planes` ``['x']``), by default True; a plain
+			``'scaled'`` run logs none. :meth:`show` passes its own
+			``conjugates`` through.
 
 		Returns
 		-------
@@ -3789,9 +3864,9 @@ class Microscope(SealedAttributes, SEASerializable):
 				   for k, v in self.named_positions.items() if k]
 		markers += [{"kind": "crossover", "label": "crossover", "z": float(zc)}
 					for zc in (self.crossovers or ())]
-		if conjugates:
+		if conjugates and self.image_planes:
 			markers += [{"kind": "image", "label": "image", "z": float(zi)}
-						for zi in self.conjugate_planes(axis='x')['image']]
+						for zi in self.image_planes.get('x', ())]
 		return make_wave_cross_section_signal(profile, z, x, markers,
 											  source=self.name or "microscope")
 
@@ -3890,10 +3965,9 @@ class Microscope(SealedAttributes, SEASerializable):
 			this object's own stored result is never touched (so ``regenerate``
 			does not apply to it).
 		conjugates : bool, optional
-			Scaled cross-section only: also annotate the **image** planes from
-			:meth:`conjugate_planes` (magenta dash-dot) alongside the wave
-			run's own crossovers (cyan dotted), by default True. Costs one
-			four-ray reference trace on a copy.
+			Scaled cross-section only: also annotate the **image** planes the
+			hybrid run logged (:attr:`image_planes`, magenta dash-dot)
+			alongside its own crossovers (cyan dotted), by default True.
 
 		Returns
 		-------

@@ -47,6 +47,28 @@ def _named_elements(positions):
 	return {k: v for k, v in positions.items() if k}
 
 
+def _stored_planes(scope, axis="x"):
+	"""Plane positions plot2D finds in a column's stored rays, per family.
+
+	Parameters
+	----------
+	scope : Microscope
+		A column with stored rays.
+	axis : str, optional
+		Axis to search, by default ``"x"``.
+
+	Returns
+	-------
+	dict
+		``{"diff": ndarray, "image": ndarray}`` in metres.
+	"""
+	from pySEA.rayTEM.postprocessing import findPlanes, zFromFractional
+	zs = np.asarray(scope.rays)[:, 0, columnByName("z")]
+	found = findPlanes(scope.rays, axis=axis)[axis]
+	return {family: np.array([zFromFractional(zs, min(f, len(zs) - 1 - 1e-9))
+							  for f in found[family]["z"]]) for family in ("diff", "image")}
+
+
 def _blocked_column():
 	"""The basic column with its condenser aperture closed to 2 µm, rays traced.
 
@@ -128,13 +150,17 @@ def test_ray_diagram_ghosts_rays_an_aperture_blocked():
 
 
 def test_ray_diagram_markers_match_sections_elements_and_planes():
-	"""One Span per section, one Line per named element and per conjugate plane."""
+	"""One Span per section, one Line per named element and per plane plot2D finds."""
 	scope = build_basic_column()
 	scope.propagate_ray()
 	sig = scope.ray_diagram_signal()
 	from pySEA.sea_eco.annotations import get_display_annotations
 	annotations = list(get_display_annotations(sig)[0])
-	planes = scope.conjugate_planes()
+	planes = _stored_planes(scope)
+	# this source launches findPlanes' reference pairs, so the stored-trace
+	# planes are the column entrance's conjugates
+	for family in ("diff", "image"):
+		assert np.allclose(planes[family], scope.conjugate_planes()[family], atol=1e-9)
 	elements = _named_elements(scope.named_positions)
 	assert [a.annotation_type for a in annotations].count("Span") == len(scope.named_sections)
 	assert len(annotations) == (len(scope.named_sections) + len(elements)
@@ -155,17 +181,6 @@ def test_ray_diagram_markers_match_sections_elements_and_planes():
 	assert np.isclose(lines[0].coordinates["y1"], np.nanmax(sig.data))
 	assert all(a.coordinate_reference == {"kind": "calibrated"} for a in annotations)
 	assert all(a.name.startswith("raytem.") for a in annotations)
-
-
-def test_conjugate_planes_carry_magnification_and_rotation():
-	"""conjugate_planes adds M/R aligned with each family: measured by 'ray', NaN by 'frame'."""
-	scope = build_basic_column()
-	ray = scope.conjugate_planes()
-	frame = scope.conjugate_planes(method="frame")
-	for family in ("diff", "image"):
-		assert len(ray[family + "_M"]) == len(ray[family]) == len(ray[family + "_R"])
-		assert np.isfinite(ray[family + "_M"]).all() and np.isfinite(ray[family + "_R"]).all()
-		assert np.isnan(frame[family + "_M"]).all() and len(frame[family + "_R"]) == len(frame[family])
 
 
 def test_section_ray_diagram_marks_its_own_span_and_elements():
@@ -251,18 +266,16 @@ def test_envelope_signal_rows_units_and_z():
 	assert sig.dimensions["quantity"].values[3] == "sigma_yt"
 
 
-def test_envelope_signal_carries_the_ray_diagram_markers():
-	"""Same section/element/x-plane markers as the ray diagram."""
+def test_envelope_signal_carries_the_ray_diagram_section_and_element_markers():
+	"""The ray diagram's section/element markers; no planes, even with rays stored."""
 	scope = build_basic_column()
 	scope.propagate_ray()
 	scope.propagate_moments()
 	envelope = read_display_signal(scope.envelope_signal())[2]
 	rays = read_display_signal(scope.ray_diagram_signal())[2]
-	assert envelope == rays
-	planes = scope.conjugate_planes()
+	assert envelope == [m for m in rays if m["kind"] in ("section", "element")]
 	assert _kinds(envelope) == {"section": len(scope.named_sections),
-								"element": len(_named_elements(scope.named_positions)),
-								"diff": len(planes["diff"]), "image": len(planes["image"])}
+								"element": len(_named_elements(scope.named_positions))}
 
 
 def test_section_envelope_signal_and_errors():
@@ -389,10 +402,12 @@ def test_show_draws_the_cross_section_unchanged(hybrid_column):
 	assert np.array_equal(coords[0, :, 0], z_edges) and np.array_equal(coords[:, 0, 1], x_edges)
 	# overlays: every named element, every crossover, every image plane -- in that order
 	elements = _named_elements(hybrid_column.named_positions)
-	images = hybrid_column.conjugate_planes(axis="x")["image"]
+	images = hybrid_column.image_planes["x"]
 	expected = ([z * 1e3 for z in elements.values()] + [z * 1e3 for z in hybrid_column.crossovers]
 				+ [z * 1e3 for z in images])
 	assert np.allclose(line_z, expected)
+	# the run's logged image planes are where the old figure put them (it traced them)
+	assert np.allclose(images, hybrid_column.conjugate_planes(axis="x")["image"], rtol=0, atol=1e-12)
 	assert texts == list(elements) + ["crossover"] * len(hybrid_column.crossovers) + ["image"] * len(images)
 
 
@@ -401,7 +416,7 @@ def test_wave_cross_section_markers(hybrid_column):
 	from pySEA.sea_eco.annotations import get_display_annotations
 	sig = hybrid_column.wave_cross_section_signal()
 	markers = read_display_signal(sig)[2]
-	images = hybrid_column.conjugate_planes(axis="x")["image"]
+	images = hybrid_column.image_planes["x"]
 	assert _kinds(markers) == {"element": len(_named_elements(hybrid_column.named_positions)),
 							   "crossover": len(hybrid_column.crossovers), "image": len(images)}
 	lines = list(get_display_annotations(sig)[0])
@@ -429,3 +444,30 @@ def test_wave_cross_section_requires_a_scaled_run_and_falls_back(hybrid_column, 
 		fallback_shown = _shown_cross_section(hybrid_column)
 	assert np.array_equal(fallback_shown[0], shown[0]) and np.array_equal(fallback_shown[1], shown[1])
 	assert fallback_shown[2:] == shown[2:]
+
+
+# --- never copy the column ----------------------------------------------------
+
+def test_display_signals_never_copy_the_column(hybrid_column, monkeypatch):
+	"""A column that refuses deepcopy -- as one bound to a live backend does -- still derives every view.
+
+	A hosted sea-pearl model holds its backend, whose transports (sockets,
+	locks) cannot be deep-copied; a display Signal must come from the stored
+	result alone, with no reference trace on a copy.
+	"""
+	import copy
+	import threading
+	scope = build_basic_column()
+	scope.propagate_ray()
+	scope.propagate_moments()
+	for column in (scope, hybrid_column):
+		monkeypatch.setattr(column, "_backend_lock", threading.Lock(), raising=False)
+		with pytest.raises(TypeError):
+			copy.deepcopy(column)
+	assert read_display_signal(scope.ray_diagram_signal())[2]
+	assert read_display_signal(scope.ray_diagram_signal(axis="y", frame="lab"))[2]
+	assert read_display_signal(scope.envelope_signal())[2]
+	assert read_display_signal(scope["O"].ray_diagram_signal())[2]
+	assert read_display_signal(scope["O"].envelope_signal())[2]
+	assert _kinds(read_display_signal(hybrid_column.wave_cross_section_signal())[2])["image"]
+	assert _shown_cross_section(hybrid_column)[0].shape[0] == 600		# show() too
