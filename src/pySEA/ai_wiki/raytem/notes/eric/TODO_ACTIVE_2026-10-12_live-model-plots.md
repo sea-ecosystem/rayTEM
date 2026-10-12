@@ -11,6 +11,6 @@
 
 - [x] `ray_diagram_signal` on Microscope and MicroscopeSection (rotating frame, aperture ghosting, Span/Line markers)
 - [x] `envelope_signal` from the covariance stack
-- [ ] `wave_cross_section_signal`; `show(kind="wave-scaled")` draws it (figure unchanged)
+- [x] `wave_cross_section_signal`; `show(kind="wave-scaled")` draws it (figure unchanged)
 - [ ] tests on the basic column
 - [ ] docs, wiki, refresh

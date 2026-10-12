@@ -1456,9 +1456,9 @@ def make_wave_cross_section_signal(profile, z, x, markers, name="wave cross-sect
 
 	Notes
 	-----
-	Line markers span the x axis, ``(x[0], x[-1])``. ``x`` is stored as
-	``offset = x[0]`` and a uniform scale, so ``-x[0]`` recovers the axis
-	half-width exactly.
+	Line markers span the x axis as stored, its first to last coordinate.
+	``x`` is stored as ``offset = x[0]`` and a uniform scale, so ``-x[0]``
+	recovers the axis half-width exactly.
 	"""
 	import numpy as _np
 	profile = _np.asarray(profile, dtype=float)
@@ -1474,8 +1474,9 @@ def make_wave_cross_section_signal(profile, z, x, markers, name="wave cross-sect
 	xscale = float(x[1] - x[0]) if len(x) > 1 else 1.0
 	xdim = _Dimension(name="x", space="position", scale=xscale, offset=float(x[0]),
 					  size=len(x), units="m")
+	stored = _np.asarray(xdim.values, dtype=float)		# the axis as a reader will see it
 	return _display_signal(profile, [xdim, _plane_z_dimension("z", z)], records, "z",
-						   (float(x[0]), float(x[-1])), name,
+						   (float(stored[0]), float(stored[-1])), name,
 						   {"name": "|psi| / peak", "units": ""}, metadata,
 						   signal_type="Image")
 

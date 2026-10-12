@@ -279,3 +279,153 @@ def test_section_envelope_signal_and_errors():
 	assert np.array_equal(axes[1][1], sec.mu[:, columnByName("z")])
 	assert _kinds(markers) == {"section": 1, "element": len(_named_elements(sec.named_positions))}
 	assert np.isclose(markers[0]["z0"], sec.position)
+
+
+# --- scaled-wave cross-section ------------------------------------------------
+
+@pytest.fixture(scope="module")
+def hybrid_column():
+	"""The basic column after one hybrid scaled-wave run (shared, read-only).
+
+	Returns
+	-------
+	Microscope
+		Column with ``_wave_scaled_planes`` and ``crossovers`` stored.
+	"""
+	scope = build_basic_column()
+	scope.propagate_wave(mode="hybrid")
+	return scope
+
+
+def _cross_section_before_refactor(planes):
+	"""The cross-section exactly as the pre-2026-10-12 ``_scaled_wave_cross_section`` drew it.
+
+	A frozen copy of the old computation, kept so the display Signal -- and
+	the figure ``show`` now draws from it -- can be checked against what the
+	figure used to plot, whatever the wave engine produces.
+
+	Parameters
+	----------
+	planes : Sequence
+		Per-plane scaled wavefields.
+
+	Returns
+	-------
+	tuple
+		``(z_edges_mm, x_edges_um, plotted)``: the pcolormesh arguments,
+		``plotted`` being the ``prof.T`` array it was given.
+	"""
+	from pySEA.rayTEM.seashells import read_scaled_wavefield
+	from pySEA.rayTEM.waveoptics import reconstruct_physical_wave
+	recon = []
+	for p in planes:
+		U, dxi, deta, lam, s, R, tau, z = read_scaled_wavefield(p)
+		psi, dx, dy = reconstruct_physical_wave(U, dxi, deta, lam, s, R)
+		recon.append((z if z is not None else 0.0, psi, dx))
+	recon.sort(key=lambda r: r[0])
+	zs = np.array([r[0] for r in recon])
+	z_edges = np.concatenate([[zs[0] - 1e-4], (zs[:-1] + zs[1:]) / 2, [zs[-1] + 1e-4]]) * 1e3
+	n = recon[0][1].shape[1]
+	half = max(abs(r[2]) * n / 2 for r in recon)
+	x_common = np.linspace(-half, half, 600)
+	prof = np.zeros((len(recon), x_common.size))
+	for i, (z, psi, dx) in enumerate(recon):
+		x = (np.arange(n) - n // 2) * dx
+		row = np.abs(psi[psi.shape[0] // 2, :])
+		prof[i] = np.interp(x_common, x, row / row.max(), left=0, right=0)
+	x_edges = np.linspace(-half, half, x_common.size + 1) * 1e6
+	return z_edges, x_edges, prof.T
+
+
+def _shown_cross_section(scope, **kwargs):
+	"""Run ``show(kind='wave-hybrid')`` headless and return what it drew.
+
+	Parameters
+	----------
+	scope : Microscope
+		Column to show (its stored run is reused).
+	**kwargs
+		Passed to :meth:`Microscope.show`.
+
+	Returns
+	-------
+	tuple
+		``(mesh_array, mesh_coordinates, line_z_mm, texts)``.
+	"""
+	import matplotlib
+	matplotlib.use("Agg")
+	import matplotlib.pyplot as plt
+	fig, ax = plt.subplots()
+	scope.show(kind="wave-hybrid", plt_ax=ax, regenerate=False, **kwargs)
+	mesh = ax.collections[0]
+	shown = (np.asarray(mesh.get_array()), np.asarray(mesh.get_coordinates()),
+			 [float(line.get_xdata()[0]) for line in ax.lines], [t.get_text() for t in ax.texts])
+	plt.close(fig)
+	return shown
+
+
+def test_wave_cross_section_signal_dims_units_and_values(hybrid_column):
+	"""[x, z], x uniform and symmetric in m, z ascending in m, values = the old figure's array."""
+	sig = hybrid_column.wave_cross_section_signal()
+	data, axes, markers, meta = read_display_signal(sig)
+	assert sig.dimensions.get_names() == ["x", "z"] and sig.signal_type == "Image"
+	assert [a[2] for a in axes] == ["m", "m"] and meta["kind"] == "wave-cross-section"
+	x, z = axes[0][1], axes[1][1]
+	assert data.shape == (600, len(hybrid_column._wave_scaled_planes)) == (x.size, z.size)
+	assert np.all(np.diff(z) >= 0) and np.isclose(x[0], -x[-1]) and np.allclose(np.diff(x), x[1] - x[0])
+	z_edges, x_edges, plotted = _cross_section_before_refactor(hybrid_column._wave_scaled_planes)
+	assert np.array_equal(data, plotted)
+	# normalized to each plane's peak BEFORE resampling, so nothing exceeds 1
+	# (a narrow focus undersampled by the common grid need not reach it)
+	assert data.min() >= 0 and data.max() <= 1 + 1e-12 and np.isclose(data.max(), 1.0, atol=1e-3)
+
+
+def test_show_draws_the_cross_section_unchanged(hybrid_column):
+	"""show() plots the Signal's array, on the same cell edges the old code used."""
+	array, coords, line_z, texts = _shown_cross_section(hybrid_column)
+	z_edges, x_edges, plotted = _cross_section_before_refactor(hybrid_column._wave_scaled_planes)
+	assert np.array_equal(array, plotted)
+	assert np.array_equal(array, hybrid_column.wave_cross_section_signal().data)
+	assert np.array_equal(coords[0, :, 0], z_edges) and np.array_equal(coords[:, 0, 1], x_edges)
+	# overlays: every named element, every crossover, every image plane -- in that order
+	elements = _named_elements(hybrid_column.named_positions)
+	images = hybrid_column.conjugate_planes(axis="x")["image"]
+	expected = ([z * 1e3 for z in elements.values()] + [z * 1e3 for z in hybrid_column.crossovers]
+				+ [z * 1e3 for z in images])
+	assert np.allclose(line_z, expected)
+	assert texts == list(elements) + ["crossover"] * len(hybrid_column.crossovers) + ["image"] * len(images)
+
+
+def test_wave_cross_section_markers(hybrid_column):
+	"""Element, crossover and image-plane Lines; conjugates=False drops the image planes."""
+	from pySEA.sea_eco.annotations import get_display_annotations
+	sig = hybrid_column.wave_cross_section_signal()
+	markers = read_display_signal(sig)[2]
+	images = hybrid_column.conjugate_planes(axis="x")["image"]
+	assert _kinds(markers) == {"element": len(_named_elements(hybrid_column.named_positions)),
+							   "crossover": len(hybrid_column.crossovers), "image": len(images)}
+	lines = list(get_display_annotations(sig)[0])
+	assert {a.annotation_type for a in lines} == {"Line"}
+	x = read_display_signal(sig)[1][0][1]
+	assert all((a.coordinates["y0"], a.coordinates["y1"]) == (x[0], x[-1]) for a in lines)
+	without = read_display_signal(hybrid_column.wave_cross_section_signal(conjugates=False))[2]
+	assert "image" not in _kinds(without) and len(without) == len(markers) - len(images)
+	assert len(_shown_cross_section(hybrid_column, conjugates=False)[2]) == len(without)
+
+
+def test_wave_cross_section_requires_a_scaled_run_and_falls_back(hybrid_column, monkeypatch):
+	"""No stored planes raises; without sea_eco the fallback draws the identical figure."""
+	with pytest.raises(RuntimeError, match="propagate_wave"):
+		build_basic_column().wave_cross_section_signal()
+	expected = read_display_signal(hybrid_column.wave_cross_section_signal())
+	shown = _shown_cross_section(hybrid_column)
+	monkeypatch.setattr(seashells, "sea_available", False)
+	with pytest.warns(UserWarning, match="sea_eco is not installed"):
+		fallback = hybrid_column.wave_cross_section_signal()
+	assert isinstance(fallback, seashells._DisplaySignal)
+	data, axes, markers, meta = read_display_signal(fallback)
+	assert np.array_equal(data, expected[0]) and markers == expected[2] and meta == expected[3]
+	with pytest.warns(UserWarning):
+		fallback_shown = _shown_cross_section(hybrid_column)
+	assert np.array_equal(fallback_shown[0], shown[0]) and np.array_equal(fallback_shown[1], shown[1])
+	assert fallback_shown[2:] == shown[2:]
