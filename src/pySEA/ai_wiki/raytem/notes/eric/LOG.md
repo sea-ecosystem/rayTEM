@@ -2,6 +2,15 @@
 
 Newest entries at top.
 
+## 2026-10-12 — [Under Construction] Display Signals for live model plots
+**Goal:** derived calibrated Signals for the ray diagram, beam envelope and scaled-wave cross-section, carrying section/element/plane markers as sea-eco annotations.
+**Why:** Eric, 2026-10-12: Poseidon's Control Window β will plot the live model; rayTEM draws these only in matplotlib, and the cross-section array is computed and thrown away. TODO: [TODO_ACTIVE_2026-10-12_live-model-plots.md](TODO_ACTIVE_2026-10-12_live-model-plots.md)
+- [ ] `ray_diagram_signal` on Microscope and MicroscopeSection (rotating frame, aperture ghosting, Span/Line markers)
+- [ ] `envelope_signal` from the covariance stack
+- [ ] `wave_cross_section_signal`; `show(kind="wave-scaled")` draws it (figure unchanged)
+- [ ] tests on the basic column
+- [ ] docs, wiki, refresh
+
 ## 2026-10-12 — [Done] Saved microscopes use sea-eco's identity model
 **Goal:** a rayTEM column carries a sea-eco `Provenance` (`Self` `TWN01`) instead of a SEA ID string.
 **Why:** they store the twin id as a plain string and the instrument as a second attribute; Eric: they change to the new version (Provenance = Self + Relations).
