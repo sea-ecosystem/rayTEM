@@ -1,7 +1,13 @@
-# TESTS for the derived display Signals: ray diagram, beam envelope and the
-# scaled-wave cross-section, each a calibrated sea-eco Signal carrying its
-# section/element/plane markers as PLOT-8 annotations.
-# See notes/eric/TODO_ACTIVE_2026-10-12_live-model-plots.md.
+"""Tests for the derived display Signals: ray diagram, beam envelope, wave cross-section.
+
+Each view is a calibrated sea-eco Signal built from a stored propagation
+result on ``basic_column``, carrying its section, element and plane markers as
+PLOT-8 annotations. The tests pin dimensions and units, aperture ghosting,
+marker counts against the column's own description, the section-level views,
+``.sea`` round trips, the no-sea-eco fallback, that no view ever copies the
+column, and that ``show`` still draws the cross-section the old code drew.
+See ``notes/eric/TODO_ACTIVE_2026-10-12_live-model-plots.md``.
+"""
 
 import numpy as np
 import pytest

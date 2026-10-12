@@ -1412,7 +1412,7 @@ def make_envelope_signal(widths, z, quantities, units, markers, name="beam envel
 
 def make_wave_cross_section_signal(profile, z, x, markers, name="wave cross-section",
 								   source=""):
-	"""Wrap a scaled-wave |ψ(x, 0, z)| cross-section as a sea_eco image Signal.
+	"""Wrap a scaled-wave ``|ψ(x, 0, z)|`` cross-section as a sea_eco image Signal.
 
 	The wave analog of the ray diagram: shape ``[x, z]`` -- z is the
 	**last** (horizontal) axis, the orientation the figure has always been

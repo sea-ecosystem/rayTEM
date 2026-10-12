@@ -315,7 +315,7 @@ def _envelope_signal(beam, markers:list, source:str):
 
 
 def _wave_cross_section_arrays(planes) -> tuple:
-	"""Compute the |ψ(x, y=0, z)| cross-section of a scaled-wave run.
+	"""Compute the ``|ψ(x, y=0, z)|`` cross-section of a scaled-wave run.
 
 	The wave analog of the geometric ray diagram: each logged plane is
 	reconstructed to physical coordinates on its native grid (``Δx = |s|·Δξ``,
@@ -3796,7 +3796,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		return _envelope_signal(beam, self._display_markers(), self.name or "microscope")
 
 	def wave_cross_section_signal(self, conjugates:bool=True):
-		"""The stored scaled-wave run as a |ψ(x, y=0, z)| cross-section Signal.
+		"""The stored scaled-wave run as a ``|ψ(x, y=0, z)|`` cross-section Signal.
 
 		The data :meth:`show` draws for ``kind='wave-scaled'``/``'wave-hybrid'``
 		with no ``plane`` -- it draws from this Signal -- so a renderer that is

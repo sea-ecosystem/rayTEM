@@ -13,4 +13,4 @@
 - [x] `envelope_signal` from the covariance stack
 - [x] `wave_cross_section_signal`; `show(kind="wave-scaled")` draws it (figure unchanged)
 - [x] tests on the basic column
-- [ ] docs, wiki, refresh
+- [x] docs, wiki, refresh

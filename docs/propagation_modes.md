@@ -112,3 +112,30 @@ the exact reference), `method='ray'` (traced), the hybrid wave's own
 crossovers, and the covariance waists. `examples/07_eightConfigurations.py`
 prints that cross-check as a table with deltas, and the test suite holds it
 to numerical precision.
+
+## Plotting a result somewhere other than matplotlib
+
+`show()` draws with matplotlib. To hand a result to another viewer, ask the
+column for a **display Signal**: a calibrated sea-eco `Signal` holding the
+same data the figure draws, with its section, element and plane markers
+attached as annotations, so they are saved with it.
+
+| call | needs first | shape | markers |
+|---|---|---|---|
+| `ray_diagram_signal(axis="x", frame="rotating")` | `propagate_ray()` | `[ray, plane_z]` | sections, elements, diffraction/image planes |
+| `envelope_signal()` | `propagate_moments()` | `[quantity, z]` | sections, elements |
+| `wave_cross_section_signal()` | `propagate_wave(mode="hybrid")` | `[x, z]` | elements, crossovers, image planes |
+
+```python
+scope = build_basic_column()
+scope.propagate_ray()
+diagram = scope.ray_diagram_signal()      # every ray's x (m) at every plane
+diagram.to_sea("ray_diagram.sea")         # markers are saved with it
+scope["O"].ray_diagram_signal()           # one section's share
+```
+
+These are views of the result already on the column. They never propagate:
+asking before the matching `propagate_*` call raises a `RuntimeError` that
+names the call to make. A ray an aperture blocked is NaN from that plane on.
+The ray diagram and envelope methods also exist on a `MicroscopeSection`,
+which marks its own span and elements but no conjugate planes.
