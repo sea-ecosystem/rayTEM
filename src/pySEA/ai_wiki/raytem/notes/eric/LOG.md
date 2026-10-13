@@ -2,13 +2,14 @@
 
 Newest entries at top.
 
-## 2026-10-13 — [Under Construction] Normalised scaled axes and overlays on the wave stacks
+## 2026-10-13 — [Done] Normalised scaled axes and overlays on the wave stacks
 **Goal:** Store ξ, η in a.u. (−1…1 over the source grid) with s(z) in metres, and give `.wave` and U the column's z marks as overlays.
 **Why:** Eric, 2026-10-13: the scaled unit is normalised, not a distance; and a β wave plot should be the Signal's own `.show()`, marks included.
 - [x] `make_scaled_wave_signalset`
 - [x] `.wave` and U carry section/element (and crossover/image) marks bound to their z axis
 - [x] tests, docs, wiki
-TODO: [TODO_ACTIVE_2026-10-13_overlays-and-axis-frames.md](TODO_ACTIVE_2026-10-13_overlays-and-axis-frames.md)
+TODO: [TODO_DONE_2026-10-13_overlays-and-axis-frames.md](TODO_DONE_2026-10-13_overlays-and-axis-frames.md)
+**Outcome:** `e04537b`. U's `xi`/`eta` are a.u. (−1…1 over the source grid, scale Δξ/L) and the `s` companion is s·L in metres, with `reference_half_width_m = L` on U; `scaled_wave_physical_plane` reads legacy files with L = 1, and the engine's in-flight state is unchanged. `.wave` and U carry the column's marks as overlays bound to `z`/`plane_z` (sea-eco PLOT-8), as the ray diagram and envelope already did; on the basic column the ray diagram has 62 such marks. 234 tests pass. **Cross-repo note:** anything that reads U's axes as metres must now multiply by s; Poseidon's worker adapter expects a.u. (Poseidon `7de7536e`).
 
 ## 2026-10-13 — [Done] The physical plane of a stored scaled wave
 **Goal:** `seashells.scaled_wave_physical_plane` returns ψ on one plane's native physical grid from a stored scaled-wave SignalSet.
