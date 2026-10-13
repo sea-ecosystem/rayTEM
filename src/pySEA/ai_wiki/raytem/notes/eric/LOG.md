@@ -2,6 +2,14 @@
 
 Newest entries at top.
 
+## 2026-10-13 — [Under Construction] The physical plane of a stored scaled wave
+**Goal:** `seashells.scaled_wave_physical_plane` returns ψ on one plane's native physical grid from a stored scaled-wave SignalSet.
+**Why:** Eric, 2026-10-13: Poseidon's scaled-wave plot should offer true physical axes that redraw with z; only rayTEM knows the frame, and `wavefield_at` needs a live model.
+- [ ] `scaled_wave_physical_plane`
+- [ ] tests
+- [ ] wiki, docs
+TODO: [TODO_ACTIVE_2026-10-13_scaled-wave-axis-frames.md](TODO_ACTIVE_2026-10-13_scaled-wave-axis-frames.md)
+
 ## 2026-10-12 — [Done] Display Signals for live model plots
 **Goal:** derived calibrated Signals for the ray diagram, beam envelope and scaled-wave cross-section, carrying section/element/plane markers as sea-eco annotations.
 **Why:** Eric, 2026-10-12: Poseidon's Control Window β will plot the live model; rayTEM draws these only in matplotlib, and the cross-section array is computed and thrown away. TODO: [TODO_DONE_2026-10-12_live-model-plots.md](TODO_DONE_2026-10-12_live-model-plots.md)
