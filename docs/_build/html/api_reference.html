@@ -387,6 +387,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.safeReinstantiate"><code class="docutils literal notranslate"><span class="pre">safeReinstantiate()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.scaled_frame_crossover"><code class="docutils literal notranslate"><span class="pre">scaled_frame_crossover()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.scaled_frame_tag"><code class="docutils literal notranslate"><span class="pre">scaled_frame_tag()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.seashells.scaled_wave_physical_plane"><code class="docutils literal notranslate"><span class="pre">scaled_wave_physical_plane()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -8138,6 +8139,73 @@ planes carry none. Works for both a real sea_eco <code class="docutils literal n
 <dt><a class="reference internal" href="#pySEA.rayTEM.seashells.make_scaled_wavefield_signal" title="pySEA.rayTEM.seashells.make_scaled_wavefield_signal"><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_scaled_wavefield_signal</span></code></a></dt><dd><p>Stores the tag.</p>
 </dd>
 </dl>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pySEA.rayTEM.seashells.scaled_wave_physical_plane">
+<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.seashells.</span></span><span class="sig-name descname"><span class="pre">scaled_wave_physical_plane</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scaled_wave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plane</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/seashells.html#scaled_wave_physical_plane"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.seashells.scaled_wave_physical_plane" title="Link to this definition"></a></dt>
+<dd><p>Reconstruct the physical wavefield of one plane of a stored scaled wave.</p>
+<p>The scaled-Fresnel result keeps one ξ/η grid for the whole run; the
+physical frame of plane <code class="docutils literal notranslate"><span class="pre">i</span></code> is <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=</span> <span class="pre">s_i·ξ</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span> <span class="pre">=</span> <span class="pre">s_i·η</span></code> (per-axis
+<code class="docutils literal notranslate"><span class="pre">s_x</span></code>/<code class="docutils literal notranslate"><span class="pre">s_y</span></code> when anisotropic) and the physical field is</p>
+<div class="math notranslate nohighlight">
+\[\psi(x,y) = \frac{1}{s}\,U\!\left(\frac{x}{s}, \frac{y}{s}\right)
+\exp\!\left[\frac{ik\,(x^2+y^2)}{2R}\right]\]</div>
+<p>(handoff Eq 37), on the plane’s native grid <code class="docutils literal notranslate"><span class="pre">Δx</span> <span class="pre">=</span> <span class="pre">|s|·Δξ</span></code> (Eq 41). This
+is what <code class="xref py py-meth docutils literal notranslate"><span class="pre">assemblies.Microscope.wavefield_at()</span></code> returns from a live
+model; this function needs only the stored result, so a viewer holding an
+exported <code class="docutils literal notranslate"><span class="pre">.sea</span></code> file draws the same physical plane. Each plane has its
+own pixel size, so a sequence of planes is a sequence of Signals, never
+one stack.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>scaled_wave</strong> (<em>SignalSet</em>) – A scaled-wave SignalSet as <a class="reference internal" href="#pySEA.rayTEM.seashells.make_scaled_wave_signalset" title="pySEA.rayTEM.seashells.make_scaled_wave_signalset"><code class="xref py py-func docutils literal notranslate"><span class="pre">make_scaled_wave_signalset()</span></code></a> builds it
+(the reduced field <code class="docutils literal notranslate"><span class="pre">U</span></code> plus <code class="docutils literal notranslate"><span class="pre">s</span></code>/<code class="docutils literal notranslate"><span class="pre">R</span></code> companions, or their per-axis
+<code class="docutils literal notranslate"><span class="pre">_x</span></code>/<code class="docutils literal notranslate"><span class="pre">_y</span></code> pairs), read back from <code class="docutils literal notranslate"><span class="pre">.sea</span></code> or held in memory.</p></li>
+<li><p><strong>plane</strong> (<em>int</em>) – Index of the logged plane along <code class="docutils literal notranslate"><span class="pre">plane_z</span></code>.</p></li>
+<li><p><strong>name</strong> (<em>str</em><em>, </em><em>optional</em>) – Name of the returned Signal; by default <code class="docutils literal notranslate"><span class="pre">&quot;&lt;set</span> <span class="pre">name&gt;</span> <span class="pre">wavefield</span> <span class="pre">at</span>
+<span class="pre">z=&lt;z&gt;&quot;</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The complex physical wavefield <code class="docutils literal notranslate"><span class="pre">(y,</span> <span class="pre">x)</span></code> of that plane, calibrated in
+metres, with <code class="docutils literal notranslate"><span class="pre">wavelength_m</span></code> and the plane’s <code class="docutils literal notranslate"><span class="pre">z</span></code> in its metadata (see
+<a class="reference internal" href="#pySEA.rayTEM.seashells.make_wavefield_signal" title="pySEA.rayTEM.seashells.make_wavefield_signal"><code class="xref py py-func docutils literal notranslate"><span class="pre">make_wavefield_signal()</span></code></a>). The longitudinal carrier <code class="docutils literal notranslate"><span class="pre">e^{ikz}</span></code> is
+not applied.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Signal</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>ValueError</strong> – If <code class="docutils literal notranslate"><span class="pre">scaled_wave</span></code> is not a scaled-wave SignalSet (no <code class="docutils literal notranslate"><span class="pre">U</span></code> member with
+    <code class="docutils literal notranslate"><span class="pre">plane_z</span></code>/<code class="docutils literal notranslate"><span class="pre">eta</span></code>/<code class="docutils literal notranslate"><span class="pre">xi</span></code> axes and its <code class="docutils literal notranslate"><span class="pre">s</span></code> and <code class="docutils literal notranslate"><span class="pre">R</span></code> companions), or
+    if a companion’s length differs from the number of planes.</p></li>
+<li><p><strong>IndexError</strong> – If <code class="docutils literal notranslate"><span class="pre">plane</span></code> is outside the stored planes.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pySEA.rayTEM.seashells.make_scaled_wave_signalset" title="pySEA.rayTEM.seashells.make_scaled_wave_signalset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_scaled_wave_signalset</span></code></a></dt><dd><p>Builds the SignalSet this reads.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">waveoptics.reconstruct_physical_wave</span></code></dt><dd><p>The Eq 37/41 core.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">assemblies.Microscope.wavefield_at</span></code></dt><dd><p>The same reconstruction on a live model.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">stack</span> <span class="o">=</span> <span class="n">make_scaled_wave_signalset</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="nb">complex</span><span class="p">),</span> <span class="mf">1e-9</span><span class="p">,</span> <span class="mf">1e-9</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="mf">2.5e-12</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="n">R</span><span class="o">=</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">],</span> <span class="n">tau</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">z</span><span class="o">=</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">psi</span> <span class="o">=</span> <span class="n">scaled_wave_physical_plane</span><span class="p">(</span><span class="n">stack</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">float</span><span class="p">(</span><span class="n">psi</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">scale</span><span class="p">),</span> <span class="nb">complex</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">psi</span><span class="o">.</span><span class="n">data</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+<span class="go">(5e-10, (2+0j))</span>
+</pre></div>
 </div>
 </dd></dl>
 

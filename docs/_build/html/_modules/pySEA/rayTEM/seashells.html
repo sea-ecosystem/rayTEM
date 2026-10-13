@@ -1106,6 +1106,110 @@
 
 
 
+
+<div class="viewcode-block" id="scaled_wave_physical_plane">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.scaled_wave_physical_plane">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">scaled_wave_physical_plane</span><span class="p">(</span><span class="n">scaled_wave</span><span class="p">,</span> <span class="n">plane</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""Reconstruct the physical wavefield of one plane of a stored scaled wave.</span>
+
+<span class="sd">	The scaled-Fresnel result keeps one ξ/η grid for the whole run; the</span>
+<span class="sd">	physical frame of plane ``i`` is ``x = s_i·ξ``, ``y = s_i·η`` (per-axis</span>
+<span class="sd">	``s_x``/``s_y`` when anisotropic) and the physical field is</span>
+
+<span class="sd">	.. math::</span>
+
+<span class="sd">		\psi(x,y) = \frac{1}{s}\,U\!\left(\frac{x}{s}, \frac{y}{s}\right)</span>
+<span class="sd">		\exp\!\left[\frac{ik\,(x^2+y^2)}{2R}\right]</span>
+
+<span class="sd">	(handoff Eq 37), on the plane's native grid ``Δx = |s|·Δξ`` (Eq 41). This</span>
+<span class="sd">	is what :meth:`assemblies.Microscope.wavefield_at` returns from a live</span>
+<span class="sd">	model; this function needs only the stored result, so a viewer holding an</span>
+<span class="sd">	exported ``.sea`` file draws the same physical plane. Each plane has its</span>
+<span class="sd">	own pixel size, so a sequence of planes is a sequence of Signals, never</span>
+<span class="sd">	one stack.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	scaled_wave : SignalSet</span>
+<span class="sd">		A scaled-wave SignalSet as :func:`make_scaled_wave_signalset` builds it</span>
+<span class="sd">		(the reduced field ``U`` plus ``s``/``R`` companions, or their per-axis</span>
+<span class="sd">		``_x``/``_y`` pairs), read back from ``.sea`` or held in memory.</span>
+<span class="sd">	plane : int</span>
+<span class="sd">		Index of the logged plane along ``plane_z``.</span>
+<span class="sd">	name : str, optional</span>
+<span class="sd">		Name of the returned Signal; by default ``"&lt;set name&gt; wavefield at</span>
+<span class="sd">		z=&lt;z&gt;"``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	Signal</span>
+<span class="sd">		The complex physical wavefield ``(y, x)`` of that plane, calibrated in</span>
+<span class="sd">		metres, with ``wavelength_m`` and the plane's ``z`` in its metadata (see</span>
+<span class="sd">		:func:`make_wavefield_signal`). The longitudinal carrier ``e^{ikz}`` is</span>
+<span class="sd">		not applied.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	ValueError</span>
+<span class="sd">		If ``scaled_wave`` is not a scaled-wave SignalSet (no ``U`` member with</span>
+<span class="sd">		``plane_z``/``eta``/``xi`` axes and its ``s`` and ``R`` companions), or</span>
+<span class="sd">		if a companion's length differs from the number of planes.</span>
+<span class="sd">	IndexError</span>
+<span class="sd">		If ``plane`` is outside the stored planes.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	make_scaled_wave_signalset : Builds the SignalSet this reads.</span>
+<span class="sd">	waveoptics.reconstruct_physical_wave : The Eq 37/41 core.</span>
+<span class="sd">	assemblies.Microscope.wavefield_at : The same reconstruction on a live model.</span>
+
+<span class="sd">	Examples</span>
+<span class="sd">	--------</span>
+<span class="sd">	&gt;&gt;&gt; import numpy as np</span>
+<span class="sd">	&gt;&gt;&gt; stack = make_scaled_wave_signalset(np.ones((2, 4, 4), complex), 1e-9, 1e-9,</span>
+<span class="sd">	...     2.5e-12, s=[1.0, 0.5], R=[np.inf, np.inf], tau=[0, 0], z=[0.0, 0.1])</span>
+<span class="sd">	&gt;&gt;&gt; psi = scaled_wave_physical_plane(stack, 1)</span>
+<span class="sd">	&gt;&gt;&gt; float(psi.dimensions[1].scale), complex(np.asarray(psi.data)[0, 0])</span>
+<span class="sd">	(5e-10, (2+0j))</span>
+<span class="sd">	"""</span>
+	<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_np</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">.waveoptics</span><span class="w"> </span><span class="kn">import</span> <span class="n">reconstruct_physical_wave</span>
+	<span class="n">members</span> <span class="o">=</span> <span class="p">{</span><span class="nb">getattr</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="s2">"name"</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span> <span class="n">member</span> <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="p">(</span><span class="n">scaled_wave</span> <span class="ow">or</span> <span class="p">[])}</span>
+	<span class="n">U_sig</span> <span class="o">=</span> <span class="n">members</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"U"</span><span class="p">)</span>
+	<span class="n">axes</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">U_sig</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="s2">"name"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">U_sig</span><span class="o">.</span><span class="n">dimensions</span><span class="p">]</span>
+	<span class="k">if</span> <span class="n">U_sig</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">axes</span> <span class="o">!=</span> <span class="p">[</span><span class="s2">"plane_z"</span><span class="p">,</span> <span class="s2">"eta"</span><span class="p">,</span> <span class="s2">"xi"</span><span class="p">]:</span>
+		<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Not a scaled-wave SignalSet: it has no U member on (plane_z, eta, xi) axes."</span><span class="p">)</span>
+	<span class="n">n_planes</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">U_sig</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="o">-</span><span class="n">n_planes</span> <span class="o">&lt;=</span> <span class="nb">int</span><span class="p">(</span><span class="n">plane</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">n_planes</span><span class="p">:</span>
+		<span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Plane </span><span class="si">{</span><span class="n">plane</span><span class="si">}</span><span class="s2"> is outside the </span><span class="si">{</span><span class="n">n_planes</span><span class="si">}</span><span class="s2"> stored planes."</span><span class="p">)</span>
+	<span class="n">plane</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">plane</span><span class="p">)</span> <span class="o">%</span> <span class="n">n_planes</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_companion</span><span class="p">(</span><span class="n">label</span><span class="p">):</span>
+		<span class="c1"># one isotropic companion, or the per-axis pair that replaces it</span>
+		<span class="k">if</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">members</span><span class="p">:</span>
+			<span class="n">values</span> <span class="o">=</span> <span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">members</span><span class="p">[</span><span class="n">label</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),)</span> <span class="o">*</span> <span class="mi">2</span>
+		<span class="k">elif</span> <span class="n">label</span> <span class="o">+</span> <span class="s2">"_x"</span> <span class="ow">in</span> <span class="n">members</span> <span class="ow">and</span> <span class="n">label</span> <span class="o">+</span> <span class="s2">"_y"</span> <span class="ow">in</span> <span class="n">members</span><span class="p">:</span>
+			<span class="n">values</span> <span class="o">=</span> <span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">members</span><span class="p">[</span><span class="n">label</span> <span class="o">+</span> <span class="s2">"_x"</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),</span>
+					  <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">members</span><span class="p">[</span><span class="n">label</span> <span class="o">+</span> <span class="s2">"_y"</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Not a scaled-wave SignalSet: it has no </span><span class="si">{</span><span class="n">label</span><span class="si">!r}</span><span class="s2"> companion."</span><span class="p">)</span>
+		<span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="n">n_planes</span><span class="p">,)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">values</span><span class="p">):</span>
+			<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"The </span><span class="si">{</span><span class="n">label</span><span class="si">!r}</span><span class="s2"> companion does not have one value per plane."</span><span class="p">)</span>
+		<span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">plane</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">plane</span><span class="p">])</span>
+		<span class="k">return</span> <span class="n">x</span> <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="n">y</span> <span class="k">else</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+	<span class="n">s</span><span class="p">,</span> <span class="n">R</span> <span class="o">=</span> <span class="n">_companion</span><span class="p">(</span><span class="s2">"s"</span><span class="p">),</span> <span class="n">_companion</span><span class="p">(</span><span class="s2">"R"</span><span class="p">)</span>
+	<span class="n">meta</span> <span class="o">=</span> <span class="n">U_sig</span><span class="o">.</span><span class="n">metadata</span>
+	<span class="n">wavelength</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">meta</span><span class="p">[</span><span class="s2">"wavelength_m"</span><span class="p">])</span>
+	<span class="n">dxi</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"dxi_m"</span><span class="p">,</span> <span class="n">U_sig</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">scale</span><span class="p">))</span>
+	<span class="n">deta</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"deta_m"</span><span class="p">,</span> <span class="n">U_sig</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">scale</span><span class="p">))</span>
+	<span class="n">z</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">U_sig</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)[</span><span class="n">plane</span><span class="p">])</span>
+	<span class="n">U</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">U_sig</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">plane</span><span class="p">])</span>
+	<span class="n">psi</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span> <span class="o">=</span> <span class="n">reconstruct_physical_wave</span><span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">deta</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">)</span>
+	<span class="n">label</span> <span class="o">=</span> <span class="n">name</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">getattr</span><span class="p">(</span><span class="n">scaled_wave</span><span class="p">,</span><span class="w"> </span><span class="s1">'name'</span><span class="p">,</span><span class="w"> </span><span class="kc">None</span><span class="p">)</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">'scaled wave'</span><span class="si">}</span><span class="s2"> wavefield at z=</span><span class="si">{</span><span class="n">z</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2">"</span>
+	<span class="k">return</span> <span class="n">make_wavefield_signal</span><span class="p">(</span><span class="n">psi</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">label</span><span class="p">)</span></div>
+
+
 <span class="c1"># --- DISPLAY SIGNALS ---------------------------------------------------------</span>
 <span class="c1"># Views of a stored propagation result (ray diagram, beam envelope, scaled-wave</span>
 <span class="c1"># cross-section), built here so the only sea_eco imports stay in this module.</span>
