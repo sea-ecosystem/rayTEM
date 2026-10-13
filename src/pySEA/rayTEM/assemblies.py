@@ -23,7 +23,7 @@ MICROSCOPE_CLSID = "TWN01"
 from copy import deepcopy
 
 
-def _stack_wavefields(planes, name="wavefield"):
+def _stack_wavefields(planes, name="wavefield", markers=None):
 	"""Stack a list of 2D wavefield Signals into one calibrated 3D wavefield Signal.
 
 	Reads each per-plane wavefield and assembles a single ``(n_planes, ny, nx)``
@@ -37,6 +37,9 @@ def _stack_wavefields(planes, name="wavefield"):
 		the same transverse grid.
 	name : str, optional
 		Name for the stacked Signal, by default ``"wavefield"``.
+	markers : Sequence[Mapping] or None, optional
+		The column's section spans and element lines, stored on the stack as
+		overlays bound to ``z`` (see :func:`seashells.make_wavefield_signal`).
 
 	Returns
 	-------
@@ -53,10 +56,11 @@ def _stack_wavefields(planes, name="wavefield"):
 		d, dx, dy, wavelength, z = read_wavefield(p)
 		datas.append(d) ; zs.append(z if z is not None else 0.0)
 	stacked = xp.asarray(datas)
-	return make_wavefield_signal(stacked, dx, dy, wavelength, z=xp.asarray(zs), name=name)
+	return make_wavefield_signal(stacked, dx, dy, wavelength, z=xp.asarray(zs), name=name,
+								 markers=markers)
 
 
-def _stack_scaled_wavefields(planes, name="scaled wave"):
+def _stack_scaled_wavefields(planes, name="scaled wave", markers=None):
 	"""Stack per-plane scaled wavefields into one ``SignalSet`` with frame companions.
 
 	Reads each scaled plane (reduced field U plus its ``s``/``R``/``τ``/``z``
@@ -72,6 +76,8 @@ def _stack_scaled_wavefields(planes, name="scaled wave"):
 		fallbacks), all on the same ξ/η grid.
 	name : str, optional
 		Name for the SignalSet, by default ``"scaled wave"``.
+	markers : Sequence[Mapping] or None, optional
+		The column's markers, stored on U as overlays bound to ``plane_z``.
 
 	Returns
 	-------
@@ -91,7 +97,8 @@ def _stack_scaled_wavefields(planes, name="scaled wave"):
 		zs.append(z if z is not None else 0.0)
 		tags.append(scaled_frame_tag(p))
 	return make_scaled_wave_signalset(xp.asarray(datas), dxi, deta, wavelength,
-									  s=ss, R=Rs, tau=taus, z=zs, tags=tags, name=name)
+									  s=ss, R=Rs, tau=taus, z=zs, tags=tags, name=name,
+									  markers=markers)
 
 
 def _as_rays(rays:Rays|ArrayLike, I:ArrayLike|None, R:ArrayLike|None) -> Rays:
@@ -1144,12 +1151,18 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 				fi.append(f)
 			else:
 				fi[-1]=f
+		# The stacks carry this section's span and elements as overlays bound
+		# to their plane axis, placed in the result's z frame (its first plane).
+		from .seashells import read_scaled_wavefield, read_wavefield
 		if mode == 'fixed':
 			self._wave_planes = fi
-			self.wave = _stack_wavefields(fi, name=(self.name or 'section') + ' wave')
+			self.wave = _stack_wavefields(fi, name=(self.name or 'section') + ' wave',
+										  markers=self._display_markers(read_wavefield(fi[0])[4] or 0.0))
 			return self.wave
 		self._wave_scaled_planes = fi
-		self.wave_scaled = _stack_scaled_wavefields(fi, name=(self.name or 'section') + ' scaled wave')
+		self.wave_scaled = _stack_scaled_wavefields(
+			fi, name=(self.name or 'section') + ' scaled wave',
+			markers=self._display_markers(read_scaled_wavefield(fi[0])[7] or 0.0))
 		return self.wave_scaled
 
 	@property
@@ -3350,7 +3363,8 @@ class Microscope(SealedAttributes, SEASerializable):
 			planes.extend(sec_planes)
 			f = sec_planes[-1]
 		if mode == 'fixed':
-			self.wave = _stack_wavefields(planes, name=(self.name or 'microscope') + ' wave')
+			self.wave = _stack_wavefields(planes, name=(self.name or 'microscope') + ' wave',
+										  markers=self._display_markers())
 			return self.wave
 		self._wave_scaled_planes = planes
 		if mode == 'hybrid':
@@ -3358,7 +3372,16 @@ class Microscope(SealedAttributes, SEASerializable):
 			self.crossovers = [read_scaled_wavefield(p)[7] for p in planes
 							   if (_scaled_plane_tag(p) or "").startswith("crossover")]
 			self._log_conjugate_planes()
-		self.wave_scaled = _stack_scaled_wavefields(planes, name=(self.name or 'microscope') + ' scaled wave')
+		# The scaled stack carries the column's markers plus what this run
+		# found: its crossovers and, for a hybrid run, the image planes it logged.
+		markers = self._display_markers()
+		markers += [{"kind": "crossover", "label": "crossover", "z": float(zc)}
+					for zc in (self.crossovers or ()) if mode == 'hybrid']
+		if mode == 'hybrid' and self.image_planes:
+			markers += [{"kind": "image", "label": "image", "z": float(zi)}
+						for zi in self.image_planes.get('x', ())]
+		self.wave_scaled = _stack_scaled_wavefields(planes, name=(self.name or 'microscope') + ' scaled wave',
+													markers=markers)
 		return self.wave_scaled
 
 	def _log_conjugate_planes(self):

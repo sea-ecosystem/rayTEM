@@ -370,7 +370,13 @@ def test_scaled_wavefield_signal_roundtrip():
 	if sset is not None:
 		assert sset.get_dataset_names() == ["U", "s", "R", "tau"]
 		assert sset["U"].data.shape == (3, 32, 32)
-		assert np.allclose(sset["s"].data, [1.0, 0.5, 0.25])
+		# ξ, η are normalised by L = nξ·Δξ/2 and s carries the metres (s·L).
+		L = 32 * 2e-9 / 2
+		assert sset["U"].metadata["reference_half_width_m"] == L
+		assert [d.units for d in list(sset["U"].dimensions)[1:]] == ["a.u.", "a.u."]
+		assert np.isclose(sset["U"].dimensions[2].scale, 2e-9 / L)
+		assert np.allclose(sset["s"].data, np.asarray([1.0, 0.5, 0.25]) * L)
+		assert sset["s"].signal_quantities[0].units == "m"
 		assert all(sset[nm].dimensions[0].size == 3 for nm in ("U", "s", "R", "tau"))
 
 
@@ -411,7 +417,8 @@ def test_column_integration_scaled():
 		assert out.get_dataset_names() == ["U", "s", "R", "tau", "frame"]
 		n_planes = out["U"].data.shape[0]
 		assert all(out[nm].dimensions[0].size == n_planes for nm in ("U", "s", "R", "tau", "frame"))
-		assert np.isclose(out["s"].data[-1], s_end) and np.isclose(out["tau"].data[-1], tau_end)
+		L = out["U"].metadata["reference_half_width_m"]
+		assert np.isclose(out["s"].data[-1], s_end * L) and np.isclose(out["tau"].data[-1], tau_end)
 
 	# dispatcher routes kind="wave-scaled" (element, section, and microscope)
 	sec2 = MicroscopeSection(elements=_scaled_column())
