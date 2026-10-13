@@ -16,4 +16,4 @@ calibrated frame whose axes redraw with z. Only rayTEM knows the frame, and
 
 - [x] `scaled_wave_physical_plane` in `seashells.py`, reusing `reconstruct_physical_wave` and `make_wavefield_signal`
 - [x] tests: it matches `Microscope.wavefield_at`, isotropic and anisotropic companions, and refuses what is not a scaled wave
-- [ ] wiki and docs
+- [x] wiki and docs

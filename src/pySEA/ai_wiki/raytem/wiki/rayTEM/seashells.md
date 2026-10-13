@@ -11,8 +11,8 @@
 | SEASerializable (sea_eco absent) | 92 |
 | Module-level functions | 98 |
 |   Signal factories and readers (the wave/rays/covariance seam) | 100 |
-|   Display-Signal factories (derived views with PLOT-8 markers) | 136 |
-|   `safeReinstantiate(source, cls)` | 181 |
+|   Display-Signal factories (derived views with PLOT-8 markers) | 145 |
+|   `safeReinstantiate(source, cls)` | 190 |
 <!-- END AUTO-GENERATED TOC -->
 
 # seashells.py
@@ -123,6 +123,15 @@ warning) when sea_eco is absent:
   `tags` given, a `frame` companion counts frame switches (flatten/rediverge/
   jump, axis-suffixed included) and the tags land in `plane_tags` metadata.
   Access by name: `sset["U"]`, `sset["s"]`, ... (`get_dataset_names()`).
+- `scaled_wave_physical_plane(scaled_wave, plane, name)` — the physical field
+  ψ = (1/s)·U·e^{ik r²/2R} of one stored plane on its native grid
+  (x = s·ξ, pitch |s|·Δξ), as a `make_wavefield_signal` Signal in metres. It
+  reads the SignalSet as stored or reloaded from `.sea` (U's `wavelength_m`,
+  `dxi_m`, `deta_m` metadata and the `s`/`R` or `s_x`/`s_y`, `R_x`/`R_y`
+  companions), so a viewer holding an exported file needs no live model.
+  Matches `Microscope.wavefield_at(z)` on every stored plane (tested).
+  `IndexError` for a plane outside the stack; `ValueError` for a set with no
+  `U` on `(plane_z, eta, xi)` or a companion missing.
 - `make_rays_signalset(rays, I, R, components, name)` — rays + I + R on shared
   plane-z/ray axes.
 - `make_covariance_signal(covariance, z, components, name)` — per-plane Σ stack.
