@@ -99,7 +99,7 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.postprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot2D</span><span class="p">,</span><span class="n">findPlanes</span><span class="p">,</span><span class="n">zFromFractional</span><span class="p">,</span><span class="n">measureAtZ</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span><span class="p">,</span><span class="n">Source</span><span class="p">,</span><span class="n">Drift</span><span class="p">,</span><span class="n">Lens</span><span class="p">,</span><span class="n">Dipole</span><span class="p">,</span><span class="n">Quadrapole</span><span class="p">,</span><span class="n">Rays</span><span class="p">,</span><span class="n">columnByName</span><span class="p">,</span><span class="n">Aperture</span><span class="p">,</span><span class="n">convention</span><span class="p">,</span><span class="n">_propagate_method_name</span><span class="p">,</span><span class="n">suspended_aberrations</span><span class="p">,</span><span class="n">SealedAttributes</span><span class="p">,</span><span class="n">AberrationScreen</span><span class="p">,</span><span class="n">_as_aberrations</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Sequence</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">SEASerializable</span><span class="p">,</span> <span class="n">new_provenance</span>
 
 <span class="c1">#: CLSID class prefix + serial stamped on every :class:`Microscope` (sea-sand</span>
@@ -185,51 +185,263 @@
 									  <span class="n">s</span><span class="o">=</span><span class="n">ss</span><span class="p">,</span> <span class="n">R</span><span class="o">=</span><span class="n">Rs</span><span class="p">,</span> <span class="n">tau</span><span class="o">=</span><span class="n">taus</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">zs</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="n">tags</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_scaled_wave_cross_section</span><span class="p">(</span><span class="n">planes</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">named_positions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">crossovers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-							   <span class="n">image_planes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">	</span><span class="sd">"""Draw the |ψ(x, y=0, z)| cross-section of a scaled-wave run into an axis.</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_as_rays</span><span class="p">(</span><span class="n">rays</span><span class="p">:</span><span class="n">Rays</span><span class="o">|</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">I</span><span class="p">:</span><span class="n">ArrayLike</span><span class="o">|</span><span class="kc">None</span><span class="p">,</span> <span class="n">R</span><span class="p">:</span><span class="n">ArrayLike</span><span class="o">|</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Rays</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""The stored ray result as a :class:`elements.Rays`, whatever form it is stored in.</span>
+
+<span class="sd">	A traced column holds a ``Rays``; one reloaded from ``.sea`` holds the</span>
+<span class="sd">	plain ``(n_planes, n_rays, 6)`` array beside its ``I``/``R`` arrays.</span>
+<span class="sd">	Either way the display path needs the ``Rays`` view, which carries the</span>
+<span class="sd">	intensity and rotation the frame conversion and plane search read.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	rays : elements.Rays or numpy.ndarray</span>
+<span class="sd">		Stored rays, shape ``(n_planes, n_rays, len(convention))``.</span>
+<span class="sd">	I : numpy.ndarray or None</span>
+<span class="sd">		Per-plane, per-ray intensity, used when ``rays`` is a plain array.</span>
+<span class="sd">	R : numpy.ndarray or None</span>
+<span class="sd">		Per-plane, per-ray cumulative rotation (radians), likewise.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	elements.Rays</span>
+<span class="sd">		``rays`` itself, or a new wrapper over the array (no copy of the</span>
+<span class="sd">		column is made).</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+<span class="sd">	"""</span>
+	<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span> <span class="n">Rays</span><span class="p">):</span>
+		<span class="k">return</span> <span class="n">rays</span>
+	<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span> <span class="n">R</span><span class="o">=</span><span class="mi">0</span> <span class="k">if</span> <span class="n">R</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">R</span><span class="p">,</span> <span class="n">I_per_ray</span><span class="o">=</span><span class="mi">1</span> <span class="k">if</span> <span class="n">I</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">I</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_ray_diagram_arrays</span><span class="p">(</span><span class="n">rays</span><span class="p">:</span><span class="n">Rays</span><span class="p">,</span> <span class="n">axis</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s1">'x'</span><span class="p">,</span><span class="s1">'y'</span><span class="p">]</span><span class="o">=</span><span class="s1">'x'</span><span class="p">,</span>
+						<span class="n">frame</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s1">'rotating'</span><span class="p">,</span><span class="s1">'lab'</span><span class="p">]</span><span class="o">=</span><span class="s1">'rotating'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Every ray's transverse position per logged plane, as a ray diagram draws it.</span>
+
+<span class="sd">	The data behind the overlaid-rays figure, computed the way</span>
+<span class="sd">	:func:`postprocessing.plot2D` computes it: ``frame='rotating'`` converts</span>
+<span class="sd">	through :meth:`elements.Rays.convert_to_rotating_reference_frame` (the</span>
+<span class="sd">	frame plot2D always draws in), ``frame='lab'`` keeps the stored columns;</span>
+<span class="sd">	and a ray whose intensity is zero at a plane is NaN there -- plot2D's</span>
+<span class="sd">	``aperture_handling='ghosting'`` -- which, since an aperture never gives</span>
+<span class="sd">	intensity back, is every plane from the one that blocked it on.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	rays : elements.Rays</span>
+<span class="sd">		Stored rays (see :func:`_as_rays`).</span>
+<span class="sd">	axis : {'x', 'y'}, optional</span>
+<span class="sd">		Transverse coordinate to return, by default ``'x'``.</span>
+<span class="sd">	frame : {'rotating', 'lab'}, optional</span>
+<span class="sd">		Reference frame, by default ``'rotating'``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	tuple</span>
+<span class="sd">		``(positions, z)``: positions shape ``(n_rays, n_planes)`` in metres</span>
+<span class="sd">		(NaN where ghosted), and the ``n_planes`` plane positions in metres.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	ValueError</span>
+<span class="sd">		If ``axis`` or ``frame`` is not one of the documented values.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	postprocessing.plot2D : The matplotlib figure this matches.</span>
+<span class="sd">	seashells.make_ray_diagram_signal : Wraps the result.</span>
+<span class="sd">	"""</span>
+	<span class="k">if</span> <span class="n">axis</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'x'</span><span class="p">,</span> <span class="s1">'y'</span><span class="p">):</span>
+		<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"axis must be 'x' or 'y', not </span><span class="si">{</span><span class="n">axis</span><span class="si">!r}</span><span class="s2">."</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">frame</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'rotating'</span><span class="p">,</span> <span class="s1">'lab'</span><span class="p">):</span>
+		<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"frame must be 'rotating' (Larmor frame, as plot2D draws) or "</span>
+						 <span class="sa">f</span><span class="s2">"'lab' (the stored columns), not </span><span class="si">{</span><span class="n">frame</span><span class="si">!r}</span><span class="s2">."</span><span class="p">)</span>
+	<span class="n">live</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">rays</span><span class="o">.</span><span class="n">I_per_ray</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">frame</span> <span class="o">==</span> <span class="s1">'rotating'</span><span class="p">:</span>
+		<span class="n">rays</span> <span class="o">=</span> <span class="n">rays</span><span class="o">.</span><span class="n">convert_to_rotating_reference_frame</span><span class="p">()</span>
+	<span class="n">table</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">rays</span><span class="p">)</span>
+	<span class="n">positions</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">table</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">columnByName</span><span class="p">(</span><span class="n">axis</span><span class="p">)],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">positions</span><span class="p">[</span><span class="n">live</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">nan</span>
+	<span class="n">z</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">table</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s1">'z'</span><span class="p">)],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">positions</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">z</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_stored_plane_markers</span><span class="p">(</span><span class="n">rays</span><span class="p">:</span><span class="n">Rays</span><span class="p">,</span> <span class="n">axis</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s1">'x'</span><span class="p">,</span><span class="s1">'y'</span><span class="p">]</span><span class="o">=</span><span class="s1">'x'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Diffraction and image planes of a stored ray trace, as plot2D finds and labels them.</span>
+
+<span class="sd">	Runs :func:`postprocessing.findPlanes` on the rays being plotted and</span>
+<span class="sd">	converts its fractional plane indices to metres with</span>
+<span class="sd">	:func:`postprocessing.zFromFractional` -- exactly the overlay plot2D</span>
+<span class="sd">	draws. Nothing is propagated and nothing is copied: the planes come from</span>
+<span class="sd">	the stored trace, so a column bound to live hardware (whose backend cannot</span>
+<span class="sd">	be deep-copied) is never touched.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	rays : elements.Rays</span>
+<span class="sd">		Stored rays of a whole column (see :func:`_as_rays`).</span>
+<span class="sd">	axis : {'x', 'y'}, optional</span>
+<span class="sd">		Axis to search, by default ``'x'``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	list of dict</span>
+<span class="sd">		``{"kind": "diff"|"image", "label", "z"}``, diffraction planes first,</span>
+<span class="sd">		each in the order found.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	postprocessing.plot2D : The figure whose plane overlay this reproduces.</span>
+<span class="sd">	Microscope.conjugate_planes : The same planes from dedicated reference</span>
+<span class="sd">		rays -- which needs a deep copy, so the display path does not use it.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	findPlanes picks its reference pairs at the trace's **first** plane (rays</span>
+<span class="sd">	there parallel to the axis, and rays leaving the axis), so it finds the</span>
+<span class="sd">	planes conjugate to the column entrance only when the source launches</span>
+<span class="sd">	such rays -- a grid with on-axis and zero-angle members does. A source</span>
+<span class="sd">	without them yields no plane markers (and findPlanes prints its usual</span>
+<span class="sd">	note), just as plot2D then draws none. A plane found exactly at the last</span>
+<span class="sd">	logged plane is clamped inside the trace, as ``conjugate_planes`` does,</span>
+<span class="sd">	rather than indexing past it.</span>
+<span class="sd">	"""</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">.postprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">findPlanes</span><span class="p">,</span> <span class="n">zFromFractional</span>
+	<span class="n">zs</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">rays</span><span class="p">)[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">columnByName</span><span class="p">(</span><span class="s1">'z'</span><span class="p">)]</span>
+	<span class="n">found</span> <span class="o">=</span> <span class="n">findPlanes</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)[</span><span class="n">axis</span><span class="p">]</span>
+	<span class="n">markers</span> <span class="o">=</span> <span class="p">[]</span>
+	<span class="k">for</span> <span class="n">family</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'diff'</span><span class="p">,</span> <span class="s1">'image'</span><span class="p">):</span>
+		<span class="k">for</span> <span class="n">f</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="n">R</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">found</span><span class="p">[</span><span class="n">family</span><span class="p">][</span><span class="s1">'z'</span><span class="p">],</span> <span class="n">found</span><span class="p">[</span><span class="n">family</span><span class="p">][</span><span class="s1">'M'</span><span class="p">],</span> <span class="n">found</span><span class="p">[</span><span class="n">family</span><span class="p">][</span><span class="s1">'R'</span><span class="p">]):</span>
+			<span class="n">z</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">zFromFractional</span><span class="p">(</span><span class="n">zs</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">zs</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="mf">1e-9</span><span class="p">)))</span>
+			<span class="n">markers</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">"kind"</span><span class="p">:</span> <span class="n">family</span><span class="p">,</span> <span class="s2">"z"</span><span class="p">:</span> <span class="n">z</span><span class="p">,</span>
+							<span class="s2">"label"</span><span class="p">:</span> <span class="n">_conjugate_plane_label</span><span class="p">(</span><span class="n">family</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="n">R</span><span class="p">)})</span>
+	<span class="k">return</span> <span class="n">markers</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_conjugate_plane_label</span><span class="p">(</span><span class="n">family</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s1">'diff'</span><span class="p">,</span><span class="s1">'image'</span><span class="p">],</span> <span class="n">z</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">M</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">R</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Label a conjugate plane the way :func:`postprocessing.plot2D` annotates it.</span>
+
+<span class="sd">	Same fields and rounding as plot2D's figure text -- family, z (m, three</span>
+<span class="sd">	decimals), magnification ``M`` (three decimals) and rotation ``R``</span>
+<span class="sd">	(degrees, one decimal) -- on one line, since a marker label is drawn</span>
+<span class="sd">	along a line rather than as a block of text.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	family : {'diff', 'image'}</span>
+<span class="sd">		Which conjugate family the plane belongs to.</span>
+<span class="sd">	z : float</span>
+<span class="sd">		Plane position (metres).</span>
+<span class="sd">	M : float</span>
+<span class="sd">		Magnification at the plane (camera length, m/rad, for ``diff``);</span>
+<span class="sd">		NaN when it could not be measured.</span>
+<span class="sd">	R : float</span>
+<span class="sd">		Cumulative Larmor rotation at the plane (radians).</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	str</span>
+<span class="sd">		e.g. ``"image @ z=0.188, M=-0.73, R=-5.4"``.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	_stored_plane_markers : The caller; ``M`` and ``R`` come from</span>
+<span class="sd">		:func:`postprocessing.findPlanes`.</span>
+<span class="sd">	"""</span>
+	<span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">family</span><span class="si">}</span><span class="s2"> @ z=</span><span class="si">{</span><span class="n">xp</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span><span class="si">}</span><span class="s2">, M=</span><span class="si">{</span><span class="n">xp</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">M</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span><span class="si">}</span><span class="s2">, "</span>
+			<span class="sa">f</span><span class="s2">"R=</span><span class="si">{</span><span class="n">xp</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">R</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">180</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">xp</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+
+<span class="c1">#: Columns whose RMS widths the beam-envelope view shows, and each one's unit.</span>
+<span class="n">_ENVELOPE_COLUMNS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">,</span> <span class="s2">"xt"</span><span class="p">,</span> <span class="s2">"yt"</span><span class="p">)</span>
+<span class="n">_ENVELOPE_UNITS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"m"</span><span class="p">,</span> <span class="s2">"m"</span><span class="p">,</span> <span class="s2">"rad"</span><span class="p">,</span> <span class="s2">"rad"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_envelope_signal</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span> <span class="n">markers</span><span class="p">:</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">dict</span><span class="p">],</span> <span class="n">source</span><span class="p">:</span><span class="nb">str</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Build the beam-envelope display Signal from a covariance beam.</span>
+
+<span class="sd">	Shared by :meth:`MicroscopeSection.envelope_signal` and</span>
+<span class="sd">	:meth:`Microscope.envelope_signal`, which differ only in the markers.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	beam : moments.CovarianceBeam</span>
+<span class="sd">		The stored moments, viewed through ``covariance_beam``.</span>
+<span class="sd">	markers : list of dict</span>
+<span class="sd">		Marker requests from the caller's ``_display_markers``.</span>
+<span class="sd">	source : str</span>
+<span class="sd">		Name of the section or column.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	Signal or seashells._DisplaySignal</span>
+<span class="sd">		``[quantity, z]``: RMS ``sigma_x``, ``sigma_y`` (m) and ``sigma_xt``,</span>
+<span class="sd">		``sigma_yt`` (rad) per plane.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	moments.CovarianceBeam.sigma : Every row, clipped at zero before the root.</span>
+<span class="sd">	postprocessing.beam_widths : The x/y rows, unclipped (they agree).</span>
+<span class="sd">	seashells.make_envelope_signal : Wraps the rows.</span>
+<span class="sd">	"""</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_envelope_signal</span>
+	<span class="n">widths</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">beam</span><span class="o">.</span><span class="n">sigma</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">_ENVELOPE_COLUMNS</span><span class="p">])</span>
+	<span class="k">return</span> <span class="n">make_envelope_signal</span><span class="p">(</span><span class="n">widths</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">z</span><span class="p">(),</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"sigma_</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">_ENVELOPE_COLUMNS</span><span class="p">],</span>
+								<span class="n">_ENVELOPE_UNITS</span><span class="p">,</span> <span class="n">markers</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_wave_cross_section_arrays</span><span class="p">(</span><span class="n">planes</span><span class="p">:</span><span class="n">Sequence</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Compute the ``|ψ(x, y=0, z)|`` cross-section of a scaled-wave run.</span>
 
 <span class="sd">	The wave analog of the geometric ray diagram: each logged plane is</span>
 <span class="sd">	reconstructed to physical coordinates on its native grid (``Δx = |s|·Δξ``,</span>
 <span class="sd">	so the pixel spans nm at the foci to µm at the detector), its centre row</span>
 <span class="sd">	``|ψ(x, 0)|`` is normalized to its peak and resampled onto one common x</span>
-<span class="sd">	axis, and the planes are rendered as a z–x pcolormesh. Element positions</span>
-<span class="sd">	are annotated as white dashed lines with labels and crossover (focal)</span>
-<span class="sd">	planes as cyan dotted lines — the same overlays the ray diagram carries.</span>
+<span class="sd">	axis -- 600 samples spanning the widest plane's grid.</span>
 
 <span class="sd">	Parameters</span>
 <span class="sd">	----------</span>
 <span class="sd">	planes : Sequence</span>
 <span class="sd">		Per-plane scaled wavefields (Signals or ``_ScaledWavefield`` fallbacks)</span>
 <span class="sd">		from a scaled/hybrid run, in any z order.</span>
-<span class="sd">	ax : matplotlib axis</span>
-<span class="sd">		Axis to draw into.</span>
-<span class="sd">	named_positions : dict, optional</span>
-<span class="sd">		``{label: z}`` element annotations (white dashed), by default none.</span>
-<span class="sd">	crossovers : Sequence[float], optional</span>
-<span class="sd">		Crossover z positions of the family the wave's own frame follows —</span>
-<span class="sd">		the diffraction / back-focal planes for the usual flat-wavefront seed</span>
-<span class="sd">		(cyan dotted), by default none.</span>
-<span class="sd">	image_planes : Sequence[float], optional</span>
-<span class="sd">		The conjugate family: image-plane z positions from</span>
-<span class="sd">		:meth:`Microscope.conjugate_planes` (magenta dashed), by default none.</span>
-<span class="sd">	title : str, optional</span>
-<span class="sd">		Axis title, by default none.</span>
 
 <span class="sd">	Returns</span>
 <span class="sd">	-------</span>
-<span class="sd">	None</span>
-<span class="sd">		Draws into ``ax``.</span>
+<span class="sd">	tuple</span>
+<span class="sd">		``(profile, z, x)``: ``profile`` shape ``(600, n_planes)`` -- x down</span>
+<span class="sd">		the rows, z across, the orientation the figure is drawn in -- the</span>
+<span class="sd">		plane positions ``z`` ascending (metres), and the common axis ``x``</span>
+<span class="sd">		(metres, ``linspace(-half, half, 600)``).</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	IndexError</span>
+<span class="sd">		If ``planes`` is empty.</span>
 
 <span class="sd">	Related</span>
 <span class="sd">	-------</span>
-<span class="sd">	Microscope.show : Calls this for ``kind='wave-scaled'/'wave-hybrid'``</span>
-<span class="sd">		when no ``plane`` is selected.</span>
+<span class="sd">	Microscope.wave_cross_section_signal : Wraps this as a Signal.</span>
+<span class="sd">	_scaled_wave_cross_section : Draws it.</span>
 <span class="sd">	waveoptics.reconstruct_physical_wave : The per-plane reconstruction.</span>
 
 <span class="sd">	Notes</span>
 <span class="sd">	-----</span>
-<span class="sd">	Planes are individually peak-normalized — the panel shows the beam's</span>
+<span class="sd">	Planes are individually peak-normalized -- the result shows the beam's</span>
 <span class="sd">	shape and envelope, not absolute intensity (which spans many orders of</span>
 <span class="sd">	magnitude between a focus and the detector). A column built with finely</span>
 <span class="sd">	subdivided drifts yields a smoother section (see</span>
@@ -244,7 +456,6 @@
 		<span class="n">recon</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">z</span> <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">psi</span><span class="p">,</span> <span class="n">dx</span><span class="p">))</span>
 	<span class="n">recon</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 	<span class="n">zs</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">recon</span><span class="p">])</span>
-	<span class="n">z_edges</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="n">zs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1e-4</span><span class="p">],</span> <span class="p">(</span><span class="n">zs</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">zs</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="p">[</span><span class="n">zs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mf">1e-4</span><span class="p">]])</span> <span class="o">*</span> <span class="mf">1e3</span>
 	<span class="n">n</span> <span class="o">=</span> <span class="n">recon</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
 	<span class="n">half</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">*</span> <span class="n">n</span> <span class="o">/</span> <span class="mi">2</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">recon</span><span class="p">)</span>
 	<span class="n">x_common</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="n">half</span><span class="p">,</span> <span class="n">half</span><span class="p">,</span> <span class="mi">600</span><span class="p">)</span>
@@ -253,26 +464,74 @@
 		<span class="n">x</span> <span class="o">=</span> <span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">-</span> <span class="n">n</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span>
 		<span class="n">row</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">psi</span><span class="p">[</span><span class="n">psi</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="p">:])</span>
 		<span class="n">prof</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">x_common</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">row</span> <span class="o">/</span> <span class="n">row</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">left</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-	<span class="n">x_edges</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="n">half</span><span class="p">,</span> <span class="n">half</span><span class="p">,</span> <span class="n">x_common</span><span class="o">.</span><span class="n">size</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e6</span>
-	<span class="n">ax</span><span class="o">.</span><span class="n">pcolormesh</span><span class="p">(</span><span class="n">z_edges</span><span class="p">,</span> <span class="n">x_edges</span><span class="p">,</span> <span class="n">prof</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">"magma"</span><span class="p">,</span> <span class="n">shading</span><span class="o">=</span><span class="s2">"flat"</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">prof</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">zs</span><span class="p">,</span> <span class="n">x_common</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_scaled_wave_cross_section</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span><span class="nb">str</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Draw a wave cross-section display Signal into an axis.</span>
+
+<span class="sd">	Renders :meth:`Microscope.wave_cross_section_signal` as a z–x</span>
+<span class="sd">	pcolormesh, then its markers: element positions as white dashed lines</span>
+<span class="sd">	with labels, crossover (focal) planes as cyan dotted lines and image</span>
+<span class="sd">	planes as magenta dash-dot lines -- the same overlays the ray diagram</span>
+<span class="sd">	carries. Everything drawn is read from the Signal (or its sea_eco-free</span>
+<span class="sd">	fallback), so the figure and the data a renderer receives cannot drift.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	signal : Signal or seashells._DisplaySignal</span>
+<span class="sd">		A cross-section from :meth:`Microscope.wave_cross_section_signal`:</span>
+<span class="sd">		data ``[x, z]``, ``x`` uniform and symmetric about 0.</span>
+<span class="sd">	ax : matplotlib axis</span>
+<span class="sd">		Axis to draw into.</span>
+<span class="sd">	title : str, optional</span>
+<span class="sd">		Axis title, by default none.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	None</span>
+<span class="sd">		Draws into ``ax``.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	Microscope.show : Calls this for ``kind='wave-scaled'/'wave-hybrid'``</span>
+<span class="sd">		when no ``plane`` is selected.</span>
+<span class="sd">	_wave_cross_section_arrays : Computes the data.</span>
+<span class="sd">	seashells.read_display_signal : Reads the data and markers back.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	The cell edges are rebuilt from the axes: z midpoints padded by 0.1 mm</span>
+<span class="sd">	at each end, and ``x[0] = -half`` (stored exactly as the dimension</span>
+<span class="sd">	offset) for the 601 x edges.</span>
+<span class="sd">	"""</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_display_signal</span>
+	<span class="n">data</span><span class="p">,</span> <span class="n">axes</span><span class="p">,</span> <span class="n">markers</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">read_display_signal</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span>
+	<span class="n">x</span><span class="p">,</span> <span class="n">zs</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">half</span> <span class="o">=</span> <span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+	<span class="n">z_edges</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([[</span><span class="n">zs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1e-4</span><span class="p">],</span> <span class="p">(</span><span class="n">zs</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">zs</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="p">[</span><span class="n">zs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mf">1e-4</span><span class="p">]])</span> <span class="o">*</span> <span class="mf">1e3</span>
+	<span class="n">x_edges</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="n">half</span><span class="p">,</span> <span class="n">half</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e6</span>
+	<span class="n">ax</span><span class="o">.</span><span class="n">pcolormesh</span><span class="p">(</span><span class="n">z_edges</span><span class="p">,</span> <span class="n">x_edges</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">"magma"</span><span class="p">,</span> <span class="n">shading</span><span class="o">=</span><span class="s2">"flat"</span><span class="p">)</span>
 	<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"z (mm)"</span><span class="p">)</span>
 	<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"x (µm)"</span><span class="p">)</span>
-	<span class="k">if</span> <span class="n">named_positions</span><span class="p">:</span>
-		<span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">zp</span> <span class="ow">in</span> <span class="n">named_positions</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-			<span class="k">if</span> <span class="ow">not</span> <span class="n">label</span><span class="p">:</span>			<span class="c1"># unnamed elements share one blank key; skip them</span>
-				<span class="k">continue</span>
-			<span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">zp</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"w"</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">"--"</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">)</span>
-			<span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">zp</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="n">half</span> <span class="o">*</span> <span class="mf">1e6</span> <span class="o">*</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"w"</span><span class="p">,</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span>
+	<span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">markers</span><span class="p">:</span>
+		<span class="k">if</span> <span class="n">m</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"element"</span><span class="p">:</span>
+			<span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s2">"z"</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"w"</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">"--"</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">)</span>
+			<span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s2">"z"</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="n">half</span> <span class="o">*</span> <span class="mf">1e6</span> <span class="o">*</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">m</span><span class="p">[</span><span class="s2">"label"</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s2">"w"</span><span class="p">,</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span>
 					<span class="n">ha</span><span class="o">=</span><span class="s2">"right"</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">"top"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span>
-	<span class="k">if</span> <span class="n">crossovers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">crossovers</span><span class="p">):</span>
-		<span class="k">for</span> <span class="n">zc</span> <span class="ow">in</span> <span class="n">crossovers</span><span class="p">:</span>
-			<span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">zc</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"cyan"</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">":"</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
-			<span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">zc</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="o">-</span><span class="n">half</span> <span class="o">*</span> <span class="mf">1e6</span> <span class="o">*</span> <span class="mf">0.95</span><span class="p">,</span> <span class="s2">"crossover"</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"cyan"</span><span class="p">,</span>
+	<span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">markers</span><span class="p">:</span>
+		<span class="k">if</span> <span class="n">m</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"crossover"</span><span class="p">:</span>
+			<span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s2">"z"</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"cyan"</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">":"</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
+			<span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s2">"z"</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="o">-</span><span class="n">half</span> <span class="o">*</span> <span class="mf">1e6</span> <span class="o">*</span> <span class="mf">0.95</span><span class="p">,</span> <span class="s2">"crossover"</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"cyan"</span><span class="p">,</span>
 					<span class="n">rotation</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s2">"right"</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">"bottom"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span>
-	<span class="k">if</span> <span class="n">image_planes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">image_planes</span><span class="p">):</span>
-		<span class="k">for</span> <span class="n">zi</span> <span class="ow">in</span> <span class="n">image_planes</span><span class="p">:</span>
-			<span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">zi</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"magenta"</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">"-."</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
-			<span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">zi</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="o">-</span><span class="n">half</span> <span class="o">*</span> <span class="mf">1e6</span> <span class="o">*</span> <span class="mf">0.95</span><span class="p">,</span> <span class="s2">"image"</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"magenta"</span><span class="p">,</span>
+	<span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">markers</span><span class="p">:</span>
+		<span class="k">if</span> <span class="n">m</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"image"</span><span class="p">:</span>
+			<span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s2">"z"</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"magenta"</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">"-."</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
+			<span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s2">"z"</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e3</span><span class="p">,</span> <span class="o">-</span><span class="n">half</span> <span class="o">*</span> <span class="mf">1e6</span> <span class="o">*</span> <span class="mf">0.95</span><span class="p">,</span> <span class="s2">"image"</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"magenta"</span><span class="p">,</span>
 					<span class="n">rotation</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s2">"left"</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">"bottom"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span>
 	<span class="k">if</span> <span class="n">title</span><span class="p">:</span>
 		<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
@@ -1040,6 +1299,158 @@
 			<span class="bp">self</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">()</span>
 		<span class="k">return</span> <span class="n">make_rays_signalset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">I</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">,</span> <span class="n">convention</span><span class="p">,</span>
 								   <span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'section'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">' rays'</span><span class="p">)</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_display_markers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z0</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""The markers a display Signal of this section carries.</span>
+
+<span class="sd">		A section knows its own extent and its own elements, so that is what</span>
+<span class="sd">		it marks: one span for its z-range and one line per named element.</span>
+<span class="sd">		Positions are placed in the **result's** z frame -- the section's</span>
+<span class="sd">		element positions are relative to its start, and the stored result's</span>
+<span class="sd">		first plane is that start, whether the section was propagated alone</span>
+<span class="sd">		(z from 0) or inside a :class:`Microscope` (absolute z).</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		z0 : float</span>
+<span class="sd">			z of the stored result's first plane (metres).</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		list of dict</span>
+<span class="sd">			``{"kind": "section", "label", "z0", "z1"}`` (omitted for a</span>
+<span class="sd">			zero-length section) followed by ``{"kind": "element", "label",</span>
+<span class="sd">			"z"}`` per entry of :attr:`named_positions` with a non-empty name.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		Microscope._display_markers : The column-level counterpart, which</span>
+<span class="sd">			adds conjugate planes.</span>
+
+<span class="sd">		Notes</span>
+<span class="sd">		-----</span>
+<span class="sd">		No conjugate planes: a section does not know the optics upstream of</span>
+<span class="sd">		it, so it cannot say where the column entrance's image and</span>
+<span class="sd">		diffraction planes fall -- and running ``findPlanes`` on its own</span>
+<span class="sd">		stored rays would pick reference pairs at the section's entrance,</span>
+<span class="sd">		reporting planes of a different object (on the basic column it finds</span>
+<span class="sd">		two "diffraction planes" in C and none in O). Use the</span>
+<span class="sd">		:class:`Microscope` view and its markers for those.</span>
+<span class="sd">		"""</span>
+		<span class="n">markers</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">markers</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"section"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s2">"section"</span><span class="p">,</span>
+							<span class="s2">"z0"</span><span class="p">:</span> <span class="n">z0</span><span class="p">,</span> <span class="s2">"z1"</span><span class="p">:</span> <span class="n">z0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">})</span>
+		<span class="n">markers</span> <span class="o">+=</span> <span class="p">[{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"element"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="n">k</span><span class="p">,</span> <span class="s2">"z"</span><span class="p">:</span> <span class="n">z0</span> <span class="o">+</span> <span class="n">z</span><span class="p">}</span>
+					<span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">z</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">named_positions</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="p">]</span>
+		<span class="k">return</span> <span class="n">markers</span>
+
+<div class="viewcode-block" id="MicroscopeSection.ray_diagram_signal">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.ray_diagram_signal">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">ray_diagram_signal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axis</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">]</span><span class="o">=</span><span class="s2">"x"</span><span class="p">,</span>
+						   <span class="n">frame</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"rotating"</span><span class="p">,</span><span class="s2">"lab"</span><span class="p">]</span><span class="o">=</span><span class="s2">"rotating"</span><span class="p">):</span>
+<span class="w">		</span><span class="sd">"""This section's stored rays as a ray-diagram Signal, with markers.</span>
+
+<span class="sd">		A **derived** view, built on every call and never stored: the stored</span>
+<span class="sd">		``rays``/``I``/``R`` are the storage. Shape ``[ray, plane_z]``, values</span>
+<span class="sd">		the transverse position (metres) of every ray at every plane the</span>
+<span class="sd">		section logged, in the chosen frame; a ray an aperture blocked is NaN</span>
+<span class="sd">		from that plane on. The section's span and its named elements travel</span>
+<span class="sd">		as PLOT-8 annotations.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		axis : {'x', 'y'}, optional</span>
+<span class="sd">			Transverse coordinate to show, by default ``'x'``.</span>
+<span class="sd">		frame : {'rotating', 'lab'}, optional</span>
+<span class="sd">			``'rotating'`` (default) converts to the Larmor frame exactly as</span>
+<span class="sd">			:func:`postprocessing.plot2D` does; ``'lab'`` uses the stored</span>
+<span class="sd">			columns.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		Signal or seashells._DisplaySignal</span>
+<span class="sd">			See :func:`seashells.make_ray_diagram_signal` for dimensions,</span>
+<span class="sd">			units and metadata. The fallback is returned when sea_eco is</span>
+<span class="sd">			absent.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		RuntimeError</span>
+<span class="sd">			If no rays are stored -- this never propagates.</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If ``axis`` or ``frame`` is not one of the documented values.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		Microscope.ray_diagram_signal : The whole column, plus conjugate planes.</span>
+<span class="sd">		_display_markers : What is marked, and why there are no conjugate planes.</span>
+<span class="sd">		rays_signalset : The raw ray result as a SignalSet.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; scope.propagate_ray()                                # doctest: +SKIP</span>
+<span class="sd">		&gt;&gt;&gt; scope["O"].ray_diagram_signal().dimensions.get_names()  # doctest: +SKIP</span>
+<span class="sd">		['ray', 'plane_z']</span>
+<span class="sd">		"""</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_ray_diagram_signal</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rays</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"section </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">'(unnamed)'</span><span class="si">!r}</span><span class="s2"> has no stored rays; call "</span>
+							   <span class="s2">"propagate_ray() (on it or on its Microscope) first -- "</span>
+							   <span class="s2">"ray_diagram_signal derives from the stored result and never "</span>
+							   <span class="s2">"propagates."</span><span class="p">)</span>
+		<span class="n">positions</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">_ray_diagram_arrays</span><span class="p">(</span><span class="n">_as_rays</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">I</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">),</span> <span class="n">axis</span><span class="p">,</span> <span class="n">frame</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">make_ray_diagram_signal</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_display_markers</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="mi">0</span><span class="p">])),</span>
+									   <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">,</span> <span class="n">frame</span><span class="o">=</span><span class="n">frame</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s2">"section"</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MicroscopeSection.envelope_signal">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.envelope_signal">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">envelope_signal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">		</span><span class="sd">"""This section's stored beam moments as an RMS-envelope Signal, with markers.</span>
+
+<span class="sd">		A **derived** view of :attr:`covariance_matrix` (via</span>
+<span class="sd">		:attr:`covariance_beam`), built on every call and never stored. Shape</span>
+<span class="sd">		``[quantity, z]``: the RMS widths ``sigma_x``, ``sigma_y`` (m) and</span>
+<span class="sd">		``sigma_xt``, ``sigma_yt`` (rad) at every plane the section logged.</span>
+<span class="sd">		The section's span and its named elements travel as PLOT-8</span>
+<span class="sd">		annotations.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		Signal or seashells._DisplaySignal</span>
+<span class="sd">			See :func:`seashells.make_envelope_signal`: the rows do not share</span>
+<span class="sd">			a unit, so each row's unit is in metadata ``quantity_units``.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		RuntimeError</span>
+<span class="sd">			If no moments are stored -- this never propagates.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		Microscope.envelope_signal : The whole column, plus conjugate planes.</span>
+<span class="sd">		ray_diagram_signal : The ray-mode view with the same markers.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; scope.propagate_moments()                            # doctest: +SKIP</span>
+<span class="sd">		&gt;&gt;&gt; scope["O"].envelope_signal().data.shape[0]           # doctest: +SKIP</span>
+<span class="sd">		4</span>
+<span class="sd">		"""</span>
+		<span class="n">beam</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariance_beam</span>
+		<span class="k">if</span> <span class="n">beam</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"section </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">'(unnamed)'</span><span class="si">!r}</span><span class="s2"> has no stored moments; call "</span>
+							   <span class="s2">"propagate_moments() (on it or on its Microscope) first -- "</span>
+							   <span class="s2">"envelope_signal derives from the stored result and never "</span>
+							   <span class="s2">"propagates."</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">_envelope_signal</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_display_markers</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">z</span><span class="p">()[</span><span class="mi">0</span><span class="p">])),</span>
+								<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s2">"section"</span><span class="p">)</span></div>
+
 
 <div class="viewcode-block" id="MicroscopeSection.propagate">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.propagate">[docs]</a>
@@ -3433,6 +3844,239 @@
 		<span class="k">return</span> <span class="n">make_rays_signalset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">I</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">,</span> <span class="n">convention</span><span class="p">,</span>
 								   <span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'microscope'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">' rays'</span><span class="p">)</span>
 
+	<span class="k">def</span><span class="w"> </span><span class="nf">_display_markers</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""The section and element markers a display Signal of this column carries.</span>
+
+<span class="sd">		The overlays :meth:`show` draws on the ray diagram that come from the</span>
+<span class="sd">		column's own description: a span per section (:attr:`named_sections`)</span>
+<span class="sd">		and a line per named element (:attr:`named_positions`). Plane markers</span>
+<span class="sd">		depend on a stored result, so each view adds its own.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		list of dict</span>
+<span class="sd">			Sections first (``{"kind": "section", "label", "z0", "z1"}``,</span>
+<span class="sd">			zero-length ones omitted), then elements (``{"kind": "element",</span>
+<span class="sd">			"label", "z"}``, unnamed ones omitted), in metres.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		None</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		MicroscopeSection._display_markers : The section-level counterpart.</span>
+<span class="sd">		_stored_plane_markers : The ray diagram's plane markers.</span>
+
+<span class="sd">		Notes</span>
+<span class="sd">		-----</span>
+<span class="sd">		Reads the description only: nothing is propagated and the column is</span>
+<span class="sd">		never copied, so a model bound to a live backend is safe.</span>
+<span class="sd">		"""</span>
+		<span class="n">markers</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"section"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="n">k</span><span class="p">,</span> <span class="s2">"z0"</span><span class="p">:</span> <span class="n">a</span><span class="p">,</span> <span class="s2">"z1"</span><span class="p">:</span> <span class="n">b</span><span class="p">}</span>
+				   <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">named_sections</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">b</span> <span class="o">&gt;</span> <span class="n">a</span><span class="p">]</span>
+		<span class="n">markers</span> <span class="o">+=</span> <span class="p">[{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"element"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="n">k</span><span class="p">,</span> <span class="s2">"z"</span><span class="p">:</span> <span class="n">z</span><span class="p">}</span>
+					<span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">z</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">named_positions</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="p">]</span>
+		<span class="k">return</span> <span class="n">markers</span>
+
+<div class="viewcode-block" id="Microscope.ray_diagram_signal">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.Microscope.ray_diagram_signal">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">ray_diagram_signal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axis</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">]</span><span class="o">=</span><span class="s2">"x"</span><span class="p">,</span>
+						   <span class="n">frame</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"rotating"</span><span class="p">,</span><span class="s2">"lab"</span><span class="p">]</span><span class="o">=</span><span class="s2">"rotating"</span><span class="p">):</span>
+<span class="w">		</span><span class="sd">"""The stored rays as a ray-diagram Signal, with column markers.</span>
+
+<span class="sd">		The data behind :meth:`show`'s ray diagram, for a renderer that is</span>
+<span class="sd">		not matplotlib. A **derived** view, built on every call and never</span>
+<span class="sd">		stored -- the stored ``rays``/``I``/``R`` are the storage (see</span>
+<span class="sd">		``notes/eric/PLAN_2026-08-25_derived-signal-properties.md``).</span>
+
+<span class="sd">		Shape ``[ray, plane_z]``: the transverse position (metres) of every</span>
+<span class="sd">		ray at every logged plane, in the chosen frame, NaN once an aperture</span>
+<span class="sd">		has blocked the ray (plot2D's ``'ghosting'``). ``plane_z`` carries the</span>
+<span class="sd">		logged plane positions as they are, repeats at section boundaries and</span>
+<span class="sd">		zero-length apertures included. Section spans, named elements and the</span>
+<span class="sd">		diffraction/image planes travel as PLOT-8 ``Span``/``Line``</span>
+<span class="sd">		annotations along ``plane_z``. The planes are the ones plot2D overlays</span>
+<span class="sd">		-- ``findPlanes`` on these stored rays -- so nothing is re-traced and</span>
+<span class="sd">		the column is never copied (a model bound to a live backend cannot</span>
+<span class="sd">		be).</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		axis : {'x', 'y'}, optional</span>
+<span class="sd">			Transverse coordinate to show, by default ``'x'``. The conjugate</span>
+<span class="sd">			planes marked are this axis's.</span>
+<span class="sd">		frame : {'rotating', 'lab'}, optional</span>
+<span class="sd">			``'rotating'`` (default) converts to the Larmor frame exactly as</span>
+<span class="sd">			:func:`postprocessing.plot2D` does; ``'lab'`` uses the stored</span>
+<span class="sd">			columns.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		Signal or seashells._DisplaySignal</span>
+<span class="sd">			See :func:`seashells.make_ray_diagram_signal` for dimensions,</span>
+<span class="sd">			units and metadata. The fallback is returned when sea_eco is</span>
+<span class="sd">			absent.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		RuntimeError</span>
+<span class="sd">			If no rays are stored -- this never propagates.</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If ``axis`` or ``frame`` is not one of the documented values.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		MicroscopeSection.ray_diagram_signal : One section's share.</span>
+<span class="sd">		show : The matplotlib figure of the same data.</span>
+<span class="sd">		seashells.read_display_signal : Reads the data and markers back.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; scope.propagate_ray()                                # doctest: +SKIP</span>
+<span class="sd">		&gt;&gt;&gt; sig = scope.ray_diagram_signal(axis='y', frame='lab')   # doctest: +SKIP</span>
+<span class="sd">		&gt;&gt;&gt; sig.data.shape == (len(scope.rays[0]), len(scope.rays))  # doctest: +SKIP</span>
+<span class="sd">		True</span>
+<span class="sd">		"""</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_ray_diagram_signal</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rays</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"this Microscope has no stored rays; call propagate_ray() first -- "</span>
+							   <span class="s2">"ray_diagram_signal derives from the stored result and never "</span>
+							   <span class="s2">"propagates."</span><span class="p">)</span>
+		<span class="n">rays</span> <span class="o">=</span> <span class="n">_as_rays</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">I</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">R</span><span class="p">)</span>
+		<span class="n">positions</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">_ray_diagram_arrays</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">frame</span><span class="p">)</span>
+		<span class="n">markers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_display_markers</span><span class="p">()</span> <span class="o">+</span> <span class="n">_stored_plane_markers</span><span class="p">(</span><span class="n">rays</span><span class="p">,</span> <span class="n">axis</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">make_ray_diagram_signal</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">markers</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">,</span> <span class="n">frame</span><span class="o">=</span><span class="n">frame</span><span class="p">,</span>
+									   <span class="n">source</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s2">"microscope"</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Microscope.envelope_signal">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.Microscope.envelope_signal">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">envelope_signal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">		</span><span class="sd">"""The stored beam moments as an RMS-envelope Signal, with column markers.</span>
+
+<span class="sd">		A **derived** view of :attr:`covariance_matrix` (via</span>
+<span class="sd">		:attr:`covariance_beam`), built on every call and never stored. Shape</span>
+<span class="sd">		``[quantity, z]``: the RMS widths ``sigma_x``, ``sigma_y`` (m) and</span>
+<span class="sd">		``sigma_xt``, ``sigma_yt`` (rad) at every logged plane, with the same</span>
+<span class="sd">		section and element markers as :meth:`ray_diagram_signal`.</span>
+
+<span class="sd">		No diffraction/image-plane markers: the ray diagram takes those from</span>
+<span class="sd">		its own stored trace, and the moments carry no trace to search.</span>
+<span class="sd">		Borrowing whatever rays happen to be stored could mark planes of an</span>
+<span class="sd">		older optics state, and computing fresh ones would mean a reference</span>
+<span class="sd">		trace on a copy of the column -- which a model bound to a live backend</span>
+<span class="sd">		cannot make.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		Signal or seashells._DisplaySignal</span>
+<span class="sd">			See :func:`seashells.make_envelope_signal`: the rows do not share</span>
+<span class="sd">			a unit, so each row's unit is in metadata ``quantity_units``.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		RuntimeError</span>
+<span class="sd">			If no moments are stored -- this never propagates.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		MicroscopeSection.envelope_signal : One section's share.</span>
+<span class="sd">		beam_waists : Where these widths are stationary.</span>
+<span class="sd">		postprocessing.beam_widths : The ``sigma_x``/``sigma_y`` rows as an array.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; scope.propagate_moments()                            # doctest: +SKIP</span>
+<span class="sd">		&gt;&gt;&gt; scope.envelope_signal().dimensions.get_names()       # doctest: +SKIP</span>
+<span class="sd">		['quantity', 'z']</span>
+<span class="sd">		"""</span>
+		<span class="n">beam</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariance_beam</span>
+		<span class="k">if</span> <span class="n">beam</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"this Microscope has no stored moments; call propagate_moments() "</span>
+							   <span class="s2">"first -- envelope_signal derives from the stored result and never "</span>
+							   <span class="s2">"propagates."</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">_envelope_signal</span><span class="p">(</span><span class="n">beam</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_display_markers</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s2">"microscope"</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Microscope.wave_cross_section_signal">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.Microscope.wave_cross_section_signal">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">wave_cross_section_signal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">conjugates</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">		</span><span class="sd">"""The stored scaled-wave run as a ``|ψ(x, y=0, z)|`` cross-section Signal.</span>
+
+<span class="sd">		The data :meth:`show` draws for ``kind='wave-scaled'``/``'wave-hybrid'``</span>
+<span class="sd">		with no ``plane`` -- it draws from this Signal -- so a renderer that is</span>
+<span class="sd">		not matplotlib receives exactly the figure's array. A **derived** view</span>
+<span class="sd">		of the stored scaled planes, built on every call and never stored.</span>
+
+<span class="sd">		Shape ``[x, z]``: each logged plane's centre row ``|ψ(x, 0)|``,</span>
+<span class="sd">		reconstructed on its native grid, normalized to its own peak and</span>
+<span class="sd">		resampled onto one 600-sample x axis (metres) spanning the widest</span>
+<span class="sd">		plane. z is the **last** axis, the horizontal one, because that is how</span>
+<span class="sd">		the figure is oriented and the axis its markers are authored for. Named</span>
+<span class="sd">		elements, the hybrid run's crossovers and (with ``conjugates``) its</span>
+<span class="sd">		logged image planes travel as PLOT-8 ``Line`` annotations along</span>
+<span class="sd">		``z``. Every marker comes from the stored run: nothing is propagated</span>
+<span class="sd">		and the column is never copied.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		conjugates : bool, optional</span>
+<span class="sd">			Also mark the **image** planes the hybrid run logged</span>
+<span class="sd">			(:attr:`image_planes` ``['x']``), by default True; a plain</span>
+<span class="sd">			``'scaled'`` run logs none. :meth:`show` passes its own</span>
+<span class="sd">			``conjugates`` through.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		Signal or seashells._DisplaySignal</span>
+<span class="sd">			See :func:`seashells.make_wave_cross_section_signal` for</span>
+<span class="sd">			dimensions, units and metadata. The fallback is returned when</span>
+<span class="sd">			sea_eco is absent.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		RuntimeError</span>
+<span class="sd">			If no scaled or hybrid wave planes are stored -- this never</span>
+<span class="sd">			propagates.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		show : Draws this Signal.</span>
+<span class="sd">		crossovers : The focal planes the hybrid frame crossed.</span>
+<span class="sd">		wavefield_at : The full transverse field at one plane.</span>
+
+<span class="sd">		Notes</span>
+<span class="sd">		-----</span>
+<span class="sd">		Planes are individually peak-normalized: the view shows the beam's</span>
+<span class="sd">		shape, not its absolute intensity. The z sampling is the run's own --</span>
+<span class="sd">		one plane per element exit plus the hybrid frame events -- so a</span>
+<span class="sd">		smoother section comes from propagating a :meth:`subdivided` copy.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; scope.propagate_wave(mode='hybrid')                  # doctest: +SKIP</span>
+<span class="sd">		&gt;&gt;&gt; scope.wave_cross_section_signal().dimensions.get_names()  # doctest: +SKIP</span>
+<span class="sd">		['x', 'z']</span>
+<span class="sd">		"""</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_wave_cross_section_signal</span>
+		<span class="n">planes</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"_wave_scaled_planes"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">planes</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"No scaled wave planes: run propagate_wave(mode='hybrid') (or "</span>
+							   <span class="s2">"mode='scaled') first -- wave_cross_section_signal derives from the "</span>
+							   <span class="s2">"stored planes and never propagates."</span><span class="p">)</span>
+		<span class="n">profile</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">_wave_cross_section_arrays</span><span class="p">(</span><span class="n">planes</span><span class="p">)</span>
+		<span class="n">markers</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"element"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="n">k</span><span class="p">,</span> <span class="s2">"z"</span><span class="p">:</span> <span class="n">v</span><span class="p">}</span>
+				   <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">named_positions</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="p">]</span>
+		<span class="n">markers</span> <span class="o">+=</span> <span class="p">[{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"crossover"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"crossover"</span><span class="p">,</span> <span class="s2">"z"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">zc</span><span class="p">)}</span>
+					<span class="k">for</span> <span class="n">zc</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">crossovers</span> <span class="ow">or</span> <span class="p">())]</span>
+		<span class="k">if</span> <span class="n">conjugates</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_planes</span><span class="p">:</span>
+			<span class="n">markers</span> <span class="o">+=</span> <span class="p">[{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"image"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"image"</span><span class="p">,</span> <span class="s2">"z"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">zi</span><span class="p">)}</span>
+						<span class="k">for</span> <span class="n">zi</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_planes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'x'</span><span class="p">,</span> <span class="p">())]</span>
+		<span class="k">return</span> <span class="n">make_wave_cross_section_signal</span><span class="p">(</span><span class="n">profile</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">markers</span><span class="p">,</span>
+											  <span class="n">source</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s2">"microscope"</span><span class="p">)</span></div>
+
+
 <div class="viewcode-block" id="Microscope.propagate">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.Microscope.propagate">[docs]</a>
 	<span class="k">def</span><span class="w"> </span><span class="nf">propagate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"ray"</span><span class="p">,</span><span class="s2">"rays"</span><span class="p">,</span><span class="s2">"moments"</span><span class="p">,</span><span class="s2">"envelope"</span><span class="p">,</span><span class="s2">"covariance"</span><span class="p">,</span><span class="s2">"wave"</span><span class="p">,</span><span class="s2">"wave-scaled"</span><span class="p">,</span><span class="s2">"wave_scaled"</span><span class="p">,</span><span class="s2">"wave-hybrid"</span><span class="p">,</span><span class="s2">"wave_hybrid"</span><span class="p">]</span><span class="o">=</span><span class="s2">"ray"</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -3533,10 +4177,9 @@
 <span class="sd">			this object's own stored result is never touched (so ``regenerate``</span>
 <span class="sd">			does not apply to it).</span>
 <span class="sd">		conjugates : bool, optional</span>
-<span class="sd">			Scaled cross-section only: also annotate the **image** planes from</span>
-<span class="sd">			:meth:`conjugate_planes` (magenta dash-dot) alongside the wave</span>
-<span class="sd">			run's own crossovers (cyan dotted), by default True. Costs one</span>
-<span class="sd">			four-ray reference trace on a copy.</span>
+<span class="sd">			Scaled cross-section only: also annotate the **image** planes the</span>
+<span class="sd">			hybrid run logged (:attr:`image_planes`, magenta dash-dot)</span>
+<span class="sd">			alongside its own crossovers (cyan dotted), by default True.</span>
 
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
@@ -3552,7 +4195,8 @@
 <span class="sd">		-------</span>
 <span class="sd">		propagate_ray, propagate_moments, propagate_wave, wavefield_at</span>
 <span class="sd">		subdivided : Builds the denser column ``zpts`` propagates.</span>
-<span class="sd">		_scaled_wave_cross_section : The cross-section renderer.</span>
+<span class="sd">		wave_cross_section_signal : The cross-section data, drawn by</span>
+<span class="sd">			``_scaled_wave_cross_section``.</span>
 
 <span class="sd">		Examples</span>
 <span class="sd">		--------</span>
@@ -3609,15 +4253,10 @@
 			<span class="k">elif</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"_wave_scaled_planes"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">regenerate</span><span class="p">:</span>
 				<span class="bp">self</span><span class="o">.</span><span class="n">propagate_wave</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)</span>
 			<span class="k">if</span> <span class="n">plane</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-				<span class="c1"># the wave analog of the ray diagram, with the same overlays</span>
-				<span class="n">images</span> <span class="o">=</span> <span class="kc">None</span>
-				<span class="k">if</span> <span class="n">conjugates</span><span class="p">:</span>
-					<span class="n">images</span> <span class="o">=</span> <span class="n">scope</span><span class="o">.</span><span class="n">conjugate_planes</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">'x'</span><span class="p">)[</span><span class="s1">'image'</span><span class="p">]</span>
+				<span class="c1"># the wave analog of the ray diagram, drawn from the same</span>
+				<span class="c1"># display Signal a renderer receives</span>
 				<span class="n">_scaled_wave_cross_section</span><span class="p">(</span>
-					<span class="n">scope</span><span class="o">.</span><span class="n">_wave_scaled_planes</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span>
-					<span class="n">named_positions</span><span class="o">=</span><span class="n">scope</span><span class="o">.</span><span class="n">named_positions</span><span class="p">,</span>
-					<span class="n">crossovers</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">scope</span><span class="p">,</span> <span class="s2">"crossovers"</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
-					<span class="n">image_planes</span><span class="o">=</span><span class="n">images</span><span class="p">,</span>
+					<span class="n">scope</span><span class="o">.</span><span class="n">wave_cross_section_signal</span><span class="p">(</span><span class="n">conjugates</span><span class="o">=</span><span class="n">conjugates</span><span class="p">),</span> <span class="n">ax</span><span class="p">,</span>
 					<span class="n">title</span><span class="o">=</span><span class="n">title</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'microscope'</span><span class="p">)</span> <span class="o">+</span> <span class="sa">f</span><span class="s2">" </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2"> wave |ψ(x, 0, z)|"</span><span class="p">)</span>
 			<span class="k">else</span><span class="p">:</span>
 				<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">plane</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">xp</span><span class="o">.</span><span class="n">integer</span><span class="p">))</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">plane</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>

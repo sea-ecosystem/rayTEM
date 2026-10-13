@@ -56,6 +56,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#fixed-grid-wave">Fixed-grid wave</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#scaled-fresnel-wave-mode-hybrid">Scaled-Fresnel wave (<code class="docutils literal notranslate"><span class="pre">mode=&quot;hybrid&quot;</span></code>)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#they-answer-for-each-other">They answer for each other</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#plotting-a-result-somewhere-other-than-matplotlib">Plotting a result somewhere other than matplotlib</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="operating_the_column.html">Operating the Column</a></li>
@@ -235,6 +236,51 @@ the exact reference), <code class="docutils literal notranslate"><span class="pr
 crossovers, and the covariance waists. <code class="docutils literal notranslate"><span class="pre">examples/07_eightConfigurations.py</span></code>
 prints that cross-check as a table with deltas, and the test suite holds it
 to numerical precision.</p>
+</section>
+<section id="plotting-a-result-somewhere-other-than-matplotlib">
+<h2>Plotting a result somewhere other than matplotlib<a class="headerlink" href="#plotting-a-result-somewhere-other-than-matplotlib" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">show()</span></code> draws with matplotlib. To hand a result to another viewer, ask the
+column for a <strong>display Signal</strong>: a calibrated sea-eco <code class="docutils literal notranslate"><span class="pre">Signal</span></code> holding the
+same data the figure draws, with its section, element and plane markers
+attached as annotations, so they are saved with it.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>call</p></th>
+<th class="head"><p>needs first</p></th>
+<th class="head"><p>shape</p></th>
+<th class="head"><p>markers</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ray_diagram_signal(axis=&quot;x&quot;,</span> <span class="pre">frame=&quot;rotating&quot;)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">propagate_ray()</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[ray,</span> <span class="pre">plane_z]</span></code></p></td>
+<td><p>sections, elements, diffraction/image planes</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">envelope_signal()</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">propagate_moments()</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[quantity,</span> <span class="pre">z]</span></code></p></td>
+<td><p>sections, elements</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">wave_cross_section_signal()</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">propagate_wave(mode=&quot;hybrid&quot;)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[x,</span> <span class="pre">z]</span></code></p></td>
+<td><p>elements, crossovers, image planes</p></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">scope</span> <span class="o">=</span> <span class="n">build_basic_column</span><span class="p">()</span>
+<span class="n">scope</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">()</span>
+<span class="n">diagram</span> <span class="o">=</span> <span class="n">scope</span><span class="o">.</span><span class="n">ray_diagram_signal</span><span class="p">()</span>      <span class="c1"># every ray's x (m) at every plane</span>
+<span class="n">diagram</span><span class="o">.</span><span class="n">to_sea</span><span class="p">(</span><span class="s2">"ray_diagram.sea"</span><span class="p">)</span>         <span class="c1"># markers are saved with it</span>
+<span class="n">scope</span><span class="p">[</span><span class="s2">"O"</span><span class="p">]</span><span class="o">.</span><span class="n">ray_diagram_signal</span><span class="p">()</span>           <span class="c1"># one section's share</span>
+</pre></div>
+</div>
+<p>These are views of the result already on the column. They never propagate:
+asking before the matching <code class="docutils literal notranslate"><span class="pre">propagate_*</span></code> call raises a <code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> that
+names the call to make. A ray an aperture blocked is NaN from that plane on.
+The ray diagram and envelope methods also exist on a <code class="docutils literal notranslate"><span class="pre">MicroscopeSection</span></code>,
+which marks its own span and elements but no conjugate planes.</p>
 </section>
 </section>
 

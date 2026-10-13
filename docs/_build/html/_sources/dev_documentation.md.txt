@@ -129,6 +129,81 @@ angular variance, so there is no regime in which the aberration matters to Σ
 but the induced non-Gaussianity does not. `examples/08_covariancePropagation.py`
 prints `f` per element and measures the OL1–OL2 interaction residual directly.
 
+## Display Signals
+
+`Microscope.ray_diagram_signal`, `envelope_signal` and
+`wave_cross_section_signal` (the first two also on `MicroscopeSection`)
+return the data behind rayTEM's matplotlib figures as calibrated sea-eco
+Signals, so another viewer can draw them. Poseidon's live model plots are the
+first consumer: the sea-pearl host propagates its hosted model and exports
+these views on every change.
+
+| view | shape | dimensions | values | markers |
+|---|---|---|---|---|
+| ray diagram | `[ray, plane_z]` | `ray` index; `plane_z` unstructured, m | transverse position, m; NaN once blocked | section spans; element, `diff` and `image` lines |
+| envelope | `[quantity, z]` | `quantity` categorical (`sigma_x`, `sigma_y`, `sigma_xt`, `sigma_yt`); `z` unstructured, m | RMS width; per-row units in metadata `quantity_units` (m, m, rad, rad) | section spans; element lines |
+| cross-section | `[x, z]` | `x` uniform, m (600 samples); `z` unstructured, m | `|ψ(x, 0, z)|`, peak-normalized per plane | element, `crossover` and `image` lines |
+
+Design decisions, and why:
+
+- **Derived, never stored.** Each call builds a new Signal from the stored
+  result (`rays`/`I`/`R`, `covariance_matrix`, the scaled planes), following
+  `notes/eric/PLAN_2026-08-25_derived-signal-properties.md`: the result is
+  the storage, and a second copy would only drift from it. They never
+  propagate either; a missing result raises a `RuntimeError` that names the
+  call to make.
+- **Markers come from the stored result, never from a copy of the column.**
+  `conjugate_planes()` deep-copies the column for its reference trace, and a
+  hosted sea-pearl model cannot be deep-copied: its backend holds the vendor
+  transport. So the ray diagram takes its planes from `findPlanes` on the
+  rays it plots, exactly as `plot2D` does; the cross-section takes the hybrid
+  run's own `crossovers` and `image_planes`; the envelope, whose moments carry
+  no trace, marks sections and elements only. A section marks no planes:
+  `findPlanes` on its own rays would choose reference rays at the section
+  entrance and report the planes of a different object.
+- **z is the last axis of every view.** A PLOT-8 `Line` or `Span` marks the
+  plot's horizontal axis, so the axis the markers sit on must be the one
+  drawn horizontally. This is why the cross-section is `[x, z]`, in the
+  orientation the figure has always had.
+- **Markers are named `raytem.<kind>.<nnn>.<label>`.** Kinds are `section`,
+  `element`, `diff`, `image` and `crossover`; the label is also the
+  annotation's `text`. Spans and lines are built by sea-eco's own
+  `mark_axis_span` and `mark_axis_value`, so the stored shape is defined in
+  one place. They are drafted on a plain metadata holder and attached when the
+  Signal is built: marking a live Signal records one edit per mark, which
+  turned a 50 kB ray diagram into 1.7 MB of history.
+- **One drawing path.** `show(kind="wave-hybrid")` draws the cross-section
+  from `wave_cross_section_signal()`, so the figure and the exported data
+  cannot drift. The plotted array is bit-identical to the previous
+  implementation; image-plane lines moved by at most 2.2e-16 m, because they
+  now come from the run's log rather than a fresh trace.
+- **Graceful degradation.** Without sea-eco the factories return a
+  `seashells._DisplaySignal` with the same data, axes, markers and metadata,
+  and `seashells.read_display_signal` reads either form.
+
+Failure modes worth knowing: `findPlanes` only finds planes when the source
+launches its reference rays (on-axis and zero-angle members, as the 5×5
+grid source does), and otherwise marks none, as `plot2D` does. The
+cross-section's `crossovers` and `image_planes` are whatever the last hybrid
+run logged, so a later `mode="scaled"` run does not refresh them.
+
+### Provenance and verification
+
+- **Implementation**: `assemblies.py` (`ray_diagram_signal`,
+  `envelope_signal`, `wave_cross_section_signal`, `_ray_diagram_arrays`,
+  `_stored_plane_markers`, `_wave_cross_section_arrays`) and `seashells.py`
+  (`make_ray_diagram_signal`, `make_envelope_signal`,
+  `make_wave_cross_section_signal`, `read_display_signal`).
+- **Contract**: sea-eco's `nd-plotting` schema, PLOT-8 (persisted
+  annotations), as a data producer; see the Schema section below.
+- **Tests**: `src/pySEA/rayTEM/tests/test_display_signals.py`. It covers the
+  dimensions and units, ghosting, marker counts, section views, `.sea` round
+  trips, the no-sea-eco fallback, a column that refuses `deepcopy`, and the
+  cross-section against a frozen copy of the old algorithm.
+- **Guide**: Propagation Modes, "Plotting a result somewhere other than
+  matplotlib".
+- **API**: the methods' and factories' docstrings, in the API Reference.
+
 ## High-risk seams
 
 - `elements.py` — `columnByName()` and `fix_mat_dims()` are referenced
@@ -143,7 +218,10 @@ prints `f` per element and measures the OL1–OL2 interaction residual directly.
 rayTEM does not currently own a schema, nor does it formally implement
 sea-eco's `pipeline-editor` or `nd-plotting` schemas — its plotting goes
 through matplotlib directly and its sea-eco integration is data-level
-(Signals in, Signals out) rather than a backend implementation. This section
+(Signals in, Signals out) rather than a backend implementation. The display
+Signals above are on the "out" side: they carry PLOT-8 `Span`/`Line`
+annotations for whichever renderer draws them, which makes rayTEM a producer
+of annotated data, not an nd-plotting backend. This section
 exists so that omission is a recorded decision; if a rayTEM surface grows a
 second implementation, the contract starts in the owning package's schema
 first.
@@ -162,7 +240,8 @@ first.
   claims), `test_covariance_propagation.py` (the closure against hand-written
   Isserlis, the kick polynomial against `deflection_at` at every order, and
   the aberrated and chromatic covariance updates against Monte-Carlo rays),
-  `test_wave_and_envelope.py`, `test_elements_sections_microscopes.py`.
+  `test_wave_and_envelope.py`, `test_elements_sections_microscopes.py`,
+  `test_display_signals.py` (the display Signals and their markers).
 - **User guides**: Getting Started, Propagation Modes, Operating the Column.
 - **Executable examples**: `examples/01`–`08`, all headless-runnable; 05 and
   07 are cross-method verification scripts, 08 is the covariance resolution

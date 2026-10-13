@@ -65,9 +65,13 @@
 <li class="toctree-l2"><a class="reference internal" href="#the-scaled-wave-engine">The scaled-wave engine</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#aberrations">Aberrations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#moments-and-the-closure-seam">Moments, and the closure seam</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#display-signals">Display Signals</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#provenance-and-verification">Provenance and verification</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#high-risk-seams">High-risk seams</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#schema">Schema</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#provenance-and-verification">Provenance and verification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id1">Provenance and verification</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#building-the-docs">Building the docs</a></li>
 </ul>
 </li>
@@ -228,6 +232,106 @@ angular variance, so there is no regime in which the aberration matters to Σ
 but the induced non-Gaussianity does not. <code class="docutils literal notranslate"><span class="pre">examples/08_covariancePropagation.py</span></code>
 prints <code class="docutils literal notranslate"><span class="pre">f</span></code> per element and measures the OL1–OL2 interaction residual directly.</p>
 </section>
+<section id="display-signals">
+<h2>Display Signals<a class="headerlink" href="#display-signals" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Microscope.ray_diagram_signal</span></code>, <code class="docutils literal notranslate"><span class="pre">envelope_signal</span></code> and
+<code class="docutils literal notranslate"><span class="pre">wave_cross_section_signal</span></code> (the first two also on <code class="docutils literal notranslate"><span class="pre">MicroscopeSection</span></code>)
+return the data behind rayTEM’s matplotlib figures as calibrated sea-eco
+Signals, so another viewer can draw them. Poseidon’s live model plots are the
+first consumer: the sea-pearl host propagates its hosted model and exports
+these views on every change.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>view</p></th>
+<th class="head"><p>shape</p></th>
+<th class="head"><p>dimensions</p></th>
+<th class="head"><p>values</p></th>
+<th class="head"><p>markers</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>ray diagram</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[ray,</span> <span class="pre">plane_z]</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ray</span></code> index; <code class="docutils literal notranslate"><span class="pre">plane_z</span></code> unstructured, m</p></td>
+<td><p>transverse position, m; NaN once blocked</p></td>
+<td><p>section spans; element, <code class="docutils literal notranslate"><span class="pre">diff</span></code> and <code class="docutils literal notranslate"><span class="pre">image</span></code> lines</p></td>
+</tr>
+<tr class="row-odd"><td><p>envelope</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[quantity,</span> <span class="pre">z]</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">quantity</span></code> categorical (<code class="docutils literal notranslate"><span class="pre">sigma_x</span></code>, <code class="docutils literal notranslate"><span class="pre">sigma_y</span></code>, <code class="docutils literal notranslate"><span class="pre">sigma_xt</span></code>, <code class="docutils literal notranslate"><span class="pre">sigma_yt</span></code>); <code class="docutils literal notranslate"><span class="pre">z</span></code> unstructured, m</p></td>
+<td><p>RMS width; per-row units in metadata <code class="docutils literal notranslate"><span class="pre">quantity_units</span></code> (m, m, rad, rad)</p></td>
+<td><p>section spans; element lines</p></td>
+</tr>
+<tr class="row-even"><td><p>cross-section</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[x,</span> <span class="pre">z]</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">x</span></code> uniform, m (600 samples); <code class="docutils literal notranslate"><span class="pre">z</span></code> unstructured, m</p></td>
+<td><p>`</p></td>
+<td><p>ψ(x, 0, z)</p></td>
+</tr>
+</tbody>
+</table>
+<p>Design decisions, and why:</p>
+<ul class="simple">
+<li><p><strong>Derived, never stored.</strong> Each call builds a new Signal from the stored
+result (<code class="docutils literal notranslate"><span class="pre">rays</span></code>/<code class="docutils literal notranslate"><span class="pre">I</span></code>/<code class="docutils literal notranslate"><span class="pre">R</span></code>, <code class="docutils literal notranslate"><span class="pre">covariance_matrix</span></code>, the scaled planes), following
+<code class="docutils literal notranslate"><span class="pre">notes/eric/PLAN_2026-08-25_derived-signal-properties.md</span></code>: the result is
+the storage, and a second copy would only drift from it. They never
+propagate either; a missing result raises a <code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> that names the
+call to make.</p></li>
+<li><p><strong>Markers come from the stored result, never from a copy of the column.</strong>
+<code class="docutils literal notranslate"><span class="pre">conjugate_planes()</span></code> deep-copies the column for its reference trace, and a
+hosted sea-pearl model cannot be deep-copied: its backend holds the vendor
+transport. So the ray diagram takes its planes from <code class="docutils literal notranslate"><span class="pre">findPlanes</span></code> on the
+rays it plots, exactly as <code class="docutils literal notranslate"><span class="pre">plot2D</span></code> does; the cross-section takes the hybrid
+run’s own <code class="docutils literal notranslate"><span class="pre">crossovers</span></code> and <code class="docutils literal notranslate"><span class="pre">image_planes</span></code>; the envelope, whose moments carry
+no trace, marks sections and elements only. A section marks no planes:
+<code class="docutils literal notranslate"><span class="pre">findPlanes</span></code> on its own rays would choose reference rays at the section
+entrance and report the planes of a different object.</p></li>
+<li><p><strong>z is the last axis of every view.</strong> A PLOT-8 <code class="docutils literal notranslate"><span class="pre">Line</span></code> or <code class="docutils literal notranslate"><span class="pre">Span</span></code> marks the
+plot’s horizontal axis, so the axis the markers sit on must be the one
+drawn horizontally. This is why the cross-section is <code class="docutils literal notranslate"><span class="pre">[x,</span> <span class="pre">z]</span></code>, in the
+orientation the figure has always had.</p></li>
+<li><p><strong>Markers are named <code class="docutils literal notranslate"><span class="pre">raytem.&lt;kind&gt;.&lt;nnn&gt;.&lt;label&gt;</span></code>.</strong> Kinds are <code class="docutils literal notranslate"><span class="pre">section</span></code>,
+<code class="docutils literal notranslate"><span class="pre">element</span></code>, <code class="docutils literal notranslate"><span class="pre">diff</span></code>, <code class="docutils literal notranslate"><span class="pre">image</span></code> and <code class="docutils literal notranslate"><span class="pre">crossover</span></code>; the label is also the
+annotation’s <code class="docutils literal notranslate"><span class="pre">text</span></code>. Spans and lines are built by sea-eco’s own
+<code class="docutils literal notranslate"><span class="pre">mark_axis_span</span></code> and <code class="docutils literal notranslate"><span class="pre">mark_axis_value</span></code>, so the stored shape is defined in
+one place. They are drafted on a plain metadata holder and attached when the
+Signal is built: marking a live Signal records one edit per mark, which
+turned a 50 kB ray diagram into 1.7 MB of history.</p></li>
+<li><p><strong>One drawing path.</strong> <code class="docutils literal notranslate"><span class="pre">show(kind=&quot;wave-hybrid&quot;)</span></code> draws the cross-section
+from <code class="docutils literal notranslate"><span class="pre">wave_cross_section_signal()</span></code>, so the figure and the exported data
+cannot drift. The plotted array is bit-identical to the previous
+implementation; image-plane lines moved by at most 2.2e-16 m, because they
+now come from the run’s log rather than a fresh trace.</p></li>
+<li><p><strong>Graceful degradation.</strong> Without sea-eco the factories return a
+<code class="docutils literal notranslate"><span class="pre">seashells._DisplaySignal</span></code> with the same data, axes, markers and metadata,
+and <code class="docutils literal notranslate"><span class="pre">seashells.read_display_signal</span></code> reads either form.</p></li>
+</ul>
+<p>Failure modes worth knowing: <code class="docutils literal notranslate"><span class="pre">findPlanes</span></code> only finds planes when the source
+launches its reference rays (on-axis and zero-angle members, as the 5×5
+grid source does), and otherwise marks none, as <code class="docutils literal notranslate"><span class="pre">plot2D</span></code> does. The
+cross-section’s <code class="docutils literal notranslate"><span class="pre">crossovers</span></code> and <code class="docutils literal notranslate"><span class="pre">image_planes</span></code> are whatever the last hybrid
+run logged, so a later <code class="docutils literal notranslate"><span class="pre">mode=&quot;scaled&quot;</span></code> run does not refresh them.</p>
+<section id="provenance-and-verification">
+<h3>Provenance and verification<a class="headerlink" href="#provenance-and-verification" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>Implementation</strong>: <code class="docutils literal notranslate"><span class="pre">assemblies.py</span></code> (<code class="docutils literal notranslate"><span class="pre">ray_diagram_signal</span></code>,
+<code class="docutils literal notranslate"><span class="pre">envelope_signal</span></code>, <code class="docutils literal notranslate"><span class="pre">wave_cross_section_signal</span></code>, <code class="docutils literal notranslate"><span class="pre">_ray_diagram_arrays</span></code>,
+<code class="docutils literal notranslate"><span class="pre">_stored_plane_markers</span></code>, <code class="docutils literal notranslate"><span class="pre">_wave_cross_section_arrays</span></code>) and <code class="docutils literal notranslate"><span class="pre">seashells.py</span></code>
+(<code class="docutils literal notranslate"><span class="pre">make_ray_diagram_signal</span></code>, <code class="docutils literal notranslate"><span class="pre">make_envelope_signal</span></code>,
+<code class="docutils literal notranslate"><span class="pre">make_wave_cross_section_signal</span></code>, <code class="docutils literal notranslate"><span class="pre">read_display_signal</span></code>).</p></li>
+<li><p><strong>Contract</strong>: sea-eco’s <code class="docutils literal notranslate"><span class="pre">nd-plotting</span></code> schema, PLOT-8 (persisted
+annotations), as a data producer; see the Schema section below.</p></li>
+<li><p><strong>Tests</strong>: <code class="docutils literal notranslate"><span class="pre">src/pySEA/rayTEM/tests/test_display_signals.py</span></code>. It covers the
+dimensions and units, ghosting, marker counts, section views, <code class="docutils literal notranslate"><span class="pre">.sea</span></code> round
+trips, the no-sea-eco fallback, a column that refuses <code class="docutils literal notranslate"><span class="pre">deepcopy</span></code>, and the
+cross-section against a frozen copy of the old algorithm.</p></li>
+<li><p><strong>Guide</strong>: Propagation Modes, “Plotting a result somewhere other than
+matplotlib”.</p></li>
+<li><p><strong>API</strong>: the methods’ and factories’ docstrings, in the API Reference.</p></li>
+</ul>
+</section>
+</section>
 <section id="high-risk-seams">
 <h2>High-risk seams<a class="headerlink" href="#high-risk-seams" title="Link to this heading"></a></h2>
 <ul class="simple">
@@ -244,13 +348,16 @@ aperture positions drift if these lose consistency.</p></li>
 <p>rayTEM does not currently own a schema, nor does it formally implement
 sea-eco’s <code class="docutils literal notranslate"><span class="pre">pipeline-editor</span></code> or <code class="docutils literal notranslate"><span class="pre">nd-plotting</span></code> schemas — its plotting goes
 through matplotlib directly and its sea-eco integration is data-level
-(Signals in, Signals out) rather than a backend implementation. This section
+(Signals in, Signals out) rather than a backend implementation. The display
+Signals above are on the “out” side: they carry PLOT-8 <code class="docutils literal notranslate"><span class="pre">Span</span></code>/<code class="docutils literal notranslate"><span class="pre">Line</span></code>
+annotations for whichever renderer draws them, which makes rayTEM a producer
+of annotated data, not an nd-plotting backend. This section
 exists so that omission is a recorded decision; if a rayTEM surface grows a
 second implementation, the contract starts in the owning package’s schema
 first.</p>
 </section>
-<section id="provenance-and-verification">
-<h2>Provenance and verification<a class="headerlink" href="#provenance-and-verification" title="Link to this heading"></a></h2>
+<section id="id1">
+<h2>Provenance and verification<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p><strong>Implementation entry points</strong>: <code class="docutils literal notranslate"><span class="pre">elements.py</span></code> (elements, screens,
 aberration application), <code class="docutils literal notranslate"><span class="pre">assemblies.py</span></code> (sections, columns, propagation
@@ -264,7 +371,8 @@ seam).</p></li>
 claims), <code class="docutils literal notranslate"><span class="pre">test_covariance_propagation.py</span></code> (the closure against hand-written
 Isserlis, the kick polynomial against <code class="docutils literal notranslate"><span class="pre">deflection_at</span></code> at every order, and
 the aberrated and chromatic covariance updates against Monte-Carlo rays),
-<code class="docutils literal notranslate"><span class="pre">test_wave_and_envelope.py</span></code>, <code class="docutils literal notranslate"><span class="pre">test_elements_sections_microscopes.py</span></code>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">test_wave_and_envelope.py</span></code>, <code class="docutils literal notranslate"><span class="pre">test_elements_sections_microscopes.py</span></code>,
+<code class="docutils literal notranslate"><span class="pre">test_display_signals.py</span></code> (the display Signals and their markers).</p></li>
 <li><p><strong>User guides</strong>: Getting Started, Propagation Modes, Operating the Column.</p></li>
 <li><p><strong>Executable examples</strong>: <code class="docutils literal notranslate"><span class="pre">examples/01</span></code>–<code class="docutils literal notranslate"><span class="pre">08</span></code>, all headless-runnable; 05 and
 07 are cross-method verification scripts, 08 is the covariance resolution

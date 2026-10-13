@@ -99,13 +99,17 @@
 <span class="sd">"""</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span><span class="o">,</span><span class="nn">inspect</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">Sequence</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">warnings</span><span class="w"> </span><span class="kn">import</span> <span class="n">warn</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">numpy.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ArrayLike</span>
 
 <span class="n">sea_available</span> <span class="o">=</span> <span class="kc">False</span>
 <span class="k">try</span><span class="p">:</span>
 	<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="s2">"../../"</span><span class="p">)</span>
 	<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.sea_eco.architecture.base_structure</span><span class="w"> </span><span class="kn">import</span> <span class="n">SEASerializable</span> <span class="k">as</span> <span class="n">_SEASerializable</span>
 	<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.sea_eco.architecture.base_structure</span><span class="w"> </span><span class="kn">import</span> <span class="n">Signal</span> <span class="k">as</span> <span class="n">_Signal</span><span class="p">,</span> <span class="n">Dimension</span> <span class="k">as</span> <span class="n">_Dimension</span><span class="p">,</span> <span class="n">SignalSet</span> <span class="k">as</span> <span class="n">_SignalSet</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.sea_eco.architecture.base_structure</span><span class="w"> </span><span class="kn">import</span> <span class="n">Metadata</span> <span class="k">as</span> <span class="n">_Metadata</span>
 	<span class="n">sea_available</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
 	<span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">+</span><span class="s2">". This is just a warning from rayTEM.seashells: rayTEM pySEA integration will not work."</span><span class="p">)</span>
@@ -1099,6 +1103,608 @@
 							<span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">tags</span><span class="p">])</span>
 		<span class="n">signals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">frame</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">"frame"</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">]))</span>
 	<span class="k">return</span> <span class="n">_SignalSet</span><span class="p">(</span><span class="n">signals</span><span class="o">=</span><span class="n">signals</span><span class="p">,</span> <span class="n">main_signal</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># --- DISPLAY SIGNALS ---------------------------------------------------------</span>
+<span class="c1"># Views of a stored propagation result (ray diagram, beam envelope, scaled-wave</span>
+<span class="c1"># cross-section), built here so the only sea_eco imports stay in this module.</span>
+<span class="c1"># They are derived on every call and never stored on the column: the stored</span>
+<span class="c1"># result is the storage (notes/eric/PLAN_2026-08-25_derived-signal-properties.md).</span>
+
+<span class="c1">#: First part of every marker annotation's name. A marker is named</span>
+<span class="c1">#: ``raytem.&lt;kind&gt;.&lt;nnn&gt;.&lt;label&gt;`` -- ``kind`` is one of the keys below (or</span>
+<span class="c1">#: ``section``), ``nnn`` counts that kind from 000 in drawing order -- so a</span>
+<span class="c1">#: renderer, or :func:`read_display_signal`, can tell the kinds apart.</span>
+<span class="n">_MARKER_PREFIX</span> <span class="o">=</span> <span class="s2">"raytem"</span>
+
+<span class="c1">#: Colour stored on each line-marker kind (PLOT-8 honours ``style.color``).</span>
+<span class="c1">#: Mid-tones, so they read on a light line plot and on the magma cross-section.</span>
+<span class="n">_MARKER_COLORS</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"element"</span><span class="p">:</span> <span class="s2">"#808080"</span><span class="p">,</span> <span class="s2">"diff"</span><span class="p">:</span> <span class="s2">"#00ffff"</span><span class="p">,</span> <span class="s2">"crossover"</span><span class="p">:</span> <span class="s2">"#00ffff"</span><span class="p">,</span>
+				  <span class="s2">"image"</span><span class="p">:</span> <span class="s2">"#ff00ff"</span><span class="p">}</span>
+
+<span class="c1">#: Colours section spans cycle through: plot2D's g/b/r section shading.</span>
+<span class="n">_SECTION_COLORS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"#008000"</span><span class="p">,</span> <span class="s2">"#0000ff"</span><span class="p">,</span> <span class="s2">"#ff0000"</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_DisplaySignal</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Lightweight fallback display Signal used when sea_eco is unavailable.</span>
+
+<span class="sd">	Mirrors what :func:`read_display_signal` reads from a real display Signal</span>
+<span class="sd">	-- the data, its axes, the markers and the descriptive metadata -- so a</span>
+<span class="sd">	caller that draws from a display Signal (:meth:`assemblies.Microscope.show`</span>
+<span class="sd">	for the scaled-wave cross-section) works the same without the pySEA data</span>
+<span class="sd">	layer. Serialization (``to_sea``) is not available in this mode.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	data : numpy.ndarray</span>
+<span class="sd">		The displayed values, in the axis order of ``axes``.</span>
+<span class="sd">	name : str</span>
+<span class="sd">		Display name, e.g. ``"ray diagram (x)"``.</span>
+<span class="sd">	axes : Sequence[tuple]</span>
+<span class="sd">		One ``(name, values, units)`` per data axis, in data-axis order.</span>
+<span class="sd">	markers : Sequence[Mapping]</span>
+<span class="sd">		Marker records as :func:`read_display_signal` returns them.</span>
+<span class="sd">	metadata : Mapping</span>
+<span class="sd">		Descriptive metadata (``kind`` and the view's own keys).</span>
+
+<span class="sd">	Attributes</span>
+<span class="sd">	----------</span>
+<span class="sd">	data : numpy.ndarray</span>
+<span class="sd">		The displayed values.</span>
+<span class="sd">	name : str</span>
+<span class="sd">		Display name.</span>
+<span class="sd">	axes : list of tuple</span>
+<span class="sd">		``(name, values, units)`` per data axis.</span>
+<span class="sd">	markers : list of dict</span>
+<span class="sd">		Marker records.</span>
+<span class="sd">	metadata : dict</span>
+<span class="sd">		Descriptive metadata.</span>
+
+<span class="sd">	Methods</span>
+<span class="sd">	-------</span>
+<span class="sd">	None</span>
+<span class="sd">		A plain container.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	read_display_signal : Reads this and a real display Signal alike.</span>
+<span class="sd">	_Wavefield : The same fallback pattern for wavefields.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	The axes are deliberately not called ``dimensions``: :func:`as_ndarray`</span>
+<span class="sd">	treats any object with a ``dimensions`` attribute as a Signal.</span>
+<span class="sd">	"""</span>
+	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">axes</span><span class="p">:</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">],</span>
+				 <span class="n">markers</span><span class="p">:</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> <span class="n">metadata</span><span class="p">:</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">axes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">axes</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">markers</span> <span class="o">=</span> <span class="p">[</span><span class="nb">dict</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">markers</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">metadata</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_AnnotationDraft</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""A bare ``metadata`` holder the display markers are drafted on.</span>
+
+<span class="sd">	sea_eco's :func:`~pySEA.sea_eco.annotations.mark_axis_value` and</span>
+<span class="sd">	:func:`~pySEA.sea_eco.annotations.mark_axis_span` record one edit per call</span>
+<span class="sd">	on a tracked Signal. A display Signal carries dozens of markers, and</span>
+<span class="sd">	recording each as a step bloated a 50 kB ray diagram to 1.7 MB of history</span>
+<span class="sd">	and took two seconds. Marking this untracked holder instead builds the same</span>
+<span class="sd">	``Annotation`` objects with nothing recorded; the finished collection then</span>
+<span class="sd">	becomes part of the new Signal's original state.</span>
+
+<span class="sd">	Attributes</span>
+<span class="sd">	----------</span>
+<span class="sd">	metadata : Metadata</span>
+<span class="sd">		Receives ``Display.Annotations`` / ``Display.ROI`` as marks are made.</span>
+
+<span class="sd">	Methods</span>
+<span class="sd">	-------</span>
+<span class="sd">	None</span>
+<span class="sd">		A plain container.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	_marker_annotations : The only user.</span>
+<span class="sd">	"""</span>
+	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="n">_Metadata</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_marker_records</span><span class="p">(</span><span class="n">markers</span><span class="p">:</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Normalize marker requests into records carrying kind, label, position and colour.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	markers : Sequence[Mapping]</span>
+<span class="sd">		Requests from the column: ``{"kind", "label", "z"}`` for a line, or</span>
+<span class="sd">		``{"kind", "label", "z0", "z1"}`` for a span (positions in metres).</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	list of dict</span>
+<span class="sd">		The same records, ``z``/``z0``/``z1`` as floats, each with the</span>
+<span class="sd">		``color`` it is stored with: sections cycle through</span>
+<span class="sd">		``_SECTION_COLORS``, lines take ``_MARKER_COLORS[kind]``.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	KeyError</span>
+<span class="sd">		If a request lacks ``kind``, ``label`` or a position.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	_marker_annotations : Turns these records into sea_eco annotations.</span>
+<span class="sd">	"""</span>
+	<span class="n">records</span> <span class="o">=</span> <span class="p">[]</span> <span class="p">;</span> <span class="n">spans</span> <span class="o">=</span> <span class="mi">0</span>
+	<span class="k">for</span> <span class="n">marker</span> <span class="ow">in</span> <span class="n">markers</span><span class="p">:</span>
+		<span class="n">record</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">marker</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">]),</span> <span class="s2">"label"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">marker</span><span class="p">[</span><span class="s2">"label"</span><span class="p">])}</span>
+		<span class="k">if</span> <span class="s2">"z0"</span> <span class="ow">in</span> <span class="n">marker</span><span class="p">:</span>
+			<span class="n">record</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">z0</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">marker</span><span class="p">[</span><span class="s2">"z0"</span><span class="p">]),</span> <span class="n">z1</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">marker</span><span class="p">[</span><span class="s2">"z1"</span><span class="p">]),</span>
+						  <span class="n">color</span><span class="o">=</span><span class="n">_SECTION_COLORS</span><span class="p">[</span><span class="n">spans</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">_SECTION_COLORS</span><span class="p">)])</span>
+			<span class="n">spans</span> <span class="o">+=</span> <span class="mi">1</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">record</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">z</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">marker</span><span class="p">[</span><span class="s2">"z"</span><span class="p">]),</span>
+						  <span class="n">color</span><span class="o">=</span><span class="n">_MARKER_COLORS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">],</span> <span class="s2">"#ffae42"</span><span class="p">))</span>
+		<span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">records</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_marker_annotations</span><span class="p">(</span><span class="n">records</span><span class="p">:</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> <span class="n">along</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span>
+						<span class="n">extent</span><span class="p">:</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Build the sea_eco annotations for a display Signal's markers.</span>
+
+<span class="sd">	Every marker goes through sea_eco's own constructors -- a span through</span>
+<span class="sd">	``mark_axis_span``, a line through ``mark_axis_value`` -- so the stored</span>
+<span class="sd">	shape (PLOT-8 ``Span`` / ``Line``, calibrated coordinates) is defined in</span>
+<span class="sd">	one place, sea_eco's.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	records : Sequence[Mapping]</span>
+<span class="sd">		Marker records from :func:`_marker_records`.</span>
+<span class="sd">	along : str</span>
+<span class="sd">		The dimension the markers sit on: the horizontal axis of the plot</span>
+<span class="sd">		they are authored for.</span>
+<span class="sd">	extent : Sequence[float]</span>
+<span class="sd">		``(low, high)`` every ``Line`` spans on the other axis, in its units.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	tuple</span>
+<span class="sd">		``(AnnotationCollection, ROICollection)``; the ROI collection is empty.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	ValueError</span>
+<span class="sd">		If a span's ``z0`` is not below its ``z1``.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	_AnnotationDraft : Why the marks are made on a holder, not the Signal.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	``mark_*`` replaces every annotation whose name starts with its ``owner``,</span>
+<span class="sd">	so each marker gets its own owner, ``raytem.&lt;kind&gt;.&lt;nnn&gt;``; the name is</span>
+<span class="sd">	``&lt;owner&gt;.&lt;label&gt;`` and ``text`` is the label.</span>
+<span class="sd">	"""</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.sea_eco.annotations</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span><span class="n">mark_axis_span</span><span class="p">,</span> <span class="n">mark_axis_value</span><span class="p">,</span>
+										   <span class="n">get_display_annotations</span><span class="p">)</span>
+	<span class="n">draft</span> <span class="o">=</span> <span class="n">_AnnotationDraft</span><span class="p">()</span>
+	<span class="n">counts</span> <span class="o">=</span> <span class="p">{}</span>
+	<span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">records</span><span class="p">:</span>
+		<span class="n">kind</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">]</span>
+		<span class="n">index</span> <span class="o">=</span> <span class="n">counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">kind</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="p">;</span> <span class="n">counts</span><span class="p">[</span><span class="n">kind</span><span class="p">]</span> <span class="o">=</span> <span class="n">index</span> <span class="o">+</span> <span class="mi">1</span>
+		<span class="n">owner</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">_MARKER_PREFIX</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">kind</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">index</span><span class="si">:</span><span class="s2">03d</span><span class="si">}</span><span class="s2">"</span>
+		<span class="k">if</span> <span class="s2">"z0"</span> <span class="ow">in</span> <span class="n">record</span><span class="p">:</span>
+			<span class="n">mark_axis_span</span><span class="p">(</span><span class="n">draft</span><span class="p">,</span> <span class="n">record</span><span class="p">[</span><span class="s2">"z0"</span><span class="p">],</span> <span class="n">record</span><span class="p">[</span><span class="s2">"z1"</span><span class="p">],</span> <span class="n">along</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">record</span><span class="p">[</span><span class="s2">"label"</span><span class="p">],</span>
+						   <span class="n">owner</span><span class="o">=</span><span class="n">owner</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">record</span><span class="p">[</span><span class="s2">"color"</span><span class="p">],</span> <span class="n">text</span><span class="o">=</span><span class="n">record</span><span class="p">[</span><span class="s2">"label"</span><span class="p">])</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">mark_axis_value</span><span class="p">(</span><span class="n">draft</span><span class="p">,</span> <span class="n">record</span><span class="p">[</span><span class="s2">"z"</span><span class="p">],</span> <span class="n">along</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">record</span><span class="p">[</span><span class="s2">"label"</span><span class="p">],</span> <span class="n">owner</span><span class="o">=</span><span class="n">owner</span><span class="p">,</span>
+							<span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">record</span><span class="p">[</span><span class="s2">"color"</span><span class="p">],</span> <span class="n">text</span><span class="o">=</span><span class="n">record</span><span class="p">[</span><span class="s2">"label"</span><span class="p">])</span>
+	<span class="k">return</span> <span class="n">get_display_annotations</span><span class="p">(</span><span class="n">draft</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_finite_range</span><span class="p">(</span><span class="n">data</span><span class="p">:</span><span class="n">ArrayLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Low and high finite value of an array, for the extent a line marker spans.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	data : numpy.ndarray</span>
+<span class="sd">		Values that may contain NaN (ghosted rays).</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	tuple of float</span>
+<span class="sd">		``(min, max)`` over the finite values, or ``(0.0, 0.0)`` when there are</span>
+<span class="sd">		none.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+<span class="sd">	"""</span>
+	<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_np</span>
+	<span class="n">finite</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">finite</span> <span class="o">=</span> <span class="n">finite</span><span class="p">[</span><span class="n">_np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">finite</span><span class="p">)]</span>
+	<span class="k">return</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">finite</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span> <span class="nb">float</span><span class="p">(</span><span class="n">finite</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span> <span class="k">if</span> <span class="n">finite</span><span class="o">.</span><span class="n">size</span> <span class="k">else</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_plane_z_dimension</span><span class="p">(</span><span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span><span class="n">ArrayLike</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""An unstructured, explicitly valued z axis in metres.</span>
+
+<span class="sd">	The same construction the existing result factories use for plane z: the</span>
+<span class="sd">	values are genuinely non-uniform and repeat at zero-length elements and</span>
+<span class="sd">	section boundaries, and a representative scale/offset is passed so sea_eco</span>
+<span class="sd">	skips its values-without-scale inference.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	name : str</span>
+<span class="sd">		Dimension name (``"plane_z"`` or ``"z"``).</span>
+<span class="sd">	z : numpy.ndarray</span>
+<span class="sd">		Plane positions (metres).</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	Dimension</span>
+<span class="sd">		The sea_eco dimension.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+<span class="sd">	"""</span>
+	<span class="n">zscale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">z</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">1.0</span>
+	<span class="k">return</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">zscale</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+					  <span class="n">size</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">z</span><span class="p">),</span> <span class="n">values</span><span class="o">=</span><span class="n">z</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">,</span> <span class="n">unstructured</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_display_signal</span><span class="p">(</span><span class="n">data</span><span class="p">:</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">dimensions</span><span class="p">:</span><span class="n">Sequence</span><span class="p">,</span> <span class="n">records</span><span class="p">:</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+					<span class="n">along</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">extent</span><span class="p">:</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">quantity</span><span class="p">:</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+					<span class="n">metadata</span><span class="p">:</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">signal_type</span><span class="p">:</span><span class="nb">str</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Assemble a display Signal from prepared parts, markers attached.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	data : numpy.ndarray</span>
+<span class="sd">		The displayed values.</span>
+<span class="sd">	dimensions : Sequence[Dimension]</span>
+<span class="sd">		One sea_eco dimension per data axis.</span>
+<span class="sd">	records : Sequence[Mapping]</span>
+<span class="sd">		Marker records from :func:`_marker_records`.</span>
+<span class="sd">	along : str</span>
+<span class="sd">		Dimension the markers sit on.</span>
+<span class="sd">	extent : Sequence[float]</span>
+<span class="sd">		``(low, high)`` the line markers span.</span>
+<span class="sd">	name : str</span>
+<span class="sd">		Signal name.</span>
+<span class="sd">	quantity : Mapping</span>
+<span class="sd">		The signal quantity, ``{"name", "units"}``.</span>
+<span class="sd">	metadata : Mapping</span>
+<span class="sd">		Descriptive metadata stored beside ``Display``.</span>
+<span class="sd">	signal_type : str or None, optional</span>
+<span class="sd">		sea_eco semantic type hint, by default ``None``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	Signal</span>
+<span class="sd">		The display Signal; markers live in ``metadata.Display.Annotations``.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	ValueError</span>
+<span class="sd">		If a span marker does not order.</span>
+<span class="sd">	"""</span>
+	<span class="n">annotations</span><span class="p">,</span> <span class="n">rois</span> <span class="o">=</span> <span class="n">_marker_annotations</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">along</span><span class="p">,</span> <span class="n">extent</span><span class="p">)</span>
+	<span class="n">meta</span> <span class="o">=</span> <span class="n">_Metadata</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">metadata</span><span class="p">))</span>
+	<span class="n">meta</span><span class="o">.</span><span class="n">Display</span> <span class="o">=</span> <span class="n">_Metadata</span><span class="p">()</span>
+	<span class="n">meta</span><span class="o">.</span><span class="n">Display</span><span class="o">.</span><span class="n">Annotations</span> <span class="o">=</span> <span class="n">annotations</span>
+	<span class="n">meta</span><span class="o">.</span><span class="n">Display</span><span class="o">.</span><span class="n">ROI</span> <span class="o">=</span> <span class="n">rois</span>
+	<span class="k">return</span> <span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">dimensions</span><span class="p">),</span>
+				   <span class="n">signal_quantities</span><span class="o">=</span><span class="p">[</span><span class="nb">dict</span><span class="p">(</span><span class="n">quantity</span><span class="p">)],</span> <span class="n">metadata</span><span class="o">=</span><span class="n">meta</span><span class="p">,</span>
+				   <span class="n">signal_type</span><span class="o">=</span><span class="n">signal_type</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="make_ray_diagram_signal">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.make_ray_diagram_signal">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_ray_diagram_signal</span><span class="p">(</span><span class="n">positions</span><span class="p">:</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">markers</span><span class="p">:</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+							<span class="n">axis</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">]</span><span class="o">=</span><span class="s2">"x"</span><span class="p">,</span> <span class="n">frame</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"rotating"</span><span class="p">,</span><span class="s2">"lab"</span><span class="p">]</span><span class="o">=</span><span class="s2">"rotating"</span><span class="p">,</span>
+							<span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s2">""</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Wrap a ray diagram -- every ray's transverse position per plane -- as a sea_eco Signal.</span>
+
+<span class="sd">	The overlaid-rays view of a ray-mode result, as data a renderer can draw:</span>
+<span class="sd">	shape ``[ray, plane_z]``, values the transverse position (metres) of each</span>
+<span class="sd">	ray at each logged plane, NaN once a ray is ghosted. Section spans,</span>
+<span class="sd">	element positions and conjugate planes travel with it as PLOT-8</span>
+<span class="sd">	annotations along ``plane_z``. When sea_eco is unavailable a</span>
+<span class="sd">	:class:`_DisplaySignal` fallback is returned instead (with a warning).</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	positions : numpy.ndarray</span>
+<span class="sd">		Transverse positions, shape ``(n_rays, n_planes)`` (metres).</span>
+<span class="sd">	z : Sequence[float]</span>
+<span class="sd">		The ``n_planes`` plane positions (metres), as logged -- repeats at</span>
+<span class="sd">		zero-length elements and section boundaries are kept.</span>
+<span class="sd">	markers : Sequence[Mapping]</span>
+<span class="sd">		``{"kind", "label", "z"}`` lines and ``{"kind", "label", "z0", "z1"}``</span>
+<span class="sd">		spans, positions in metres. ``kind`` is ``section``, ``element``,</span>
+<span class="sd">		``diff`` or ``image``.</span>
+<span class="sd">	axis : {'x', 'y'}, optional</span>
+<span class="sd">		Which transverse coordinate ``positions`` holds, by default ``'x'``.</span>
+<span class="sd">	frame : {'rotating', 'lab'}, optional</span>
+<span class="sd">		The frame the positions are in, by default ``'rotating'``.</span>
+<span class="sd">	name : str or None, optional</span>
+<span class="sd">		Signal name, by default ``"ray diagram (&lt;axis&gt;)"``.</span>
+<span class="sd">	source : str, optional</span>
+<span class="sd">		Name of the section or column the rays came from, stored as metadata</span>
+<span class="sd">		``source``, by default ``""``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	Signal or _DisplaySignal</span>
+<span class="sd">		Dimensions ``ray`` (unitless index) and ``plane_z`` (unstructured,</span>
+<span class="sd">		values in m); signal quantity ``&lt;axis&gt;`` in m; metadata ``kind =</span>
+<span class="sd">		"ray-diagram"``, ``axis``, ``frame``, ``source``.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	ValueError</span>
+<span class="sd">		If a span marker does not order.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	assemblies.Microscope.ray_diagram_signal : Builds the inputs.</span>
+<span class="sd">	read_display_signal : Inverse accessor.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	Line markers span the finite range of ``positions``: the vertical axis of</span>
+<span class="sd">	the line plot they are authored for (PLOT-8 clips, never rescales).</span>
+<span class="sd">	"""</span>
+	<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_np</span>
+	<span class="n">positions</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">z</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="sa">f</span><span class="s2">"ray diagram (</span><span class="si">{</span><span class="n">axis</span><span class="si">}</span><span class="s2">)"</span>
+	<span class="n">records</span> <span class="o">=</span> <span class="n">_marker_records</span><span class="p">(</span><span class="n">markers</span><span class="p">)</span>
+	<span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"ray-diagram"</span><span class="p">,</span> <span class="s2">"axis"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">axis</span><span class="p">),</span> <span class="s2">"frame"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">frame</span><span class="p">),</span> <span class="s2">"source"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">source</span><span class="p">)}</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">sea_available</span><span class="p">:</span>
+		<span class="n">warn</span><span class="p">(</span><span class="s2">"sea_eco is not installed; make_ray_diagram_signal returns a lightweight "</span>
+			 <span class="s2">"_DisplaySignal fallback (no .sea serialization)."</span><span class="p">)</span>
+		<span class="n">axes</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">"ray"</span><span class="p">,</span> <span class="n">_np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="s2">""</span><span class="p">),</span> <span class="p">(</span><span class="s2">"plane_z"</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="s2">"m"</span><span class="p">)]</span>
+		<span class="k">return</span> <span class="n">_DisplaySignal</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">axes</span><span class="p">,</span> <span class="n">records</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span>
+	<span class="n">rdim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"ray"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">units</span><span class="o">=</span><span class="s2">""</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">_display_signal</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="p">[</span><span class="n">rdim</span><span class="p">,</span> <span class="n">_plane_z_dimension</span><span class="p">(</span><span class="s2">"plane_z"</span><span class="p">,</span> <span class="n">z</span><span class="p">)],</span> <span class="n">records</span><span class="p">,</span>
+						   <span class="s2">"plane_z"</span><span class="p">,</span> <span class="n">_finite_range</span><span class="p">(</span><span class="n">positions</span><span class="p">),</span> <span class="n">name</span><span class="p">,</span>
+						   <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">axis</span><span class="p">),</span> <span class="s2">"units"</span><span class="p">:</span> <span class="s2">"m"</span><span class="p">},</span> <span class="n">metadata</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="make_envelope_signal">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.make_envelope_signal">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_envelope_signal</span><span class="p">(</span><span class="n">widths</span><span class="p">:</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">quantities</span><span class="p">:</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+						 <span class="n">units</span><span class="p">:</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">markers</span><span class="p">:</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+						 <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s2">"beam envelope"</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s2">""</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Wrap per-plane RMS beam widths as a sea_eco Signal with column markers.</span>
+
+<span class="sd">	The beam-envelope view of a covariance-mode result: shape</span>
+<span class="sd">	``[quantity, z]``, one row per RMS width. The quantities do not share a</span>
+<span class="sd">	unit -- positions are metres, angles radians -- so the signal quantity is</span>
+<span class="sd">	unitless and each row's unit is stored in metadata ``quantity_units``.</span>
+<span class="sd">	When sea_eco is unavailable a :class:`_DisplaySignal` fallback is</span>
+<span class="sd">	returned instead (with a warning).</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	widths : numpy.ndarray</span>
+<span class="sd">		RMS widths, shape ``(n_quantities, n_planes)``.</span>
+<span class="sd">	z : Sequence[float]</span>
+<span class="sd">		The ``n_planes`` plane positions (metres).</span>
+<span class="sd">	quantities : Sequence[str]</span>
+<span class="sd">		Row labels, the categorical values of the ``quantity`` dimension</span>
+<span class="sd">		(e.g. ``sigma_x``).</span>
+<span class="sd">	units : Sequence[str]</span>
+<span class="sd">		The unit of each row, same order as ``quantities``.</span>
+<span class="sd">	markers : Sequence[Mapping]</span>
+<span class="sd">		As for :func:`make_ray_diagram_signal`.</span>
+<span class="sd">	name : str, optional</span>
+<span class="sd">		Signal name, by default ``"beam envelope"``.</span>
+<span class="sd">	source : str, optional</span>
+<span class="sd">		Name of the section or column, stored as metadata ``source``, by</span>
+<span class="sd">		default ``""``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	Signal or _DisplaySignal</span>
+<span class="sd">		Dimensions ``quantity`` (categorical, values ``quantities``) and ``z``</span>
+<span class="sd">		(unstructured, values in m); signal quantity ``rms width`` (unitless);</span>
+<span class="sd">		metadata ``kind = "beam-envelope"``, ``quantity_units``, ``source``.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	ValueError</span>
+<span class="sd">		If ``units`` and ``quantities`` differ in length, or a span marker</span>
+<span class="sd">		does not order.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	assemblies.Microscope.envelope_signal : Builds the inputs.</span>
+<span class="sd">	read_display_signal : Inverse accessor.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	Line markers span the finite range of all rows together, so they cover</span>
+<span class="sd">	the view of whichever row is drawn.</span>
+<span class="sd">	"""</span>
+	<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_np</span>
+	<span class="n">widths</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">widths</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">z</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">quantities</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">q</span><span class="p">)</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">quantities</span><span class="p">]</span> <span class="p">;</span> <span class="n">units</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">u</span><span class="p">)</span> <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">units</span><span class="p">]</span>
+	<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">units</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">quantities</span><span class="p">):</span>
+		<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"make_envelope_signal needs one unit per quantity; got "</span>
+						 <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">units</span><span class="p">)</span><span class="si">}</span><span class="s2"> units for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">quantities</span><span class="p">)</span><span class="si">}</span><span class="s2"> quantities."</span><span class="p">)</span>
+	<span class="n">records</span> <span class="o">=</span> <span class="n">_marker_records</span><span class="p">(</span><span class="n">markers</span><span class="p">)</span>
+	<span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"beam-envelope"</span><span class="p">,</span> <span class="s2">"quantity_units"</span><span class="p">:</span> <span class="n">units</span><span class="p">,</span> <span class="s2">"source"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">source</span><span class="p">)}</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">sea_available</span><span class="p">:</span>
+		<span class="n">warn</span><span class="p">(</span><span class="s2">"sea_eco is not installed; make_envelope_signal returns a lightweight "</span>
+			 <span class="s2">"_DisplaySignal fallback (no .sea serialization)."</span><span class="p">)</span>
+		<span class="n">axes</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">"quantity"</span><span class="p">,</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">quantities</span><span class="p">),</span> <span class="s2">""</span><span class="p">),</span> <span class="p">(</span><span class="s2">"z"</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="s2">"m"</span><span class="p">)]</span>
+		<span class="k">return</span> <span class="n">_DisplaySignal</span><span class="p">(</span><span class="n">widths</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">axes</span><span class="p">,</span> <span class="n">records</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span>
+	<span class="n">qdim</span> <span class="o">=</span> <span class="n">_Signal</span><span class="o">.</span><span class="n">build_component_dimension</span><span class="p">(</span><span class="n">quantities</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"quantity"</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">_display_signal</span><span class="p">(</span><span class="n">widths</span><span class="p">,</span> <span class="p">[</span><span class="n">qdim</span><span class="p">,</span> <span class="n">_plane_z_dimension</span><span class="p">(</span><span class="s2">"z"</span><span class="p">,</span> <span class="n">z</span><span class="p">)],</span> <span class="n">records</span><span class="p">,</span> <span class="s2">"z"</span><span class="p">,</span>
+						   <span class="n">_finite_range</span><span class="p">(</span><span class="n">widths</span><span class="p">),</span> <span class="n">name</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"rms width"</span><span class="p">,</span> <span class="s2">"units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">},</span>
+						   <span class="n">metadata</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="make_wave_cross_section_signal">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.make_wave_cross_section_signal">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_wave_cross_section_signal</span><span class="p">(</span><span class="n">profile</span><span class="p">:</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span><span class="n">ArrayLike</span><span class="p">,</span>
+								   <span class="n">markers</span><span class="p">:</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+								   <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s2">"wave cross-section"</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s2">""</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Wrap a scaled-wave ``|ψ(x, 0, z)|`` cross-section as a sea_eco image Signal.</span>
+
+<span class="sd">	The wave analog of the ray diagram: shape ``[x, z]`` -- z is the</span>
+<span class="sd">	**last** (horizontal) axis, the orientation the figure has always been</span>
+<span class="sd">	drawn in and the one its markers are authored for (a PLOT-8 ``Line`` or</span>
+<span class="sd">	``Span`` marks the horizontal axis). Element, crossover and image-plane</span>
+<span class="sd">	markers travel with it. When sea_eco is unavailable a</span>
+<span class="sd">	:class:`_DisplaySignal` fallback is returned instead (with a warning).</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	profile : numpy.ndarray</span>
+<span class="sd">		Per-plane peak-normalized ``|ψ(x, 0)|``, shape ``(n_x, n_planes)``.</span>
+<span class="sd">	z : Sequence[float]</span>
+<span class="sd">		The ``n_planes`` plane positions (metres), ascending.</span>
+<span class="sd">	x : Sequence[float]</span>
+<span class="sd">		The common, uniform transverse axis (metres), symmetric about 0.</span>
+<span class="sd">	markers : Sequence[Mapping]</span>
+<span class="sd">		``{"kind", "label", "z"}`` lines; ``kind`` is ``element``,</span>
+<span class="sd">		``crossover`` or ``image``.</span>
+<span class="sd">	name : str, optional</span>
+<span class="sd">		Signal name, by default ``"wave cross-section"``.</span>
+<span class="sd">	source : str, optional</span>
+<span class="sd">		Name of the column, stored as metadata ``source``, by default ``""``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	Signal or _DisplaySignal</span>
+<span class="sd">		Dimensions ``x`` (structured, m) and ``z`` (unstructured, values in</span>
+<span class="sd">		m); signal quantity ``|psi| / peak`` (unitless); signal type</span>
+<span class="sd">		``Image``; metadata ``kind = "wave-cross-section"``,</span>
+<span class="sd">		``normalization = "peak per plane"``, ``source``.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	assemblies.Microscope.wave_cross_section_signal : Builds the inputs.</span>
+<span class="sd">	read_display_signal : Inverse accessor.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	Line markers span the x axis as stored, its first to last coordinate.</span>
+<span class="sd">	``x`` is stored as ``offset = x[0]`` and a uniform scale, so ``-x[0]``</span>
+<span class="sd">	recovers the axis half-width exactly.</span>
+<span class="sd">	"""</span>
+	<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_np</span>
+	<span class="n">profile</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">profile</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">z</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">x</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">records</span> <span class="o">=</span> <span class="n">_marker_records</span><span class="p">(</span><span class="n">markers</span><span class="p">)</span>
+	<span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"wave-cross-section"</span><span class="p">,</span> <span class="s2">"normalization"</span><span class="p">:</span> <span class="s2">"peak per plane"</span><span class="p">,</span>
+				<span class="s2">"source"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">source</span><span class="p">)}</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">sea_available</span><span class="p">:</span>
+		<span class="n">warn</span><span class="p">(</span><span class="s2">"sea_eco is not installed; make_wave_cross_section_signal returns a "</span>
+			 <span class="s2">"lightweight _DisplaySignal fallback (no .sea serialization)."</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">_DisplaySignal</span><span class="p">(</span><span class="n">profile</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="p">[(</span><span class="s2">"x"</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="s2">"m"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"z"</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="s2">"m"</span><span class="p">)],</span> <span class="n">records</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span>
+	<span class="n">xscale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">1.0</span>
+	<span class="n">xdim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"x"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">xscale</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+					  <span class="n">size</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">)</span>
+	<span class="n">stored</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">xdim</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>		<span class="c1"># the axis as a reader will see it</span>
+	<span class="k">return</span> <span class="n">_display_signal</span><span class="p">(</span><span class="n">profile</span><span class="p">,</span> <span class="p">[</span><span class="n">xdim</span><span class="p">,</span> <span class="n">_plane_z_dimension</span><span class="p">(</span><span class="s2">"z"</span><span class="p">,</span> <span class="n">z</span><span class="p">)],</span> <span class="n">records</span><span class="p">,</span> <span class="s2">"z"</span><span class="p">,</span>
+						   <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">stored</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">stored</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])),</span> <span class="n">name</span><span class="p">,</span>
+						   <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"|psi| / peak"</span><span class="p">,</span> <span class="s2">"units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">},</span> <span class="n">metadata</span><span class="p">,</span>
+						   <span class="n">signal_type</span><span class="o">=</span><span class="s2">"Image"</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="read_display_signal">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.read_display_signal">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">read_display_signal</span><span class="p">(</span><span class="n">signal</span><span class="p">:</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Read ``(data, axes, markers, metadata)`` from a display Signal or its fallback.</span>
+
+<span class="sd">	Inverse of the ``make_*_signal`` display factories. Works for a real</span>
+<span class="sd">	sea_eco Signal (including one reloaded from a ``.sea`` file) and for the</span>
+<span class="sd">	:class:`_DisplaySignal` fallback, so a caller can draw from either.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	signal : Signal or _DisplaySignal</span>
+<span class="sd">		A display Signal from :func:`make_ray_diagram_signal`,</span>
+<span class="sd">		:func:`make_envelope_signal` or :func:`make_wave_cross_section_signal`.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	tuple</span>
+<span class="sd">		``(data, axes, markers, metadata)``: the values; one</span>
+<span class="sd">		``(name, values, units)`` per data axis; marker records</span>
+<span class="sd">		``{"kind", "label", "color", "z"}`` (lines) or</span>
+<span class="sd">		``{"kind", "label", "color", "z0", "z1"}`` (spans) in stored order;</span>
+<span class="sd">		and the descriptive metadata (without ``Display`` and without the</span>
+<span class="sd">		metadata container's own ``Provenance`` stamp).</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	read_wavefield : The same accessor pattern for wavefields.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	Only annotations named with the ``raytem.`` prefix are read back as</span>
+<span class="sd">	markers; any a user added to the Signal afterwards are left out.</span>
+<span class="sd">	"""</span>
+	<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_np</span>
+	<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">_DisplaySignal</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">axes</span><span class="p">),</span> <span class="p">[</span><span class="nb">dict</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">signal</span><span class="o">.</span><span class="n">markers</span><span class="p">],</span>
+				<span class="nb">dict</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">metadata</span><span class="p">))</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.sea_eco.annotations</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_display_annotations</span>
+	<span class="n">axes</span> <span class="o">=</span> <span class="p">[(</span><span class="n">d</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">values</span><span class="p">),</span> <span class="n">d</span><span class="o">.</span><span class="n">units</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">signal</span><span class="o">.</span><span class="n">dimensions</span><span class="o">.</span><span class="n">dimensions</span><span class="p">]</span>
+	<span class="n">markers</span> <span class="o">=</span> <span class="p">[]</span>
+	<span class="k">for</span> <span class="n">annotation</span> <span class="ow">in</span> <span class="n">get_display_annotations</span><span class="p">(</span><span class="n">signal</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
+		<span class="n">parts</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">annotation</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"."</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">4</span> <span class="ow">or</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">_MARKER_PREFIX</span><span class="p">:</span>
+			<span class="k">continue</span>
+		<span class="n">coordinates</span> <span class="o">=</span> <span class="n">annotation</span><span class="o">.</span><span class="n">coordinates</span>
+		<span class="n">record</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="s2">"label"</span><span class="p">:</span> <span class="n">annotation</span><span class="o">.</span><span class="n">text</span><span class="p">,</span>
+				  <span class="s2">"color"</span><span class="p">:</span> <span class="n">annotation</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"color"</span><span class="p">)}</span>
+		<span class="k">if</span> <span class="n">annotation</span><span class="o">.</span><span class="n">annotation_type</span> <span class="o">==</span> <span class="s2">"Span"</span><span class="p">:</span>
+			<span class="n">record</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">z0</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">coordinates</span><span class="p">[</span><span class="s2">"x0"</span><span class="p">]),</span> <span class="n">z1</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">coordinates</span><span class="p">[</span><span class="s2">"x1"</span><span class="p">]))</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">record</span><span class="p">[</span><span class="s2">"z"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">coordinates</span><span class="p">[</span><span class="s2">"x0"</span><span class="p">])</span>
+		<span class="n">markers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+	<span class="n">metadata</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">if</span> <span class="n">signal</span><span class="o">.</span><span class="n">metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">{}</span>
+	<span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"Display"</span><span class="p">,</span> <span class="s2">"Provenance"</span><span class="p">):</span>		<span class="c1"># the markers, and the Metadata's own stamp</span>
+		<span class="n">metadata</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">signal</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">axes</span><span class="p">,</span> <span class="n">markers</span><span class="p">,</span> <span class="n">metadata</span></div>
 
 
 

@@ -113,6 +113,7 @@ wave — and serializes through sea-eco’s <code class="docutils literal notran
 <li class="toctree-l2"><a class="reference internal" href="propagation_modes.html#fixed-grid-wave">Fixed-grid wave</a></li>
 <li class="toctree-l2"><a class="reference internal" href="propagation_modes.html#scaled-fresnel-wave-mode-hybrid">Scaled-Fresnel wave (<code class="docutils literal notranslate"><span class="pre">mode=&quot;hybrid&quot;</span></code>)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="propagation_modes.html#they-answer-for-each-other">They answer for each other</a></li>
+<li class="toctree-l2"><a class="reference internal" href="propagation_modes.html#plotting-a-result-somewhere-other-than-matplotlib">Plotting a result somewhere other than matplotlib</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="operating_the_column.html">Operating the Column</a><ul>
@@ -157,9 +158,10 @@ wave — and serializes through sea-eco’s <code class="docutils literal notran
 <li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#the-scaled-wave-engine">The scaled-wave engine</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#aberrations">Aberrations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#moments-and-the-closure-seam">Moments, and the closure seam</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#display-signals">Display Signals</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#high-risk-seams">High-risk seams</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#schema">Schema</a></li>
-<li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#provenance-and-verification">Provenance and verification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#id1">Provenance and verification</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dev_documentation.html#building-the-docs">Building the docs</a></li>
 </ul>
 </li>
@@ -271,14 +273,18 @@ wave — and serializes through sea-eco’s <code class="docutils literal notran
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.as_ndarray"><code class="docutils literal notranslate"><span class="pre">as_ndarray()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.grid_of"><code class="docutils literal notranslate"><span class="pre">grid_of()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_covariance_signal"><code class="docutils literal notranslate"><span class="pre">make_covariance_signal()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_envelope_signal"><code class="docutils literal notranslate"><span class="pre">make_envelope_signal()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_kernel_phase_signal"><code class="docutils literal notranslate"><span class="pre">make_kernel_phase_signal()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_ray_diagram_signal"><code class="docutils literal notranslate"><span class="pre">make_ray_diagram_signal()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_rays_signalset"><code class="docutils literal notranslate"><span class="pre">make_rays_signalset()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_scaled_wave_signalset"><code class="docutils literal notranslate"><span class="pre">make_scaled_wave_signalset()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_scaled_wavefield_signal"><code class="docutils literal notranslate"><span class="pre">make_scaled_wavefield_signal()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_screen_phase_signal"><code class="docutils literal notranslate"><span class="pre">make_screen_phase_signal()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_wave_cross_section_signal"><code class="docutils literal notranslate"><span class="pre">make_wave_cross_section_signal()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.make_wavefield_signal"><code class="docutils literal notranslate"><span class="pre">make_wavefield_signal()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.new_provenance"><code class="docutils literal notranslate"><span class="pre">new_provenance()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.phase_space_of"><code class="docutils literal notranslate"><span class="pre">phase_space_of()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.read_display_signal"><code class="docutils literal notranslate"><span class="pre">read_display_signal()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.read_scaled_wavefield"><code class="docutils literal notranslate"><span class="pre">read_scaled_wavefield()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.read_wavefield"><code class="docutils literal notranslate"><span class="pre">read_wavefield()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#pySEA.rayTEM.seashells.safeReinstantiate"><code class="docutils literal notranslate"><span class="pre">safeReinstantiate()</span></code></a></li>
