@@ -961,6 +961,107 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None
 	return _SignalSet(signals=signals, main_signal=0, name=name)
 
 
+
+def scaled_wave_physical_plane(scaled_wave, plane:int, name:str|None=None):
+	r"""Reconstruct the physical wavefield of one plane of a stored scaled wave.
+
+	The scaled-Fresnel result keeps one ξ/η grid for the whole run; the
+	physical frame of plane ``i`` is ``x = s_i·ξ``, ``y = s_i·η`` (per-axis
+	``s_x``/``s_y`` when anisotropic) and the physical field is
+
+	.. math::
+
+		\psi(x,y) = \frac{1}{s}\,U\!\left(\frac{x}{s}, \frac{y}{s}\right)
+		\exp\!\left[\frac{ik\,(x^2+y^2)}{2R}\right]
+
+	(handoff Eq 37), on the plane's native grid ``Δx = |s|·Δξ`` (Eq 41). This
+	is what :meth:`assemblies.Microscope.wavefield_at` returns from a live
+	model; this function needs only the stored result, so a viewer holding an
+	exported ``.sea`` file draws the same physical plane. Each plane has its
+	own pixel size, so a sequence of planes is a sequence of Signals, never
+	one stack.
+
+	Parameters
+	----------
+	scaled_wave : SignalSet
+		A scaled-wave SignalSet as :func:`make_scaled_wave_signalset` builds it
+		(the reduced field ``U`` plus ``s``/``R`` companions, or their per-axis
+		``_x``/``_y`` pairs), read back from ``.sea`` or held in memory.
+	plane : int
+		Index of the logged plane along ``plane_z``.
+	name : str, optional
+		Name of the returned Signal; by default ``"<set name> wavefield at
+		z=<z>"``.
+
+	Returns
+	-------
+	Signal
+		The complex physical wavefield ``(y, x)`` of that plane, calibrated in
+		metres, with ``wavelength_m`` and the plane's ``z`` in its metadata (see
+		:func:`make_wavefield_signal`). The longitudinal carrier ``e^{ikz}`` is
+		not applied.
+
+	Raises
+	------
+	ValueError
+		If ``scaled_wave`` is not a scaled-wave SignalSet (no ``U`` member with
+		``plane_z``/``eta``/``xi`` axes and its ``s`` and ``R`` companions), or
+		if a companion's length differs from the number of planes.
+	IndexError
+		If ``plane`` is outside the stored planes.
+
+	Related
+	-------
+	make_scaled_wave_signalset : Builds the SignalSet this reads.
+	waveoptics.reconstruct_physical_wave : The Eq 37/41 core.
+	assemblies.Microscope.wavefield_at : The same reconstruction on a live model.
+
+	Examples
+	--------
+	>>> import numpy as np
+	>>> stack = make_scaled_wave_signalset(np.ones((2, 4, 4), complex), 1e-9, 1e-9,
+	...     2.5e-12, s=[1.0, 0.5], R=[np.inf, np.inf], tau=[0, 0], z=[0.0, 0.1])
+	>>> psi = scaled_wave_physical_plane(stack, 1)
+	>>> float(psi.dimensions[1].scale), complex(np.asarray(psi.data)[0, 0])
+	(5e-10, (2+0j))
+	"""
+	import numpy as _np
+	from .waveoptics import reconstruct_physical_wave
+	members = {getattr(member, "name", None): member for member in (scaled_wave or [])}
+	U_sig = members.get("U")
+	axes = [] if U_sig is None else [getattr(d, "name", None) for d in U_sig.dimensions]
+	if U_sig is None or axes != ["plane_z", "eta", "xi"]:
+		raise ValueError("Not a scaled-wave SignalSet: it has no U member on (plane_z, eta, xi) axes.")
+	n_planes = int(U_sig.dimensions[0].size)
+	if not -n_planes <= int(plane) < n_planes:
+		raise IndexError(f"Plane {plane} is outside the {n_planes} stored planes.")
+	plane = int(plane) % n_planes
+
+	def _companion(label):
+		# one isotropic companion, or the per-axis pair that replaces it
+		if label in members:
+			values = (_np.asarray(members[label].data, dtype=float),) * 2
+		elif label + "_x" in members and label + "_y" in members:
+			values = (_np.asarray(members[label + "_x"].data, dtype=float),
+					  _np.asarray(members[label + "_y"].data, dtype=float))
+		else:
+			raise ValueError(f"Not a scaled-wave SignalSet: it has no {label!r} companion.")
+		if any(v.shape != (n_planes,) for v in values):
+			raise ValueError(f"The {label!r} companion does not have one value per plane.")
+		x, y = float(values[0][plane]), float(values[1][plane])
+		return x if x == y else (x, y)
+
+	s, R = _companion("s"), _companion("R")
+	meta = U_sig.metadata
+	wavelength = float(meta["wavelength_m"])
+	dxi = float(meta.get("dxi_m", U_sig.dimensions[2].scale))
+	deta = float(meta.get("deta_m", U_sig.dimensions[1].scale))
+	z = float(_np.asarray(U_sig.dimensions[0].values, dtype=float)[plane])
+	U = _np.asarray(U_sig.data[plane])
+	psi, dx, dy = reconstruct_physical_wave(U, dxi, deta, wavelength, s, R)
+	label = name if name is not None else f"{getattr(scaled_wave, 'name', None) or 'scaled wave'} wavefield at z={z:g}"
+	return make_wavefield_signal(psi, dx, dy, wavelength, z=z, name=label)
+
 # --- DISPLAY SIGNALS ---------------------------------------------------------
 # Views of a stored propagation result (ray diagram, beam envelope, scaled-wave
 # cross-section), built here so the only sea_eco imports stay in this module.

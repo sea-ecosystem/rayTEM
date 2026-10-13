@@ -5,8 +5,8 @@ Newest entries at top.
 ## 2026-10-13 — [Under Construction] The physical plane of a stored scaled wave
 **Goal:** `seashells.scaled_wave_physical_plane` returns ψ on one plane's native physical grid from a stored scaled-wave SignalSet.
 **Why:** Eric, 2026-10-13: Poseidon's scaled-wave plot should offer true physical axes that redraw with z; only rayTEM knows the frame, and `wavefield_at` needs a live model.
-- [ ] `scaled_wave_physical_plane`
-- [ ] tests
+- [x] `scaled_wave_physical_plane`
+- [x] tests
 - [ ] wiki, docs
 TODO: [TODO_ACTIVE_2026-10-13_scaled-wave-axis-frames.md](TODO_ACTIVE_2026-10-13_scaled-wave-axis-frames.md)
 
