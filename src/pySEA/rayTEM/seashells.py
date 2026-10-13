@@ -252,7 +252,7 @@ class _Wavefield:
 		self.z = z
 
 
-def make_wavefield_signal(data, dx, dy, wavelength, z=None, name="wavefield"):
+def make_wavefield_signal(data, dx, dy, wavelength, z=None, name="wavefield", markers=None):
 	"""Wrap a complex field array as a calibrated sea_eco wavefield ``Signal``.
 
 	Builds a ``Signal`` whose transverse axes carry the pixel-size calibration and
@@ -274,6 +274,11 @@ def make_wavefield_signal(data, dx, dy, wavelength, z=None, name="wavefield"):
 		stack. Stack positions become an unstructured z axis.
 	name : str, optional
 		Signal name, by default ``"wavefield"``.
+	markers : Sequence[Mapping] or None, optional
+		For a stack only: the column's ``{"kind", "label", "z"}`` lines and
+		``{"kind", "label", "z0", "z1"}`` spans (metres), stored as PLOT-8
+		overlays bound to ``z``, so a view through z shows them and an x–y
+		image of one plane does not. By default ``None``.
 
 	Returns
 	-------
@@ -308,6 +313,8 @@ def make_wavefield_signal(data, dx, dy, wavelength, z=None, name="wavefield"):
 	else:
 		meta["z_m"] = float(z) if z is not None else 0.0
 		dimensions = [ydim, xdim]
+	if markers and data.ndim == 3:
+		meta = _with_marker_display(meta, markers, "z", data)
 	return _Signal(data=data, name=name, dimensions=dimensions, metadata=meta, signal_type="Image")
 
 
@@ -874,22 +881,36 @@ def scaled_frame_tag(signal):
 
 
 def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None,
-							   name="scaled wave"):
+							   name="scaled wave", markers=None):
 	"""Wrap a stack of reduced fields and their frame state as a sea_eco ``SignalSet``.
 
 	Assembles the stacked result of a scaled-Fresnel run: the reduced field
-	``U(z, η, ξ)`` on an unstructured plane-``z`` axis plus calibrated ξ/η axes
+	``U(z, η, ξ)`` on an unstructured plane-``z`` axis plus the ξ/η axes
 	(the ξ,η grid is fixed for the whole run), with companion 1-D Signals ``s(z)``,
 	``R(z)``, ``tau(z)`` sharing the same plane-z axis — the same pattern as
 	:func:`make_rays_signalset`. Returns ``None`` (with a warning) when sea_eco
 	is absent.
+
+	**ξ and η are normalised.** The scaled coordinate is not a distance: it is
+	stored in ``a.u.``, divided by the reference length ``L = nξ·Δξ/2`` (half
+	the ξ extent of the grid), so ξ runs −1…1 and η does too on a square grid.
+	The ``s`` companion carries the length instead: ``s·L`` in metres, the
+	grid's physical half-width at that plane (per axis for ``s_x``/``s_y``).
+	So the physical position is ``x = s·ξ`` with both as stored, and the pitch
+	is ``|s|·Δξ``. U's metadata records ``reference_half_width_m = L``, and
+	``dxi_m``/``deta_m`` keep the metre pitch at ``s = L``. A set written
+	before 2026-10-13 (ξ, η in ``m``, ``s`` dimensionless, no
+	``reference_half_width_m``) reads as ``L = 1 m``, which is the same
+	formula.
 
 	Parameters
 	----------
 	U : numpy.ndarray
 		Reduced-field stack, shape ``(n_planes, neta, nxi)``.
 	dxi, deta : float
-		Scaled transverse sample spacings Δξ, Δη (metres), shared by every plane.
+		Transverse sample spacings Δξ, Δη at ``s = 1`` (metres), shared by
+		every plane: the engine's own frame. They are stored normalised (see
+		above).
 	wavelength : float
 		Wavelength (metres), stored in metadata.
 	s, R, tau : Sequence
@@ -907,6 +928,10 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None
 		metadata as the comma-joined string ``plane_tags``.
 	name : str, optional
 		Name for the SignalSet, by default ``"scaled wave"``.
+	markers : Sequence[Mapping] or None, optional
+		The column's ``{"kind", "label", "z"}`` lines and ``{"kind", "label",
+		"z0", "z1"}`` spans (metres), stored on U as PLOT-8 overlays bound to
+		``plane_z``. By default ``None``.
 
 	Returns
 	-------
@@ -914,7 +939,8 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None
 		A SignalSet of ``[U, s, R, tau]`` (per-axis companions ``s_x``/``s_y``,
 		``R_x``/``R_y``, ``tau_x``/``tau_y`` replace a companion whose axes
 		differ anywhere; plus ``frame`` when ``tags`` is given; main Signal
-		``U``) when sea_eco is present, else ``None``.
+		``U``) when sea_eco is present, else ``None``. ξ, η are in ``a.u.``;
+		``s`` is in ``m``.
 
 	Related
 	-------
@@ -930,11 +956,18 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None
 	zscale = float(zvals[1] - zvals[0]) if len(zvals) > 1 else 1.0
 	zdim = _Dimension(name="plane_z", space="position", scale=zscale, offset=float(zvals[0]),
 					  size=n_planes, values=zvals, units="m", unstructured=True)
-	xidim = _Dimension(name="xi", space="position", scale=dxi, offset=-(nxi // 2) * dxi, size=nxi, units="m")
-	etadim = _Dimension(name="eta", space="position", scale=deta, offset=-(neta // 2) * deta, size=neta, units="m")
-	meta = {"wavelength_m": float(wavelength), "dxi_m": float(dxi), "deta_m": float(deta)}
+	# ξ, η are normalised by one reference length, so the scaled frame is
+	# dimensionless and s carries the metres (Eric, 2026-10-13).
+	L = float(nxi) * float(dxi) / 2.0 or 1.0
+	dxi_n, deta_n = float(dxi) / L, float(deta) / L
+	xidim = _Dimension(name="xi", space="position", scale=dxi_n, offset=-(nxi // 2) * dxi_n, size=nxi, units="a.u.")
+	etadim = _Dimension(name="eta", space="position", scale=deta_n, offset=-(neta // 2) * deta_n, size=neta, units="a.u.")
+	meta = {"wavelength_m": float(wavelength), "dxi_m": float(dxi), "deta_m": float(deta),
+			"reference_half_width_m": L}
 	if tags is not None:
 		meta["plane_tags"] = ",".join(tag or "" for tag in tags)
+	if markers:
+		meta = _with_marker_display(meta, markers, "plane_z", U)
 	U_sig = _Signal(data=U, name="U", dimensions=[zdim, etadim, xidim], metadata=meta,
 					signal_type="Image")
 	signals = [U_sig]
@@ -947,11 +980,16 @@ def make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags=None
 
 	for label, seq in (("s", s), ("R", R), ("tau", tau)):
 		xs, ys = _axes(seq)
+		scale = L if label == "s" else 1.0	# s in metres: the grid's half-width at z
+		units = {"s": "m", "R": "m", "tau": ""}[label]
+		def _companion(values, companion_name):
+			return _Signal(data=values * scale, name=companion_name, dimensions=[zdim],
+						   signal_quantities=[{"name": companion_name, "units": units}])
 		if _np.array_equal(xs, ys):		# isotropic run: one scalar companion
-			signals.append(_Signal(data=xs, name=label, dimensions=[zdim]))
+			signals.append(_companion(xs, label))
 		else:							# anisotropic: per-axis companions
-			signals.append(_Signal(data=xs, name=label + "_x", dimensions=[zdim]))
-			signals.append(_Signal(data=ys, name=label + "_y", dimensions=[zdim]))
+			signals.append(_companion(xs, label + "_x"))
+			signals.append(_companion(ys, label + "_y"))
 	if tags is not None:
 		# integer frame index: increments at each frame switch (per-axis
 		# switches like 'flatten-x' count too)
@@ -974,7 +1012,12 @@ def scaled_wave_physical_plane(scaled_wave, plane:int, name:str|None=None):
 		\psi(x,y) = \frac{1}{s}\,U\!\left(\frac{x}{s}, \frac{y}{s}\right)
 		\exp\!\left[\frac{ik\,(x^2+y^2)}{2R}\right]
 
-	(handoff Eq 37), on the plane's native grid ``Δx = |s|·Δξ`` (Eq 41). This
+	(handoff Eq 37), on the plane's native grid ``Δx = |s|·Δξ`` (Eq 41). Here
+	``s`` is the frame's dimensionless scale: the stored ``s`` companion is in
+	metres (``s·L``, with ``L = reference_half_width_m``) and ξ, η are in
+	``a.u.``, so ``x = s·ξ`` holds with both as stored, and the ``1/s`` uses
+	``s/L``. A set written before the normalisation has no ``L`` and reads as
+	``L = 1 m``. This
 	is what :meth:`assemblies.Microscope.wavefield_at` returns from a live
 	model; this function needs only the stored result, so a viewer holding an
 	exported ``.sea`` file draws the same physical plane. Each plane has its
@@ -1053,6 +1096,10 @@ def scaled_wave_physical_plane(scaled_wave, plane:int, name:str|None=None):
 
 	s, R = _companion("s"), _companion("R")
 	meta = U_sig.metadata
+	# s is stored in metres (s·L); the reconstruction takes the frame's own
+	# dimensionless s. A set written before has no L and a dimensionless s.
+	L = float(meta.get("reference_half_width_m", 1.0))
+	s = tuple(v / L for v in s) if isinstance(s, tuple) else s / L
 	wavelength = float(meta["wavelength_m"])
 	dxi = float(meta.get("dxi_m", U_sig.dimensions[2].scale))
 	deta = float(meta.get("deta_m", U_sig.dimensions[1].scale))
@@ -1272,6 +1319,48 @@ def _marker_annotations(records:Sequence[Mapping[str, Any]], along:str,
 			mark_axis_value(draft, record["z"], along, name=record["label"], owner=owner,
 							extent=extent, color=record["color"], text=record["label"])
 	return get_display_annotations(draft)
+
+
+def _with_marker_display(metadata:Mapping[str, Any], markers:Sequence[Mapping[str, Any]],
+						 along:str, data:ArrayLike):
+	"""Metadata for a wave stack, with the column's markers as PLOT-8 overlays.
+
+	Parameters
+	----------
+	metadata : Mapping
+		The stack's calibration metadata.
+	markers : Sequence[Mapping]
+		Marker requests, as :func:`_marker_records` takes them.
+	along : str
+		The stack's plane axis (``"z"`` or ``"plane_z"``), the axis the marks
+		are bound to.
+	data : numpy.ndarray
+		The stack, complex or real; a line mark spans ``0..max|data|`` on a
+		line view of it.
+
+	Returns
+	-------
+	Metadata
+		``metadata`` with ``Display.Annotations`` and ``Display.ROI``.
+
+	Raises
+	------
+	ValueError
+		If a span marker does not order.
+
+	Related
+	-------
+	_display_signal : The same, for a display Signal.
+	"""
+	import numpy as _np
+	peak = float(_np.nanmax(_np.abs(_np.asarray(data)))) if _np.size(data) else 1.0
+	annotations, rois = _marker_annotations(_marker_records(markers), along,
+											(0.0, peak if _np.isfinite(peak) and peak > 0 else 1.0))
+	meta = _Metadata(dict(metadata))
+	meta.Display = _Metadata()
+	meta.Display.Annotations = annotations
+	meta.Display.ROI = rois
+	return meta
 
 
 def _finite_range(data:ArrayLike) -> tuple:

@@ -74,3 +74,31 @@ def test_it_refuses_what_is_not_a_stored_scaled_wave():
 		scaled_wave_physical_plane(stack, 2)
 	with pytest.raises(ValueError, match="U member"):
 		scaled_wave_physical_plane([stack["s"]], 0)
+
+
+def test_a_set_written_before_normalisation_reads_the_same():
+	"""A legacy set (ξ in m, dimensionless s, no reference length) gives the same ψ."""
+	stack = make_scaled_wave_signalset(np.ones((2, 4, 6), complex), 1e-9, 1e-9, 2.5e-12,
+									   s=[1.0, 0.5], R=[np.inf, np.inf], tau=[0, 0], z=[0.0, 0.1])
+	U, s = stack["U"], stack["s"]
+	L = U.metadata["reference_half_width_m"]
+	legacy = make_scaled_wave_signalset(np.ones((2, 4, 6), complex), 1e-9, 1e-9, 2.5e-12,
+										s=[1.0, 0.5], R=[np.inf, np.inf], tau=[0, 0], z=[0.0, 0.1])
+	legacy["s"].data = np.asarray(legacy["s"].data) / L
+	delattr(legacy["U"].metadata, "reference_half_width_m")
+	new, dx, *_ = read_wavefield(scaled_wave_physical_plane(stack, 1))
+	old, dx_old, *_ = read_wavefield(scaled_wave_physical_plane(legacy, 1))
+	assert np.allclose(new, old) and np.isclose(dx, dx_old) and np.isclose(dx, 0.5e-9)
+	assert np.isclose(float(np.asarray(s.data)[1]), 0.5 * L)
+
+
+def test_the_stacks_carry_the_columns_marks_bound_to_their_plane_axis():
+	"""U and the fixed-grid stack carry overlays bound to their own z axis."""
+	mic = _scaled_microscope()
+	marks = mic.wave_scaled["U"].metadata.Display.Annotations
+	assert {a.annotation_type for a in marks} >= {"Line"}
+	assert all(a.role == "overlay" and a.coordinate_reference.get("x_dim") == "plane_z" for a in marks)
+	assert any(a.text == "OL" for a in marks)
+	mic.propagate_wave(mode="fixed")
+	marks = mic.wave.metadata.Display.Annotations
+	assert all(a.coordinate_reference.get("x_dim") == "z" for a in marks) and len(marks) > 0

@@ -185,7 +185,10 @@ def test_ray_diagram_markers_match_sections_elements_and_planes():
 	lines = [a for a in annotations if a.annotation_type == "Line"]
 	assert np.isclose(lines[0].coordinates["y0"], np.nanmin(sig.data))
 	assert np.isclose(lines[0].coordinates["y1"], np.nanmax(sig.data))
-	assert all(a.coordinate_reference == {"kind": "calibrated"} for a in annotations)
+	# PLOT-8: the column's marks are overlays drawn for the plane-z axis.
+	assert all(a.coordinate_reference == {"kind": "calibrated", "x_dim": "plane_z"}
+			   for a in annotations)
+	assert all(a.role == "overlay" for a in annotations)
 	assert all(a.name.startswith("raytem.") for a in annotations)
 
 

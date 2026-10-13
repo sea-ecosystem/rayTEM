@@ -11,8 +11,8 @@
 | SEASerializable (sea_eco absent) | 92 |
 | Module-level functions | 98 |
 |   Signal factories and readers (the wave/rays/covariance seam) | 100 |
-|   Display-Signal factories (derived views with PLOT-8 markers) | 145 |
-|   `safeReinstantiate(source, cls)` | 190 |
+|   Display-Signal factories (derived views with PLOT-8 markers) | 157 |
+|   `safeReinstantiate(source, cls)` | 202 |
 <!-- END AUTO-GENERATED TOC -->
 
 # seashells.py
@@ -115,15 +115,27 @@ warning) when sea_eco is absent:
   and read back as `(x, y)` pairs; isotropic planes keep the scalar keys, so
   old files load unchanged. `scaled_frame_crossover` / `scaled_frame_tag`
   read the hybrid engine's crossover marker and event tags.
-- `make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, name)` —
+- `make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, name, markers)` —
   stacked scaled result: main Signal `U` `(n_planes, nη, nξ)` plus companion
-  1-D `s(z)`/`R(z)`/`tau(z)` Signals sharing the unstructured plane-z axis
+  1-D `s(z)`/`R(z)`/`tau(z)` Signals sharing the unstructured plane-z axis.
+  **Normalised since 2026-10-13 (Eric):** ξ, η are stored in `a.u.`, divided by
+  `L = nξ·Δξ/2` (ξ runs −1…1; η too on a square grid), and `s` is stored as
+  `s·L` in `m`, the grid's physical half-width at that plane; U's metadata
+  records `reference_half_width_m = L`, and `dxi_m`/`deta_m` keep the metre
+  pitch. `x = s·ξ` holds as stored. Only the stack changes: the engine's
+  in-flight per-plane state (`make_scaled_wavefield_signal`) keeps
+  dimensionless `s` and metre ξ. A set without `reference_half_width_m`
+  (written before) reads as `L = 1 m`. `markers` (the column's spans and
+  lines) become PLOT-8 overlays on U bound to `plane_z`
+  (`_with_marker_display`); `make_wavefield_signal(..., markers)` does the same
+  for a fixed-grid stack, bound to `z`
   (same pattern as `make_rays_signalset`); per-plane entries may be per-axis
   pairs, in which case that companion splits into `s_x`/`s_y` (etc.). With
   `tags` given, a `frame` companion counts frame switches (flatten/rediverge/
   jump, axis-suffixed included) and the tags land in `plane_tags` metadata.
   Access by name: `sset["U"]`, `sset["s"]`, ... (`get_dataset_names()`).
-- `scaled_wave_physical_plane(scaled_wave, plane, name)` — the physical field
+- `scaled_wave_physical_plane(scaled_wave, plane, name)` — divides the stored
+  `s` by `reference_half_width_m` before reconstructing (legacy: `L = 1`). The physical field
   ψ = (1/s)·U·e^{ik r²/2R} of one stored plane on its native grid
   (x = s·ξ, pitch |s|·Δξ), as a `make_wavefield_signal` Signal in metres. It
   reads the SignalSet as stored or reloaded from `.sea` (U's `wavelength_m`,

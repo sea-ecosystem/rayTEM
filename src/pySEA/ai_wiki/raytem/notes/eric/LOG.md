@@ -5,9 +5,9 @@ Newest entries at top.
 ## 2026-10-13 — [Under Construction] Normalised scaled axes and overlays on the wave stacks
 **Goal:** Store ξ, η in a.u. (−1…1 over the source grid) with s(z) in metres, and give `.wave` and U the column's z marks as overlays.
 **Why:** Eric, 2026-10-13: the scaled unit is normalised, not a distance; and a β wave plot should be the Signal's own `.show()`, marks included.
-- [ ] `make_scaled_wave_signalset`
-- [ ] `.wave` and U carry section/element (and crossover/image) marks bound to their z axis
-- [ ] tests, docs, wiki
+- [x] `make_scaled_wave_signalset`
+- [x] `.wave` and U carry section/element (and crossover/image) marks bound to their z axis
+- [x] tests, docs, wiki
 TODO: [TODO_ACTIVE_2026-10-13_overlays-and-axis-frames.md](TODO_ACTIVE_2026-10-13_overlays-and-axis-frames.md)
 
 ## 2026-10-13 — [Done] The physical plane of a stored scaled wave

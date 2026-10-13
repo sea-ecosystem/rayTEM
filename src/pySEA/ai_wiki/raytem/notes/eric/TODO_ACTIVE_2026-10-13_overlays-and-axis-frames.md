@@ -9,6 +9,6 @@
 
 ## Steps
 
-- [ ] `make_scaled_wave_signalset`: a.u. axes, s in m, `reference_half_width_m`; readers accept legacy files
-- [ ] `.wave` and U carry section/element (and crossover/image) marks bound to their z axis
-- [ ] tests, docs, wiki
+- [x] `make_scaled_wave_signalset`: a.u. axes, s in m, `reference_half_width_m`; readers accept legacy files
+- [x] `.wave` and U carry section/element (and crossover/image) marks bound to their z axis
+- [x] tests, docs, wiki
