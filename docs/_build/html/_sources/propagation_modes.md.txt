@@ -104,6 +104,17 @@ frames analytically at crossovers and logs every one; `scope.crossovers`
 lists the focal planes of the seed's conjugate family, and `wavefield_at(z)`
 reconstructs the physical field at any logged plane.
 
+**How the stored result is laid out.** `scope.wave_scaled` holds U on the
+moving grid, with ξ and η normalised: they are in `a.u.`, running −1…1 over
+the source grid, because the scaled coordinate is not a distance. The frame
+companion `s(z)` carries the length instead. It is in metres, the grid's
+physical half-width at that plane, so the physical position is x = s·ξ as
+stored. U's metadata keeps the reference length (`reference_half_width_m`).
+Both stacks, `scope.wave` and U, carry the column's sections and elements as
+overlay marks on their plane axis. The scaled stack also carries the
+crossovers and image planes of a hybrid run, so a view through z shows them
+and an image of one plane does not.
+
 A stored or exported result does not need the column. Its scaled-wave
 SignalSet (`scope.wave_scaled`, or one loaded from `.sea`) holds U on the
 moving grid plus the frame `s(z)`, `R(z)`, so

@@ -357,7 +357,7 @@
 
 <div class="viewcode-block" id="make_wavefield_signal">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.make_wavefield_signal">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">make_wavefield_signal</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"wavefield"</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_wavefield_signal</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"wavefield"</span><span class="p">,</span> <span class="n">markers</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">	</span><span class="sd">"""Wrap a complex field array as a calibrated sea_eco wavefield ``Signal``.</span>
 
 <span class="sd">	Builds a ``Signal`` whose transverse axes carry the pixel-size calibration and</span>
@@ -379,6 +379,11 @@
 <span class="sd">		stack. Stack positions become an unstructured z axis.</span>
 <span class="sd">	name : str, optional</span>
 <span class="sd">		Signal name, by default ``"wavefield"``.</span>
+<span class="sd">	markers : Sequence[Mapping] or None, optional</span>
+<span class="sd">		For a stack only: the column's ``{"kind", "label", "z"}`` lines and</span>
+<span class="sd">		``{"kind", "label", "z0", "z1"}`` spans (metres), stored as PLOT-8</span>
+<span class="sd">		overlays bound to ``z``, so a view through z shows them and an x–y</span>
+<span class="sd">		image of one plane does not. By default ``None``.</span>
 
 <span class="sd">	Returns</span>
 <span class="sd">	-------</span>
@@ -413,6 +418,8 @@
 	<span class="k">else</span><span class="p">:</span>
 		<span class="n">meta</span><span class="p">[</span><span class="s2">"z_m"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.0</span>
 		<span class="n">dimensions</span> <span class="o">=</span> <span class="p">[</span><span class="n">ydim</span><span class="p">,</span> <span class="n">xdim</span><span class="p">]</span>
+	<span class="k">if</span> <span class="n">markers</span> <span class="ow">and</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+		<span class="n">meta</span> <span class="o">=</span> <span class="n">_with_marker_display</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">markers</span><span class="p">,</span> <span class="s2">"z"</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
 	<span class="k">return</span> <span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="n">dimensions</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="n">meta</span><span class="p">,</span> <span class="n">signal_type</span><span class="o">=</span><span class="s2">"Image"</span><span class="p">)</span></div>
 
 
@@ -1018,22 +1025,36 @@
 <div class="viewcode-block" id="make_scaled_wave_signalset">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.make_scaled_wave_signalset">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">make_scaled_wave_signalset</span><span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">deta</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-							   <span class="n">name</span><span class="o">=</span><span class="s2">"scaled wave"</span><span class="p">):</span>
+							   <span class="n">name</span><span class="o">=</span><span class="s2">"scaled wave"</span><span class="p">,</span> <span class="n">markers</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">	</span><span class="sd">"""Wrap a stack of reduced fields and their frame state as a sea_eco ``SignalSet``.</span>
 
 <span class="sd">	Assembles the stacked result of a scaled-Fresnel run: the reduced field</span>
-<span class="sd">	``U(z, η, ξ)`` on an unstructured plane-``z`` axis plus calibrated ξ/η axes</span>
+<span class="sd">	``U(z, η, ξ)`` on an unstructured plane-``z`` axis plus the ξ/η axes</span>
 <span class="sd">	(the ξ,η grid is fixed for the whole run), with companion 1-D Signals ``s(z)``,</span>
 <span class="sd">	``R(z)``, ``tau(z)`` sharing the same plane-z axis — the same pattern as</span>
 <span class="sd">	:func:`make_rays_signalset`. Returns ``None`` (with a warning) when sea_eco</span>
 <span class="sd">	is absent.</span>
+
+<span class="sd">	**ξ and η are normalised.** The scaled coordinate is not a distance: it is</span>
+<span class="sd">	stored in ``a.u.``, divided by the reference length ``L = nξ·Δξ/2`` (half</span>
+<span class="sd">	the ξ extent of the grid), so ξ runs −1…1 and η does too on a square grid.</span>
+<span class="sd">	The ``s`` companion carries the length instead: ``s·L`` in metres, the</span>
+<span class="sd">	grid's physical half-width at that plane (per axis for ``s_x``/``s_y``).</span>
+<span class="sd">	So the physical position is ``x = s·ξ`` with both as stored, and the pitch</span>
+<span class="sd">	is ``|s|·Δξ``. U's metadata records ``reference_half_width_m = L``, and</span>
+<span class="sd">	``dxi_m``/``deta_m`` keep the metre pitch at ``s = L``. A set written</span>
+<span class="sd">	before 2026-10-13 (ξ, η in ``m``, ``s`` dimensionless, no</span>
+<span class="sd">	``reference_half_width_m``) reads as ``L = 1 m``, which is the same</span>
+<span class="sd">	formula.</span>
 
 <span class="sd">	Parameters</span>
 <span class="sd">	----------</span>
 <span class="sd">	U : numpy.ndarray</span>
 <span class="sd">		Reduced-field stack, shape ``(n_planes, neta, nxi)``.</span>
 <span class="sd">	dxi, deta : float</span>
-<span class="sd">		Scaled transverse sample spacings Δξ, Δη (metres), shared by every plane.</span>
+<span class="sd">		Transverse sample spacings Δξ, Δη at ``s = 1`` (metres), shared by</span>
+<span class="sd">		every plane: the engine's own frame. They are stored normalised (see</span>
+<span class="sd">		above).</span>
 <span class="sd">	wavelength : float</span>
 <span class="sd">		Wavelength (metres), stored in metadata.</span>
 <span class="sd">	s, R, tau : Sequence</span>
@@ -1051,6 +1072,10 @@
 <span class="sd">		metadata as the comma-joined string ``plane_tags``.</span>
 <span class="sd">	name : str, optional</span>
 <span class="sd">		Name for the SignalSet, by default ``"scaled wave"``.</span>
+<span class="sd">	markers : Sequence[Mapping] or None, optional</span>
+<span class="sd">		The column's ``{"kind", "label", "z"}`` lines and ``{"kind", "label",</span>
+<span class="sd">		"z0", "z1"}`` spans (metres), stored on U as PLOT-8 overlays bound to</span>
+<span class="sd">		``plane_z``. By default ``None``.</span>
 
 <span class="sd">	Returns</span>
 <span class="sd">	-------</span>
@@ -1058,7 +1083,8 @@
 <span class="sd">		A SignalSet of ``[U, s, R, tau]`` (per-axis companions ``s_x``/``s_y``,</span>
 <span class="sd">		``R_x``/``R_y``, ``tau_x``/``tau_y`` replace a companion whose axes</span>
 <span class="sd">		differ anywhere; plus ``frame`` when ``tags`` is given; main Signal</span>
-<span class="sd">		``U``) when sea_eco is present, else ``None``.</span>
+<span class="sd">		``U``) when sea_eco is present, else ``None``. ξ, η are in ``a.u.``;</span>
+<span class="sd">		``s`` is in ``m``.</span>
 
 <span class="sd">	Related</span>
 <span class="sd">	-------</span>
@@ -1074,11 +1100,18 @@
 	<span class="n">zscale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">zvals</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">zvals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">zvals</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">1.0</span>
 	<span class="n">zdim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"plane_z"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">zscale</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">zvals</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
 					  <span class="n">size</span><span class="o">=</span><span class="n">n_planes</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">zvals</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">,</span> <span class="n">unstructured</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-	<span class="n">xidim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"xi"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">dxi</span><span class="p">,</span> <span class="n">offset</span><span class="o">=-</span><span class="p">(</span><span class="n">nxi</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">nxi</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">)</span>
-	<span class="n">etadim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"eta"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">deta</span><span class="p">,</span> <span class="n">offset</span><span class="o">=-</span><span class="p">(</span><span class="n">neta</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">deta</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">neta</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"m"</span><span class="p">)</span>
-	<span class="n">meta</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"wavelength_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">wavelength</span><span class="p">),</span> <span class="s2">"dxi_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">dxi</span><span class="p">),</span> <span class="s2">"deta_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">deta</span><span class="p">)}</span>
+	<span class="c1"># ξ, η are normalised by one reference length, so the scaled frame is</span>
+	<span class="c1"># dimensionless and s carries the metres (Eric, 2026-10-13).</span>
+	<span class="n">L</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">nxi</span><span class="p">)</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">dxi</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span> <span class="ow">or</span> <span class="mf">1.0</span>
+	<span class="n">dxi_n</span><span class="p">,</span> <span class="n">deta_n</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">dxi</span><span class="p">)</span> <span class="o">/</span> <span class="n">L</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">deta</span><span class="p">)</span> <span class="o">/</span> <span class="n">L</span>
+	<span class="n">xidim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"xi"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">dxi_n</span><span class="p">,</span> <span class="n">offset</span><span class="o">=-</span><span class="p">(</span><span class="n">nxi</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">dxi_n</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">nxi</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"a.u."</span><span class="p">)</span>
+	<span class="n">etadim</span> <span class="o">=</span> <span class="n">_Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"eta"</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">"position"</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">deta_n</span><span class="p">,</span> <span class="n">offset</span><span class="o">=-</span><span class="p">(</span><span class="n">neta</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">deta_n</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">neta</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">"a.u."</span><span class="p">)</span>
+	<span class="n">meta</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"wavelength_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">wavelength</span><span class="p">),</span> <span class="s2">"dxi_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">dxi</span><span class="p">),</span> <span class="s2">"deta_m"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">deta</span><span class="p">),</span>
+			<span class="s2">"reference_half_width_m"</span><span class="p">:</span> <span class="n">L</span><span class="p">}</span>
 	<span class="k">if</span> <span class="n">tags</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 		<span class="n">meta</span><span class="p">[</span><span class="s2">"plane_tags"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">","</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tag</span> <span class="ow">or</span> <span class="s2">""</span> <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">tags</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">markers</span><span class="p">:</span>
+		<span class="n">meta</span> <span class="o">=</span> <span class="n">_with_marker_display</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">markers</span><span class="p">,</span> <span class="s2">"plane_z"</span><span class="p">,</span> <span class="n">U</span><span class="p">)</span>
 	<span class="n">U_sig</span> <span class="o">=</span> <span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">U</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"U"</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">,</span> <span class="n">etadim</span><span class="p">,</span> <span class="n">xidim</span><span class="p">],</span> <span class="n">metadata</span><span class="o">=</span><span class="n">meta</span><span class="p">,</span>
 					<span class="n">signal_type</span><span class="o">=</span><span class="s2">"Image"</span><span class="p">)</span>
 	<span class="n">signals</span> <span class="o">=</span> <span class="p">[</span><span class="n">U_sig</span><span class="p">]</span>
@@ -1091,11 +1124,16 @@
 
 	<span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">seq</span> <span class="ow">in</span> <span class="p">((</span><span class="s2">"s"</span><span class="p">,</span> <span class="n">s</span><span class="p">),</span> <span class="p">(</span><span class="s2">"R"</span><span class="p">,</span> <span class="n">R</span><span class="p">),</span> <span class="p">(</span><span class="s2">"tau"</span><span class="p">,</span> <span class="n">tau</span><span class="p">)):</span>
 		<span class="n">xs</span><span class="p">,</span> <span class="n">ys</span> <span class="o">=</span> <span class="n">_axes</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span>
+		<span class="n">scale</span> <span class="o">=</span> <span class="n">L</span> <span class="k">if</span> <span class="n">label</span> <span class="o">==</span> <span class="s2">"s"</span> <span class="k">else</span> <span class="mf">1.0</span>	<span class="c1"># s in metres: the grid's half-width at z</span>
+		<span class="n">units</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"s"</span><span class="p">:</span> <span class="s2">"m"</span><span class="p">,</span> <span class="s2">"R"</span><span class="p">:</span> <span class="s2">"m"</span><span class="p">,</span> <span class="s2">"tau"</span><span class="p">:</span> <span class="s2">""</span><span class="p">}[</span><span class="n">label</span><span class="p">]</span>
+		<span class="k">def</span><span class="w"> </span><span class="nf">_companion</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">companion_name</span><span class="p">):</span>
+			<span class="k">return</span> <span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">values</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">companion_name</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">],</span>
+						   <span class="n">signal_quantities</span><span class="o">=</span><span class="p">[{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">companion_name</span><span class="p">,</span> <span class="s2">"units"</span><span class="p">:</span> <span class="n">units</span><span class="p">}])</span>
 		<span class="k">if</span> <span class="n">_np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">):</span>		<span class="c1"># isotropic run: one scalar companion</span>
-			<span class="n">signals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">xs</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">]))</span>
+			<span class="n">signals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_companion</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">label</span><span class="p">))</span>
 		<span class="k">else</span><span class="p">:</span>							<span class="c1"># anisotropic: per-axis companions</span>
-			<span class="n">signals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">xs</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">label</span> <span class="o">+</span> <span class="s2">"_x"</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">]))</span>
-			<span class="n">signals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_Signal</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">ys</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">label</span> <span class="o">+</span> <span class="s2">"_y"</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">zdim</span><span class="p">]))</span>
+			<span class="n">signals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_companion</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">label</span> <span class="o">+</span> <span class="s2">"_x"</span><span class="p">))</span>
+			<span class="n">signals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_companion</span><span class="p">(</span><span class="n">ys</span><span class="p">,</span> <span class="n">label</span> <span class="o">+</span> <span class="s2">"_y"</span><span class="p">))</span>
 	<span class="k">if</span> <span class="n">tags</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 		<span class="c1"># integer frame index: increments at each frame switch (per-axis</span>
 		<span class="c1"># switches like 'flatten-x' count too)</span>
@@ -1121,7 +1159,12 @@
 <span class="sd">		\psi(x,y) = \frac{1}{s}\,U\!\left(\frac{x}{s}, \frac{y}{s}\right)</span>
 <span class="sd">		\exp\!\left[\frac{ik\,(x^2+y^2)}{2R}\right]</span>
 
-<span class="sd">	(handoff Eq 37), on the plane's native grid ``Δx = |s|·Δξ`` (Eq 41). This</span>
+<span class="sd">	(handoff Eq 37), on the plane's native grid ``Δx = |s|·Δξ`` (Eq 41). Here</span>
+<span class="sd">	``s`` is the frame's dimensionless scale: the stored ``s`` companion is in</span>
+<span class="sd">	metres (``s·L``, with ``L = reference_half_width_m``) and ξ, η are in</span>
+<span class="sd">	``a.u.``, so ``x = s·ξ`` holds with both as stored, and the ``1/s`` uses</span>
+<span class="sd">	``s/L``. A set written before the normalisation has no ``L`` and reads as</span>
+<span class="sd">	``L = 1 m``. This</span>
 <span class="sd">	is what :meth:`assemblies.Microscope.wavefield_at` returns from a live</span>
 <span class="sd">	model; this function needs only the stored result, so a viewer holding an</span>
 <span class="sd">	exported ``.sea`` file draws the same physical plane. Each plane has its</span>
@@ -1200,6 +1243,10 @@
 
 	<span class="n">s</span><span class="p">,</span> <span class="n">R</span> <span class="o">=</span> <span class="n">_companion</span><span class="p">(</span><span class="s2">"s"</span><span class="p">),</span> <span class="n">_companion</span><span class="p">(</span><span class="s2">"R"</span><span class="p">)</span>
 	<span class="n">meta</span> <span class="o">=</span> <span class="n">U_sig</span><span class="o">.</span><span class="n">metadata</span>
+	<span class="c1"># s is stored in metres (s·L); the reconstruction takes the frame's own</span>
+	<span class="c1"># dimensionless s. A set written before has no L and a dimensionless s.</span>
+	<span class="n">L</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"reference_half_width_m"</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+	<span class="n">s</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">v</span> <span class="o">/</span> <span class="n">L</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">s</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="k">else</span> <span class="n">s</span> <span class="o">/</span> <span class="n">L</span>
 	<span class="n">wavelength</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">meta</span><span class="p">[</span><span class="s2">"wavelength_m"</span><span class="p">])</span>
 	<span class="n">dxi</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"dxi_m"</span><span class="p">,</span> <span class="n">U_sig</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">scale</span><span class="p">))</span>
 	<span class="n">deta</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"deta_m"</span><span class="p">,</span> <span class="n">U_sig</span><span class="o">.</span><span class="n">dimensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">scale</span><span class="p">))</span>
@@ -1420,6 +1467,48 @@
 			<span class="n">mark_axis_value</span><span class="p">(</span><span class="n">draft</span><span class="p">,</span> <span class="n">record</span><span class="p">[</span><span class="s2">"z"</span><span class="p">],</span> <span class="n">along</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">record</span><span class="p">[</span><span class="s2">"label"</span><span class="p">],</span> <span class="n">owner</span><span class="o">=</span><span class="n">owner</span><span class="p">,</span>
 							<span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">record</span><span class="p">[</span><span class="s2">"color"</span><span class="p">],</span> <span class="n">text</span><span class="o">=</span><span class="n">record</span><span class="p">[</span><span class="s2">"label"</span><span class="p">])</span>
 	<span class="k">return</span> <span class="n">get_display_annotations</span><span class="p">(</span><span class="n">draft</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_with_marker_display</span><span class="p">(</span><span class="n">metadata</span><span class="p">:</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">markers</span><span class="p">:</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+						 <span class="n">along</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span><span class="n">ArrayLike</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Metadata for a wave stack, with the column's markers as PLOT-8 overlays.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	metadata : Mapping</span>
+<span class="sd">		The stack's calibration metadata.</span>
+<span class="sd">	markers : Sequence[Mapping]</span>
+<span class="sd">		Marker requests, as :func:`_marker_records` takes them.</span>
+<span class="sd">	along : str</span>
+<span class="sd">		The stack's plane axis (``"z"`` or ``"plane_z"``), the axis the marks</span>
+<span class="sd">		are bound to.</span>
+<span class="sd">	data : numpy.ndarray</span>
+<span class="sd">		The stack, complex or real; a line mark spans ``0..max|data|`` on a</span>
+<span class="sd">		line view of it.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	Metadata</span>
+<span class="sd">		``metadata`` with ``Display.Annotations`` and ``Display.ROI``.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	ValueError</span>
+<span class="sd">		If a span marker does not order.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	_display_signal : The same, for a display Signal.</span>
+<span class="sd">	"""</span>
+	<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_np</span>
+	<span class="n">peak</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">data</span><span class="p">))))</span> <span class="k">if</span> <span class="n">_np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="k">else</span> <span class="mf">1.0</span>
+	<span class="n">annotations</span><span class="p">,</span> <span class="n">rois</span> <span class="o">=</span> <span class="n">_marker_annotations</span><span class="p">(</span><span class="n">_marker_records</span><span class="p">(</span><span class="n">markers</span><span class="p">),</span> <span class="n">along</span><span class="p">,</span>
+											<span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">peak</span> <span class="k">if</span> <span class="n">_np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">peak</span><span class="p">)</span> <span class="ow">and</span> <span class="n">peak</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mf">1.0</span><span class="p">))</span>
+	<span class="n">meta</span> <span class="o">=</span> <span class="n">_Metadata</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">metadata</span><span class="p">))</span>
+	<span class="n">meta</span><span class="o">.</span><span class="n">Display</span> <span class="o">=</span> <span class="n">_Metadata</span><span class="p">()</span>
+	<span class="n">meta</span><span class="o">.</span><span class="n">Display</span><span class="o">.</span><span class="n">Annotations</span> <span class="o">=</span> <span class="n">annotations</span>
+	<span class="n">meta</span><span class="o">.</span><span class="n">Display</span><span class="o">.</span><span class="n">ROI</span> <span class="o">=</span> <span class="n">rois</span>
+	<span class="k">return</span> <span class="n">meta</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_finite_range</span><span class="p">(</span><span class="n">data</span><span class="p">:</span><span class="n">ArrayLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>

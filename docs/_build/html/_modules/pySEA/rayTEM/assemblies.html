@@ -114,7 +114,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_stack_wavefields</span><span class="p">(</span><span class="n">planes</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"wavefield"</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_stack_wavefields</span><span class="p">(</span><span class="n">planes</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"wavefield"</span><span class="p">,</span> <span class="n">markers</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">	</span><span class="sd">"""Stack a list of 2D wavefield Signals into one calibrated 3D wavefield Signal.</span>
 
 <span class="sd">	Reads each per-plane wavefield and assembles a single ``(n_planes, ny, nx)``</span>
@@ -128,6 +128,9 @@
 <span class="sd">		the same transverse grid.</span>
 <span class="sd">	name : str, optional</span>
 <span class="sd">		Name for the stacked Signal, by default ``"wavefield"``.</span>
+<span class="sd">	markers : Sequence[Mapping] or None, optional</span>
+<span class="sd">		The column's section spans and element lines, stored on the stack as</span>
+<span class="sd">		overlays bound to ``z`` (see :func:`seashells.make_wavefield_signal`).</span>
 
 <span class="sd">	Returns</span>
 <span class="sd">	-------</span>
@@ -144,10 +147,11 @@
 		<span class="n">d</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">read_wavefield</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
 		<span class="n">datas</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="p">;</span> <span class="n">zs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">z</span> <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">)</span>
 	<span class="n">stacked</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">datas</span><span class="p">)</span>
-	<span class="k">return</span> <span class="n">make_wavefield_signal</span><span class="p">(</span><span class="n">stacked</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">zs</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">make_wavefield_signal</span><span class="p">(</span><span class="n">stacked</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">zs</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+								 <span class="n">markers</span><span class="o">=</span><span class="n">markers</span><span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_stack_scaled_wavefields</span><span class="p">(</span><span class="n">planes</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"scaled wave"</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_stack_scaled_wavefields</span><span class="p">(</span><span class="n">planes</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"scaled wave"</span><span class="p">,</span> <span class="n">markers</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">	</span><span class="sd">"""Stack per-plane scaled wavefields into one ``SignalSet`` with frame companions.</span>
 
 <span class="sd">	Reads each scaled plane (reduced field U plus its ``s``/``R``/``τ``/``z``</span>
@@ -163,6 +167,8 @@
 <span class="sd">		fallbacks), all on the same ξ/η grid.</span>
 <span class="sd">	name : str, optional</span>
 <span class="sd">		Name for the SignalSet, by default ``"scaled wave"``.</span>
+<span class="sd">	markers : Sequence[Mapping] or None, optional</span>
+<span class="sd">		The column's markers, stored on U as overlays bound to ``plane_z``.</span>
 
 <span class="sd">	Returns</span>
 <span class="sd">	-------</span>
@@ -182,7 +188,8 @@
 		<span class="n">zs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">z</span> <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">)</span>
 		<span class="n">tags</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scaled_frame_tag</span><span class="p">(</span><span class="n">p</span><span class="p">))</span>
 	<span class="k">return</span> <span class="n">make_scaled_wave_signalset</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">datas</span><span class="p">),</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">deta</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span>
-									  <span class="n">s</span><span class="o">=</span><span class="n">ss</span><span class="p">,</span> <span class="n">R</span><span class="o">=</span><span class="n">Rs</span><span class="p">,</span> <span class="n">tau</span><span class="o">=</span><span class="n">taus</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">zs</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="n">tags</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+									  <span class="n">s</span><span class="o">=</span><span class="n">ss</span><span class="p">,</span> <span class="n">R</span><span class="o">=</span><span class="n">Rs</span><span class="p">,</span> <span class="n">tau</span><span class="o">=</span><span class="n">taus</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">zs</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="n">tags</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+									  <span class="n">markers</span><span class="o">=</span><span class="n">markers</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_as_rays</span><span class="p">(</span><span class="n">rays</span><span class="p">:</span><span class="n">Rays</span><span class="o">|</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">I</span><span class="p">:</span><span class="n">ArrayLike</span><span class="o">|</span><span class="kc">None</span><span class="p">,</span> <span class="n">R</span><span class="p">:</span><span class="n">ArrayLike</span><span class="o">|</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Rays</span><span class="p">:</span>
@@ -1263,12 +1270,18 @@
 				<span class="n">fi</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
 			<span class="k">else</span><span class="p">:</span>
 				<span class="n">fi</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">=</span><span class="n">f</span>
+		<span class="c1"># The stacks carry this section's span and elements as overlays bound</span>
+		<span class="c1"># to their plane axis, placed in the result's z frame (its first plane).</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_scaled_wavefield</span><span class="p">,</span> <span class="n">read_wavefield</span>
 		<span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">'fixed'</span><span class="p">:</span>
 			<span class="bp">self</span><span class="o">.</span><span class="n">_wave_planes</span> <span class="o">=</span> <span class="n">fi</span>
-			<span class="bp">self</span><span class="o">.</span><span class="n">wave</span> <span class="o">=</span> <span class="n">_stack_wavefields</span><span class="p">(</span><span class="n">fi</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'section'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">' wave'</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">wave</span> <span class="o">=</span> <span class="n">_stack_wavefields</span><span class="p">(</span><span class="n">fi</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'section'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">' wave'</span><span class="p">,</span>
+										  <span class="n">markers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_display_markers</span><span class="p">(</span><span class="n">read_wavefield</span><span class="p">(</span><span class="n">fi</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">4</span><span class="p">]</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">))</span>
 			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">_wave_scaled_planes</span> <span class="o">=</span> <span class="n">fi</span>
-		<span class="bp">self</span><span class="o">.</span><span class="n">wave_scaled</span> <span class="o">=</span> <span class="n">_stack_scaled_wavefields</span><span class="p">(</span><span class="n">fi</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'section'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">' scaled wave'</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">wave_scaled</span> <span class="o">=</span> <span class="n">_stack_scaled_wavefields</span><span class="p">(</span>
+			<span class="n">fi</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'section'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">' scaled wave'</span><span class="p">,</span>
+			<span class="n">markers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_display_markers</span><span class="p">(</span><span class="n">read_scaled_wavefield</span><span class="p">(</span><span class="n">fi</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">7</span><span class="p">]</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">))</span>
 		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave_scaled</span></div>
 
 
@@ -3544,7 +3557,8 @@
 			<span class="n">planes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">sec_planes</span><span class="p">)</span>
 			<span class="n">f</span> <span class="o">=</span> <span class="n">sec_planes</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
 		<span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">'fixed'</span><span class="p">:</span>
-			<span class="bp">self</span><span class="o">.</span><span class="n">wave</span> <span class="o">=</span> <span class="n">_stack_wavefields</span><span class="p">(</span><span class="n">planes</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'microscope'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">' wave'</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">wave</span> <span class="o">=</span> <span class="n">_stack_wavefields</span><span class="p">(</span><span class="n">planes</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'microscope'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">' wave'</span><span class="p">,</span>
+										  <span class="n">markers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_display_markers</span><span class="p">())</span>
 			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">_wave_scaled_planes</span> <span class="o">=</span> <span class="n">planes</span>
 		<span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">'hybrid'</span><span class="p">:</span>
@@ -3552,7 +3566,16 @@
 			<span class="bp">self</span><span class="o">.</span><span class="n">crossovers</span> <span class="o">=</span> <span class="p">[</span><span class="n">read_scaled_wavefield</span><span class="p">(</span><span class="n">p</span><span class="p">)[</span><span class="mi">7</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">planes</span>
 							   <span class="k">if</span> <span class="p">(</span><span class="n">_scaled_plane_tag</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">""</span><span class="p">)</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"crossover"</span><span class="p">)]</span>
 			<span class="bp">self</span><span class="o">.</span><span class="n">_log_conjugate_planes</span><span class="p">()</span>
-		<span class="bp">self</span><span class="o">.</span><span class="n">wave_scaled</span> <span class="o">=</span> <span class="n">_stack_scaled_wavefields</span><span class="p">(</span><span class="n">planes</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'microscope'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">' scaled wave'</span><span class="p">)</span>
+		<span class="c1"># The scaled stack carries the column's markers plus what this run</span>
+		<span class="c1"># found: its crossovers and, for a hybrid run, the image planes it logged.</span>
+		<span class="n">markers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_display_markers</span><span class="p">()</span>
+		<span class="n">markers</span> <span class="o">+=</span> <span class="p">[{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"crossover"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"crossover"</span><span class="p">,</span> <span class="s2">"z"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">zc</span><span class="p">)}</span>
+					<span class="k">for</span> <span class="n">zc</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">crossovers</span> <span class="ow">or</span> <span class="p">())</span> <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">'hybrid'</span><span class="p">]</span>
+		<span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">'hybrid'</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_planes</span><span class="p">:</span>
+			<span class="n">markers</span> <span class="o">+=</span> <span class="p">[{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"image"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"image"</span><span class="p">,</span> <span class="s2">"z"</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">zi</span><span class="p">)}</span>
+						<span class="k">for</span> <span class="n">zi</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_planes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'x'</span><span class="p">,</span> <span class="p">())]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">wave_scaled</span> <span class="o">=</span> <span class="n">_stack_scaled_wavefields</span><span class="p">(</span><span class="n">planes</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'microscope'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">' scaled wave'</span><span class="p">,</span>
+													<span class="n">markers</span><span class="o">=</span><span class="n">markers</span><span class="p">)</span>
 		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave_scaled</span></div>
 
 
