@@ -13,7 +13,7 @@
     "name": "AberrationScreen",
     "qualname": "AberrationScreen",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3546,
+    "source_lineno": 3555,
     "signature": "class AberrationScreen",
     "doc": "A zero-thickness pure aberration plate."
   },
@@ -76,7 +76,7 @@
     "name": "Aperture",
     "qualname": "Aperture",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3185,
+    "source_lineno": 3194,
     "signature": "class Aperture",
     "doc": "Aperture element class. An aperture MASKS the beam: rays outside the"
   },
@@ -319,7 +319,7 @@
     "name": "Dipole",
     "qualname": "Dipole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4197,
+    "source_lineno": 4206,
     "signature": "class Dipole",
     "doc": ""
   },
@@ -346,7 +346,7 @@
     "name": "Drift",
     "qualname": "Drift",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3470,
+    "source_lineno": 3479,
     "signature": "class Drift",
     "doc": "Drift element class for free-space propagation."
   },
@@ -418,7 +418,7 @@
     "name": "Element",
     "qualname": "Element",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 843,
+    "source_lineno": 852,
     "signature": "class Element",
     "doc": ""
   },
@@ -616,7 +616,7 @@
     "name": "Gun",
     "qualname": "Gun",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3133,
+    "source_lineno": 3142,
     "signature": "class Gun",
     "doc": "A Source by its microscope name."
   },
@@ -706,7 +706,7 @@
     "name": "Lens",
     "qualname": "Lens",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4418,
+    "source_lineno": 4427,
     "signature": "class Lens",
     "doc": "Lens element class for round lenses / symmetric focusing. https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example or Brown1983 page 105"
   },
@@ -868,7 +868,7 @@
     "name": "make_envelope_signal",
     "qualname": "make_envelope_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 1347,
+    "source_lineno": 1448,
     "signature": "make_envelope_signal(widths, z, quantities, units, markers, name, source)",
     "doc": "Wrap per-plane RMS beam widths as a sea_eco Signal with column markers."
   },
@@ -886,7 +886,7 @@
     "name": "make_ray_diagram_signal",
     "qualname": "make_ray_diagram_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 1275,
+    "source_lineno": 1376,
     "signature": "make_ray_diagram_signal(positions, z, markers, axis, frame, name, source)",
     "doc": "Wrap a ray diagram -- every ray's transverse position per plane -- as a sea_eco Signal."
   },
@@ -931,7 +931,7 @@
     "name": "make_wave_cross_section_signal",
     "qualname": "make_wave_cross_section_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 1421,
+    "source_lineno": 1522,
     "signature": "make_wave_cross_section_signal(profile, z, x, markers, name, source)",
     "doc": "Wrap a scaled-wave ``|\u03c8(x, 0, z)|`` cross-section as a sea_eco image Signal."
   },
@@ -1138,7 +1138,7 @@
     "name": "Prism",
     "qualname": "Prism",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 5056,
+    "source_lineno": 5065,
     "signature": "class Prism",
     "doc": ""
   },
@@ -1237,7 +1237,7 @@
     "name": "Quadrapole",
     "qualname": "Quadrapole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3733,
+    "source_lineno": 3742,
     "signature": "class Quadrapole",
     "doc": ""
   },
@@ -1282,7 +1282,7 @@
     "name": "read_display_signal",
     "qualname": "read_display_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 1493,
+    "source_lineno": 1594,
     "signature": "read_display_signal(signal)",
     "doc": "Read ``(data, axes, markers, metadata)`` from a display Signal or its fallback."
   },
@@ -1408,7 +1408,7 @@
     "name": "safeReinstantiate",
     "qualname": "safeReinstantiate",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 1555,
+    "source_lineno": 1656,
     "signature": "safeReinstantiate(source, cls)",
     "doc": ""
   },
@@ -1450,6 +1450,15 @@
   },
   {
     "kind": "function",
+    "name": "scaled_wave_physical_plane",
+    "qualname": "scaled_wave_physical_plane",
+    "path": "src/pySEA/rayTEM/seashells.py",
+    "source_lineno": 965,
+    "signature": "scaled_wave_physical_plane(scaled_wave, plane, name)",
+    "doc": "Reconstruct the physical wavefield of one plane of a stored scaled wave."
+  },
+  {
+    "kind": "function",
     "name": "scootOL2",
     "qualname": "scootOL2",
     "path": "src/pySEA/rayTEM/microscopes/MACSTEM/viewAndCalculate.py",
@@ -1462,7 +1471,7 @@
     "name": "SealedAttributes",
     "qualname": "SealedAttributes",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 530,
+    "source_lineno": 539,
     "signature": "class SealedAttributes",
     "doc": "Refuses attribute names the class does not have, once built."
   },
@@ -1552,7 +1561,7 @@
     "name": "Source",
     "qualname": "Source",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2709,
+    "source_lineno": 2718,
     "signature": "class Source",
     "doc": "Source element class. Source element can be put in a MicroscopeSection and then propagating \"through\" the section will mean the starting rays r0 are generated by the Source (instead of requiring the user pass in starting rays)"
   },
@@ -1570,7 +1579,7 @@
     "name": "suspended_aberrations",
     "qualname": "suspended_aberrations",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 398,
+    "source_lineno": 407,
     "signature": "class suspended_aberrations",
     "doc": "Context manager that temporarily detaches elements' aberrations."
   },
@@ -1618,6 +1627,15 @@
     "source_lineno": 108,
     "signature": "test_a_mistyped_clsid_is_normalized_rather_than_refused()",
     "doc": "Which is why the conformance check, not the minter, catches a typo."
+  },
+  {
+    "kind": "function",
+    "name": "test_a_round_trip_through_sea_keeps_the_physical_plane",
+    "qualname": "test_a_round_trip_through_sea_keeps_the_physical_plane",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_wave_physical_plane.py",
+    "source_lineno": 43,
+    "signature": "test_a_round_trip_through_sea_keeps_the_physical_plane(tmp_path)",
+    "doc": "An exported, reloaded scaled wave reconstructs the same physical plane."
   },
   {
     "kind": "function",
@@ -1735,6 +1753,24 @@
     "source_lineno": 2746,
     "signature": "test_aligned_C12_makes_two_line_foci()",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_an_already_rotating_trace_is_returned_unchanged",
+    "qualname": "test_an_already_rotating_trace_is_returned_unchanged",
+    "path": "src/pySEA/rayTEM/tests/test_rotating_frame.py",
+    "source_lineno": 59,
+    "signature": "test_an_already_rotating_trace_is_returned_unchanged()",
+    "doc": "Converting twice is a no-op, as before."
+  },
+  {
+    "kind": "function",
+    "name": "test_an_anisotropic_frame_uses_each_axis_scale",
+    "qualname": "test_an_anisotropic_frame_uses_each_axis_scale",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_wave_physical_plane.py",
+    "source_lineno": 58,
+    "signature": "test_an_anisotropic_frame_uses_each_axis_scale()",
+    "doc": "Per-axis s_x/s_y companions give per-axis pixel sizes and amplitude 1/\u221a(s_x s_y)."
   },
   {
     "kind": "function",
@@ -2431,6 +2467,15 @@
   },
   {
     "kind": "function",
+    "name": "test_every_stored_plane_matches_wavefield_at",
+    "qualname": "test_every_stored_plane_matches_wavefield_at",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_wave_physical_plane.py",
+    "source_lineno": 30,
+    "signature": "test_every_stored_plane_matches_wavefield_at()",
+    "doc": "The stored result alone gives what the live model's wavefield_at gives."
+  },
+  {
+    "kind": "function",
     "name": "test_example_budget_is_dominated_by_ol1_and_nearly_additive",
     "qualname": "test_example_budget_is_dominated_by_ol1_and_nearly_additive",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
@@ -2662,6 +2707,15 @@
     "source_lineno": 187,
     "signature": "test_ideal_transport_is_exact_and_conserves_emittance()",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_it_refuses_what_is_not_a_stored_scaled_wave",
+    "qualname": "test_it_refuses_what_is_not_a_stored_scaled_wave",
+    "path": "src/pySEA/rayTEM/tests/test_scaled_wave_physical_plane.py",
+    "source_lineno": 69,
+    "signature": "test_it_refuses_what_is_not_a_stored_scaled_wave()",
+    "doc": "A set without U on (plane_z, eta, xi), or a plane out of range, is refused."
   },
   {
     "kind": "function",
@@ -3328,6 +3382,15 @@
     "source_lineno": 96,
     "signature": "test_the_json_save_writes_the_identity(tmp_path)",
     "doc": "The flat JSON layout carries the Provenance in sea_eco's JSON form."
+  },
+  {
+    "kind": "function",
+    "name": "test_the_vectorized_rotation_matches_the_loop_it_replaced",
+    "qualname": "test_the_vectorized_rotation_matches_the_loop_it_replaced",
+    "path": "src/pySEA/rayTEM/tests/test_rotating_frame.py",
+    "source_lineno": 46,
+    "signature": "test_the_vectorized_rotation_matches_the_loop_it_replaced()",
+    "doc": "Same rays, same boundary rays, same frame tag."
   },
   {
     "kind": "function",

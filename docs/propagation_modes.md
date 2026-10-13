@@ -104,6 +104,19 @@ frames analytically at crossovers and logs every one; `scope.crossovers`
 lists the focal planes of the seed's conjugate family, and `wavefield_at(z)`
 reconstructs the physical field at any logged plane.
 
+A stored or exported result does not need the column. Its scaled-wave
+SignalSet (`scope.wave_scaled`, or one loaded from `.sea`) holds U on the
+moving grid plus the frame `s(z)`, `R(z)`, so
+`seashells.scaled_wave_physical_plane(wave, plane)` rebuilds the same physical
+field for one stored plane: x = s·ξ, a pitch of |s|·Δξ, and the curvature
+phase put back. The grid keeps its n×n samples on every plane; it is the
+physical extent that grows and shrinks with z.
+
+```python
+from pySEA.rayTEM.seashells import scaled_wave_physical_plane
+psi = scaled_wave_physical_plane(scope.wave_scaled, plane=10)   # metres
+```
+
 ## They answer for each other
 
 The three descriptions of any solved column agree on where its conjugate

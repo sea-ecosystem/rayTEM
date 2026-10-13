@@ -2,6 +2,15 @@
 
 Newest entries at top.
 
+## 2026-10-13 — [Done] The physical plane of a stored scaled wave
+**Goal:** `seashells.scaled_wave_physical_plane` returns ψ on one plane's native physical grid from a stored scaled-wave SignalSet.
+**Why:** Eric, 2026-10-13: Poseidon's scaled-wave plot should offer true physical axes that redraw with z; only rayTEM knows the frame, and `wavefield_at` needs a live model.
+- [x] `scaled_wave_physical_plane`
+- [x] tests
+- [x] wiki, docs
+TODO: [TODO_DONE_2026-10-13_scaled-wave-axis-frames.md](TODO_DONE_2026-10-13_scaled-wave-axis-frames.md)
+**Outcome:** `seashells.scaled_wave_physical_plane(wave, plane)` rebuilds ψ = (1/s)·U·e^{ik r²/2R} on one stored plane's native grid (x = s·ξ, pitch |s|·Δξ) from the SignalSet alone, isotropic or per-axis, as stored or reloaded from `.sea`; it matches `wavefield_at(z)` on every stored plane. Poseidon's scaled-wave plot uses it for its Physical axes. 232 tests pass; strict Sphinx has the same 11 duplicate-object warnings as `dev` (aberrations/elements, pre-existing, not touched).
+
 ## 2026-10-12 — [Done] Display Signals for live model plots
 **Goal:** derived calibrated Signals for the ray diagram, beam envelope and scaled-wave cross-section, carrying section/element/plane markers as sea-eco annotations.
 **Why:** Eric, 2026-10-12: Poseidon's Control Window β will plot the live model; rayTEM draws these only in matplotlib, and the cross-section array is computed and thrown away. TODO: [TODO_DONE_2026-10-12_live-model-plots.md](TODO_DONE_2026-10-12_live-model-plots.md)

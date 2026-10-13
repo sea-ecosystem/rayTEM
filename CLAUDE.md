@@ -239,7 +239,9 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 - `src/pySEA/rayTEM/tests/test_eight_configurations.py` — Tests driving examples/07_eightConfigurations.py.
 - `src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py`
 - `src/pySEA/rayTEM/tests/test_microscope_identity.py`
+- `src/pySEA/rayTEM/tests/test_rotating_frame.py` — ``Rays.convert_to_rotating_reference_frame`` is a vectorized form of its old loop.
 - `src/pySEA/rayTEM/tests/test_scaled_fresnel.py`
+- `src/pySEA/rayTEM/tests/test_scaled_wave_physical_plane.py` — Tests for seashells.scaled_wave_physical_plane: ψ of one stored scaled plane.
 - `src/pySEA/rayTEM/tests/test_wave_and_envelope.py`
 - `src/pySEA/rayTEM/utilities.py`
 - `src/pySEA/rayTEM/waveoptics.py` — Paraxial scalar wave-optics primitives for rayTEM.
