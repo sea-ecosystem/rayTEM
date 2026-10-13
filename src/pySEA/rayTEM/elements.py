@@ -217,19 +217,28 @@ class Rays():
 		"""
 		if self.reference_frame=="rotating":
 			return self
-		R = self.R
-		nl,nr,nc = self.shape
-		converted = xp.zeros(self.shape)
-		boundary_ray = self.boundary_ray.copy()
-		for l in range(nl):
-			for r in range(nr):
-				Rv = R[l,r]
-				C = xp.cos(Rv)
-				S = xp.sin(Rv)
-				M = xp.asarray([[C,S,0,0],[-S,C,0,0],[0,0,C,S],[0,0,-S,C]])
-				M = fix_mat_dims(M,["x","y","xt","yt"])
-				converted[l,r,:] = xp.matmul(M,self[l,r,:])
-			boundary_ray[l] = xp.einsum('mn,in->im',M,boundary_ray[l])
+		# Vectorized form of the per-ray rotation M(R) = [[C,S],[-S,C]] applied to
+		# (x,y) and to (xt,yt), every other column untouched. It replaced a loop
+		# over planes and rays that indexed through Rays.__getitem__ -- a deep
+		# copy of this object's metadata per ray -- and rebuilt M with
+		# fix_mat_dims each time: ~1.5 s for a 57-plane, 225-ray trace, paid by
+		# plot2D and by every live ray diagram. The numbers are the same.
+		R = xp.asarray(self.R)
+		C = xp.cos(R)[...,None]
+		S = xp.sin(R)[...,None]
+		ix,iy,ixt,iyt = (columnByName(name) for name in ("x","y","xt","yt"))
+		rays = xp.asarray(self.rays, dtype=float)
+		converted = rays.copy()
+		converted[...,[ix,ixt]] = C*rays[...,[ix,ixt]] + S*rays[...,[iy,iyt]]
+		converted[...,[iy,iyt]] = -S*rays[...,[ix,ixt]] + C*rays[...,[iy,iyt]]
+		# Each plane's boundary rays are turned by the angle of that plane's last
+		# ray -- what the loop left in M when it reached them -- and that is kept.
+		boundary_ray = xp.asarray(self.boundary_ray, dtype=float).copy()
+		Cb = xp.cos(R[:,-1])[:,None]
+		Sb = xp.sin(R[:,-1])[:,None]
+		original = boundary_ray.copy()
+		boundary_ray[...,[ix,ixt]] = Cb[...,None]*original[...,[ix,ixt]] + Sb[...,None]*original[...,[iy,iyt]]
+		boundary_ray[...,[iy,iyt]] = -Sb[...,None]*original[...,[ix,ixt]] + Cb[...,None]*original[...,[iy,iyt]]
 		result = self.copy()
 		result.rays = converted
 		result.boundary_ray = boundary_ray

@@ -2,14 +2,15 @@
 
 Newest entries at top.
 
-## 2026-10-12 — [Under Construction] Display Signals for live model plots
+## 2026-10-12 — [Done] Display Signals for live model plots
 **Goal:** derived calibrated Signals for the ray diagram, beam envelope and scaled-wave cross-section, carrying section/element/plane markers as sea-eco annotations.
-**Why:** Eric, 2026-10-12: Poseidon's Control Window β will plot the live model; rayTEM draws these only in matplotlib, and the cross-section array is computed and thrown away. TODO: [TODO_ACTIVE_2026-10-12_live-model-plots.md](TODO_ACTIVE_2026-10-12_live-model-plots.md)
-- [ ] `ray_diagram_signal` on Microscope and MicroscopeSection (rotating frame, aperture ghosting, Span/Line markers)
-- [ ] `envelope_signal` from the covariance stack
-- [ ] `wave_cross_section_signal`; `show(kind="wave-scaled")` draws it (figure unchanged)
-- [ ] tests on the basic column
-- [ ] docs, wiki, refresh
+**Why:** Eric, 2026-10-12: Poseidon's Control Window β will plot the live model; rayTEM draws these only in matplotlib, and the cross-section array is computed and thrown away. TODO: [TODO_DONE_2026-10-12_live-model-plots.md](TODO_DONE_2026-10-12_live-model-plots.md)
+- [x] `ray_diagram_signal` on Microscope and MicroscopeSection (rotating frame, aperture ghosting, Span/Line markers)
+- [x] `envelope_signal` from the covariance stack
+- [x] `wave_cross_section_signal`; `show(kind="wave-scaled")` draws it (figure unchanged)
+- [x] tests on the basic column
+- [x] docs, wiki, refresh
+**Outcome:** `ray_diagram_signal` (`[ray, plane_z]`), `envelope_signal` (`[quantity, z]`) and `wave_cross_section_signal` (`[x, z]`) are derived calibrated Signals. Each carries its section spans and element and conjugate-plane lines as sea-eco PLOT-8 annotations, built through seashells. `show(kind="wave-scaled")` draws the cross-section Signal and its figure is unchanged. `Rays.convert_to_rotating_reference_frame` is vectorized and bit-identical, about 1.5 s → 2 ms on U200 (`83bf02a`). Suite: 228 passed. Poseidon renders the U200 ray diagram from these: 225 rays and 91 markers, overlaid in about 50 ms.
 
 ## 2026-10-12 — [Done] Saved microscopes use sea-eco's identity model
 **Goal:** a rayTEM column carries a sea-eco `Provenance` (`Self` `TWN01`) instead of a SEA ID string.
