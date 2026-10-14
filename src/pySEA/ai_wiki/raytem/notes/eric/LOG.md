@@ -10,6 +10,8 @@ TODO: [TODO_ACTIVE_2026-10-15_wave-probe-at-sample.md](TODO_ACTIVE_2026-10-15_wa
 - [ ] the pupil through the crossover frame; `_scaled_plane_at` picks the finest coincident frame
 - [ ] corrector cancellation where the objective's screen is, or the net aberration once
 - [ ] `focus_error(family='image')`
+- [ ] boundary ray clipped radially (`convergence_angle` reads √2 too large on a round aperture)
+- [ ] the residual quadratic left in `U` after a frame switch (24 nm of defocus at the objective's exit)
 - [ ] test against 0.51 λ/α on the emulator column
 
 ## 2026-10-13 — [Done] Normalised scaled axes and overlays on the wave stacks

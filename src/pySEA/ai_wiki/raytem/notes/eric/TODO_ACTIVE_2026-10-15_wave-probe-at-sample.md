@@ -54,6 +54,22 @@ column's pupil at the objective's exit instead and forms the probe itself.
    family. The emulator now samples one source point with 21 x 21 angles and
    measures the image crossover itself (`sea_pearl.emulator.optics.image_crossover_z`).
 
+6. **`convergence_angle` reads a corner.** The boundary ray an `Aperture` clips is
+   scaled per axis (`extent > radius` for x and for y separately), so for a round
+   aperture it can sit at the square's corner, `sqrt(2)` out: 29.5 mrad reported where
+   the rays that actually pass reach 21.2 mrad (the wave agrees with 21.2). The
+   emulator measures the passing rays itself when the aperture cuts the cone
+   (`sea_pearl.emulator.optics.point_family_semi_angle`).
+7. **`U` at the objective's exit carries a small quadratic.** Seeded at the aperture
+   and chained to OL1's exit, the reduced field's phase over the disk is a clean
+   quadratic of 12.6 rad (24 nm of defocus at 21 mrad; residual 0.04 rad rms) that the
+   ray crossover does not show and that the frame's `R` should have absorbed. Formed
+   into a probe with it, the focus is 780 pm wide; with it taken out, 60 pm, the Airy
+   limit -- so the pupil itself is right, only the frame's bookkeeping of the quadratic
+   is off by that much (the frame switch between CL2 and CL3 is the suspect). The
+   emulator removes it (`_remove_frame_quadratic`) and reports it as
+   `TracedPupil.frame_defocus_m`.
+
 ## Reproduction (sea-pearl + rayTEM in one environment)
 
 ```python
@@ -101,4 +117,6 @@ print("FWHM ~", 2 * np.sqrt((Ii >= 0.5 * Ii.max()).sum() / np.pi) * dxr * 1e12, 
 - [ ] a corrector plate's coefficients cancel the objective's screen where it is
       applied, or `Microscope` exposes the net aberration once
 - [ ] `focus_error(family='image')`, and `findPlanes` tolerant of a point source
+- [ ] the boundary ray clipped radially, not per axis (finding 6)
+- [ ] the frame's residual quadratic after a switch (finding 7)
 - [ ] test: probe FWHM within 10 % of 0.51 λ/α on the emulator column
