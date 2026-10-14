@@ -2,6 +2,16 @@
 
 Newest entries at top.
 
+## 2026-10-15 — [Under Construction] The wave probe at the sample plane (parked, findings recorded)
+**Goal:** `propagate_wave(mode='hybrid')` on a probe-forming column delivers a diffraction-limited probe at the sample.
+**Why:** the sea-pearl emulator's `wave` probe mode should take the probe from the column (Eric, 2026-10-15); its de-risk found the engine gets the pupil to the objective exactly but loses it at the crossover frame switch, has no way to seed at an aperture, and under-samples an uncorrected objective's screen. Nothing in rayTEM is changed yet; the emulator takes the column's pupil at the objective's exit meanwhile.
+TODO: [TODO_ACTIVE_2026-10-15_wave-probe-at-sample.md](TODO_ACTIVE_2026-10-15_wave-probe-at-sample.md) (findings, numbers and a reproduction).
+- [ ] seam to seed at an aperture
+- [ ] the pupil through the crossover frame; `_scaled_plane_at` picks the finest coincident frame
+- [ ] corrector cancellation where the objective's screen is, or the net aberration once
+- [ ] `focus_error(family='image')`
+- [ ] test against 0.51 λ/α on the emulator column
+
 ## 2026-10-13 — [Done] Normalised scaled axes and overlays on the wave stacks
 **Goal:** Store ξ, η in a.u. (−1…1 over the source grid) with s(z) in metres, and give `.wave` and U the column's z marks as overlays.
 **Why:** Eric, 2026-10-13: the scaled unit is normalised, not a distance; and a β wave plot should be the Signal's own `.show()`, marks included.
