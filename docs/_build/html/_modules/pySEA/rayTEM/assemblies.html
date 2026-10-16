@@ -1520,6 +1520,32 @@
 		<span class="n">plot2D</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rays</span><span class="p">,</span><span class="n">zpts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">named_positions</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">filename</span> <span class="p">,</span><span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">ylims</span><span class="o">=</span><span class="n">ylims</span><span class="p">,</span><span class="n">xlims</span><span class="o">=</span><span class="n">zlims</span><span class="p">,</span><span class="n">plt_ax</span><span class="o">=</span><span class="n">plt_ax</span><span class="p">)</span></div>
 
 
+<div class="viewcode-block" id="MicroscopeSection.validate_schema">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.validate_schema">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">validate_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">		</span><span class="sd">"""Validate this section's element names against the column naming schema.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		strict : bool or str, optional</span>
+<span class="sd">			``True`` raises :class:`~pySEA.rayTEM.schema.SchemaError` on any</span>
+<span class="sd">			violation, ``"warn"`` emits a :class:`UserWarning`, ``False``</span>
+<span class="sd">			reports silently, by default True.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		pySEA.rayTEM.schema.SchemaReport</span>
+<span class="sd">			Findings for this section.</span>
+
+<span class="sd">		See Also</span>
+<span class="sd">		--------</span>
+<span class="sd">		pySEA.rayTEM.schema.validate_section : The underlying check.</span>
+<span class="sd">		pySEA.rayTEM.schema.describe_schema : The vocabulary to name against.</span>
+<span class="sd">		"""</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.schema</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_section</span>
+		<span class="k">return</span> <span class="n">validate_section</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">strict</span><span class="o">=</span><span class="n">strict</span><span class="p">)</span></div>
+
+
 	<span class="c1">#def save(self,filename):</span>
 	<span class="c1">#	with open(filename+".pkl",'wb') as f:</span>
 	<span class="c1">#		pickle.dump(self,f)</span>
@@ -4302,6 +4328,36 @@
 			<span class="n">plt</span><span class="o">.</span><span class="n">gcf</span><span class="p">()</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
 		<span class="k">elif</span> <span class="n">plt_ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 			<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="Microscope.validate_schema">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.Microscope.validate_schema">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">validate_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">		</span><span class="sd">"""Validate this microscope against the column naming schema.</span>
+
+<span class="sd">		Checks every section name against the section vocabulary, then the</span>
+<span class="sd">		element names inside each section that carries a recognised name.</span>
+<span class="sd">		Sections named outside the vocabulary are left unmanaged.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		strict : bool or str, optional</span>
+<span class="sd">			``True`` raises :class:`~pySEA.rayTEM.schema.SchemaError` on any</span>
+<span class="sd">			violation, ``"warn"`` emits a :class:`UserWarning`, ``False``</span>
+<span class="sd">			reports silently, by default True.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		pySEA.rayTEM.schema.SchemaReport</span>
+<span class="sd">			Findings for the whole column, in order.</span>
+
+<span class="sd">		See Also</span>
+<span class="sd">		--------</span>
+<span class="sd">		pySEA.rayTEM.schema.validate_microscope : The underlying check.</span>
+<span class="sd">		pySEA.rayTEM.schema.describe_schema : The vocabulary to name against.</span>
+<span class="sd">		"""</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.schema</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_microscope</span>
+		<span class="k">return</span> <span class="n">validate_microscope</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">strict</span><span class="o">=</span><span class="n">strict</span><span class="p">)</span></div>
 
 
 	<span class="c1"># Basically just json dumps all attributes, with some special considerations to make the json more human-readable: "Microscope name","Section name","Element name" instead of just "name" for each, specified ordering of attributes (name always first), and nesting lists to go down from Microscope -&gt; Section -&gt; Element</span>

@@ -244,6 +244,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.subdivided"><code class="docutils literal notranslate"><span class="pre">Microscope.subdivided()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.tabulate"><code class="docutils literal notranslate"><span class="pre">Microscope.tabulate()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.update_with_settings"><code class="docutils literal notranslate"><span class="pre">Microscope.update_with_settings()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.validate_schema"><code class="docutils literal notranslate"><span class="pre">Microscope.validate_schema()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.wave_cross_section_signal"><code class="docutils literal notranslate"><span class="pre">Microscope.wave_cross_section_signal()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.wave_current"><code class="docutils literal notranslate"><span class="pre">Microscope.wave_current</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.wave_current_at"><code class="docutils literal notranslate"><span class="pre">Microscope.wave_current_at()</span></code></a></li>
@@ -268,6 +269,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.rays_signalset"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.rays_signalset</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.show"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.show()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.tabulate"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.tabulate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.validate_schema"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.validate_schema()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.wobble"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.wobble()</span></code></a></li>
 </ul>
 </li>
@@ -4299,6 +4301,37 @@ engine splits its own propagation at the analytic focus
 <dd></dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.Microscope.validate_schema">
+<span class="sig-name descname"><span class="pre">validate_schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#Microscope.validate_schema"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope.validate_schema" title="Link to this definition"></a></dt>
+<dd><p>Validate this microscope against the column naming schema.</p>
+<p>Checks every section name against the section vocabulary, then the
+element names inside each section that carries a recognised name.
+Sections named outside the vocabulary are left unmanaged.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>strict</strong> (<em>bool</em><em> or </em><em>str</em><em>, </em><em>optional</em>) – <code class="docutils literal notranslate"><span class="pre">True</span></code> raises <code class="xref py py-class docutils literal notranslate"><span class="pre">SchemaError</span></code> on any
+violation, <code class="docutils literal notranslate"><span class="pre">&quot;warn&quot;</span></code> emits a <code class="xref py py-class docutils literal notranslate"><span class="pre">UserWarning</span></code>, <code class="docutils literal notranslate"><span class="pre">False</span></code>
+reports silently, by default True.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Findings for the whole column, in order.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pySEA.rayTEM.schema.SchemaReport</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">pySEA.rayTEM.schema.validate_microscope</span></code></dt><dd><p>The underlying check.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">pySEA.rayTEM.schema.describe_schema</span></code></dt><dd><p>The vocabulary to name against.</p>
+</dd>
+</dl>
+</div>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.Microscope.wave_cross_section_signal">
 <span class="sig-name descname"><span class="pre">wave_cross_section_signal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">conjugates</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#Microscope.wave_cross_section_signal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope.wave_cross_section_signal" title="Link to this definition"></a></dt>
 <dd><p>The stored scaled-wave run as a <code class="docutils literal notranslate"><span class="pre">|ψ(x,</span> <span class="pre">y=0,</span> <span class="pre">z)|</span></code> cross-section Signal.</p>
@@ -4900,6 +4933,34 @@ arrays remain the primary working representation.</p>
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.MicroscopeSection.tabulate">
 <span class="sig-name descname"><span class="pre">tabulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">columns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#MicroscopeSection.tabulate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.MicroscopeSection.tabulate" title="Link to this definition"></a></dt>
 <dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.MicroscopeSection.validate_schema">
+<span class="sig-name descname"><span class="pre">validate_schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#MicroscopeSection.validate_schema"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.MicroscopeSection.validate_schema" title="Link to this definition"></a></dt>
+<dd><p>Validate this section’s element names against the column naming schema.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>strict</strong> (<em>bool</em><em> or </em><em>str</em><em>, </em><em>optional</em>) – <code class="docutils literal notranslate"><span class="pre">True</span></code> raises <code class="xref py py-class docutils literal notranslate"><span class="pre">SchemaError</span></code> on any
+violation, <code class="docutils literal notranslate"><span class="pre">&quot;warn&quot;</span></code> emits a <code class="xref py py-class docutils literal notranslate"><span class="pre">UserWarning</span></code>, <code class="docutils literal notranslate"><span class="pre">False</span></code>
+reports silently, by default True.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Findings for this section.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pySEA.rayTEM.schema.SchemaReport</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">pySEA.rayTEM.schema.validate_section</span></code></dt><dd><p>The underlying check.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">pySEA.rayTEM.schema.describe_schema</span></code></dt><dd><p>The vocabulary to name against.</p>
+</dd>
+</dl>
+</div>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.MicroscopeSection.wobble">
