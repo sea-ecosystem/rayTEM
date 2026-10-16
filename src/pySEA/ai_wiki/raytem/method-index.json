@@ -3954,9 +3954,9 @@
     "signature": "section_code(name)",
     "doc": "Resolve a section name to its schema code.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 459,
+    "source_lineno": 469,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 57,
+    "wiki_lineno": 58,
     "wiki_method_lineno": null
   },
   {
@@ -3966,9 +3966,9 @@
     "signature": "parse_element_name(name)",
     "doc": "Parse an element name into its schema parts.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 488,
+    "source_lineno": 498,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 66,
+    "wiki_lineno": 67,
     "wiki_method_lineno": null
   },
   {
@@ -3978,9 +3978,9 @@
     "signature": "canonical_element_name(section, type, index, axis, attachment)",
     "doc": "Build a schema-conforming element name.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 536,
+    "source_lineno": 546,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 78,
+    "wiki_lineno": 79,
     "wiki_method_lineno": null
   },
   {
@@ -3990,9 +3990,9 @@
     "signature": "element_type_codes_for(element)",
     "doc": "Return the type codes an element's class may legitimately carry.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 638,
+    "source_lineno": 648,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 83,
+    "wiki_lineno": 84,
     "wiki_method_lineno": null
   },
   {
@@ -4002,9 +4002,9 @@
     "signature": "is_schema_typed(element)",
     "doc": "Whether an element's class is subject to the name pattern.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 667,
+    "source_lineno": 677,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 91,
+    "wiki_lineno": 92,
     "wiki_method_lineno": null
   },
   {
@@ -4014,9 +4014,9 @@
     "signature": "validate_element_name(name, section, element, path)",
     "doc": "Check one element name against the schema.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 685,
+    "source_lineno": 695,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 96,
+    "wiki_lineno": 97,
     "wiki_method_lineno": null
   },
   {
@@ -4026,9 +4026,9 @@
     "signature": "validate_section(section, code, strict, prefix)",
     "doc": "Validate one microscope section against the schema.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 852,
+    "source_lineno": 862,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 101,
+    "wiki_lineno": 102,
     "wiki_method_lineno": null
   },
   {
@@ -4038,9 +4038,9 @@
     "signature": "validate_microscope(scope, strict)",
     "doc": "Validate a whole microscope against the column naming schema.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 932,
+    "source_lineno": 942,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 114,
+    "wiki_lineno": 115,
     "wiki_method_lineno": null
   },
   {
@@ -4050,9 +4050,9 @@
     "signature": "register_section(code, name, aliases)",
     "doc": "Add a section code to the vocabulary.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 977,
+    "source_lineno": 987,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 123,
+    "wiki_lineno": 124,
     "wiki_method_lineno": null
   },
   {
@@ -4062,9 +4062,9 @@
     "signature": "register_element_type(code, description, classes, required)",
     "doc": "Add an element type code to the vocabulary.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 1018,
+    "source_lineno": 1028,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 133,
+    "wiki_lineno": 134,
     "wiki_method_lineno": null
   },
   {
@@ -4074,9 +4074,21 @@
     "signature": "describe_schema()",
     "doc": "Return a printable summary of the current vocabulary.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 1058,
+    "source_lineno": 1068,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 138,
+    "wiki_lineno": 139,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "get_schema_vocabulary",
+    "kind": "method",
+    "signature": "get_schema_vocabulary()",
+    "doc": "Return the current vocabulary as plain JSON-serialisable data.",
+    "source_path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 1108,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
+    "wiki_lineno": 145,
     "wiki_method_lineno": null
   },
   {
@@ -4086,9 +4098,9 @@
     "signature": "__str__(self)",
     "doc": "Return ``severity: path -- message``.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 329,
+    "source_lineno": 339,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 152,
+    "wiki_lineno": 176,
     "wiki_method_lineno": null
   },
   {
@@ -4098,10 +4110,10 @@
     "signature": "__init__(self, issues)",
     "doc": "Initialize a report from an iterable of issues.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 353,
+    "source_lineno": 363,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 169,
-    "wiki_method_lineno": 182
+    "wiki_lineno": 193,
+    "wiki_method_lineno": 206
   },
   {
     "class": "SchemaReport",
@@ -4110,10 +4122,10 @@
     "signature": "errors(self)",
     "doc": "list[SchemaIssue]: Only the error-severity findings.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 359,
+    "source_lineno": 369,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 169,
-    "wiki_method_lineno": 187
+    "wiki_lineno": 193,
+    "wiki_method_lineno": 211
   },
   {
     "class": "SchemaReport",
@@ -4122,10 +4134,10 @@
     "signature": "infos(self)",
     "doc": "list[SchemaIssue]: Only the informational findings.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 365,
+    "source_lineno": 375,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 169,
-    "wiki_method_lineno": 192
+    "wiki_lineno": 193,
+    "wiki_method_lineno": 216
   },
   {
     "class": "SchemaReport",
@@ -4134,10 +4146,10 @@
     "signature": "ok(self)",
     "doc": "bool: ``True`` when no error-severity finding was recorded.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 371,
+    "source_lineno": 381,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 169,
-    "wiki_method_lineno": 197
+    "wiki_lineno": 193,
+    "wiki_method_lineno": 221
   },
   {
     "class": "SchemaReport",
@@ -4146,9 +4158,9 @@
     "signature": "__bool__(self)",
     "doc": "Return :attr:`ok`, so ``if report:`` reads as \"conforms\".",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 376,
+    "source_lineno": 386,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 169,
+    "wiki_lineno": 193,
     "wiki_method_lineno": null
   },
   {
@@ -4158,9 +4170,9 @@
     "signature": "__iter__(self)",
     "doc": "Iterate over every finding.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 381,
+    "source_lineno": 391,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 169,
+    "wiki_lineno": 193,
     "wiki_method_lineno": null
   },
   {
@@ -4170,9 +4182,9 @@
     "signature": "__len__(self)",
     "doc": "Return the number of findings.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 386,
+    "source_lineno": 396,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 169,
+    "wiki_lineno": 193,
     "wiki_method_lineno": null
   },
   {
@@ -4182,9 +4194,9 @@
     "signature": "__repr__(self)",
     "doc": "Return a one-line summary.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 391,
+    "source_lineno": 401,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 169,
+    "wiki_lineno": 193,
     "wiki_method_lineno": null
   },
   {
@@ -4194,9 +4206,9 @@
     "signature": "__str__(self)",
     "doc": "Return the findings one per line, errors first.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 396,
+    "source_lineno": 406,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 169,
+    "wiki_lineno": 193,
     "wiki_method_lineno": null
   },
   {
@@ -4206,10 +4218,10 @@
     "signature": "raise_for_errors(self)",
     "doc": "Raise :class:`SchemaError` when any error-severity finding exists.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 405,
+    "source_lineno": 415,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
-    "wiki_lineno": 169,
-    "wiki_method_lineno": 202
+    "wiki_lineno": 193,
+    "wiki_method_lineno": 226
   },
   {
     "class": null,
@@ -7134,7 +7146,7 @@
     "signature": "vocabulary()",
     "doc": "Snapshot and restore the module-level vocabulary.",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 31,
+    "source_lineno": 35,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 41,
     "wiki_method_lineno": null
@@ -7146,7 +7158,7 @@
     "signature": "condenser_section()",
     "doc": "Build a schema-conforming condenser section.",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 71,
+    "source_lineno": 75,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 46,
     "wiki_method_lineno": null
@@ -7158,7 +7170,7 @@
     "signature": "test_parse_element_name_accepts_project_names(name, expected)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 114,
+    "source_lineno": 118,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 51,
     "wiki_method_lineno": null
@@ -7170,7 +7182,7 @@
     "signature": "test_parse_element_name_rejects_non_conforming(name)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 125,
+    "source_lineno": 129,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 56,
     "wiki_method_lineno": null
@@ -7182,7 +7194,7 @@
     "signature": "test_canonical_element_name_round_trips()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 129,
+    "source_lineno": 133,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 61,
     "wiki_method_lineno": null
@@ -7194,7 +7206,7 @@
     "signature": "test_attached_multipole_names(name, host, attached)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 151,
+    "source_lineno": 155,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -7206,7 +7218,7 @@
     "signature": "test_bare_axis_is_not_an_attachment()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 159,
+    "source_lineno": 163,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -7218,7 +7230,7 @@
     "signature": "test_attached_multipole_class_matches_the_multipole_not_the_host()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 165,
+    "source_lineno": 169,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -7230,7 +7242,7 @@
     "signature": "test_deflectors_validate_inside_a_condenser_section()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 174,
+    "source_lineno": 178,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -7242,7 +7254,7 @@
     "signature": "test_canonical_element_name_accepts_alias_and_rejects_junk()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 186,
+    "source_lineno": 190,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 66,
     "wiki_method_lineno": null
@@ -7254,7 +7266,7 @@
     "signature": "test_section_code_resolution(name, code)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 205,
+    "source_lineno": 209,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 71,
     "wiki_method_lineno": null
@@ -7266,7 +7278,7 @@
     "signature": "test_element_type_codes_follow_the_class()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 209,
+    "source_lineno": 213,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 76,
     "wiki_method_lineno": null
@@ -7278,7 +7290,7 @@
     "signature": "test_validate_element_name_flags_wrong_section_letter()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 223,
+    "source_lineno": 227,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 81,
     "wiki_method_lineno": null
@@ -7290,7 +7302,7 @@
     "signature": "test_validate_element_name_flags_type_class_mismatch()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 229,
+    "source_lineno": 233,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 86,
     "wiki_method_lineno": null
@@ -7302,7 +7314,7 @@
     "signature": "test_validate_element_name_accepts_conforming()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 236,
+    "source_lineno": 240,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 91,
     "wiki_method_lineno": null
@@ -7314,7 +7326,7 @@
     "signature": "test_conforming_section_validates_clean()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 240,
+    "source_lineno": 244,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 96,
     "wiki_method_lineno": null
@@ -7326,7 +7338,7 @@
     "signature": "test_non_conforming_element_is_an_error()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 245,
+    "source_lineno": 249,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 101,
     "wiki_method_lineno": null
@@ -7338,7 +7350,7 @@
     "signature": "test_unmanaged_section_is_info_not_error()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 257,
+    "source_lineno": 261,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 106,
     "wiki_method_lineno": null
@@ -7350,7 +7362,7 @@
     "signature": "test_named_planes_are_exempt()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 266,
+    "source_lineno": 270,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 111,
     "wiki_method_lineno": null
@@ -7362,7 +7374,7 @@
     "signature": "test_detector_volume_section()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 281,
+    "source_lineno": 285,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -7374,7 +7386,7 @@
     "signature": "test_duplicate_names_within_a_section_are_an_error()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 295,
+    "source_lineno": 299,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 121,
     "wiki_method_lineno": null
@@ -7386,7 +7398,7 @@
     "signature": "test_duplicate_names_across_sections_are_an_error()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 305,
+    "source_lineno": 309,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 126,
     "wiki_method_lineno": null
@@ -7398,7 +7410,7 @@
     "signature": "test_microscope_validates_and_reports_per_section()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 317,
+    "source_lineno": 321,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 131,
     "wiki_method_lineno": null
@@ -7410,7 +7422,7 @@
     "signature": "test_strict_modes()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 330,
+    "source_lineno": 334,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 136,
     "wiki_method_lineno": null
@@ -7422,7 +7434,7 @@
     "signature": "test_assembly_convenience_methods()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 346,
+    "source_lineno": 350,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 141,
     "wiki_method_lineno": null
@@ -7434,7 +7446,7 @@
     "signature": "test_register_section_extends_the_vocabulary(vocabulary)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 355,
+    "source_lineno": 359,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 146,
     "wiki_method_lineno": null
@@ -7446,7 +7458,7 @@
     "signature": "test_drift_may_be_named_but_is_never_required()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 368,
+    "source_lineno": 372,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -7458,7 +7470,7 @@
     "signature": "test_a_parseable_name_on_an_exempt_class_is_still_checked()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 381,
+    "source_lineno": 385,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -7470,7 +7482,7 @@
     "signature": "test_probe_corrector_section()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 388,
+    "source_lineno": 392,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -7482,7 +7494,7 @@
     "signature": "test_register_element_type_extends_the_vocabulary(vocabulary)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 398,
+    "source_lineno": 402,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 151,
     "wiki_method_lineno": null
@@ -7494,7 +7506,7 @@
     "signature": "test_register_rejects_collisions(vocabulary)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 407,
+    "source_lineno": 411,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 156,
     "wiki_method_lineno": null
@@ -7506,9 +7518,69 @@
     "signature": "test_describe_schema_lists_the_live_vocabulary()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 416,
+    "source_lineno": 420,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
     "wiki_lineno": 161,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_get_schema_vocabulary_is_plain_json",
+    "kind": "method",
+    "signature": "test_get_schema_vocabulary_is_plain_json()",
+    "doc": "",
+    "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 429,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_get_schema_vocabulary_lists_sections_with_aliases",
+    "kind": "method",
+    "signature": "test_get_schema_vocabulary_lists_sections_with_aliases()",
+    "doc": "",
+    "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 438,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_get_schema_vocabulary_lists_element_types",
+    "kind": "method",
+    "signature": "test_get_schema_vocabulary_lists_element_types()",
+    "doc": "",
+    "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 448,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_get_schema_vocabulary_patterns_and_exemptions",
+    "kind": "method",
+    "signature": "test_get_schema_vocabulary_patterns_and_exemptions()",
+    "doc": "",
+    "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 457,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
+    "method": "test_get_schema_vocabulary_shows_registered_additions",
+    "kind": "method",
+    "signature": "test_get_schema_vocabulary_shows_registered_additions(vocabulary)",
+    "doc": "",
+    "source_path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 471,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_schema.md",
+    "wiki_lineno": null,
     "wiki_method_lineno": null
   },
   {

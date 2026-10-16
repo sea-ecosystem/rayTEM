@@ -139,7 +139,7 @@
     "name": "AttachedMultipole",
     "qualname": "AttachedMultipole",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 267,
+    "source_lineno": 277,
     "signature": "class AttachedMultipole",
     "doc": "A multipole named relative to the host element it sits on."
   },
@@ -229,7 +229,7 @@
     "name": "canonical_element_name",
     "qualname": "canonical_element_name",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 536,
+    "source_lineno": 546,
     "signature": "canonical_element_name(section, type, index, axis, attachment)",
     "doc": "Build a schema-conforming element name."
   },
@@ -310,7 +310,7 @@
     "name": "condenser_section",
     "qualname": "condenser_section",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 71,
+    "source_lineno": 75,
     "signature": "condenser_section()",
     "doc": "Build a schema-conforming condenser section."
   },
@@ -337,7 +337,7 @@
     "name": "describe_schema",
     "qualname": "describe_schema",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 1058,
+    "source_lineno": 1068,
     "signature": "describe_schema()",
     "doc": "Return a printable summary of the current vocabulary."
   },
@@ -463,7 +463,7 @@
     "name": "element_type_codes_for",
     "qualname": "element_type_codes_for",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 638,
+    "source_lineno": 648,
     "signature": "element_type_codes_for(element)",
     "doc": "Return the type codes an element's class may legitimately carry."
   },
@@ -472,7 +472,7 @@
     "name": "ElementName",
     "qualname": "ElementName",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 285,
+    "source_lineno": 295,
     "signature": "class ElementName",
     "doc": "A parsed schema-conforming element name."
   },
@@ -658,6 +658,15 @@
   },
   {
     "kind": "function",
+    "name": "get_schema_vocabulary",
+    "qualname": "get_schema_vocabulary",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 1108,
+    "signature": "get_schema_vocabulary()",
+    "doc": "Return the current vocabulary as plain JSON-serialisable data."
+  },
+  {
+    "kind": "function",
     "name": "grid_of",
     "qualname": "grid_of",
     "path": "src/pySEA/rayTEM/seashells.py",
@@ -715,7 +724,7 @@
     "name": "is_schema_typed",
     "qualname": "is_schema_typed",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 667,
+    "source_lineno": 677,
     "signature": "is_schema_typed(element)",
     "doc": "Whether an element's class is subject to the name pattern."
   },
@@ -1138,7 +1147,7 @@
     "name": "parse_element_name",
     "qualname": "parse_element_name",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 488,
+    "source_lineno": 498,
     "signature": "parse_element_name(name)",
     "doc": "Parse an element name into its schema parts."
   },
@@ -1399,7 +1408,7 @@
     "name": "register_element_type",
     "qualname": "register_element_type",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 1018,
+    "source_lineno": 1028,
     "signature": "register_element_type(code, description, classes, required)",
     "doc": "Add an element type code to the vocabulary."
   },
@@ -1408,7 +1417,7 @@
     "name": "register_section",
     "qualname": "register_section",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 977,
+    "source_lineno": 987,
     "signature": "register_section(code, name, aliases)",
     "doc": "Add a section code to the vocabulary."
   },
@@ -1552,7 +1561,7 @@
     "name": "SchemaError",
     "qualname": "SchemaError",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 335,
+    "source_lineno": 345,
     "signature": "class SchemaError",
     "doc": "Raised by a strict validation that found at least one error."
   },
@@ -1561,7 +1570,7 @@
     "name": "SchemaIssue",
     "qualname": "SchemaIssue",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 311,
+    "source_lineno": 321,
     "signature": "class SchemaIssue",
     "doc": "A single schema finding."
   },
@@ -1570,7 +1579,7 @@
     "name": "SchemaReport",
     "qualname": "SchemaReport",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 339,
+    "source_lineno": 349,
     "signature": "class SchemaReport",
     "doc": "Result of validating a section or microscope against the schema."
   },
@@ -1606,7 +1615,7 @@
     "name": "section_code",
     "qualname": "section_code",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 459,
+    "source_lineno": 469,
     "signature": "section_code(name)",
     "doc": "Resolve a section name to its schema code."
   },
@@ -1759,7 +1768,7 @@
     "name": "test_a_parseable_name_on_an_exempt_class_is_still_checked",
     "qualname": "test_a_parseable_name_on_an_exempt_class_is_still_checked",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 381,
+    "source_lineno": 385,
     "signature": "test_a_parseable_name_on_an_exempt_class_is_still_checked()",
     "doc": ""
   },
@@ -2011,7 +2020,7 @@
     "name": "test_assembly_convenience_methods",
     "qualname": "test_assembly_convenience_methods",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 346,
+    "source_lineno": 350,
     "signature": "test_assembly_convenience_methods()",
     "doc": ""
   },
@@ -2038,7 +2047,7 @@
     "name": "test_attached_multipole_class_matches_the_multipole_not_the_host",
     "qualname": "test_attached_multipole_class_matches_the_multipole_not_the_host",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 165,
+    "source_lineno": 169,
     "signature": "test_attached_multipole_class_matches_the_multipole_not_the_host()",
     "doc": ""
   },
@@ -2047,7 +2056,7 @@
     "name": "test_attached_multipole_names",
     "qualname": "test_attached_multipole_names",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 151,
+    "source_lineno": 155,
     "signature": "test_attached_multipole_names(name, host, attached)",
     "doc": ""
   },
@@ -2074,7 +2083,7 @@
     "name": "test_bare_axis_is_not_an_attachment",
     "qualname": "test_bare_axis_is_not_an_attachment",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 159,
+    "source_lineno": 163,
     "signature": "test_bare_axis_is_not_an_attachment()",
     "doc": ""
   },
@@ -2218,7 +2227,7 @@
     "name": "test_canonical_element_name_accepts_alias_and_rejects_junk",
     "qualname": "test_canonical_element_name_accepts_alias_and_rejects_junk",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 186,
+    "source_lineno": 190,
     "signature": "test_canonical_element_name_accepts_alias_and_rejects_junk()",
     "doc": ""
   },
@@ -2227,7 +2236,7 @@
     "name": "test_canonical_element_name_round_trips",
     "qualname": "test_canonical_element_name_round_trips",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 129,
+    "source_lineno": 133,
     "signature": "test_canonical_element_name_round_trips()",
     "doc": ""
   },
@@ -2326,7 +2335,7 @@
     "name": "test_conforming_section_validates_clean",
     "qualname": "test_conforming_section_validates_clean",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 240,
+    "source_lineno": 244,
     "signature": "test_conforming_section_validates_clean()",
     "doc": ""
   },
@@ -2497,7 +2506,7 @@
     "name": "test_deflectors_validate_inside_a_condenser_section",
     "qualname": "test_deflectors_validate_inside_a_condenser_section",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 174,
+    "source_lineno": 178,
     "signature": "test_deflectors_validate_inside_a_condenser_section()",
     "doc": ""
   },
@@ -2506,7 +2515,7 @@
     "name": "test_describe_schema_lists_the_live_vocabulary",
     "qualname": "test_describe_schema_lists_the_live_vocabulary",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 416,
+    "source_lineno": 420,
     "signature": "test_describe_schema_lists_the_live_vocabulary()",
     "doc": ""
   },
@@ -2524,7 +2533,7 @@
     "name": "test_detector_volume_section",
     "qualname": "test_detector_volume_section",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 281,
+    "source_lineno": 285,
     "signature": "test_detector_volume_section()",
     "doc": ""
   },
@@ -2569,7 +2578,7 @@
     "name": "test_drift_may_be_named_but_is_never_required",
     "qualname": "test_drift_may_be_named_but_is_never_required",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 368,
+    "source_lineno": 372,
     "signature": "test_drift_may_be_named_but_is_never_required()",
     "doc": ""
   },
@@ -2578,7 +2587,7 @@
     "name": "test_duplicate_names_across_sections_are_an_error",
     "qualname": "test_duplicate_names_across_sections_are_an_error",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 305,
+    "source_lineno": 309,
     "signature": "test_duplicate_names_across_sections_are_an_error()",
     "doc": ""
   },
@@ -2587,7 +2596,7 @@
     "name": "test_duplicate_names_within_a_section_are_an_error",
     "qualname": "test_duplicate_names_within_a_section_are_an_error",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 295,
+    "source_lineno": 299,
     "signature": "test_duplicate_names_within_a_section_are_an_error()",
     "doc": ""
   },
@@ -2641,7 +2650,7 @@
     "name": "test_element_type_codes_follow_the_class",
     "qualname": "test_element_type_codes_follow_the_class",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 209,
+    "source_lineno": 213,
     "signature": "test_element_type_codes_follow_the_class()",
     "doc": ""
   },
@@ -2917,6 +2926,51 @@
   },
   {
     "kind": "function",
+    "name": "test_get_schema_vocabulary_is_plain_json",
+    "qualname": "test_get_schema_vocabulary_is_plain_json",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 429,
+    "signature": "test_get_schema_vocabulary_is_plain_json()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_get_schema_vocabulary_lists_element_types",
+    "qualname": "test_get_schema_vocabulary_lists_element_types",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 448,
+    "signature": "test_get_schema_vocabulary_lists_element_types()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_get_schema_vocabulary_lists_sections_with_aliases",
+    "qualname": "test_get_schema_vocabulary_lists_sections_with_aliases",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 438,
+    "signature": "test_get_schema_vocabulary_lists_sections_with_aliases()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_get_schema_vocabulary_patterns_and_exemptions",
+    "qualname": "test_get_schema_vocabulary_patterns_and_exemptions",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 457,
+    "signature": "test_get_schema_vocabulary_patterns_and_exemptions()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_get_schema_vocabulary_shows_registered_additions",
+    "qualname": "test_get_schema_vocabulary_shows_registered_additions",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 471,
+    "signature": "test_get_schema_vocabulary_shows_registered_additions(vocabulary)",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_grid_scaling_and_normalization",
     "qualname": "test_grid_scaling_and_normalization",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -3073,7 +3127,7 @@
     "name": "test_microscope_validates_and_reports_per_section",
     "qualname": "test_microscope_validates_and_reports_per_section",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 317,
+    "source_lineno": 321,
     "signature": "test_microscope_validates_and_reports_per_section()",
     "doc": ""
   },
@@ -3127,7 +3181,7 @@
     "name": "test_named_planes_are_exempt",
     "qualname": "test_named_planes_are_exempt",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 266,
+    "source_lineno": 270,
     "signature": "test_named_planes_are_exempt()",
     "doc": ""
   },
@@ -3136,7 +3190,7 @@
     "name": "test_non_conforming_element_is_an_error",
     "qualname": "test_non_conforming_element_is_an_error",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 245,
+    "source_lineno": 249,
     "signature": "test_non_conforming_element_is_an_error()",
     "doc": ""
   },
@@ -3181,7 +3235,7 @@
     "name": "test_parse_element_name_accepts_project_names",
     "qualname": "test_parse_element_name_accepts_project_names",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 114,
+    "source_lineno": 118,
     "signature": "test_parse_element_name_accepts_project_names(name, expected)",
     "doc": ""
   },
@@ -3190,7 +3244,7 @@
     "name": "test_parse_element_name_rejects_non_conforming",
     "qualname": "test_parse_element_name_rejects_non_conforming",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 125,
+    "source_lineno": 129,
     "signature": "test_parse_element_name_rejects_non_conforming(name)",
     "doc": ""
   },
@@ -3253,7 +3307,7 @@
     "name": "test_probe_corrector_section",
     "qualname": "test_probe_corrector_section",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 388,
+    "source_lineno": 392,
     "signature": "test_probe_corrector_section()",
     "doc": ""
   },
@@ -3415,7 +3469,7 @@
     "name": "test_register_element_type_extends_the_vocabulary",
     "qualname": "test_register_element_type_extends_the_vocabulary",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 398,
+    "source_lineno": 402,
     "signature": "test_register_element_type_extends_the_vocabulary(vocabulary)",
     "doc": ""
   },
@@ -3424,7 +3478,7 @@
     "name": "test_register_rejects_collisions",
     "qualname": "test_register_rejects_collisions",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 407,
+    "source_lineno": 411,
     "signature": "test_register_rejects_collisions(vocabulary)",
     "doc": ""
   },
@@ -3433,7 +3487,7 @@
     "name": "test_register_section_extends_the_vocabulary",
     "qualname": "test_register_section_extends_the_vocabulary",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 355,
+    "source_lineno": 359,
     "signature": "test_register_section_extends_the_vocabulary(vocabulary)",
     "doc": ""
   },
@@ -3541,7 +3595,7 @@
     "name": "test_section_code_resolution",
     "qualname": "test_section_code_resolution",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 205,
+    "source_lineno": 209,
     "signature": "test_section_code_resolution(name, code)",
     "doc": ""
   },
@@ -3730,7 +3784,7 @@
     "name": "test_strict_modes",
     "qualname": "test_strict_modes",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 330,
+    "source_lineno": 334,
     "signature": "test_strict_modes()",
     "doc": ""
   },
@@ -3937,7 +3991,7 @@
     "name": "test_unmanaged_section_is_info_not_error",
     "qualname": "test_unmanaged_section_is_info_not_error",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 257,
+    "source_lineno": 261,
     "signature": "test_unmanaged_section_is_info_not_error()",
     "doc": ""
   },
@@ -3946,7 +4000,7 @@
     "name": "test_validate_element_name_accepts_conforming",
     "qualname": "test_validate_element_name_accepts_conforming",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 236,
+    "source_lineno": 240,
     "signature": "test_validate_element_name_accepts_conforming()",
     "doc": ""
   },
@@ -3955,7 +4009,7 @@
     "name": "test_validate_element_name_flags_type_class_mismatch",
     "qualname": "test_validate_element_name_flags_type_class_mismatch",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 229,
+    "source_lineno": 233,
     "signature": "test_validate_element_name_flags_type_class_mismatch()",
     "doc": ""
   },
@@ -3964,7 +4018,7 @@
     "name": "test_validate_element_name_flags_wrong_section_letter",
     "qualname": "test_validate_element_name_flags_wrong_section_letter",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 223,
+    "source_lineno": 227,
     "signature": "test_validate_element_name_flags_wrong_section_letter()",
     "doc": ""
   },
@@ -4198,7 +4252,7 @@
     "name": "validate_element_name",
     "qualname": "validate_element_name",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 685,
+    "source_lineno": 695,
     "signature": "validate_element_name(name, section, element, path)",
     "doc": "Check one element name against the schema."
   },
@@ -4207,7 +4261,7 @@
     "name": "validate_microscope",
     "qualname": "validate_microscope",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 932,
+    "source_lineno": 942,
     "signature": "validate_microscope(scope, strict)",
     "doc": "Validate a whole microscope against the column naming schema."
   },
@@ -4216,7 +4270,7 @@
     "name": "validate_section",
     "qualname": "validate_section",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 852,
+    "source_lineno": 862,
     "signature": "validate_section(section, code, strict, prefix)",
     "doc": "Validate one microscope section against the schema."
   },
@@ -4252,7 +4306,7 @@
     "name": "vocabulary",
     "qualname": "vocabulary",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
-    "source_lineno": 31,
+    "source_lineno": 35,
     "signature": "vocabulary()",
     "doc": "Snapshot and restore the module-level vocabulary."
   },

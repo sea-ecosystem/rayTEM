@@ -5,8 +5,11 @@
 # the exemptions that keep existing scopes valid: unmanaged sections, Drift/Source
 #   named planes, and the detector container section
 # extension of the vocabulary via register_section / register_element_type
+# the vocabulary as plain data (get_schema_vocabulary), live after registrations
 
 import copy
+import json
+import re
 
 import pytest
 
@@ -18,6 +21,7 @@ from pySEA.rayTEM.schema import (
 	canonical_element_name,
 	describe_schema,
 	element_type_codes_for,
+	get_schema_vocabulary,
 	is_schema_typed,
 	parse_element_name,
 	section_code,
@@ -418,3 +422,59 @@ def test_describe_schema_lists_the_live_vocabulary():
 	for token in ["condenser", "probe corrector", "spectrometer", "stigmator",
 	              "drift volume", "CL1", "CL1_D1a", "Attached multipole"]:
 		assert token in text
+
+
+# the structured vocabulary: the same live data as describe_schema, as plain
+# JSON-serialisable values an agent or another process can read
+def test_get_schema_vocabulary_is_plain_json():
+	vocabulary = get_schema_vocabulary()
+	assert json.loads(json.dumps(vocabulary)) == vocabulary
+	assert set(vocabulary) == {
+		"sections", "element_types", "axis_suffixes", "patterns", "name_regex",
+		"name_required_classes", "exempt_classes", "rules",
+	}
+
+
+def test_get_schema_vocabulary_lists_sections_with_aliases():
+	sections = {s["code"]: s for s in get_schema_vocabulary()["sections"]}
+	assert sorted(sections) == sorted(schema.SECTION_CODES)
+	assert sections["C"]["name"] == "condenser"
+	assert {"condensers", "cls"} <= set(sections["C"]["aliases"])
+	# the canonical name is the name, not repeated as an alias
+	assert "condenser" not in sections["C"]["aliases"]
+	assert {"corrector", "aberrations"} <= set(sections["A"]["aliases"])
+
+
+def test_get_schema_vocabulary_lists_element_types():
+	types = {t["code"]: t for t in get_schema_vocabulary()["element_types"]}
+	assert sorted(types) == sorted(schema.ELEMENT_TYPE_CODES)
+	assert types["L"] == {"code": "L", "description": "round lens", "classes": ["Lens"], "name_required": True}
+	assert types["S"]["classes"] == ["Quadrapole"]
+	# V may name a Drift but never requires it
+	assert types["V"]["classes"] == ["Drift"] and types["V"]["name_required"] is False
+
+
+def test_get_schema_vocabulary_patterns_and_exemptions():
+	vocabulary = get_schema_vocabulary()
+	assert vocabulary["axis_suffixes"] == list(schema.AXIS_SUFFIXES)
+	assert vocabulary["patterns"]["host"]["form"] == "<SECTION><TYPE>[INDEX]"
+	assert vocabulary["patterns"]["attached_multipole"]["form"] == "<HOST>_<TYPE>[INDEX][AXIS]"
+	for pattern in vocabulary["patterns"].values():
+		for example in pattern["examples"]:
+			assert parse_element_name(example) is not None
+	assert re.match(vocabulary["name_regex"], "CL1_D1a")
+	assert not re.match(vocabulary["name_regex"], "sample")
+	assert vocabulary["name_required_classes"] == sorted(schema.NAME_REQUIRED_CLASSES)
+	assert vocabulary["exempt_classes"] == ["Drift", "Element", "Source"]
+
+
+def test_get_schema_vocabulary_shows_registered_additions(vocabulary):
+	vocabulary.register_section("W", "wien filter", aliases=("wien",))
+	vocabulary.register_element_type("Z", "octupole", ("Octupole",), required=False)
+	data = get_schema_vocabulary()
+	sections = {s["code"]: s for s in data["sections"]}
+	assert sections["W"] == {"code": "W", "name": "wien filter", "aliases": ["wien"]}
+	types = {t["code"]: t for t in data["element_types"]}
+	assert types["Z"] == {"code": "Z", "description": "octupole", "classes": ["Octupole"], "name_required": False}
+	assert "Octupole" in data["exempt_classes"]
+	assert re.match(data["name_regex"], "WZ1")
