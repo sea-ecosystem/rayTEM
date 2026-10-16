@@ -2,12 +2,13 @@
 
 Newest entries at top.
 
-## 2026-10-16 — [Under Construction] The naming schema's vocabulary as data
+## 2026-10-16 — [Done] The naming schema's vocabulary as data
 **Goal:** `schema.get_schema_vocabulary()` returns the live vocabulary as JSON-serialisable data.
 **Why:** sea-pearl's builder skill hand-copied the vocabulary table; sea-pearl's MCP server will serve this instead (`sea_pearl_get_naming_schema`).
-TODO: [TODO_ACTIVE_2026-10-16_schema-vocabulary-accessor.md](TODO_ACTIVE_2026-10-16_schema-vocabulary-accessor.md)
-- [ ] accessor + tests
-- [ ] wiki, merge into `dev`
+TODO: [TODO_DONE_2026-10-16_schema-vocabulary-accessor.md](TODO_DONE_2026-10-16_schema-vocabulary-accessor.md)
+- [x] accessor + tests
+- [x] wiki, merge into `dev`
+**Outcome:** `1422b9e`, merged into `dev` locally (not pushed). Sections with aliases, element types with classes and `name_required`, axis suffixes, both patterns, the name regex, `exempt_classes` (`Drift`, plus the untyped `Element`/`Source` via a new private `_UNTYPED_CLASSES`) and the scoping rules; rebuilt per call, so registrations show. 5 new tests (80 in `test_schema.py`); full suite 315 passed, the 4 known Windows file-lock failures. **Cross-repo note:** sea-pearl serves it as `sea_pearl_get_naming_schema` / `sea_pearl_validate_names`. Not fixed: 3 module doctests in `schema.py` were already stale on `dev` (`ElementName` repr gained `attachment`; `element_type_codes_for(Drift)` is `('V',)`).
 
 ## 2026-10-16 — [Done] Column naming schema for sections and elements (ported)
 **Goal:** give rayTEM a controlled vocabulary + validator for microscope section and element names.

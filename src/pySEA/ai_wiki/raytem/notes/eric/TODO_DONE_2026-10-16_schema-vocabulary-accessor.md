@@ -9,7 +9,7 @@
 
 ## Steps
 
-- [ ] `get_schema_vocabulary()` in `schema.py`; `describe_schema()` unchanged
-- [ ] tests in `tests/test_schema.py` (shape, JSON round-trip, registered additions appear)
-- [ ] `wiki/rayTEM/schema.md`, refresh
-- [ ] merge into `dev` (local, not pushed)
+- [x] `get_schema_vocabulary()` in `schema.py`; `describe_schema()` unchanged
+- [x] tests in `tests/test_schema.py` (shape, JSON round-trip, registered additions appear)
+- [x] `wiki/rayTEM/schema.md`, refresh
+- [x] merge into `dev` (local, not pushed)
