@@ -2,6 +2,13 @@
 
 Newest entries at top.
 
+## 2026-10-16 — [Under Construction] The naming schema's vocabulary as data
+**Goal:** `schema.get_schema_vocabulary()` returns the live vocabulary as JSON-serialisable data.
+**Why:** sea-pearl's builder skill hand-copied the vocabulary table; sea-pearl's MCP server will serve this instead (`sea_pearl_get_naming_schema`).
+TODO: [TODO_ACTIVE_2026-10-16_schema-vocabulary-accessor.md](TODO_ACTIVE_2026-10-16_schema-vocabulary-accessor.md)
+- [ ] accessor + tests
+- [ ] wiki, merge into `dev`
+
 ## 2026-10-16 — [Done] Column naming schema for sections and elements (ported)
 **Goal:** give rayTEM a controlled vocabulary + validator for microscope section and element names.
 **Why:** there was no naming schema in either repo, and names had already drifted apart across the usim twin, the `Factory*` sections, MACSTEM and the private instrument. Designed 2026-09-17 in the retired `rayTEM_original` checkout, where it was never committed; ported here unchanged.
