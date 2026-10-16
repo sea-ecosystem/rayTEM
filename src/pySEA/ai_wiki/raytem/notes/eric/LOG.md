@@ -2,6 +2,18 @@
 
 Newest entries at top.
 
+## 2026-10-16 — [Done] Column naming schema for sections and elements (ported)
+**Goal:** give rayTEM a controlled vocabulary + validator for microscope section and element names.
+**Why:** there was no naming schema in either repo, and names had already drifted apart across the usim twin, the `Factory*` sections, MACSTEM and the private instrument. Designed 2026-09-17 in the retired `rayTEM_original` checkout, where it was never committed; ported here unchanged.
+- [x] `schema.py`: G/M/C/A/O/P/S/D section codes, `<SECTION><TYPE>[INDEX]` host names, `<HOST>_<TYPE>[INDEX][AXIS]` attached multipoles, parser + validator
+- [x] `Microscope.validate_schema()` / `MicroscopeSection.validate_schema()`, `strict=True|False|"warn"`
+- [x] 75 schema tests; existing suite still passes
+- [x] sea-pearl: `condenser_aperture` -> `CA1`; detector devices out of the column (they are `DetectorRoleRegistry` roles) leaving a `detector volume` section with `DV`
+- [x] sea-pearl builder skill + agent now name against the schema and validate before transport work
+Name-pattern only — `name` stays the source of truth and `Element.kind` is untouched (it is load-bearing for `ignoreLensThickness`). Sections outside the vocabulary are unmanaged rather than invalid, so existing scopes keep passing. Deflectors are named for the element they sit on (`CL1_D1a`); note AS2 transposes this (`CL1_1Da`) and `client_name` absorbs it. Classes new since the design (`Gun`, `AberrationScreen`) are outside the type map, so they are never name-checked, like `Source`.
+TODO: [TODO_DONE_2026-09-17_column-naming-schema.md](TODO_DONE_2026-09-17_column-naming-schema.md)
+**Outcome:** see the TODO for the remaining open items (32 `deflect_a`/`deflect_b` control leaves; redundant `metadata["kind"]`; the private instrument builder's `name` bug).
+
 ## 2026-10-15 — [Under Construction] The wave probe at the sample plane (parked, findings recorded)
 **Goal:** `propagate_wave(mode='hybrid')` on a probe-forming column delivers a diffraction-limited probe at the sample.
 **Why:** the sea-pearl emulator's `wave` probe mode should take the probe from the column (Eric, 2026-10-15); its de-risk found the engine gets the pupil to the objective exactly but loses it at the crossover frame switch, has no way to seed at an aperture, and under-samples an uncorrected objective's screen. Nothing in rayTEM is changed yet; the emulator takes the column's pupil at the objective's exit meanwhile.

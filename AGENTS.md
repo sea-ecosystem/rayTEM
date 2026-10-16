@@ -233,6 +233,7 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 - `src/pySEA/rayTEM/moments.py` — Beam-envelope state and moment-closure models for rayTEM.
 - `src/pySEA/rayTEM/postprocessing.py`
 - `src/pySEA/rayTEM/references/andys_functions.py`
+- `src/pySEA/rayTEM/schema.py` — Column naming schema for rayTEM microscopes.
 - `src/pySEA/rayTEM/seashells.py` — seashells serves as a wrapper around the sea_eco SEASerializable object, enabling easy integration with sea_eco.
 - `src/pySEA/rayTEM/tests/test_covariance_propagation.py` — Tests for covariance propagation, moment closure, and examples/08.
 - `src/pySEA/rayTEM/tests/test_display_signals.py` — Tests for the derived display Signals: ray diagram, beam envelope, wave cross-section.
@@ -242,6 +243,8 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 - `src/pySEA/rayTEM/tests/test_rotating_frame.py` — ``Rays.convert_to_rotating_reference_frame`` is a vectorized form of its old loop.
 - `src/pySEA/rayTEM/tests/test_scaled_fresnel.py`
 - `src/pySEA/rayTEM/tests/test_scaled_wave_physical_plane.py` — Tests for seashells.scaled_wave_physical_plane: ψ of one stored scaled plane.
+- `src/pySEA/rayTEM/tests/test_schema.py`
+- `src/pySEA/rayTEM/tests/test_source_voltage.py`
 - `src/pySEA/rayTEM/tests/test_wave_and_envelope.py`
 - `src/pySEA/rayTEM/utilities.py`
 - `src/pySEA/rayTEM/waveoptics.py` — Paraxial scalar wave-optics primitives for rayTEM.

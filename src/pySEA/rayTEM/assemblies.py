@@ -1388,6 +1388,29 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			r1 = self.propagate_ray()
 		plot2D(self.rays,zpts = self.named_positions, filename=filename ,title=title, ylims=ylims,xlims=zlims,plt_ax=plt_ax)
 
+	def validate_schema(self,strict=True):
+		"""Validate this section's element names against the column naming schema.
+
+		Parameters
+		----------
+		strict : bool or str, optional
+			``True`` raises :class:`~pySEA.rayTEM.schema.SchemaError` on any
+			violation, ``"warn"`` emits a :class:`UserWarning`, ``False``
+			reports silently, by default True.
+
+		Returns
+		-------
+		pySEA.rayTEM.schema.SchemaReport
+			Findings for this section.
+
+		See Also
+		--------
+		pySEA.rayTEM.schema.validate_section : The underlying check.
+		pySEA.rayTEM.schema.describe_schema : The vocabulary to name against.
+		"""
+		from .schema import validate_section
+		return validate_section(self,strict=strict)
+
 	#def save(self,filename):
 	#	with open(filename+".pkl",'wb') as f:
 	#		pickle.dump(self,f)
@@ -4090,6 +4113,33 @@ class Microscope(SealedAttributes, SEASerializable):
 			plt.gcf().savefig(filename)
 		elif plt_ax is None:
 			plt.show()
+
+	def validate_schema(self,strict=True):
+		"""Validate this microscope against the column naming schema.
+
+		Checks every section name against the section vocabulary, then the
+		element names inside each section that carries a recognised name.
+		Sections named outside the vocabulary are left unmanaged.
+
+		Parameters
+		----------
+		strict : bool or str, optional
+			``True`` raises :class:`~pySEA.rayTEM.schema.SchemaError` on any
+			violation, ``"warn"`` emits a :class:`UserWarning`, ``False``
+			reports silently, by default True.
+
+		Returns
+		-------
+		pySEA.rayTEM.schema.SchemaReport
+			Findings for the whole column, in order.
+
+		See Also
+		--------
+		pySEA.rayTEM.schema.validate_microscope : The underlying check.
+		pySEA.rayTEM.schema.describe_schema : The vocabulary to name against.
+		"""
+		from .schema import validate_microscope
+		return validate_microscope(self,strict=strict)
 
 	# Basically just json dumps all attributes, with some special considerations to make the json more human-readable: "Microscope name","Section name","Element name" instead of just "name" for each, specified ordering of attributes (name always first), and nesting lists to go down from Microscope -> Section -> Element
 	#: Attributes never written to JSON: propagation RESULTS, not the instrument.

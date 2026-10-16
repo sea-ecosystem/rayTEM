@@ -135,6 +135,15 @@
     "doc": "Return the raw ndarray behind a sea_eco ``Signal`` (passthrough for arrays)."
   },
   {
+    "kind": "class",
+    "name": "AttachedMultipole",
+    "qualname": "AttachedMultipole",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 267,
+    "signature": "class AttachedMultipole",
+    "doc": "A multipole named relative to the host element it sits on."
+  },
+  {
     "kind": "function",
     "name": "axis_components",
     "qualname": "axis_components",
@@ -217,6 +226,15 @@
   },
   {
     "kind": "function",
+    "name": "canonical_element_name",
+    "qualname": "canonical_element_name",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 536,
+    "signature": "canonical_element_name(section, type, index, axis, attachment)",
+    "doc": "Build a schema-conforming element name."
+  },
+  {
+    "kind": "function",
     "name": "center_monomials",
     "qualname": "center_monomials",
     "path": "src/pySEA/rayTEM/moments.py",
@@ -238,7 +256,7 @@
     "name": "check_lengths",
     "qualname": "check_lengths",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4337,
+    "source_lineno": 4387,
     "signature": "check_lengths(section)",
     "doc": ""
   },
@@ -288,6 +306,15 @@
     "doc": ""
   },
   {
+    "kind": "function",
+    "name": "condenser_section",
+    "qualname": "condenser_section",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 71,
+    "signature": "condenser_section()",
+    "doc": "Build a schema-conforming condenser section."
+  },
+  {
     "kind": "class",
     "name": "CovarianceBeam",
     "qualname": "CovarianceBeam",
@@ -304,6 +331,15 @@
     "source_lineno": 797,
     "signature": "dedupe(ary)",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "describe_schema",
+    "qualname": "describe_schema",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 1058,
+    "signature": "describe_schema()",
+    "doc": "Return a printable summary of the current vocabulary."
   },
   {
     "kind": "function",
@@ -421,6 +457,24 @@
     "source_lineno": 852,
     "signature": "class Element",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "element_type_codes_for",
+    "qualname": "element_type_codes_for",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 638,
+    "signature": "element_type_codes_for(element)",
+    "doc": "Return the type codes an element's class may legitimately carry."
+  },
+  {
+    "kind": "class",
+    "name": "ElementName",
+    "qualname": "ElementName",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 285,
+    "signature": "class ElementName",
+    "doc": "A parsed schema-conforming element name."
   },
   {
     "kind": "function",
@@ -658,6 +712,15 @@
   },
   {
     "kind": "function",
+    "name": "is_schema_typed",
+    "qualname": "is_schema_typed",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 667,
+    "signature": "is_schema_typed(element)",
+    "doc": "Whether an element's class is subject to the name pattern."
+  },
+  {
+    "kind": "function",
     "name": "join_axes",
     "qualname": "join_axes",
     "path": "src/pySEA/rayTEM/waveoptics.py",
@@ -760,7 +823,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4436,
+    "source_lineno": 4486,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -769,7 +832,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4268,
+    "source_lineno": 4318,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -976,7 +1039,7 @@
     "name": "Microscope",
     "qualname": "Microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1407,
+    "source_lineno": 1430,
     "signature": "class Microscope",
     "doc": "Microscope class represents a whole microscope, and is comprised of multiple MicroscopeSections. propagation through a Microscope results in propagation through individual MicroscopeSections"
   },
@@ -1069,6 +1132,15 @@
     "source_lineno": 852,
     "signature": "orthogonalize(f)",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "parse_element_name",
+    "qualname": "parse_element_name",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 488,
+    "signature": "parse_element_name(name)",
+    "doc": "Parse an element name into its schema parts."
   },
   {
     "kind": "function",
@@ -1324,6 +1396,24 @@
   },
   {
     "kind": "function",
+    "name": "register_element_type",
+    "qualname": "register_element_type",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 1018,
+    "signature": "register_element_type(code, description, classes, required)",
+    "doc": "Add an element type code to the vocabulary."
+  },
+  {
+    "kind": "function",
+    "name": "register_section",
+    "qualname": "register_section",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 977,
+    "signature": "register_section(code, name, aliases)",
+    "doc": "Add a section code to the vocabulary."
+  },
+  {
+    "kind": "function",
     "name": "relativistic_wavelength",
     "qualname": "relativistic_wavelength",
     "path": "src/pySEA/rayTEM/utilities.py",
@@ -1336,7 +1426,7 @@
     "name": "repair",
     "qualname": "repair",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4351,
+    "source_lineno": 4401,
     "signature": "repair(section, combine_drifts)",
     "doc": "Close gaps and overlaps in a section's element list, in place."
   },
@@ -1399,7 +1489,7 @@
     "name": "roundjson",
     "qualname": "roundjson",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4250,
+    "source_lineno": 4300,
     "signature": "roundjson(jdict)",
     "doc": ""
   },
@@ -1458,6 +1548,33 @@
     "doc": "Reconstruct the physical wavefield of one plane of a stored scaled wave."
   },
   {
+    "kind": "class",
+    "name": "SchemaError",
+    "qualname": "SchemaError",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 335,
+    "signature": "class SchemaError",
+    "doc": "Raised by a strict validation that found at least one error."
+  },
+  {
+    "kind": "class",
+    "name": "SchemaIssue",
+    "qualname": "SchemaIssue",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 311,
+    "signature": "class SchemaIssue",
+    "doc": "A single schema finding."
+  },
+  {
+    "kind": "class",
+    "name": "SchemaReport",
+    "qualname": "SchemaReport",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 339,
+    "signature": "class SchemaReport",
+    "doc": "Result of validating a section or microscope against the schema."
+  },
+  {
     "kind": "function",
     "name": "scootOL2",
     "qualname": "scootOL2",
@@ -1483,6 +1600,15 @@
     "source_lineno": 152,
     "signature": "searchForDrive(drivename, filename, settings, reload)",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "section_code",
+    "qualname": "section_code",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 459,
+    "signature": "section_code(name)",
+    "doc": "Resolve a section name to its schema code."
   },
   {
     "kind": "function",
@@ -1627,6 +1753,15 @@
     "source_lineno": 108,
     "signature": "test_a_mistyped_clsid_is_normalized_rather_than_refused()",
     "doc": "Which is why the conformance check, not the minter, catches a typo."
+  },
+  {
+    "kind": "function",
+    "name": "test_a_parseable_name_on_an_exempt_class_is_still_checked",
+    "qualname": "test_a_parseable_name_on_an_exempt_class_is_still_checked",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 381,
+    "signature": "test_a_parseable_name_on_an_exempt_class_is_still_checked()",
+    "doc": ""
   },
   {
     "kind": "function",
@@ -1873,6 +2008,15 @@
   },
   {
     "kind": "function",
+    "name": "test_assembly_convenience_methods",
+    "qualname": "test_assembly_convenience_methods",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 346,
+    "signature": "test_assembly_convenience_methods()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_astigmatic_line_foci_in_column_hybrid",
     "qualname": "test_astigmatic_line_foci_in_column_hybrid",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -1891,6 +2035,24 @@
   },
   {
     "kind": "function",
+    "name": "test_attached_multipole_class_matches_the_multipole_not_the_host",
+    "qualname": "test_attached_multipole_class_matches_the_multipole_not_the_host",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 165,
+    "signature": "test_attached_multipole_class_matches_the_multipole_not_the_host()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_attached_multipole_names",
+    "qualname": "test_attached_multipole_names",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 151,
+    "signature": "test_attached_multipole_names(name, host, attached)",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_axis_helpers_scalar_pair_convention",
     "qualname": "test_axis_helpers_scalar_pair_convention",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -1905,6 +2067,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 721,
     "signature": "test_bandlimited_disk_is_alias_free_sharp_disk()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_bare_axis_is_not_an_attachment",
+    "qualname": "test_bare_axis_is_not_an_attachment",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 159,
+    "signature": "test_bare_axis_is_not_an_attachment()",
     "doc": ""
   },
   {
@@ -2044,6 +2215,24 @@
   },
   {
     "kind": "function",
+    "name": "test_canonical_element_name_accepts_alias_and_rejects_junk",
+    "qualname": "test_canonical_element_name_accepts_alias_and_rejects_junk",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 186,
+    "signature": "test_canonical_element_name_accepts_alias_and_rejects_junk()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_canonical_element_name_round_trips",
+    "qualname": "test_canonical_element_name_round_trips",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 129,
+    "signature": "test_canonical_element_name_round_trips()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_center_monomials_expands_about_the_mean",
     "qualname": "test_center_monomials_expands_about_the_mean",
     "path": "src/pySEA/rayTEM/tests/test_covariance_propagation.py",
@@ -2130,6 +2319,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 2800,
     "signature": "test_coma_is_even_order_and_spherical_is_odd()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_conforming_section_validates_clean",
+    "qualname": "test_conforming_section_validates_clean",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 240,
+    "signature": "test_conforming_section_validates_clean()",
     "doc": ""
   },
   {
@@ -2296,11 +2494,38 @@
   },
   {
     "kind": "function",
+    "name": "test_deflectors_validate_inside_a_condenser_section",
+    "qualname": "test_deflectors_validate_inside_a_condenser_section",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 174,
+    "signature": "test_deflectors_validate_inside_a_condenser_section()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_describe_schema_lists_the_live_vocabulary",
+    "qualname": "test_describe_schema_lists_the_live_vocabulary",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 416,
+    "signature": "test_describe_schema_lists_the_live_vocabulary()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_detector_modes",
     "qualname": "test_detector_modes",
     "path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 160,
     "signature": "test_detector_modes(solved_high)",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_detector_volume_section",
+    "qualname": "test_detector_volume_section",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 281,
+    "signature": "test_detector_volume_section()",
     "doc": ""
   },
   {
@@ -2338,6 +2563,33 @@
     "source_lineno": 213,
     "signature": "test_display_signals_refuse_to_propagate()",
     "doc": "Nothing stored -> an actionable RuntimeError, and nothing gets propagated."
+  },
+  {
+    "kind": "function",
+    "name": "test_drift_may_be_named_but_is_never_required",
+    "qualname": "test_drift_may_be_named_but_is_never_required",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 368,
+    "signature": "test_drift_may_be_named_but_is_never_required()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_duplicate_names_across_sections_are_an_error",
+    "qualname": "test_duplicate_names_across_sections_are_an_error",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 305,
+    "signature": "test_duplicate_names_across_sections_are_an_error()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_duplicate_names_within_a_section_are_an_error",
+    "qualname": "test_duplicate_names_within_a_section_are_an_error",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 295,
+    "signature": "test_duplicate_names_within_a_section_are_an_error()",
+    "doc": ""
   },
   {
     "kind": "function",
@@ -2382,6 +2634,15 @@
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
     "source_lineno": 464,
     "signature": "test_element_move()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_element_type_codes_follow_the_class",
+    "qualname": "test_element_type_codes_follow_the_class",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 209,
+    "signature": "test_element_type_codes_follow_the_class()",
     "doc": ""
   },
   {
@@ -2809,6 +3070,15 @@
   },
   {
     "kind": "function",
+    "name": "test_microscope_validates_and_reports_per_section",
+    "qualname": "test_microscope_validates_and_reports_per_section",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 317,
+    "signature": "test_microscope_validates_and_reports_per_section()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_mid_element_crossover_lands_on_the_analytic_plane",
     "qualname": "test_mid_element_crossover_lands_on_the_analytic_plane",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -2854,6 +3124,24 @@
   },
   {
     "kind": "function",
+    "name": "test_named_planes_are_exempt",
+    "qualname": "test_named_planes_are_exempt",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 266,
+    "signature": "test_named_planes_are_exempt()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_non_conforming_element_is_an_error",
+    "qualname": "test_non_conforming_element_is_an_error",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 245,
+    "signature": "test_non_conforming_element_is_an_error()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_objective_is_never_retuned",
     "qualname": "test_objective_is_never_retuned",
     "path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
@@ -2886,6 +3174,24 @@
     "path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 147,
     "signature": "test_parallel_probe_is_nearly_parallel()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_parse_element_name_accepts_project_names",
+    "qualname": "test_parse_element_name_accepts_project_names",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 114,
+    "signature": "test_parse_element_name_accepts_project_names(name, expected)",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_parse_element_name_rejects_non_conforming",
+    "qualname": "test_parse_element_name_rejects_non_conforming",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 125,
+    "signature": "test_parse_element_name_rejects_non_conforming(name)",
     "doc": ""
   },
   {
@@ -2940,6 +3246,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 71,
     "signature": "test_phase_shift_scaled_split()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_probe_corrector_section",
+    "qualname": "test_probe_corrector_section",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 388,
+    "signature": "test_probe_corrector_section()",
     "doc": ""
   },
   {
@@ -3097,11 +3412,56 @@
   },
   {
     "kind": "function",
+    "name": "test_register_element_type_extends_the_vocabulary",
+    "qualname": "test_register_element_type_extends_the_vocabulary",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 398,
+    "signature": "test_register_element_type_extends_the_vocabulary(vocabulary)",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_register_rejects_collisions",
+    "qualname": "test_register_rejects_collisions",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 407,
+    "signature": "test_register_rejects_collisions(vocabulary)",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_register_section_extends_the_vocabulary",
+    "qualname": "test_register_section_extends_the_vocabulary",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 355,
+    "signature": "test_register_section_extends_the_vocabulary(vocabulary)",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_relativistic_wavelength_known_values",
+    "qualname": "test_relativistic_wavelength_known_values",
+    "path": "src/pySEA/rayTEM/tests/test_source_voltage.py",
+    "source_lineno": 15,
+    "signature": "test_relativistic_wavelength_known_values()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_relativistic_wavelength_known_values",
     "qualname": "test_relativistic_wavelength_known_values",
     "path": "src/pySEA/rayTEM/tests/test_wave_and_envelope.py",
     "source_lineno": 14,
     "signature": "test_relativistic_wavelength_known_values()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_relativistic_wavelength_rejects_nonpositive",
+    "qualname": "test_relativistic_wavelength_rejects_nonpositive",
+    "path": "src/pySEA/rayTEM/tests/test_source_voltage.py",
+    "source_lineno": 21,
+    "signature": "test_relativistic_wavelength_rejects_nonpositive()",
     "doc": ""
   },
   {
@@ -3174,6 +3534,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 354,
     "signature": "test_scaled_wavefield_signal_roundtrip()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_section_code_resolution",
+    "qualname": "test_section_code_resolution",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 205,
+    "signature": "test_section_code_resolution(name, code)",
     "doc": ""
   },
   {
@@ -3304,6 +3673,33 @@
   },
   {
     "kind": "function",
+    "name": "test_source_voltage_seeds_wavelength_and_energy_column",
+    "qualname": "test_source_voltage_seeds_wavelength_and_energy_column",
+    "path": "src/pySEA/rayTEM/tests/test_source_voltage.py",
+    "source_lineno": 30,
+    "signature": "test_source_voltage_seeds_wavelength_and_energy_column()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_source_voltage_survives_reinstantiation",
+    "qualname": "test_source_voltage_survives_reinstantiation",
+    "path": "src/pySEA/rayTEM/tests/test_source_voltage.py",
+    "source_lineno": 46,
+    "signature": "test_source_voltage_survives_reinstantiation()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_source_without_voltage_stays_geometric",
+    "qualname": "test_source_without_voltage_stays_geometric",
+    "path": "src/pySEA/rayTEM/tests/test_source_voltage.py",
+    "source_lineno": 38,
+    "signature": "test_source_without_voltage_stays_geometric()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_spherical_aberration_degrades_the_wave_focus",
     "qualname": "test_spherical_aberration_degrades_the_wave_focus",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -3327,6 +3723,15 @@
     "path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
     "source_lineno": 170,
     "signature": "test_state_survives_the_settings_round_trip(solved_high, tmp_path, monkeypatch)",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_strict_modes",
+    "qualname": "test_strict_modes",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 330,
+    "signature": "test_strict_modes()",
     "doc": ""
   },
   {
@@ -3525,6 +3930,42 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 2144,
     "signature": "test_undersampled_aberration_screen_is_refused()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_unmanaged_section_is_info_not_error",
+    "qualname": "test_unmanaged_section_is_info_not_error",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 257,
+    "signature": "test_unmanaged_section_is_info_not_error()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_validate_element_name_accepts_conforming",
+    "qualname": "test_validate_element_name_accepts_conforming",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 236,
+    "signature": "test_validate_element_name_accepts_conforming()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_validate_element_name_flags_type_class_mismatch",
+    "qualname": "test_validate_element_name_flags_type_class_mismatch",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 229,
+    "signature": "test_validate_element_name_flags_type_class_mismatch()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_validate_element_name_flags_wrong_section_letter",
+    "qualname": "test_validate_element_name_flags_wrong_section_letter",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 223,
+    "signature": "test_validate_element_name_flags_wrong_section_letter()",
     "doc": ""
   },
   {
@@ -3753,6 +4194,33 @@
     "doc": ""
   },
   {
+    "kind": "function",
+    "name": "validate_element_name",
+    "qualname": "validate_element_name",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 685,
+    "signature": "validate_element_name(name, section, element, path)",
+    "doc": "Check one element name against the schema."
+  },
+  {
+    "kind": "function",
+    "name": "validate_microscope",
+    "qualname": "validate_microscope",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 932,
+    "signature": "validate_microscope(scope, strict)",
+    "doc": "Validate a whole microscope against the column naming schema."
+  },
+  {
+    "kind": "function",
+    "name": "validate_section",
+    "qualname": "validate_section",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 852,
+    "signature": "validate_section(section, code, strict, prefix)",
+    "doc": "Validate one microscope section against the schema."
+  },
+  {
     "kind": "class",
     "name": "virt",
     "qualname": "virt",
@@ -3778,6 +4246,15 @@
     "source_lineno": 709,
     "signature": "visualize_fitted()",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "vocabulary",
+    "qualname": "vocabulary",
+    "path": "src/pySEA/rayTEM/tests/test_schema.py",
+    "source_lineno": 31,
+    "signature": "vocabulary()",
+    "doc": "Snapshot and restore the module-level vocabulary."
   },
   {
     "kind": "function",
