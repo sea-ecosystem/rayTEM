@@ -344,7 +344,7 @@ def _screen_item(chi, dx:float, dy:float, name:str):
 	return make_screen_phase_signal(chi, dx, dy, name=name)
 
 
-def _check_screen_sampling(chi, name:str, field=None, support_threshold:float=1e-4):
+def _check_screen_sampling(chi, name:str):
 	"""Guard against an aliased phase screen applied to the scaled field U.
 
 	The scaled path applies non-absorbable element phases (quadrupole saddle,
@@ -375,17 +375,6 @@ def _check_screen_sampling(chi, name:str, field=None, support_threshold:float=1e
 		is passed through unchecked), shape (ny, nx).
 	name : str
 		Element/screen name for the error message.
-	field : xp.ndarray, optional
-		The field the screen multiplies. When given, only neighbouring
-		samples where its modulus exceeds ``support_threshold`` times its
-		peak count: a phase aliased where there is no wave changes nothing,
-		and a screen evaluated over a frame much wider than the beam (an
-		aperture's image filling part of it) would otherwise fail on the
-		empty rim.
-	support_threshold : float, optional
-		Relative modulus below which a sample is outside the field's
-		support, by default 1e-4.
-
 	Returns
 	-------
 	None
@@ -402,21 +391,11 @@ def _check_screen_sampling(chi, name:str, field=None, support_threshold:float=1e
 	"""
 	if xp.iscomplexobj(chi):
 		return
-	inside = None
-	if field is not None and xp.shape(field) == xp.shape(chi):
-		modulus = xp.abs(field)
-		peak = float(modulus.max())
-		if peak > 0:
-			inside = modulus > support_threshold * peak
 	step = 0.0
-	for axis in (1, 0):
-		if chi.shape[axis] > 1:
-			d = xp.abs(xp.diff(chi, axis=axis))
-			if inside is not None:
-				both = (inside[:, 1:] & inside[:, :-1]) if axis == 1 else (inside[1:, :] & inside[:-1, :])
-				d = d[both]
-			if d.size:
-				step = max(step, float(d.max()))
+	if chi.shape[1] > 1:
+		step = max(step, float(xp.abs(xp.diff(chi, axis=1)).max()))
+	if chi.shape[0] > 1:
+		step = max(step, float(xp.abs(xp.diff(chi, axis=0)).max()))
 	if step >= xp.pi:
 		raise ValueError(f"Phase screen {name!r} is under-sampled on the scaled grid "
 						 f"(max per-pixel phase step {step:.2f} rad >= pi): reduce the element "
@@ -2661,7 +2640,7 @@ class Element(SealedAttributes, SEASerializable):
 												 supplied=(i == n_sl // 2))
 					if screen is not None:
 						_check_screen_sampling(screen.data,
-											   self.name or type(self).__name__, field=U)
+											   self.name or type(self).__name__)
 						U = apply_phase(U, screen.data, phase_space_of(screen))
 					(U, dxi, deta, wavelength, s, R, tau, z, z_cross) = _step(
 						U, dxi, deta, s, R, tau, z, z_cross)
@@ -2693,7 +2672,7 @@ class Element(SealedAttributes, SEASerializable):
 		if xp.ndim(power) > 0 or power != 0:		# scalar or per-axis (quadrupole) power
 			s, R = apply_thin_lens_scaled(s, R, power)
 		if screen is not None:
-			_check_screen_sampling(screen.data, self.name or type(self).__name__, field=U)
+			_check_screen_sampling(screen.data, self.name or type(self).__name__)
 			U = apply_phase(U, screen.data, phase_space_of(screen))
 		U, s, R, tau, z, z_cross = free(U, s, R, tau, z, z_cross, L / 2 if L != 0 else 0)
 		return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=z,
