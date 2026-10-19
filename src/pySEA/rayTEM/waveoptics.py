@@ -1073,7 +1073,8 @@ def propagate_quadratic_segment_hybrid(U: np.ndarray, dxi: float, deta: float,
 	kk = list(axis_components(kappa))
 	us = [0.0 if np.isinf(RR[a]) else ss[a] / RR[a] for a in range(2)]
 	pending = z_cross is not None
-	interior = any(segment_zero(dz, ss[a], us[a], kk[a]) is not None for a in range(2))
+	# a zero on the exit face counts (see the stepping below)
+	interior = any(segment_zero(dz * (1 + 1e-6), ss[a], us[a], kk[a]) is not None for a in range(2))
 	if not interior and not pending:
 		# nothing to switch through: the exact single call, unchanged
 		U, s_o, R_o, dt = propagate_quadratic_segment_scaled(
@@ -1119,6 +1120,13 @@ def propagate_quadratic_segment_hybrid(U: np.ndarray, dxi: float, deta: float,
 		for a in range(2):
 			A_a = k * 1.2 * exts[a] * pitches[a] / (safety * np.pi)
 			R_a, s_a = RR[a], ss[a]
+			if not np.isinf(R_a) and R_a < 0 and zc[a] is not None and zc[a] > z + abs(R_a) + tol:
+				# As in the free engine: a marker beyond this converging axis's
+				# own crossover was recorded before a lens re-converged the beam
+				# (a nearly flat frame records one far downstream). Kept, it
+				# blocks the flatten below and the body runs into the frame's
+				# singularity; drop it.
+				zc[a] = None
 			if not np.isinf(R_a) and R_a < 0 and zc[a] is None:
 				# `zc[a] is None`: while a crossing is pending or awaiting its
 				# rediverge, this axis is mid-way through restoring one ray. A
@@ -1173,7 +1181,10 @@ def propagate_quadratic_segment_hybrid(U: np.ndarray, dxi: float, deta: float,
 		# step to the next event, always stopping short of any interior zero
 		step = z_end - z
 		for a in range(2):
-			zero = segment_zero(z_end - z, ss[a], us[a], kk[a])
+			# look a hair past the exit: a zero landing ON the exit face (a
+			# body that focuses onto its own end, such as a half lens onto
+			# the sample) is approached and flattened like an interior one
+			zero = segment_zero((z_end - z) * (1 + 1e-6), ss[a], us[a], kk[a])
 			if zero is not None:
 				step = min(step, zero * 0.5)			# halve in on the singularity
 			if zc[a] is not None and z < zc[a] - tol:
@@ -2002,6 +2013,14 @@ def propagate_free_scaled_hybrid(U: np.ndarray, dxi: float, deta: float,
 			U, s, R, dt = propagate_free_scaled(U, dxi, deta, wavelength, step, s, R, s_min=0.0, absorb=absorb)
 			dtau_total += dt ; z += step ; remaining -= step
 			continue
+		if not np.isinf(R) and R < 0 and z_cross is not None and z_cross > z + abs(R) + tol:
+			# A marker beyond the converging frame's own crossover cannot be
+			# this family's crossing: a lens re-converged the beam after the
+			# marker was recorded (a nearly flat frame records one far
+			# downstream). Left pending, the branch below would halve its
+			# step towards the frame's singularity forever; drop it, and the
+			# ordinary flatten/jump below takes over.
+			z_cross = None
 		if not np.isinf(R) and R < 0 and z_cross is not None and z < z_cross - tol:
 			# converging frame with the family crossing still AHEAD (a body
 			# handoff): split at the crossover so it is logged on the marker's
