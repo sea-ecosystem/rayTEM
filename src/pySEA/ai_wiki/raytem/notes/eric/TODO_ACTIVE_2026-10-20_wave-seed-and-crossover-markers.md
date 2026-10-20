@@ -22,4 +22,9 @@ Collins construction (rejected in PLAN_2026-08-19_scaled-fresnel-wave.md).
       without the absorber; 315 tests pass
 - [x] emulator check (sea-pearl): live scaled wave 4.8 s, probe FWHM 44.5 pm vs
       42.6 pm Airy at 4 pm pixels, spectrum 29.9 of 30 mrad, nothing at the edge
+- [x] docs so neither the bug nor the Collins proposal recurs: Into the SEA-weeds
+      (`wave-optics-sampling.md`: "A focus on a body's exit face", "Design decision:
+      thick lenses stay segments"; two invariants in `dev_documentation.md`), the
+      Propagation Modes guide (immersion objectives), CLAUDE.md/AGENTS.md, wiki
+      `waveoptics.md`; docs rebuilt (11 known warnings only), wiki refreshed
 - [ ] merge into `dev` with sea-pearl's branch; close this note

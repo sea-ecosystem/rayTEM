@@ -26,16 +26,16 @@
 |   `axis_components(value)` / `join_axes(vx, vy)` | 199 |
 |   `rotate_field(U, angle)` | 207 |
 |   `segment_block(dz, kappa)` / `_segment_slope(...)` / `segment_zero(...)` | 218 |
-|   `scaled_delta_tau_quadratic(dz, s0, R0, kappa)` | 235 |
-|   `propagate_quadratic_segment_scaled(U, dxi, deta, wavelength, dz, s, R, kappa, s_min=1e-3, absorb=0.0, rotate=0.0)` | 259 |
-|   `apply_thin_lens_scaled(s, R, power)` | 288 |
-|   `beam_support_radius(U, dxi, deta, threshold=1e-6)` / `beam_support_extents(...)` | 294 |
-|   `propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min=1e-3, absorb=0.0)` | 302 |
-| Frame switching (crossover traversal) | 311 |
-|   `min_representable_curvature(n, dxi, wavelength, s, safety=0.5, x_max=None)` | 316 |
-|   `change_scaled_frame(U, dxi, deta, wavelength, s_old, R_old, R_new, s_new=None, safety=0.5)` | 323 |
-|   `propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross=None, safety=0.5, s_min=1e-3, absorb=0.0, crossover='flat')` | 334 |
-|   `propagate_quadratic_segment_hybrid(U, dxi, deta, wavelength, dz, s, R, kappa, ...)` | 368 |
+|   `scaled_delta_tau_quadratic(dz, s0, R0, kappa)` | 239 |
+|   `propagate_quadratic_segment_scaled(U, dxi, deta, wavelength, dz, s, R, kappa, s_min=1e-3, absorb=0.0, rotate=0.0)` | 263 |
+|   `apply_thin_lens_scaled(s, R, power)` | 292 |
+|   `beam_support_radius(U, dxi, deta, threshold=1e-6)` / `beam_support_extents(...)` | 298 |
+|   `propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min=1e-3, absorb=0.0)` | 306 |
+| Frame switching (crossover traversal) | 315 |
+|   `min_representable_curvature(n, dxi, wavelength, s, safety=0.5, x_max=None)` | 320 |
+|   `change_scaled_frame(U, dxi, deta, wavelength, s_old, R_old, R_new, s_new=None, safety=0.5)` | 327 |
+|   `propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross=None, safety=0.5, s_min=1e-3, absorb=0.0, crossover='flat')` | 338 |
+|   `propagate_quadratic_segment_hybrid(U, dxi, deta, wavelength, dz, s, R, kappa, ...)` | 372 |
 <!-- END AUTO-GENERATED TOC -->
 
 # waveoptics.py
@@ -231,6 +231,10 @@ interior crossover under the same law — a focusing segment can cross
 repeatedly, a **defocusing one at most once** and only when entered converging
 hard enough to reach the axis before the defocusing takes over, free space at
 most once.
+Its tolerance is **relative** (`1e-12·|dz|`), never floored: callers find a
+zero *on* the exit face by asking about `dz·(1 + 1e-6)`, and the old 1 pm
+floor hid that zero once less than 1 µm of body remained (a half lens
+focusing onto its own face then stepped onto the singularity and hung).
 
 ### `scaled_delta_tau_quadratic(dz, s0, R0, kappa)`
 Δτ across a constant-curvature segment — a thick round lens (focusing on both
@@ -376,6 +380,14 @@ engine as the pending marker: `z_cross = z_end − B(d)/D(d)` from the
 remaining block entries (without the projection the marker carried the
 in-body coordinate and the downstream focal plane was off by the
 restoration distance).
+
+A zero **on the exit face** counts as interior (the look-ahead margin above),
+so an immersion objective's half lens — sample on its face — is approached by
+halving steps, flattened, and logs its crossover on the face. This walker is
+the only thick-body wave path; a one-step Collins/ABCD transform was
+rejected (`notes/eric/PLAN_2026-08-19_scaled-fresnel-wave.md`). Pinned by
+`test_half_lens_focuses_onto_its_exit_face`; rationale in
+`docs/wave-optics-sampling.md` ("A focus on a body's exit face").
 
 ---
 *AI maintenance: read this file before editing the source. Update it after.*

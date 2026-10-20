@@ -14,8 +14,8 @@
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="_static/documentation_options.js?v=e02f3e7d"></script>
-      <script src="_static/doctools.js?v=fd6eb6e6"></script>
-      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -68,6 +68,8 @@
 <li class="toctree-l2"><a class="reference internal" href="#scaled-fresnel-propagation-implemented-propagate-wave-mode-scaled-hybrid">Scaled Fresnel propagation (implemented): <code class="docutils literal notranslate"><span class="pre">propagate_wave(mode='scaled'|'hybrid')</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#both-conjugate-families-from-one-wave-run">Both conjugate families, from one wave run</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#mid-element-frame-switching">Mid-element frame switching</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#a-focus-on-a-body-s-exit-face-immersion-objectives">A focus on a body’s exit face (immersion objectives)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#design-decision-thick-lenses-stay-segments-not-one-step-integrals">Design decision: thick lenses stay segments, not one-step integrals</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#other-remedies-roadmap">Other remedies (roadmap)</a></li>
@@ -557,6 +559,78 @@ straight-through extrapolation, now on the other side of the boundary. Closing
 it needs the engine to know what optics lie downstream of the flatten, which it
 cannot see from inside a free segment. 20 nm in 320 mm is 6 parts in 10⁸, so it
 is documented rather than chased.</p>
+</section>
+<section id="a-focus-on-a-body-s-exit-face-immersion-objectives">
+<span id="wave-exit-face-focus"></span><h3>A focus on a body’s exit face (immersion objectives)<a class="headerlink" href="#a-focus-on-a-body-s-exit-face-immersion-objectives" title="Link to this heading"></a></h3>
+<p>The hardest case for frame switching is not a crossing in the middle of a body
+but one <strong>on its exit face</strong>. It is also the physically normal case for a
+probe-forming objective: the specimen sits inside the lens field, and when the
+pre-field is modelled as a half lens (a uniform body with <code class="docutils literal notranslate"><span class="pre">KL</span> <span class="pre">=</span> <span class="pre">π/2</span></code>, block
+<code class="docutils literal notranslate"><span class="pre">[[0,</span> <span class="pre">f],</span> <span class="pre">[−1/f,</span> <span class="pre">0]]</span></code>, <code class="docutils literal notranslate"><span class="pre">f</span> <span class="pre">=</span> <span class="pre">2L/π</span></code>) a parallel beam at its entrance focuses
+exactly on its exit face. The sea-pearl emulator column is built this way: the
+angle crossover sits on OL1’s entrance, the sample on its exit, and OL2 is the
+mirrored half lens behind the sample.</p>
+<p>The engine handles it with the same policy as an interior crossing. While
+looking for a zero, the hybrid asks <code class="docutils literal notranslate"><span class="pre">segment_zero</span></code> about <code class="docutils literal notranslate"><span class="pre">dz·(1</span> <span class="pre">+</span> <span class="pre">10⁻⁶)</span></code> rather
+than <code class="docutils literal notranslate"><span class="pre">dz</span></code>, so a zero exactly on the face counts as interior. The body is then
+approached by halving steps, and flattened once the frame’s curvature can be
+sampled. How close to the face that happens depends on the field’s extent: on
+the test’s bare 2 mm half lens (38 µm pupil, a 4.87 pm wavelength) it is 30 nm
+before the face, with <code class="docutils literal notranslate"><span class="pre">s</span></code> at 2×10⁻⁵ of its entrance value. On the emulator column
+(200 kV, 30 mrad) it is 2 nm, at 1.5×10⁻⁶. The crossover is
+logged on the face and the frame rediverges past it. <code class="docutils literal notranslate"><span class="pre">wavefield_at('sample')</span></code>
+returns the probe; a plane strictly inside the body is refused, as everywhere
+else.</p>
+<p><strong>Tolerances are relative, never floored.</strong> This case broke once, on a
+1 pm <em>absolute</em> floor in <code class="docutils literal notranslate"><span class="pre">segment_zero</span></code> (<code class="docutils literal notranslate"><span class="pre">1e-12</span> <span class="pre">·</span> <span class="pre">max(dz,</span> <span class="pre">1)</span></code>). Halving towards
+the face shrinks the remaining length geometrically. Once less than 1 µm
+remained, the relative look-ahead margin (<code class="docutils literal notranslate"><span class="pre">10⁻⁶</span> <span class="pre">·</span> <span class="pre">dz</span></code>) fell inside the floor,
+the face zero stopped being “seen”, and the next step took the whole remainder
+onto the singularity. There τ = ∫dz/s² is unbounded, so the result was
+<code class="docutils literal notranslate"><span class="pre">Δτ</span> <span class="pre">≈</span> <span class="pre">10¹³</span></code>. With <code class="docutils literal notranslate"><span class="pre">absorb</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> that meant about 10¹² absorber sub-steps, which
+looked like a hang. With <code class="docutils literal notranslate"><span class="pre">absorb</span> <span class="pre">=</span> <span class="pre">0</span></code> it finished, with a degenerate frame
+(<code class="docutils literal notranslate"><span class="pre">s</span></code> ≈ 10⁻¹⁸) and energy piled at the grid edge.</p>
+<p><code class="docutils literal notranslate"><span class="pre">propagate_quadratic_segment_hybrid</span></code>’s own <code class="docutils literal notranslate"><span class="pre">tol</span></code> had already lost an absolute
+<code class="docutils literal notranslate"><span class="pre">+</span> <span class="pre">1.0</span></code> term for the same reason. Any new comparison in the stepping loops
+must scale with the lengths it compares. A fixed floor works until the
+step it guards becomes the step that resolves a focus.</p>
+<p>Symptoms worth recognising as this class of bug rather than as a sampling
+problem:</p>
+<ul class="simple">
+<li><p>a single logged step with <code class="docutils literal notranslate"><span class="pre">Δτ</span></code> many orders larger than its neighbours;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">|s|</span></code> near machine epsilon on the plane after a crossover;</p></li>
+<li><p>a run that stalls only when the absorber is on.</p></li>
+</ul>
+<p>Pinned by <code class="docutils literal notranslate"><span class="pre">test_half_lens_focuses_onto_its_exit_face</span></code>: it checks the Airy
+first zero <code class="docutils literal notranslate"><span class="pre">0.61</span> <span class="pre">λ/α</span></code> with the absorber off and on, energy conservation, and
+that no step is singular.</p>
+</section>
+<section id="design-decision-thick-lenses-stay-segments-not-one-step-integrals">
+<span id="wave-thick-lens-decision"></span><h3>Design decision: thick lenses stay segments, not one-step integrals<a class="headerlink" href="#design-decision-thick-lenses-stay-segments-not-one-step-integrals" title="Link to this heading"></a></h3>
+<p>When a crossing inside a body misbehaves, it is tempting to replace the body
+with a closed-form one-step transform. The Collins diffraction integral is
+<code class="docutils literal notranslate"><span class="pre">chirp</span> <span class="pre">·</span> <span class="pre">scaled</span> <span class="pre">FFT</span> <span class="pre">·</span> <span class="pre">chirp</span></code>, built from the body’s ABCD block; for a
+quarter-period lens it is a plain Fourier transform. <strong>This has been decided
+against and should not be reintroduced.</strong> The scaled-Fresnel plan
+(<code class="docutils literal notranslate"><span class="pre">notes/eric/PLAN_2026-08-19_scaled-fresnel-wave.md</span></code>) rejected an earlier
+pilot-Gaussian/ABCD design in favour of the pure phase factorization, for
+these reasons:</p>
+<ul class="simple">
+<li><p>The thick lens is already exact in this method: a quadratic-index segment
+whose frame advances by the body’s own <code class="docutils literal notranslate"><span class="pre">cos</span></code>/<code class="docutils literal notranslate"><span class="pre">sin</span></code> law while <code class="docutils literal notranslate"><span class="pre">U</span></code> propagates
+over the segment’s <code class="docutils literal notranslate"><span class="pre">Δτ</span></code>. A Collins step adds no physics. It replaces the
+engine’s bookkeeping with a second, parallel one.</p></li>
+<li><p>A one-step transform has no interior. It logs no flatten, crossover or
+rediverge planes, carries no absorber, and gives the per-element
+<code class="docutils literal notranslate"><span class="pre">phase_shift</span></code> and Larmor-rotation contracts no place to act inside the body.
+It also fixes the output pixel at <code class="docutils literal notranslate"><span class="pre">λB/extent</span></code> instead of letting the frame
+choose it.</p></li>
+<li><p>The failures it would “fix” have been bugs in the frame switch (stale
+crossover markers, the exit-face floor above), and each was cheaper to fix
+there, with a test, than to route around.</p></li>
+</ul>
+<p>The grid-free q-parameter mode in the roadmap below is a separate,
+additional mode for Gaussian beams. It does not replace this propagator.</p>
 </section>
 </section>
 <section id="other-remedies-roadmap">

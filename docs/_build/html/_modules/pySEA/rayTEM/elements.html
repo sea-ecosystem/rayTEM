@@ -13,8 +13,8 @@
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="../../../_static/documentation_options.js?v=e02f3e7d"></script>
-      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
-      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" /> 
@@ -493,7 +493,6 @@
 <span class="sd">		is passed through unchecked), shape (ny, nx).</span>
 <span class="sd">	name : str</span>
 <span class="sd">		Element/screen name for the error message.</span>
-
 <span class="sd">	Returns</span>
 <span class="sd">	-------</span>
 <span class="sd">	None</span>
@@ -2956,6 +2955,17 @@
 <span class="sd">		aperture_radius : float, optional</span>
 <span class="sd">			Aperture radius a (metres) for wave_kind='aperture'; must</span>
 <span class="sd">			fit inside the grid half-extent.</span>
+<span class="sd">		wave_size : tuple, optional</span>
+<span class="sd">			Amplitude sigma (x, y) of the coherent Gaussian seed (metres) for</span>
+<span class="sd">			wave_kind='gaussian'; None (default) uses size. Separating the two</span>
+<span class="sd">			lets size stand for the source's incoherent extent while the seed</span>
+<span class="sd">			is the coherent patch whose cone fills the column's aperture.</span>
+<span class="sd">		wave_frame_curvature : float, optional</span>
+<span class="sd">			Initial frame curvature R (metres) of the scaled and hybrid seeds;</span>
+<span class="sd">			None (default) keeps the flat frame (R = inf). A source whose far</span>
+<span class="sd">			field starts within micrometres (a nanometre waist) needs the frame</span>
+<span class="sd">			to expand with it from the start, R = its Rayleigh range; the</span>
+<span class="sd">			frame is bookkeeping, so the physical field is unchanged.</span>
 
 <span class="sd">		Attributes</span>
 <span class="sd">		----------</span>
@@ -2977,7 +2987,9 @@
 			<span class="n">wave_shape</span><span class="p">:</span><span class="nb">tuple</span><span class="o">=</span><span class="p">(</span><span class="mi">128</span><span class="p">,</span><span class="mi">128</span><span class="p">),</span>	<span class="c1"># wave-optics grid (ny, nx)</span>
 			<span class="n">wave_extent</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>		<span class="c1"># wave-optics grid physical size (m); None -&gt; derived from size</span>
 			<span class="n">wave_kind</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s1">'plane'</span><span class="p">,</span><span class="s1">'gaussian'</span><span class="p">,</span><span class="s1">'point'</span><span class="p">,</span><span class="s1">'aperture'</span><span class="p">]</span><span class="o">=</span><span class="s1">'gaussian'</span><span class="p">,</span>
-			<span class="n">aperture_radius</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>	<span class="c1"># radius (m) for wave_kind='aperture'</span>
+			<span class="n">aperture_radius</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>	<span class="c1"># radius (m) for wave_kind='aperture'</span>
+			<span class="n">wave_size</span><span class="p">:</span><span class="nb">tuple</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>		<span class="c1"># coherent Gaussian seed sigma (m); None -&gt; size</span>
+			<span class="n">wave_frame_curvature</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>	<span class="c1"># scaled/hybrid seed frame R (m); None -&gt; inf</span>
 		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">'Source'</span><span class="p">)</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">beam_current</span> <span class="o">=</span> <span class="n">beam_current</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">energy_spread</span> <span class="o">=</span> <span class="n">energy_spread</span>
@@ -2999,6 +3011,8 @@
 		<span class="bp">self</span><span class="o">.</span><span class="n">wave_extent</span> <span class="o">=</span> <span class="n">wave_extent</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">wave_kind</span> <span class="o">=</span> <span class="n">wave_kind</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">aperture_radius</span> <span class="o">=</span> <span class="n">aperture_radius</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">wave_size</span> <span class="o">=</span> <span class="n">wave_size</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">wave_frame_curvature</span> <span class="o">=</span> <span class="n">wave_frame_curvature</span>
 
 	<span class="c1"># Source term, initialize rays at sweep of angles and positions</span>
 	<span class="nd">@property</span>
@@ -3181,8 +3195,9 @@
 <span class="sd">			:meth:Element.propagate_wave), by default 'fixed' - the</span>
 <span class="sd">			physical wavefield Signal. 'scaled'/'hybrid' seed the</span>
 <span class="sd">			scaled state (handoff Eqs 10-11): the initial frame is s = 1,</span>
-<span class="sd">			R = ∞, τ = 0, so the reduced field is the physical one,</span>
-<span class="sd">			U₀ = ψ₀, with Δξ = Δx.</span>
+<span class="sd">			R = ∞ (or wave_frame_curvature), τ = 0, so the reduced field is</span>
+<span class="sd">			the physical one, U₀ = ψ₀, with Δξ = Δx -- less the frame's</span>
+<span class="sd">			quadratic phase when R is finite.</span>
 
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
@@ -3209,8 +3224,16 @@
 		<span class="k">if</span> <span class="n">mode</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'scaled'</span><span class="p">,</span> <span class="s1">'hybrid'</span><span class="p">):</span>
 			<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_scaled_wavefield_signal</span><span class="p">,</span> <span class="n">read_wavefield</span>
 			<span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">read_wavefield</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wave</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">'fixed'</span><span class="p">))</span>
+			<span class="n">R0</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"wave_frame_curvature"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+			<span class="n">R0</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">inf</span> <span class="k">if</span> <span class="n">R0</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">R0</span><span class="p">)</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="n">xp</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">R0</span><span class="p">):</span>
+				<span class="c1"># U = s * psi * exp(-i k r^2 / 2R): the frame's quadratic phase</span>
+				<span class="c1"># is divided out, so psi itself is unchanged.</span>
+				<span class="kn">from</span><span class="w"> </span><span class="nn">.waveoptics</span><span class="w"> </span><span class="kn">import</span> <span class="n">transverse_coordinates</span>
+				<span class="n">X</span><span class="p">,</span> <span class="n">Y</span> <span class="o">=</span> <span class="n">transverse_coordinates</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">)</span>
+				<span class="n">data</span> <span class="o">=</span> <span class="n">data</span> <span class="o">*</span> <span class="n">xp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">xp</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">wavelength</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">X</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">Y</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">R0</span><span class="p">))</span>
 			<span class="k">return</span> <span class="n">make_scaled_wavefield_signal</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
-												<span class="n">R</span><span class="o">=</span><span class="n">xp</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">tau</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span>
+												<span class="n">R</span><span class="o">=</span><span class="n">R0</span><span class="p">,</span> <span class="n">tau</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span>
 												<span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s1">'source'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">' scaled wavefield'</span><span class="p">)</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 			<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Source.wave requires a wavelength; construct Source(voltage=&lt;kV&gt;)."</span><span class="p">)</span>
@@ -3219,14 +3242,15 @@
 				<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"wave_kind='aperture' requires aperture_radius (metres)."</span><span class="p">)</span>
 			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aperture_wave</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">aperture_radius</span><span class="p">)</span>
 		<span class="n">ny</span><span class="p">,</span> <span class="n">nx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave_shape</span>
-		<span class="n">extent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave_extent</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave_extent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">8</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+		<span class="n">seed_size</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"wave_size"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
+		<span class="n">extent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave_extent</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave_extent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">8</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="n">seed_size</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">extent</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
 			<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Cannot derive a wavefield grid extent from a zero source size; pass wave_extent (metres)."</span><span class="p">)</span>
 		<span class="n">dx</span> <span class="o">=</span> <span class="n">extent</span> <span class="o">/</span> <span class="n">nx</span> <span class="p">;</span> <span class="n">dy</span> <span class="o">=</span> <span class="n">extent</span> <span class="o">/</span> <span class="n">ny</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave_kind</span> <span class="o">==</span> <span class="s1">'plane'</span><span class="p">:</span>
 			<span class="n">data</span> <span class="o">=</span> <span class="n">plane_wave</span><span class="p">((</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">))</span>
 		<span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave_kind</span> <span class="o">==</span> <span class="s1">'gaussian'</span><span class="p">:</span>
-			<span class="n">data</span> <span class="o">=</span> <span class="n">gaussian_field</span><span class="p">((</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">),</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+			<span class="n">data</span> <span class="o">=</span> <span class="n">gaussian_field</span><span class="p">((</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">),</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">seed_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">seed_size</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
 		<span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave_kind</span> <span class="o">==</span> <span class="s1">'point'</span><span class="p">:</span>
 			<span class="n">data</span> <span class="o">=</span> <span class="n">point_source</span><span class="p">((</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">))</span>
 		<span class="k">else</span><span class="p">:</span>
