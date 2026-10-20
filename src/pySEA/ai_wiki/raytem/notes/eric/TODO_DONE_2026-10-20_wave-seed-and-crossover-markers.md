@@ -27,4 +27,4 @@ Collins construction (rejected in PLAN_2026-08-19_scaled-fresnel-wave.md).
       thick lenses stay segments"; two invariants in `dev_documentation.md`), the
       Propagation Modes guide (immersion objectives), CLAUDE.md/AGENTS.md, wiki
       `waveoptics.md`; docs rebuilt (11 known warnings only), wiki refreshed
-- [ ] merge into `dev` with sea-pearl's branch; close this note
+- [x] merge into `dev` with sea-pearl's branch; close this note

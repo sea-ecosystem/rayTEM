@@ -2,15 +2,17 @@
 
 Newest entries at top.
 
-## 2026-10-20 — [Under Construction] Wave seed, crossover markers, focus on an exit face
+## 2026-10-20 — [Done] Wave seed, crossover markers, focus on an exit face
 **Goal:** the scaled (hybrid) wave crosses a column whose probe focus sits exactly on a thick lens's exit face.
 **Why:** sea-pearl's emulator now uses a half-lens objective with the sample on OL1's exit face; the live "Scaled wavefield" hung there. Same method as before (quadratic-index segment, hybrid frame switch) -- no Collins/ABCD propagator.
-TODO: [TODO_ACTIVE_2026-10-20_wave-seed-and-crossover-markers.md](TODO_ACTIVE_2026-10-20_wave-seed-and-crossover-markers.md)
+TODO: [TODO_DONE_2026-10-20_wave-seed-and-crossover-markers.md](TODO_DONE_2026-10-20_wave-seed-and-crossover-markers.md)
 - [x] opt-in coherent seed width / frame curvature on `Source`
 - [x] stale crossover markers dropped; exit-face zero counted as interior
 - [x] `segment_zero` tolerance relative (the 1 pm floor was the hang)
 - [x] half-lens Airy test; emulator probe 44.5 pm vs 42.6 pm Airy, 29.9 mrad pupil
-- [ ] merge with sea-pearl `emulator-condenser-balance`
+- [x] merge with sea-pearl `emulator-condenser-balance`
+- [x] docs: Into the SEA-weeds (exit-face case, relative tolerances, the decision against a one-step Collins/ABCD lens), Propagation Modes guide, CLAUDE.md/AGENTS.md, wiki
+**Outcome:** the live scaled wave crosses a focus on a half lens's exit face (one-line tolerance fix in `segment_zero`, no new propagator); 315 tests pass; merged to `dev` with sea-pearl's emulator column.
 
 ## 2026-10-16 — [Done] Column naming schema for sections and elements (ported)
 **Goal:** give rayTEM a controlled vocabulary + validator for microscope section and element names.
