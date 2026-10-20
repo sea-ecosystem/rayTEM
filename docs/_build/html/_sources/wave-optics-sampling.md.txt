@@ -411,6 +411,83 @@ it needs the engine to know what optics lie downstream of the flatten, which it
 cannot see from inside a free segment. 20 nm in 320 mm is 6 parts in 10⁸, so it
 is documented rather than chased.
 
+(wave-exit-face-focus)=
+### A focus on a body's exit face (immersion objectives)
+
+The hardest case for frame switching is not a crossing in the middle of a body
+but one **on its exit face**. It is also the physically normal case for a
+probe-forming objective: the specimen sits inside the lens field, and when the
+pre-field is modelled as a half lens (a uniform body with `KL = π/2`, block
+`[[0, f], [−1/f, 0]]`, `f = 2L/π`) a parallel beam at its entrance focuses
+exactly on its exit face. The sea-pearl emulator column is built this way: the
+angle crossover sits on OL1's entrance, the sample on its exit, and OL2 is the
+mirrored half lens behind the sample.
+
+The engine handles it with the same policy as an interior crossing. While
+looking for a zero, the hybrid asks `segment_zero` about `dz·(1 + 10⁻⁶)` rather
+than `dz`, so a zero exactly on the face counts as interior. The body is then
+approached by halving steps, and flattened once the frame's curvature can be
+sampled. How close to the face that happens depends on the field's extent: on
+the test's bare 2 mm half lens (38 µm pupil, a 4.87 pm wavelength) it is 30 nm
+before the face, with `s` at 2×10⁻⁵ of its entrance value. On the emulator column
+(200 kV, 30 mrad) it is 2 nm, at 1.5×10⁻⁶. The crossover is
+logged on the face and the frame rediverges past it. `wavefield_at('sample')`
+returns the probe; a plane strictly inside the body is refused, as everywhere
+else.
+
+**Tolerances are relative, never floored.** This case broke once, on a
+1 pm *absolute* floor in `segment_zero` (`1e-12 · max(dz, 1)`). Halving towards
+the face shrinks the remaining length geometrically. Once less than 1 µm
+remained, the relative look-ahead margin (`10⁻⁶ · dz`) fell inside the floor,
+the face zero stopped being "seen", and the next step took the whole remainder
+onto the singularity. There τ = ∫dz/s² is unbounded, so the result was
+`Δτ ≈ 10¹³`. With `absorb > 0` that meant about 10¹² absorber sub-steps, which
+looked like a hang. With `absorb = 0` it finished, with a degenerate frame
+(`s` ≈ 10⁻¹⁸) and energy piled at the grid edge.
+
+`propagate_quadratic_segment_hybrid`'s own `tol` had already lost an absolute
+`+ 1.0` term for the same reason. Any new comparison in the stepping loops
+must scale with the lengths it compares. A fixed floor works until the
+step it guards becomes the step that resolves a focus.
+
+Symptoms worth recognising as this class of bug rather than as a sampling
+problem:
+- a single logged step with `Δτ` many orders larger than its neighbours;
+- `|s|` near machine epsilon on the plane after a crossover;
+- a run that stalls only when the absorber is on.
+
+Pinned by `test_half_lens_focuses_onto_its_exit_face`: it checks the Airy
+first zero `0.61 λ/α` with the absorber off and on, energy conservation, and
+that no step is singular.
+
+(wave-thick-lens-decision)=
+### Design decision: thick lenses stay segments, not one-step integrals
+
+When a crossing inside a body misbehaves, it is tempting to replace the body
+with a closed-form one-step transform. The Collins diffraction integral is
+`chirp · scaled FFT · chirp`, built from the body's ABCD block; for a
+quarter-period lens it is a plain Fourier transform. **This has been decided
+against and should not be reintroduced.** The scaled-Fresnel plan
+(`notes/eric/PLAN_2026-08-19_scaled-fresnel-wave.md`) rejected an earlier
+pilot-Gaussian/ABCD design in favour of the pure phase factorization, for
+these reasons:
+
+- The thick lens is already exact in this method: a quadratic-index segment
+  whose frame advances by the body's own `cos`/`sin` law while `U` propagates
+  over the segment's `Δτ`. A Collins step adds no physics. It replaces the
+  engine's bookkeeping with a second, parallel one.
+- A one-step transform has no interior. It logs no flatten, crossover or
+  rediverge planes, carries no absorber, and gives the per-element
+  `phase_shift` and Larmor-rotation contracts no place to act inside the body.
+  It also fixes the output pixel at `λB/extent` instead of letting the frame
+  choose it.
+- The failures it would "fix" have been bugs in the frame switch (stale
+  crossover markers, the exit-face floor above), and each was cheaper to fix
+  there, with a test, than to route around.
+
+The grid-free q-parameter mode in the roadmap below is a separate,
+additional mode for Gaussian beams. It does not replace this propagator.
+
 ## Other remedies (roadmap)
 
 1. **Collins / ABCD Gaussian-mode transport (grid-free, exact).** Propagate the

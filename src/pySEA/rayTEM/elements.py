@@ -375,7 +375,6 @@ def _check_screen_sampling(chi, name:str):
 		is passed through unchecked), shape (ny, nx).
 	name : str
 		Element/screen name for the error message.
-
 	Returns
 	-------
 	None
@@ -2761,6 +2760,17 @@ class Source(Element):
 		aperture_radius : float, optional
 			Aperture radius a (metres) for wave_kind='aperture'; must
 			fit inside the grid half-extent.
+		wave_size : tuple, optional
+			Amplitude sigma (x, y) of the coherent Gaussian seed (metres) for
+			wave_kind='gaussian'; None (default) uses size. Separating the two
+			lets size stand for the source's incoherent extent while the seed
+			is the coherent patch whose cone fills the column's aperture.
+		wave_frame_curvature : float, optional
+			Initial frame curvature R (metres) of the scaled and hybrid seeds;
+			None (default) keeps the flat frame (R = inf). A source whose far
+			field starts within micrometres (a nanometre waist) needs the frame
+			to expand with it from the start, R = its Rayleigh range; the
+			frame is bookkeeping, so the physical field is unchanged.
 
 		Attributes
 		----------
@@ -2782,7 +2792,9 @@ class Source(Element):
 			wave_shape:tuple=(128,128),	# wave-optics grid (ny, nx)
 			wave_extent:float=None,		# wave-optics grid physical size (m); None -> derived from size
 			wave_kind:Literal['plane','gaussian','point','aperture']='gaussian',
-			aperture_radius:float=None) -> SEASerializable:	# radius (m) for wave_kind='aperture'
+			aperture_radius:float=None,	# radius (m) for wave_kind='aperture'
+			wave_size:tuple=None,		# coherent Gaussian seed sigma (m); None -> size
+			wave_frame_curvature:float=None) -> SEASerializable:	# scaled/hybrid seed frame R (m); None -> inf
 		super().__init__(name=name, kind='Source')
 		self.beam_current = beam_current
 		self.energy_spread = energy_spread
@@ -2804,6 +2816,8 @@ class Source(Element):
 		self.wave_extent = wave_extent
 		self.wave_kind = wave_kind
 		self.aperture_radius = aperture_radius
+		self.wave_size = wave_size
+		self.wave_frame_curvature = wave_frame_curvature
 
 	# Source term, initialize rays at sweep of angles and positions
 	@property
@@ -2972,8 +2986,9 @@ class Source(Element):
 			:meth:Element.propagate_wave), by default 'fixed' - the
 			physical wavefield Signal. 'scaled'/'hybrid' seed the
 			scaled state (handoff Eqs 10-11): the initial frame is s = 1,
-			R = ∞, τ = 0, so the reduced field is the physical one,
-			U₀ = ψ₀, with Δξ = Δx.
+			R = ∞ (or wave_frame_curvature), τ = 0, so the reduced field is
+			the physical one, U₀ = ψ₀, with Δξ = Δx -- less the frame's
+			quadratic phase when R is finite.
 
 		Returns
 		-------
@@ -3000,8 +3015,16 @@ class Source(Element):
 		if mode in ('scaled', 'hybrid'):
 			from .seashells import make_scaled_wavefield_signal, read_wavefield
 			data, dx, dy, wavelength, z = read_wavefield(self.wave(mode='fixed'))
+			R0 = getattr(self, "wave_frame_curvature", None)
+			R0 = xp.inf if R0 is None else float(R0)
+			if not xp.isinf(R0):
+				# U = s * psi * exp(-i k r^2 / 2R): the frame's quadratic phase
+				# is divided out, so psi itself is unchanged.
+				from .waveoptics import transverse_coordinates
+				X, Y = transverse_coordinates(data.shape, dx, dy)
+				data = data * xp.exp(-1j * (2 * xp.pi / wavelength) * (X**2 + Y**2) / (2 * R0))
 			return make_scaled_wavefield_signal(data, dx, dy, wavelength, s=1.0,
-												R=xp.inf, tau=0.0, z=z,
+												R=R0, tau=0.0, z=z,
 												name=(self.name or 'source') + ' scaled wavefield')
 		if self.wavelength is None:
 			raise ValueError("Source.wave requires a wavelength; construct Source(voltage=<kV>).")
@@ -3010,14 +3033,15 @@ class Source(Element):
 				raise ValueError("wave_kind='aperture' requires aperture_radius (metres).")
 			return self._aperture_wave(self.aperture_radius)
 		ny, nx = self.wave_shape
-		extent = self.wave_extent if self.wave_extent is not None else 8 * max(self.size)
+		seed_size = getattr(self, "wave_size", None) or self.size
+		extent = self.wave_extent if self.wave_extent is not None else 8 * max(seed_size)
 		if extent <= 0:
 			raise ValueError("Cannot derive a wavefield grid extent from a zero source size; pass wave_extent (metres).")
 		dx = extent / nx ; dy = extent / ny
 		if self.wave_kind == 'plane':
 			data = plane_wave((ny, nx))
 		elif self.wave_kind == 'gaussian':
-			data = gaussian_field((ny, nx), dx, dy, self.size[0], self.size[1])
+			data = gaussian_field((ny, nx), dx, dy, seed_size[0], seed_size[1])
 		elif self.wave_kind == 'point':
 			data = point_source((ny, nx))
 		else:

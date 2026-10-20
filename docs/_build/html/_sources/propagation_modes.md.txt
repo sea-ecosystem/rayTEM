@@ -115,6 +115,19 @@ overlay marks on their plane axis. The scaled stack also carries the
 crossovers and image planes of a hybrid run, so a view through z shows them
 and an image of one plane does not.
 
+**Immersion objectives: a probe on a lens face.** A probe-forming objective
+can be modelled the way the sample sits in a real one, inside the field. The
+pre-field is a half lens (a thick `Lens` with `K·L = π/2`, so its focal length
+is `2L/π`), with the sample on its exit face and a second half lens behind it.
+Put the condenser aperture's image (the angle crossover) on the first lens's
+entrance. The hybrid run then focuses onto the face, logs `flatten`,
+`crossover` and `rediverge` planes there, and `wavefield_at('sample')` returns
+the probe. A plane strictly *inside* a lens body is refused rather than
+approximated. To see one, re-run on `scope.subdivided([z])`. A hybrid run
+should finish in seconds on such a column. If it stalls near a focus, or logs a
+frame with `|s|` near machine epsilon, that is an engine bug, not a sampling
+limit to tune around. See {ref}`the developer notes <wave-exit-face-focus>`.
+
 A stored or exported result does not need the column. Its scaled-wave
 SignalSet (`scope.wave_scaled`, or one loaded from `.sea`) holds U on the
 moving grid plus the frame `s(z)`, `R(z)`, so
