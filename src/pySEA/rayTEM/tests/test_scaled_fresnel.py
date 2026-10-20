@@ -1795,6 +1795,35 @@ def test_mid_element_frame_switch_crosses_inside_a_body():
 	assert np.isclose((np.abs(U)**2).sum(), (np.abs(U0)**2).sum(), rtol=1e-9)
 
 
+def test_half_lens_focuses_onto_its_exit_face():
+	# a quarter-period body (K L = pi/2) brings a flat-framed pupil to a focus
+	# exactly ON its exit face -- an immersion objective with the sample at the
+	# face. The zero tolerance used to be floored at 1 pm, so once less than a
+	# micron of body remained the face zero went unseen and the last step landed
+	# on the singularity (dtau ~ 1e13; with the absorber, ~1e12 sub-steps).
+	lam, L, n, a = 4.87e-12, 2e-3, 256, 38e-6
+	K = np.pi / (2 * L)
+	dxi = 4 * a / n
+	xi = (np.arange(n) - n / 2) * dxi
+	X, Y = np.meshgrid(xi, xi)
+	U0 = (np.hypot(X, Y) < a).astype(complex)
+	for absorb in (0.0, 0.1):
+		U, s, R, dtau, z, zc, logged = wo.propagate_quadratic_segment_hybrid(
+			U0, dxi, dxi, lam, L, 1.0, np.inf, K**2, z=0.0, absorb=absorb)
+		assert np.isclose(z, L)
+		tags = [t for t, *_ in logged]
+		assert "flatten-x" in tags and "crossover-x" in tags
+		assert np.all(np.abs(wo.axis_components(dtau)) < 1e3)	# no singular step
+		# the field on the face is the diffraction-limited probe: Airy zero at
+		# 0.61 lam / alpha with alpha = a / f, f = 1/K
+		row = np.abs(U[n // 2, n // 2:])**2
+		i = next(j for j in range(1, n // 2 - 1) if row[j] < row[j - 1] and row[j] <= row[j + 1])
+		r_zero = abs(wo.axis_components(s)[0]) * i * dxi
+		assert abs(r_zero - 0.61 * lam / (a * K)) < 2 * abs(wo.axis_components(s)[0]) * dxi
+		if absorb == 0.0:
+			assert np.isclose((np.abs(U)**2).sum(), (np.abs(U0)**2).sum(), rtol=1e-9)
+
+
 def test_mid_element_hybrid_leaves_the_common_case_alone():
 	# no interior crossing and no pending marker -> a single exact call, so
 	# ordinary thick lenses keep their previous output exactly

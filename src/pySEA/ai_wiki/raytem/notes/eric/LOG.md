@@ -2,6 +2,16 @@
 
 Newest entries at top.
 
+## 2026-10-20 — [Under Construction] Wave seed, crossover markers, focus on an exit face
+**Goal:** the scaled (hybrid) wave crosses a column whose probe focus sits exactly on a thick lens's exit face.
+**Why:** sea-pearl's emulator now uses a half-lens objective with the sample on OL1's exit face; the live "Scaled wavefield" hung there. Same method as before (quadratic-index segment, hybrid frame switch) -- no Collins/ABCD propagator.
+TODO: [TODO_ACTIVE_2026-10-20_wave-seed-and-crossover-markers.md](TODO_ACTIVE_2026-10-20_wave-seed-and-crossover-markers.md)
+- [x] opt-in coherent seed width / frame curvature on `Source`
+- [x] stale crossover markers dropped; exit-face zero counted as interior
+- [x] `segment_zero` tolerance relative (the 1 pm floor was the hang)
+- [x] half-lens Airy test; emulator probe 44.5 pm vs 42.6 pm Airy, 29.9 mrad pupil
+- [ ] merge with sea-pearl `emulator-condenser-balance`
+
 ## 2026-10-16 — [Done] Column naming schema for sections and elements (ported)
 **Goal:** give rayTEM a controlled vocabulary + validator for microscope section and element names.
 **Why:** there was no naming schema in either repo, and names had already drifted apart across the usim twin, the `Factory*` sections, MACSTEM and the private instrument. Designed 2026-09-17 in the retired `rayTEM_original` checkout, where it was never committed; ported here unchanged.

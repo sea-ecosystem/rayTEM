@@ -669,7 +669,11 @@ def segment_zero(dz: float, s0: float, u0: float, kappa: float):
 	segment_block : The same law, as a transfer block.
 	scaled_delta_tau_quadratic : Raises on what this finds.
 	"""
-	tol = 1e-12 * max(abs(dz), 1.0)
+	# relative, not floored at 1 pm: the hybrid looks for a zero ON the exit
+	# face by asking about dz*(1 + 1e-6), and a floor would hide it once less
+	# than a micron of body remains -- the last step then lands on the
+	# singularity (a half lens focusing onto its own exit face did exactly that)
+	tol = 1e-12 * abs(dz)
 	inside = lambda z: (z is not None) and (tol < z < dz - tol)
 	if kappa == 0:
 		z = None if u0 == 0 else -s0 / u0
