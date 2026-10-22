@@ -2,11 +2,12 @@
 
 Newest entries at top.
 
-## 2026-10-22 — [Under Construction] Screen sampling judged where the wave is
+## 2026-10-22 — [Done] Screen sampling judged where the wave is
 **Goal:** the scaled wave's aliasing guard judges a screen only where the field has amplitude.
 **Why:** coefficients folded onto the objective out-run the grid corner, far past the beam, and refused well-sampled propagations (sea-pearl emulator: fifth order, C30 of a few um).
-TODO: [TODO_ACTIVE_2026-10-22_screen-sampling-where-the-wave-is.md](TODO_ACTIVE_2026-10-22_screen-sampling-where-the-wave-is.md)
-- [ ] guard takes the field; call sites pass it; tests
+TODO: [TODO_DONE_2026-10-22_screen-sampling-where-the-wave-is.md](TODO_DONE_2026-10-22_screen-sampling-where-the-wave-is.md)
+- [x] guard takes the field; call sites pass it; tests
+**Outcome:** fifth order and um of C30 on a folded corrector propagate; aliasing inside the beam is still refused (now tested at 64 px).
 
 ## 2026-10-21 — [Done] Schema: E for the spectrometer, multipoles named on their own
 **Goal:** the column naming schema Eric settled for the U200: `E` spectrometer, `CD1a` not `CL1_D1a`, numbers in column order.

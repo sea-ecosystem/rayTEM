@@ -92,10 +92,11 @@ def build_objective_section(alpha: float = 30e-3, voltage: float = 200,
 	-----
 	The grid is sized by the **aberration**, not by the beam. A screen
 	``χ = -k C₃₀ r⁴/4f⁴`` has gradient ``k C₃₀ r³/f⁴``, so the samples needed
-	go as ``C₃₀ α⁴`` — and it is the grid **corner** that binds, at ``√2``
-	times the half-extent, i.e. 4× the requirement of the edge. That is also
-	why ``wave_oversample`` is tight: empty grid beyond the aperture costs
-	sampling rather than buying safety.
+	go as ``C₃₀ α⁴``. The guard judges the screen only where the wave has
+	amplitude (2026-10-22); before, the grid **corner** bound, at ``√2``
+	times the half-extent, and empty grid beyond the aperture cost sampling.
+	``wave_oversample`` stays tight: the margin the wave spreads into is
+	judged too.
 
 	256 is ample here because a thick lens now distributes its screen over
 	``elements.MEDIUM_SLICES`` slices, so each applies ``1/16`` of the phase.

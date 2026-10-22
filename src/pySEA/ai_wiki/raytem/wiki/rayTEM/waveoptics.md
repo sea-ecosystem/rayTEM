@@ -100,7 +100,11 @@ A complex screen is **not** renormalized; nothing enforces `|T| ≤ 1`. Note als
 that `elements._check_screen_sampling` **skips** complex screens: it compares
 `|diff(data)|` to π, which is a phase step only for real data, so on a complex
 transmission it can pass while the phase underneath is aliased. Supplied
-complex screens are the caller's responsibility.
+complex screens are the caller's responsibility. On real screens the scaled
+path passes the field the screen acts on, and only steps between samples
+carrying at least `SCREEN_SAMPLING_FLOOR` (1e-3) of its peak modulus count: a
+coefficient folded onto a lens winds fastest at the empty grid corner, which
+aliases nothing (2026-10-22).
 
 ### `quadratic_phase(shape, dx, dy, wavelength, power_x, power_y)`
 Phase-*returning* lens builder: χ = −k(P_x·x² + P_y·y²)/2. A quadrupole is the
