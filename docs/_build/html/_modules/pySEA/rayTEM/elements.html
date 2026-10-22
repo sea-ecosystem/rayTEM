@@ -462,7 +462,12 @@
 	<span class="k">return</span> <span class="n">make_screen_phase_signal</span><span class="p">(</span><span class="n">chi</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_check_screen_sampling</span><span class="p">(</span><span class="n">chi</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="p">):</span>
+<span class="c1">#: Where the guard looks: samples whose field modulus is at least this fraction</span>
+<span class="c1">#: of the peak. Below it a mis-sampled phase moves under 1e-6 of the power.</span>
+<span class="n">SCREEN_SAMPLING_FLOOR</span> <span class="o">=</span> <span class="mf">1e-3</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_check_screen_sampling</span><span class="p">(</span><span class="n">chi</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">	</span><span class="sd">"""Guard against an aliased phase screen applied to the scaled field U.</span>
 
 <span class="sd">	The scaled path applies non-absorbable element phases (quadrupole saddle,</span>
@@ -486,6 +491,14 @@
 <span class="sd">	caller's responsibility, and this says so rather than pretending to cover</span>
 <span class="sd">	it.</span>
 
+<span class="sd">	**Only where the wave is.** Given the field the screen acts on, a step</span>
+<span class="sd">	counts only between two samples that both carry at least</span>
+<span class="sd">	:data:`SCREEN_SAMPLING_FLOOR` of its peak modulus. A coefficient folded</span>
+<span class="sd">	onto a lens is evaluated out to the grid corner, far past the beam, where</span>
+<span class="sd">	a fifth-order term or a few µm of C30 winds hundreds of radians per pixel</span>
+<span class="sd">	over a field that is zero; judging the whole grid refused propagations</span>
+<span class="sd">	whose wave was well sampled. Inside the beam the guard is unchanged.</span>
+
 <span class="sd">	Parameters</span>
 <span class="sd">	----------</span>
 <span class="sd">	chi : xp.ndarray</span>
@@ -493,6 +506,9 @@
 <span class="sd">		is passed through unchecked), shape (ny, nx).</span>
 <span class="sd">	name : str</span>
 <span class="sd">		Element/screen name for the error message.</span>
+<span class="sd">	field : xp.ndarray or None, optional</span>
+<span class="sd">		The field the screen is applied to, shape (ny, nx). ``None`` judges</span>
+<span class="sd">		every sample, as before.</span>
 <span class="sd">	Returns</span>
 <span class="sd">	-------</span>
 <span class="sd">	None</span>
@@ -509,11 +525,20 @@
 <span class="sd">	"""</span>
 	<span class="k">if</span> <span class="n">xp</span><span class="o">.</span><span class="n">iscomplexobj</span><span class="p">(</span><span class="n">chi</span><span class="p">):</span>
 		<span class="k">return</span>
+	<span class="n">live</span> <span class="o">=</span> <span class="kc">None</span>
+	<span class="k">if</span> <span class="n">field</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">xp</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">field</span><span class="p">)</span> <span class="o">==</span> <span class="n">xp</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">chi</span><span class="p">):</span>
+		<span class="n">modulus</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+		<span class="n">live</span> <span class="o">=</span> <span class="n">modulus</span> <span class="o">&gt;=</span> <span class="n">SCREEN_SAMPLING_FLOOR</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">modulus</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
 	<span class="n">step</span> <span class="o">=</span> <span class="mf">0.0</span>
-	<span class="k">if</span> <span class="n">chi</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-		<span class="n">step</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">chi</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
-	<span class="k">if</span> <span class="n">chi</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-		<span class="n">step</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">chi</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
+	<span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+		<span class="k">if</span> <span class="n">chi</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+			<span class="k">continue</span>
+		<span class="n">steps</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">chi</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">))</span>
+		<span class="k">if</span> <span class="n">live</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">both</span> <span class="o">=</span> <span class="p">(</span><span class="n">live</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">&amp;</span> <span class="n">live</span><span class="p">[:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="k">if</span> <span class="n">axis</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="p">(</span><span class="n">live</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="p">:]</span> <span class="o">&amp;</span> <span class="n">live</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:])</span>
+			<span class="n">steps</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">both</span><span class="p">,</span> <span class="n">steps</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">steps</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+			<span class="n">step</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">steps</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
 	<span class="k">if</span> <span class="n">step</span> <span class="o">&gt;=</span> <span class="n">xp</span><span class="o">.</span><span class="n">pi</span><span class="p">:</span>
 		<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Phase screen </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> is under-sampled on the scaled grid "</span>
 						 <span class="sa">f</span><span class="s2">"(max per-pixel phase step </span><span class="si">{</span><span class="n">step</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> rad &gt;= pi): reduce the element "</span>
@@ -2829,7 +2854,7 @@
 												 <span class="n">supplied</span><span class="o">=</span><span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="n">n_sl</span> <span class="o">//</span> <span class="mi">2</span><span class="p">))</span>
 					<span class="k">if</span> <span class="n">screen</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 						<span class="n">_check_screen_sampling</span><span class="p">(</span><span class="n">screen</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
-											   <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+											   <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="n">U</span><span class="p">)</span>
 						<span class="n">U</span> <span class="o">=</span> <span class="n">apply_phase</span><span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="n">screen</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">phase_space_of</span><span class="p">(</span><span class="n">screen</span><span class="p">))</span>
 					<span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">deta</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">z_cross</span><span class="p">)</span> <span class="o">=</span> <span class="n">_step</span><span class="p">(</span>
 						<span class="n">U</span><span class="p">,</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">deta</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">z_cross</span><span class="p">)</span>
@@ -2861,7 +2886,7 @@
 		<span class="k">if</span> <span class="n">xp</span><span class="o">.</span><span class="n">ndim</span><span class="p">(</span><span class="n">power</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">power</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>		<span class="c1"># scalar or per-axis (quadrupole) power</span>
 			<span class="n">s</span><span class="p">,</span> <span class="n">R</span> <span class="o">=</span> <span class="n">apply_thin_lens_scaled</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">power</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">screen</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-			<span class="n">_check_screen_sampling</span><span class="p">(</span><span class="n">screen</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+			<span class="n">_check_screen_sampling</span><span class="p">(</span><span class="n">screen</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="n">U</span><span class="p">)</span>
 			<span class="n">U</span> <span class="o">=</span> <span class="n">apply_phase</span><span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="n">screen</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">phase_space_of</span><span class="p">(</span><span class="n">screen</span><span class="p">))</span>
 		<span class="n">U</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">z_cross</span> <span class="o">=</span> <span class="n">free</span><span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">z_cross</span><span class="p">,</span> <span class="n">L</span> <span class="o">/</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">L</span> <span class="o">!=</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span>
 		<span class="k">return</span> <span class="n">make_scaled_wavefield_signal</span><span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">deta</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span>
