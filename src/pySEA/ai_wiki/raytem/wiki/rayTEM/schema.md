@@ -67,13 +67,23 @@ it — `validate_microscope` reports it as `info` for exactly this reason.
 Parse an element name into its schema parts.
 
 Index and axis are both optional and independent: `PSa` has an axis but no
-index, `CL1` the reverse. The axis separator is optional too (`PD1_a` and
-`PSa` both parse), so the regex is built from `AXIS_SUFFIXES` rather than
-`\w+` — an open suffix would make `CLs` parse as a condenser lens.
+index, `CL1` the reverse, and `CD1a` is the winding `a` of the condenser's
+first dipole. The regex is built from `AXIS_SUFFIXES` rather than `\w+` — an
+open suffix would make `CLs` parse as a condenser lens. An older underscore
+(`PD1_a`) still parses.
 
-Case is what separates the two underscore forms: an attached multipole's type
-letter is upper-case (`CL1_D1a`) and a bare axis is lower-case (`PD1_a`), so
-the same separator can carry both without ambiguity.
+A multipole is named on its own in its section, never on the lens it sits by
+(Eric, 2026-10-21). The retired attached form (`CL1_D1a`) no longer parses;
+`validate_element_name` recognises it only to name what to write instead
+(`CD1a`). Numbers count each type within a section in column order: gaps
+are allowed (`GD1`, `GD2`, `GD3`, `GD10`), going backwards is an error, and
+they are the schema's own, not a controller's slot numbers.
+
+### `migrate_legacy_section(section)`
+The spectrometer was `S` until 2026-10-21 and is `E` now. A section named
+`S` is renamed `E` as it is read (`seashells.SEASerializable.from_hdf5_group`,
+which every read passes through, rayTEM's and sea-pearl's), and its elements
+named on the old code (`SP1`) follow (`EP1`). There is no `S` alias.
 
 ### `canonical_element_name(section, type, index, axis)` *(line 453)*
 Build a schema-conforming element name.

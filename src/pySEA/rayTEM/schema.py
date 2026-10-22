@@ -1,9 +1,8 @@
 """Column naming schema for rayTEM microscopes.
 
 Defines the controlled vocabulary for microscope section and element names --
-the ``<SECTION><TYPE><INDEX>[_<AXIS>]`` convention already used informally
-across the project (``CL1``, ``PL4``, ``PD1_a``, ``PSa``) -- together with a
-parser and a validator.
+the ``<SECTION><TYPE>[INDEX][AXIS]`` convention (``CL1``, ``PL4``, ``CD1a``,
+``PSa``) -- together with a parser and a validator.
 
 The schema is a *name-pattern* convention: the ``name`` string on a
 :class:`~pySEA.rayTEM.assemblies.MicroscopeSection` or
@@ -27,7 +26,7 @@ C    condenser        condenser lenses, apertures, stigmators
 A    probe corrector  corrector optics and its multipoles
 O    objective        objective lenses, sample, stage, coils
 P    projector        projector/intermediate lenses, volumes
-S    spectrometer     prism, spectrometer multipoles
+E    spectrometer     prism, spectrometer multipoles
 D    detector volume  drift volume to the detector, and its optics
 ==== ===============  =========================================
 
@@ -56,25 +55,23 @@ V    drift volume          Drift
 ``V`` is the one type that may be named but is never *required* to be -- see
 :data:`NAME_REQUIRED_CLASSES`.
 
-Attached multipoles
--------------------
-A deflector or stigmator is named relative to the element it sits on, after an
-underscore::
+Multipoles
+----------
+A deflector, quadrupole or stigmator is named on its own in its section, like
+any element, never relative to the lens it sits by (Eric, 2026-10-21):
+``CD1`` is the condenser's first dipole and ``CD1a``/``CD1b`` its two
+windings. ``CL1_D1a`` is refused, with ``CD1a`` named in the message.
 
-    <HOST>_<TYPE>[INDEX][AXIS]
+Numbers count each type within its section, in column order. They are the
+schema's, not a vendor's: they need not match any controller's slot numbers,
+and a number may be missing (``GD1``, ``GD2``, ``GD3``, ``GD10``), but they
+never run backwards.
 
-So ``CL1_D1a`` is dipole 1, axis ``a``, on condenser lens 1, and ``DV_D1a`` is
-dipole 1 on the detector drift volume. Because the host prefix carries the
-section, the letter after the underscore is unambiguous even where a section
-and a type share a letter.
+The axis suffix follows the index directly (``CD1a``) or, with no index,
+the type (``PSa``). An older underscore (``PD1_a``) still parses.
 
-**The multipole letter is what the element's class must match, not the host's.**
-``CL1_D1a`` is a ``Dipole``; the ``L`` only records where it sits.
-
-The host form alone (``CL1``, ``PV1``, ``SP1``) names the round element itself.
-The older bare-axis form (``PD1_a``, ``PSa``) still parses: an axis suffix is
-lower-case, an attached multipole's type letter is upper-case, so the two
-cannot be confused.
+The spectrometer was ``S`` until 2026-10-21; a file that still has a section
+named ``S`` is renamed to ``E`` as it is read (:func:`migrate_legacy_section`).
 
 Notes
 -----
@@ -100,10 +97,10 @@ Examples
 --------
 >>> parse_element_name("CL1")
 ElementName(section='C', type='L', index=1, axis=None)
->>> parse_element_name("PD1_a").axis
-'a'
->>> parse_element_name("CL1_D1a").attachment
-AttachedMultipole(type='D', index=1, axis='a')
+>>> parse_element_name("CD1a")
+ElementName(section='C', type='D', index=1, axis='a')
+>>> parse_element_name("CL1_D1a") is None
+True
 >>> canonical_element_name("C", "L", 2)
 'CL2'
 >>> section_code("condensers")
@@ -123,7 +120,6 @@ __all__ = [
 	"ELEMENT_TYPE_CLASSES",
 	"AXIS_SUFFIXES",
 	"NAME_REQUIRED_CLASSES",
-	"AttachedMultipole",
 	"ElementName",
 	"SchemaIssue",
 	"SchemaReport",
@@ -137,6 +133,7 @@ __all__ = [
 	"validate_section",
 	"validate_microscope",
 	"describe_schema",
+	"migrate_legacy_section",
 	"register_section",
 	"register_element_type",
 ]
@@ -149,7 +146,7 @@ SECTION_CODES: dict[str, str] = {
 	"A": "probe corrector",
 	"O": "objective",
 	"P": "projector",
-	"S": "spectrometer",
+	"E": "spectrometer",
 	"D": "detector volume",
 }
 """Single-letter section code mapped to its canonical section name."""
@@ -165,14 +162,14 @@ SECTION_ALIASES: dict[str, str] = {
 	"aberrations": "A",
 	"objective": "O",
 	"projector": "P",
-	"spectrometer": "S",
+	"spectrometer": "E",
 	"detector volume": "D",
 	"detector": "D",
 	# plurals and shorthands already in use across the project
 	"condensers": "C",
 	"objectives": "O",
 	"projectors": "P",
-	"spectrometers": "S",
+	"spectrometers": "E",
 	"detectors": "D",
 	"gls": "G",
 	"mls": "M",
@@ -180,8 +177,8 @@ SECTION_ALIASES: dict[str, str] = {
 	"ols": "O",
 	"pls": "P",
 	"source": "G",
-	"eels": "S",
-	"prism": "S",
+	"eels": "E",
+	"prism": "E",
 }
 """Lower-cased free-form section name mapped to a section code.
 
@@ -218,7 +215,7 @@ never name-checked.
 """
 
 AXIS_SUFFIXES: tuple[str, ...] = ("a", "b", "x", "y", "u", "v")
-"""Permitted axis/component suffixes, as in ``PD1_a`` or ``CL1_D1a``."""
+"""Permitted axis/component suffixes, as in ``CD1a`` or ``PSa``."""
 
 NAME_REQUIRED_CLASSES: set[str] = {"Lens", "Dipole", "Quadrapole", "Aperture", "Prism"}
 """Classes that must carry a schema name inside a managed section.
@@ -245,14 +242,10 @@ def _element_pattern() -> "re.Pattern[str]":
 	types = "".join(sorted(ELEMENT_TYPE_CODES))
 	axes = "|".join(sorted(AXIS_SUFFIXES))
 	return re.compile(
-		# host element: CL1, PL4, PV1, DV
+		# CL1, PL4, PV1, DV, and a winding: CD1a, PSa (PD1_a still parses)
 		rf"^(?P<section>[{sections}])"
 		rf"(?P<type>[{types}])"
 		r"(?P<index>\d+)?"
-		# multipole attached to it: _D1a, _S2b. Upper-case type letter, so the
-		# legacy bare-axis form (PD1_a) cannot be mistaken for an attachment.
-		rf"(?:_(?P<atype>[{types}])(?P<aindex>\d+)?(?P<aaxis>{axes})?)?"
-		# axis of the host itself: PSa, PD1_a
 		rf"(?:_?(?P<axis>{axes}))?$"
 	)
 
@@ -264,22 +257,8 @@ _ELEMENT_RE = _element_pattern()
 _TYPED_CLASSES: set[str] = set(NAME_REQUIRED_CLASSES)
 
 
-class AttachedMultipole(NamedTuple):
-	"""A multipole named relative to the host element it sits on.
-
-	Attributes
-	----------
-	type : str
-		Element type code, one of :data:`ELEMENT_TYPE_CODES`.
-	index : int or None
-		Ordinal among multipoles of that type on the same host.
-	axis : str or None
-		Axis/component suffix.
-	"""
-
-	type: str
-	index: int | None
-	axis: str | None
+#: The retired attached form (``CL1_D1a``): recognised only to say what to write.
+_ATTACHED_RE = re.compile(r"^[A-Z][A-Z]\d*_(?P<type>[A-Z])(?P<index>\d+)?(?P<axis>[a-z])?$")
 
 
 class ElementName(NamedTuple):
@@ -295,17 +274,13 @@ class ElementName(NamedTuple):
 		Ordinal within the section, or ``None`` when the name carries no index
 		(as in ``"PSa"``).
 	axis : str or None
-		Axis/component suffix of the host, or ``None``.
-	attachment : AttachedMultipole or None
-		The multipole named on this host (``CL1_D1a``), or ``None`` when the
-		name denotes the host element itself (``CL1``).
+		Axis/component suffix (the winding ``a`` of ``CD1a``), or ``None``.
 	"""
 
 	section: str
 	type: str
 	index: int | None
 	axis: str | None
-	attachment: "AttachedMultipole | None" = None
 
 
 class SchemaIssue(NamedTuple):
@@ -491,7 +466,7 @@ def parse_element_name(name: "str | None") -> "ElementName | None":
 	Parameters
 	----------
 	name : str or None
-		Element name such as ``"CL1"``, ``"PD1_a"`` or ``"PSa"``.
+		Element name such as ``"CL1"``, ``"CD1a"`` or ``"PSa"``.
 
 	Returns
 	-------
@@ -513,23 +488,11 @@ def parse_element_name(name: "str | None") -> "ElementName | None":
 	if match is None:
 		return None
 	index = match.group("index")
-	atype = match.group("atype")
-	aindex = match.group("aindex")
-	attachment = (
-		AttachedMultipole(
-			type=atype,
-			index=int(aindex) if aindex is not None else None,
-			axis=match.group("aaxis"),
-		)
-		if atype is not None
-		else None
-	)
 	return ElementName(
 		section=match.group("section"),
 		type=match.group("type"),
 		index=int(index) if index is not None else None,
 		axis=match.group("axis"),
-		attachment=attachment,
 	)
 
 
@@ -538,7 +501,6 @@ def canonical_element_name(
 	type: str,
 	index: "int | None" = None,
 	axis: "str | None" = None,
-	attachment: "AttachedMultipole | tuple | None" = None,
 ) -> str:
 	"""Build a schema-conforming element name.
 
@@ -551,15 +513,12 @@ def canonical_element_name(
 	index : int or None, optional
 		Ordinal within the section, by default None.
 	axis : str or None, optional
-		Axis suffix of the host, one of :data:`AXIS_SUFFIXES`, by default None.
-	attachment : AttachedMultipole or tuple or None, optional
-		``(type, index, axis)`` of a multipole attached to this host, by
-		default None.
+		Axis suffix (a winding), one of :data:`AXIS_SUFFIXES`, by default None.
 
 	Returns
 	-------
 	str
-		The assembled name, e.g. ``"CL1"``, ``"PD1_a"`` or ``"CL1_D1a"``.
+		The assembled name, e.g. ``"CL1"``, ``"CD1a"`` or ``"PSa"``.
 
 	Raises
 	------
@@ -570,10 +529,8 @@ def canonical_element_name(
 	--------
 	>>> canonical_element_name("condensers", "L", 3)
 	'CL3'
-	>>> canonical_element_name("P", "D", 1, "a")
-	'PD1_a'
-	>>> canonical_element_name("C", "L", 1, attachment=("D", 1, "a"))
-	'CL1_D1a'
+	>>> canonical_element_name("C", "D", 1, "a")
+	'CD1a'
 	"""
 
 	code = section_code(section)
@@ -589,31 +546,13 @@ def canonical_element_name(
 	name = f"{code}{letter}"
 	if index is not None:
 		name += str(int(index))
-	if attachment is not None:
-		a_type, a_index, a_axis = AttachedMultipole(*attachment)
-		a_letter = str(a_type).upper()
-		if a_letter not in ELEMENT_TYPE_CODES:
-			raise ValueError(
-				f"unknown element type {a_type!r}; expected one of {sorted(ELEMENT_TYPE_CODES)}"
-			)
-		name += f"_{a_letter}"
-		if a_index is not None:
-			name += str(int(a_index))
-		if a_axis is not None:
-			a_suffix = str(a_axis).lower()
-			if a_suffix not in AXIS_SUFFIXES:
-				raise ValueError(
-					f"unknown axis {a_axis!r}; expected one of {list(AXIS_SUFFIXES)}"
-				)
-			name += a_suffix
-		return name
 	if axis is not None:
 		suffix = str(axis).lower()
 		if suffix not in AXIS_SUFFIXES:
 			raise ValueError(
 				f"unknown axis {axis!r}; expected one of {list(AXIS_SUFFIXES)}"
 			)
-		name += f"_{suffix}" if index is not None else suffix
+		name += suffix
 	return name
 
 
@@ -651,8 +590,8 @@ def element_type_codes_for(element: object) -> tuple[str, ...]:
 
 	Examples
 	--------
-	>>> from pySEA.rayTEM.elements import Lens, Drift
-	>>> element_type_codes_for(Lens), element_type_codes_for(Drift)
+	>>> from pySEA.rayTEM.elements import Lens, Source
+	>>> element_type_codes_for(Lens), element_type_codes_for(Source)
 	(('L',), ())
 	"""
 
@@ -719,12 +658,24 @@ def validate_element_name(
 	where = path or (name or "<unnamed>")
 	parsed = parse_element_name(name)
 	if parsed is None:
+		attached = _ATTACHED_RE.match(str(name or "").strip())
+		code = section_code(section) if section is not None else None
+		if attached is not None and code is not None:
+			expected = f"{code}{attached['type']}{attached['index'] or ''}{attached['axis'] or ''}"
+			return [
+				SchemaIssue(
+					"error",
+					where,
+					f"name {name!r} names a multipole by the element it sits by; "
+					f"it is named on its own in its section, e.g. {expected!r}",
+				)
+			]
 		return [
 			SchemaIssue(
 				"error",
 				where,
-				f"name {name!r} does not match <SECTION><TYPE>[INDEX][_AXIS], "
-				f"e.g. 'CL1'",
+				f"name {name!r} does not match <SECTION><TYPE>[INDEX][AXIS], "
+				f"e.g. 'CL1' or 'CD1a'",
 			)
 		]
 
@@ -743,9 +694,7 @@ def validate_element_name(
 
 	if element is not None:
 		allowed = element_type_codes_for(element)
-		# ``CL1_D1a`` is the dipole, not the lens: the trailing multipole is what
-		# the object actually is, so it is the letter the class must match.
-		effective = parsed.attachment.type if parsed.attachment else parsed.type
+		effective = parsed.type
 		if allowed and effective not in allowed:
 			cls_name = _mro_names(element)[0]
 			issues.append(
@@ -902,6 +851,7 @@ def validate_section(
 		)
 		return _resolve(SchemaReport(issues), strict)
 
+	last_index: dict[str, tuple[int, str]] = {}
 	for element in elements:
 		element_name = getattr(element, "name", None)
 		required = is_schema_typed(element)
@@ -926,6 +876,21 @@ def validate_section(
 				path=f"{where}/{element_name}",
 			)
 		)
+		# Numbers run with the column: a gap is fine, going back is not.
+		parsed = parse_element_name(element_name)
+		if parsed is not None and parsed.index is not None:
+			before = last_index.get(parsed.type)
+			if before is not None and parsed.index < before[0]:
+				issues.append(
+					SchemaIssue(
+						"error",
+						f"{where}/{element_name}",
+						f"{element_name!r} comes after {before[1]!r} in the column; "
+						f"{ELEMENT_TYPE_CODES[parsed.type]} numbers run in column order",
+					)
+				)
+			else:
+				last_index[parsed.type] = (parsed.index, element_name)
 	return _resolve(SchemaReport(issues), strict)
 
 
@@ -972,6 +937,43 @@ def validate_microscope(scope: object, strict: "bool | str" = True) -> SchemaRep
 
 	issues.extend(_cross_section_duplicates(sections))
 	return _resolve(SchemaReport(issues), strict)
+
+
+def migrate_legacy_section(section: object) -> bool:
+	"""Rename a section saved under a retired code, as it is read.
+
+	The spectrometer was ``S`` until 2026-10-21 and is ``E`` now. A section
+	named ``S`` becomes ``E``, and its elements named on the old code
+	(``SP1``) follow (``EP1``). Nothing else is touched.
+
+	Parameters
+	----------
+	section : object
+		A :class:`~pySEA.rayTEM.assemblies.MicroscopeSection`, or anything
+		with ``name`` and ``elements``.
+
+	Returns
+	-------
+	bool
+		Whether anything was renamed.
+
+	Examples
+	--------
+	>>> class _Section:
+	...     name, elements = "S", []
+	>>> section = _Section()
+	>>> migrate_legacy_section(section), section.name
+	(True, 'E')
+	"""
+
+	if str(getattr(section, "name", "") or "").strip() != "S":
+		return False
+	section.name = "E"
+	for element in getattr(section, "elements", None) or []:
+		name = str(getattr(element, "name", "") or "")
+		if re.match(r"^S[A-Z]", name):
+			element.name = "E" + name[1:]
+	return True
 
 
 def register_section(
@@ -1078,15 +1080,13 @@ def describe_schema() -> str:
 		lines.append(f"  {code}  {desc:<20} {classes}")
 	lines += [
 		"",
-		"Host element:  <SECTION><TYPE>[INDEX]",
+		"Element:  <SECTION><TYPE>[INDEX][AXIS]",
 		"  e.g. CL1 (first condenser lens), PV1 (projector drift volume 1),",
-		"       CA1 (condenser aperture 1), SP1 (spectrometer prism)",
-		"",
-		"Attached multipole:  <HOST>_<TYPE>[INDEX][AXIS]",
+		"       CA1 (condenser aperture 1), EP1 (spectrometer prism),",
+		"       CD1a (winding a of the condenser's first dipole)",
 		f"  axes: {', '.join(AXIS_SUFFIXES)}",
-		"  e.g. CL1_D1a (dipole 1 on condenser lens 1, a axis),",
-		"       PV1_D1b, CL2_S1a (stigmator on condenser lens 2)",
-		"  The multipole letter is what the element class must match, not the host.",
+		"  Multipoles are named on their own in their section: CD1a, not CL1_D1a.",
+		"  Numbers run in column order within a section; gaps are allowed.",
 		"",
 		"Section name: a code letter, a canonical name, or a registered alias.",
 		"A section whose name resolves to no code is not schema-managed.",

@@ -2,6 +2,14 @@
 
 Newest entries at top.
 
+## 2026-10-21 — [Done] Schema: E for the spectrometer, multipoles named on their own
+**Goal:** the column naming schema Eric settled for the U200: `E` spectrometer, `CD1a` not `CL1_D1a`, numbers in column order.
+**Why:** the U200 build named its spectrometer `E` (unmanaged under the old `S`), and the attached form was never used outside the schema's own tests.
+TODO: [TODO_DONE_2026-10-21_schema-e-and-own-multipoles.md](TODO_DONE_2026-10-21_schema-e-and-own-multipoles.md)
+- [x] `E` section code; `S` sections renamed on read
+- [x] attached form refused with the name to write; numbers never run backwards
+**Outcome:** schema tests pass; every bundled scope and the U200 validate clean. Four `test_elements_sections_microscopes` failures are pre-existing (they fail on HEAD too), and `test_every_element` fails only against a stale saved-rays `.npy` from 2026-09-22 in the checkout.
+
 ## 2026-10-20 — [Done] Wave seed, crossover markers, focus on an exit face
 **Goal:** the scaled (hybrid) wave crosses a column whose probe focus sits exactly on a thick lens's exit face.
 **Why:** sea-pearl's emulator now uses a half-lens objective with the sample on OL1's exit face; the live "Scaled wavefield" hung there. Same method as before (quadratic-index segment, hybrid frame switch) -- no Collins/ABCD propagator.
