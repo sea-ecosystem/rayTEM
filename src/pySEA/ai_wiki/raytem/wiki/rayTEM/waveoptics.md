@@ -8,34 +8,34 @@
 |   `point_source(shape)` | 65 |
 |   `kernel_phase(shape, dx, dy, wavelength, dz, include_carrier=True)` | 70 |
 |   `apply_phase(field, phase, space='position')` | 75 |
-|   `quadratic_phase(shape, dx, dy, wavelength, power_x, power_y)` | 105 |
-|   `linear_phase(shape, dx, dy, wavelength, tilt_x, tilt_y)` | 109 |
-|   `angular_spectrum_propagate(field, dx, dy, wavelength, dz, include_carrier=True)` | 112 |
-|   `focal_phase(field, dx, dy, wavelength, power_x, power_y)` | 117 |
-|   `tilt_phase(field, dx, dy, wavelength, tilt_x, tilt_y)` | 121 |
-|   `aperture_mask(field, dx, dy, radius, antialias=True)` | 125 |
-|   `aperture_transmission(shape, dx, dy, radius, antialias=True)` | 140 |
-|   `resample_screen(data, dx_src, dy_src, shape, dx, dy)` | 145 |
-|   `bandlimited_disk(shape, dx, dy, radius)` | 155 |
-|   `boundary_window(shape, margin=0.1)` | 162 |
-| Scaled-Fresnel core (handoff Eqs 23–55) | 173 |
-|   `scaled_delta_tau(dz, s0, R0)` | 179 |
-|   `factor_wave(psi, dx, dy, wavelength, s, R)` | 184 |
-|   `fourier_resample(field, d_in, n_out, d_out)` | 188 |
-|   `reconstruct_physical_wave(U, dxi, deta, wavelength, s, R, target_dx=None, target_shape=None)` | 194 |
-|   `axis_components(value)` / `join_axes(vx, vy)` | 199 |
-|   `rotate_field(U, angle)` | 207 |
-|   `segment_block(dz, kappa)` / `_segment_slope(...)` / `segment_zero(...)` | 218 |
-|   `scaled_delta_tau_quadratic(dz, s0, R0, kappa)` | 235 |
-|   `propagate_quadratic_segment_scaled(U, dxi, deta, wavelength, dz, s, R, kappa, s_min=1e-3, absorb=0.0, rotate=0.0)` | 259 |
-|   `apply_thin_lens_scaled(s, R, power)` | 288 |
-|   `beam_support_radius(U, dxi, deta, threshold=1e-6)` / `beam_support_extents(...)` | 294 |
-|   `propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min=1e-3, absorb=0.0)` | 302 |
-| Frame switching (crossover traversal) | 311 |
-|   `min_representable_curvature(n, dxi, wavelength, s, safety=0.5, x_max=None)` | 316 |
-|   `change_scaled_frame(U, dxi, deta, wavelength, s_old, R_old, R_new, s_new=None, safety=0.5)` | 323 |
-|   `propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross=None, safety=0.5, s_min=1e-3, absorb=0.0, crossover='flat')` | 334 |
-|   `propagate_quadratic_segment_hybrid(U, dxi, deta, wavelength, dz, s, R, kappa, ...)` | 368 |
+|   `quadratic_phase(shape, dx, dy, wavelength, power_x, power_y)` | 109 |
+|   `linear_phase(shape, dx, dy, wavelength, tilt_x, tilt_y)` | 113 |
+|   `angular_spectrum_propagate(field, dx, dy, wavelength, dz, include_carrier=True)` | 116 |
+|   `focal_phase(field, dx, dy, wavelength, power_x, power_y)` | 121 |
+|   `tilt_phase(field, dx, dy, wavelength, tilt_x, tilt_y)` | 125 |
+|   `aperture_mask(field, dx, dy, radius, antialias=True)` | 129 |
+|   `aperture_transmission(shape, dx, dy, radius, antialias=True)` | 144 |
+|   `resample_screen(data, dx_src, dy_src, shape, dx, dy)` | 149 |
+|   `bandlimited_disk(shape, dx, dy, radius)` | 159 |
+|   `boundary_window(shape, margin=0.1)` | 166 |
+| Scaled-Fresnel core (handoff Eqs 23–55) | 177 |
+|   `scaled_delta_tau(dz, s0, R0)` | 183 |
+|   `factor_wave(psi, dx, dy, wavelength, s, R)` | 188 |
+|   `fourier_resample(field, d_in, n_out, d_out)` | 192 |
+|   `reconstruct_physical_wave(U, dxi, deta, wavelength, s, R, target_dx=None, target_shape=None)` | 198 |
+|   `axis_components(value)` / `join_axes(vx, vy)` | 203 |
+|   `rotate_field(U, angle)` | 211 |
+|   `segment_block(dz, kappa)` / `_segment_slope(...)` / `segment_zero(...)` | 222 |
+|   `scaled_delta_tau_quadratic(dz, s0, R0, kappa)` | 243 |
+|   `propagate_quadratic_segment_scaled(U, dxi, deta, wavelength, dz, s, R, kappa, s_min=1e-3, absorb=0.0, rotate=0.0)` | 267 |
+|   `apply_thin_lens_scaled(s, R, power)` | 296 |
+|   `beam_support_radius(U, dxi, deta, threshold=1e-6)` / `beam_support_extents(...)` | 302 |
+|   `propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min=1e-3, absorb=0.0)` | 310 |
+| Frame switching (crossover traversal) | 319 |
+|   `min_representable_curvature(n, dxi, wavelength, s, safety=0.5, x_max=None)` | 324 |
+|   `change_scaled_frame(U, dxi, deta, wavelength, s_old, R_old, R_new, s_new=None, safety=0.5)` | 331 |
+|   `propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross=None, safety=0.5, s_min=1e-3, absorb=0.0, crossover='flat')` | 342 |
+|   `propagate_quadratic_segment_hybrid(U, dxi, deta, wavelength, dz, s, R, kappa, ...)` | 376 |
 <!-- END AUTO-GENERATED TOC -->
 
 # waveoptics.py
@@ -100,7 +100,11 @@ A complex screen is **not** renormalized; nothing enforces `|T| ≤ 1`. Note als
 that `elements._check_screen_sampling` **skips** complex screens: it compares
 `|diff(data)|` to π, which is a phase step only for real data, so on a complex
 transmission it can pass while the phase underneath is aliased. Supplied
-complex screens are the caller's responsibility.
+complex screens are the caller's responsibility. On real screens the scaled
+path passes the field the screen acts on, and only steps between samples
+carrying at least `SCREEN_SAMPLING_FLOOR` (1e-3) of its peak modulus count: a
+coefficient folded onto a lens winds fastest at the empty grid corner, which
+aliases nothing (2026-10-22).
 
 ### `quadratic_phase(shape, dx, dy, wavelength, power_x, power_y)`
 Phase-*returning* lens builder: χ = −k(P_x·x² + P_y·y²)/2. A quadrupole is the
@@ -231,6 +235,10 @@ interior crossover under the same law — a focusing segment can cross
 repeatedly, a **defocusing one at most once** and only when entered converging
 hard enough to reach the axis before the defocusing takes over, free space at
 most once.
+Its tolerance is **relative** (`1e-12·|dz|`), never floored: callers find a
+zero *on* the exit face by asking about `dz·(1 + 1e-6)`, and the old 1 pm
+floor hid that zero once less than 1 µm of body remained (a half lens
+focusing onto its own face then stepped onto the singularity and hung).
 
 ### `scaled_delta_tau_quadratic(dz, s0, R0, kappa)`
 Δτ across a constant-curvature segment — a thick round lens (focusing on both
@@ -376,6 +384,14 @@ engine as the pending marker: `z_cross = z_end − B(d)/D(d)` from the
 remaining block entries (without the projection the marker carried the
 in-body coordinate and the downstream focal plane was off by the
 restoration distance).
+
+A zero **on the exit face** counts as interior (the look-ahead margin above),
+so an immersion objective's half lens — sample on its face — is approached by
+halving steps, flattened, and logs its crossover on the face. This walker is
+the only thick-body wave path; a one-step Collins/ABCD transform was
+rejected (`notes/eric/PLAN_2026-08-19_scaled-fresnel-wave.md`). Pinned by
+`test_half_lens_focuses_onto_its_exit_face`; rationale in
+`docs/wave-optics-sampling.md` ("A focus on a body's exit face").
 
 ---
 *AI maintenance: read this file before editing the source. Update it after.*

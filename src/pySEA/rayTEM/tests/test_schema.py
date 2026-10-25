@@ -1,5 +1,8 @@
 # TESTS BELOW INCLUDE: (please run: "pytest test_schema.py")
-# parsing and building of schema-conforming element names (CL1, PD1_a, PSa, ...)
+# parsing and building of schema-conforming element names (CL1, CD1a, PSa, ...)
+# multipoles named on their own (CD1a), never on a host (CL1_D1a is refused)
+# numbers in column order within a section, gaps allowed
+# the spectrometer's retired code S renamed to E as a file is read
 # resolution of section names and aliases to section codes (condensers -> C)
 # validation of sections and whole microscopes, including the three strict modes
 # the exemptions that keep existing scopes valid: unmanaged sections, Drift/Source
@@ -103,7 +106,8 @@ def condenser_section():
 		("OL2", ("O", "L", 2, None)),
 		("PL4", ("P", "L", 4, None)),
 		("CA1", ("C", "A", 1, None)),
-		("SP1", ("S", "P", 1, None)),
+		("EP1", ("E", "P", 1, None)),
+		("CD1a", ("C", "D", 1, "a")),
 		("PD1_a", ("P", "D", 1, "a")),
 		("PSa", ("P", "S", None, "a")),
 		("PSb", ("P", "S", None, "b")),
@@ -118,13 +122,12 @@ def condenser_section():
 def test_parse_element_name_accepts_project_names(name, expected):
 	parsed = parse_element_name(name)
 	assert (parsed.section, parsed.type, parsed.index, parsed.axis) == expected
-	assert parsed.attachment is None
 
 
 # names that predate the schema, or are named planes, must parse to None rather
 # than to something plausible-but-wrong
 @pytest.mark.parametrize(
-	"name", ["C1", "MC", "Diff", "IM", "sample", "VOA", "CCD", "CLs", "condenser_aperture", "", None]
+	"name", ["C1", "MC", "Diff", "IM", "sample", "VOA", "CCD", "CLs", "condenser_aperture", "SP1", "CL1_D1a", "", None]
 )
 def test_parse_element_name_rejects_non_conforming(name):
 	assert parse_element_name(name) is None
@@ -137,54 +140,75 @@ def test_canonical_element_name_round_trips():
 		assert (parsed.section, parsed.type, parsed.index, parsed.axis) == (section, type_, index, axis)
 
 
-# a deflector is named for the element it sits on: CL1_D1a is dipole 1, axis a,
-# on condenser lens 1 -- mirroring the AS2 client names (CL1_1Da)
+# a multipole is named on its own in its section (Eric, 2026-10-21): the
+# winding a of the condenser's first dipole is CD1a, never CL1_D1a
 @pytest.mark.parametrize(
-	"name,host,attached",
-	[
-		("CL1_D1a", ("C", "L", 1), ("D", 1, "a")),
-		("CL3_D2b", ("C", "L", 3), ("D", 2, "b")),
-		("PL4_D1a", ("P", "L", 4), ("D", 1, "a")),
-		("PV1_D1b", ("P", "V", 1), ("D", 1, "b")),
-		("DV_D1a", ("D", "V", None), ("D", 1, "a")),
-		("CL2_S1a", ("C", "L", 2), ("S", 1, "a")),
-		("AL1_D1a", ("A", "L", 1), ("D", 1, "a")),
-		("CL1_Q1", ("C", "L", 1), ("Q", 1, None)),
-	],
+	"name,expected",
+	[("CL1_D1a", "CD1a"), ("CL3_D2b", "CD2b"), ("CL2_S1a", "CS1a"), ("CL1_Q1", "CQ1")],
 )
-def test_attached_multipole_names(name, host, attached):
-	parsed = parse_element_name(name)
-	assert (parsed.section, parsed.type, parsed.index) == host
-	assert tuple(parsed.attachment) == attached
-	assert canonical_element_name(*host, attachment=attached) == name
-
-
-# the lower-case axis form must not be mistaken for an attached multipole
-def test_bare_axis_is_not_an_attachment():
-	assert parse_element_name("PD1_a").attachment is None
-	assert parse_element_name("PSa").attachment is None
-
-
-# CL1_D1a IS the dipole; the host letter only records where it sits
-def test_attached_multipole_class_matches_the_multipole_not_the_host():
-	dipole = Dipole(name="CL1_D1a", strength=0.1, length=0)
-	assert validate_element_name("CL1_D1a", section="C", element=dipole) == []
-	lens = Lens(name="CL1_D1a", strength=3, length=0.1)
-	issues = validate_element_name("CL1_D1a", section="C", element=lens)
+def test_a_multipole_named_on_its_host_is_refused_with_its_own_name(name, expected):
+	issues = validate_element_name(name, section="C", element=Dipole(name=name, strength=0.1, length=0))
 	assert [i.severity for i in issues] == ["error"]
-	assert "Lens" in issues[0].message
+	assert repr(expected) in issues[0].message
+
+
+def test_a_winding_is_named_after_its_multipole():
+	assert canonical_element_name("C", "D", 1, "a") == "CD1a"
+	assert canonical_element_name("P", "S", None, "b") == "PSb"
+	dipole = Dipole(name="CD1a", strength=0.1, length=0)
+	assert validate_element_name("CD1a", section="C", element=dipole) == []
+	issues = validate_element_name("CD1a", section="C", element=Lens(name="CD1a", strength=3, length=0.1))
+	assert [i.severity for i in issues] == ["error"] and "Lens" in issues[0].message
 
 
 def test_deflectors_validate_inside_a_condenser_section():
 	section = MicroscopeSection(
 		name="condensers",
 		elements=[
-			Dipole(name="CL1_D1a", strength=0.1, length=0),
+			Dipole(name="CD1a", strength=0.1, length=0),
+			Dipole(name="CD1b", strength=0.1, length=0),
 			Lens(name="CL1", strength=3, length=0.1),
-			Dipole(name="CL1_D2a", strength=0.1, length=0),
+			# a number may be missing: CD3 follows CD1
+			Dipole(name="CD3a", strength=0.1, length=0),
 		],
 	)
 	assert section.validate_schema(strict=True).ok
+
+
+def test_numbers_never_run_backwards_in_the_column():
+	section = MicroscopeSection(
+		name="C",
+		elements=[
+			Dipole(name="CD2a", strength=0.1, length=0),
+			Lens(name="CL1", strength=3, length=0.1),
+			Dipole(name="CD1a", strength=0.1, length=0),
+		],
+	)
+	report = validate_section(section, strict=False)
+	assert [issue.path for issue in report.errors] == ["C/CD1a"]
+	assert "column order" in report.errors[0].message
+
+
+def test_a_spectrometer_saved_as_S_is_read_as_E():
+	from pySEA.rayTEM.schema import migrate_legacy_section
+
+	section = MicroscopeSection(name="S", elements=[Drift(name="SV1", length=0.5), Drift(name="slit", length=0.1)])
+	assert migrate_legacy_section(section) is True
+	assert section.name == "E" and [e.name for e in section.elements] == ["EV1", "slit"]
+	assert migrate_legacy_section(section) is False
+
+
+def test_a_saved_S_section_comes_back_as_E(tmp_path):
+	pytest.importorskip("pySEA.sea_eco", reason="a .sea round trip needs sea_eco")
+	scope = Microscope(name="old", sections=[
+		MicroscopeSection(name="S", elements=[Drift(name="SV1", length=0.5)]),
+	])
+	target = str(tmp_path / "old.sea")
+	scope.to_sea(target)
+	loaded = Microscope()
+	loaded.from_sea(target)
+	assert [s.name for s in loaded.sections] == ["E"]
+	assert [e.name for e in loaded.sections[0].elements if e.name] == ["EV1"]
 
 
 def test_canonical_element_name_accepts_alias_and_rejects_junk():
@@ -201,7 +225,8 @@ def test_canonical_element_name_accepts_alias_and_rejects_junk():
 	"name,code",
 	[
 		("C", "C"), ("c", "C"), ("condenser", "C"), ("condensers", "C"), ("CLs", "C"),
-		("gun", "G"), ("projectors", "P"), ("detectors", "D"), ("EELS", "S"),
+		("gun", "G"), ("projectors", "P"), ("detectors", "D"), ("EELS", "E"),
+		("spectrometer", "E"), ("E", "E"), ("S", None),
 		("corrector", "A"), ("aberrations", "A"), ("probe corrector", "A"),
 		("sec1", None), ("wien filter", None), ("", None), (None, None),
 	],
@@ -289,8 +314,8 @@ def test_detector_volume_section():
 		name="detector volume",
 		elements=[
 			Drift(name="DV", length=0.5),
-			Dipole(name="DV_D1a", strength=0.1, length=0),
-			Dipole(name="DV_D1b", strength=0.1, length=0),
+			Dipole(name="DD1a", strength=0.1, length=0),
+			Dipole(name="DD1b", strength=0.1, length=0),
 		],
 	)
 	assert section.validate_schema(strict=True).ok
@@ -420,7 +445,7 @@ def test_register_rejects_collisions(vocabulary):
 def test_describe_schema_lists_the_live_vocabulary():
 	text = describe_schema()
 	for token in ["condenser", "probe corrector", "spectrometer", "stigmator",
-	              "drift volume", "CL1", "CL1_D1a", "Attached multipole"]:
+	              "drift volume", "CL1", "CD1a", "not CL1_D1a", "column order"]:
 		assert token in text
 
 
@@ -430,7 +455,7 @@ def test_get_schema_vocabulary_is_plain_json():
 	vocabulary = get_schema_vocabulary()
 	assert json.loads(json.dumps(vocabulary)) == vocabulary
 	assert set(vocabulary) == {
-		"sections", "element_types", "axis_suffixes", "patterns", "name_regex",
+		"sections", "element_types", "axis_suffixes", "patterns", "retired", "name_regex",
 		"name_required_classes", "exempt_classes", "rules",
 	}
 
@@ -443,6 +468,9 @@ def test_get_schema_vocabulary_lists_sections_with_aliases():
 	# the canonical name is the name, not repeated as an alias
 	assert "condenser" not in sections["C"]["aliases"]
 	assert {"corrector", "aberrations"} <= set(sections["A"]["aliases"])
+	# the spectrometer is E; S is retired, not an alias
+	assert sections["E"]["name"] == "spectrometer" and {"eels", "prism"} <= set(sections["E"]["aliases"])
+	assert "S" not in sections
 
 
 def test_get_schema_vocabulary_lists_element_types():
@@ -457,15 +485,27 @@ def test_get_schema_vocabulary_lists_element_types():
 def test_get_schema_vocabulary_patterns_and_exemptions():
 	vocabulary = get_schema_vocabulary()
 	assert vocabulary["axis_suffixes"] == list(schema.AXIS_SUFFIXES)
-	assert vocabulary["patterns"]["host"]["form"] == "<SECTION><TYPE>[INDEX]"
-	assert vocabulary["patterns"]["attached_multipole"]["form"] == "<HOST>_<TYPE>[INDEX][AXIS]"
+	assert list(vocabulary["patterns"]) == ["element"]
+	assert vocabulary["patterns"]["element"]["form"] == "<SECTION><TYPE>[INDEX][AXIS]"
 	for pattern in vocabulary["patterns"].values():
 		for example in pattern["examples"]:
 			assert parse_element_name(example) is not None
-	assert re.match(vocabulary["name_regex"], "CL1_D1a")
+	assert re.match(vocabulary["name_regex"], "CD1a")
+	assert not re.match(vocabulary["name_regex"], "CL1_D1a")
 	assert not re.match(vocabulary["name_regex"], "sample")
 	assert vocabulary["name_required_classes"] == sorted(schema.NAME_REQUIRED_CLASSES)
 	assert vocabulary["exempt_classes"] == ["Drift", "Element", "Source"]
+
+
+# the retired forms say what to write, and the validator agrees
+def test_get_schema_vocabulary_retired_forms_name_what_to_write():
+	retired = get_schema_vocabulary()["retired"]
+	assert [(r["example"], r["write_instead"]) for r in retired] == [("CL1_D1a", "CD1a"), ("SP1", "EP1")]
+	for entry in retired:
+		assert parse_element_name(entry["example"]) is None
+		assert parse_element_name(entry["write_instead"]) is not None
+	issues = validate_element_name("CL1_D1a", section="C", element=Dipole(name="CL1_D1a", strength=0.1, length=0))
+	assert repr(retired[0]["write_instead"]) in issues[0].message
 
 
 def test_get_schema_vocabulary_shows_registered_additions(vocabulary):

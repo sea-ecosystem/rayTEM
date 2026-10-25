@@ -144,6 +144,13 @@ On reload, <code class="docutils literal notranslate"><span class="pre">safeRein
 the constructor only supplies the class.</p></li>
 <li><p><strong>Wavelength</strong>: <code class="docutils literal notranslate"><span class="pre">Source(voltage=&lt;kV&gt;)</span></code> sets it; <code class="docutils literal notranslate"><span class="pre">voltage=None</span></code> keeps
 ray-only behavior bit-for-bit.</p></li>
+<li><p><strong>The scaled wave is one method</strong>: thick bodies are quadratic-index segments
+crossed with the hybrid flatten → cross → rediverge policy. A failure at a
+crossover is fixed in that machinery, not by a one-step Collins/ABCD
+transform (a recorded decision; see <a class="reference internal" href="wave-optics-sampling.html#wave-thick-lens-decision"><span class="std std-ref">the sampling page</span></a>).</p></li>
+<li><p><strong>Stepping tolerances are relative</strong>: every comparison in the frame-switching
+loops scales with the lengths it compares. An absolute floor (1 pm once) hides
+a focus on a body’s exit face as the steps shrink towards it.</p></li>
 </ul>
 </section>
 <section id="the-scaled-wave-engine">
@@ -151,8 +158,10 @@ ray-only behavior bit-for-bit.</p></li>
 <p>The full-column wave mode factorizes the field against a geometric reference
 frame and switches frames analytically at crossovers. The subtle parts —
 where the frame may flatten, how a crossing inside a lens body is recorded,
-and how a body that ends mid-restoration hands its marker to the free-space
-engine — are documented at the code (<code class="docutils literal notranslate"><span class="pre">waveoptics.py</span></code>) and pinned by tests;
+how a focus exactly on a body’s exit face (an immersion objective’s sample
+plane) is approached, and how a body that ends mid-restoration hands its
+marker to the free-space engine — are documented at the code
+(<code class="docutils literal notranslate"><span class="pre">waveoptics.py</span></code>) and pinned by tests;
 the companion page <a class="reference internal" href="wave-optics-sampling.html"><span class="std std-doc">Why full-column electron wave propagation breaks
 fixed-grid sampling</span></a> derives why the fixed-grid mode
 cannot do this job and what the scaled factorization buys.</p>

@@ -1795,6 +1795,35 @@ def test_mid_element_frame_switch_crosses_inside_a_body():
 	assert np.isclose((np.abs(U)**2).sum(), (np.abs(U0)**2).sum(), rtol=1e-9)
 
 
+def test_half_lens_focuses_onto_its_exit_face():
+	# a quarter-period body (K L = pi/2) brings a flat-framed pupil to a focus
+	# exactly ON its exit face -- an immersion objective with the sample at the
+	# face. The zero tolerance used to be floored at 1 pm, so once less than a
+	# micron of body remained the face zero went unseen and the last step landed
+	# on the singularity (dtau ~ 1e13; with the absorber, ~1e12 sub-steps).
+	lam, L, n, a = 4.87e-12, 2e-3, 256, 38e-6
+	K = np.pi / (2 * L)
+	dxi = 4 * a / n
+	xi = (np.arange(n) - n / 2) * dxi
+	X, Y = np.meshgrid(xi, xi)
+	U0 = (np.hypot(X, Y) < a).astype(complex)
+	for absorb in (0.0, 0.1):
+		U, s, R, dtau, z, zc, logged = wo.propagate_quadratic_segment_hybrid(
+			U0, dxi, dxi, lam, L, 1.0, np.inf, K**2, z=0.0, absorb=absorb)
+		assert np.isclose(z, L)
+		tags = [t for t, *_ in logged]
+		assert "flatten-x" in tags and "crossover-x" in tags
+		assert np.all(np.abs(wo.axis_components(dtau)) < 1e3)	# no singular step
+		# the field on the face is the diffraction-limited probe: Airy zero at
+		# 0.61 lam / alpha with alpha = a / f, f = 1/K
+		row = np.abs(U[n // 2, n // 2:])**2
+		i = next(j for j in range(1, n // 2 - 1) if row[j] < row[j - 1] and row[j] <= row[j + 1])
+		r_zero = abs(wo.axis_components(s)[0]) * i * dxi
+		assert abs(r_zero - 0.61 * lam / (a * K)) < 2 * abs(wo.axis_components(s)[0]) * dxi
+		if absorb == 0.0:
+			assert np.isclose((np.abs(U)**2).sum(), (np.abs(U0)**2).sum(), rtol=1e-9)
+
+
 def test_mid_element_hybrid_leaves_the_common_case_alone():
 	# no interior crossing and no pending marker -> a single exact call, so
 	# ordinary thick lenses keep their previous output exactly
@@ -2145,10 +2174,12 @@ def test_undersampled_aberration_screen_is_refused():
 	# the quartic grows as r^4, so it out-runs the grid faster than anything
 	# else in the column. The guard must catch that rather than alias it into
 	# a plausible-looking focus: this is the SAME setup as the test above at
-	# half the sampling.
+	# a quarter of the sampling. (At half, 128 px, the beam's own steps are
+	# 2.4 rad and its focus matches 256 px to 0.3%: only the empty grid corner
+	# was steep, which the guard no longer judges -- 2026-10-22.)
 	f, a = 0.045, 3e-4
 	mic = Microscope(sections=[MicroscopeSection(elements=[
-		Source(voltage=200, wave_shape=(128, 128), wave_extent=1.4e-3,
+		Source(voltage=200, wave_shape=(64, 64), wave_extent=1.4e-3,
 			   wave_kind="aperture", aperture_radius=a),
 		Drift(length=0.001), Lens(strength=np.sqrt(1 / f), aberrations={'C30': 1e-3}),
 		Drift(length=0.05)])])
@@ -3180,3 +3211,21 @@ def test_beam_current_survives_a_sea_round_trip(tmp_path):
 	after = [e.beam_current for e in reloaded.sections[0].elements]
 	assert after == before
 	assert reloaded.beam_current == mic.beam_current
+
+
+def test_screen_sampling_is_judged_where_the_wave_is():
+	# A coefficient folded onto a lens winds fastest at the grid corner, far
+	# past the beam: steep there, over a field that is zero, it aliases
+	# nothing, and the guard must not refuse it. Inside the beam it still does.
+	from pySEA.rayTEM.elements import _check_screen_sampling
+	n = 64
+	y, x = np.mgrid[:n, :n] - n / 2
+	r = np.hypot(x, y)
+	chi = 0.02 * r**3										# ~0.5 rad/px at r=3, >pi past r~7
+	beam = np.exp(-(r / 2.0) ** 2).astype(complex)			# ~0 beyond r~6
+	with pytest.raises(ValueError, match="under-sampled"):
+		_check_screen_sampling(chi, "corner")				# the whole grid: refused
+	_check_screen_sampling(chi, "corner", field=beam)		# where the wave is: fine
+	wide = np.exp(-(r / 12.0) ** 2).astype(complex)
+	with pytest.raises(ValueError, match="under-sampled"):
+		_check_screen_sampling(chi, "inside", field=wide)	# the beam reaches the steep part

@@ -37,14 +37,24 @@ list for agents):
   the constructor only supplies the class.
 - **Wavelength**: `Source(voltage=<kV>)` sets it; `voltage=None` keeps
   ray-only behavior bit-for-bit.
+- **The scaled wave is one method**: thick bodies are quadratic-index segments
+  crossed with the hybrid flatten → cross → rediverge policy. A failure at a
+  crossover is fixed in that machinery, not by a one-step Collins/ABCD
+  transform (a recorded decision; see {ref}`the sampling
+  page <wave-thick-lens-decision>`).
+- **Stepping tolerances are relative**: every comparison in the frame-switching
+  loops scales with the lengths it compares. An absolute floor (1 pm once) hides
+  a focus on a body's exit face as the steps shrink towards it.
 
 ## The scaled-wave engine
 
 The full-column wave mode factorizes the field against a geometric reference
 frame and switches frames analytically at crossovers. The subtle parts —
 where the frame may flatten, how a crossing inside a lens body is recorded,
-and how a body that ends mid-restoration hands its marker to the free-space
-engine — are documented at the code (`waveoptics.py`) and pinned by tests;
+how a focus exactly on a body's exit face (an immersion objective's sample
+plane) is approached, and how a body that ends mid-restoration hands its
+marker to the free-space engine — are documented at the code
+(`waveoptics.py`) and pinned by tests;
 the companion page [Why full-column electron wave propagation breaks
 fixed-grid sampling](wave-optics-sampling.md) derives why the fixed-grid mode
 cannot do this job and what the scaled factorization buys.

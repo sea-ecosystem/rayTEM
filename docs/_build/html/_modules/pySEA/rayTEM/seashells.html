@@ -156,6 +156,11 @@
 <span class="sd">			"""</span>
 			<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">from_hdf5_group</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
 			<span class="n">_reshape_legacy_identity</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+			<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"elements"</span><span class="p">):</span>
+				<span class="c1"># A section saved under a retired code (the spectrometer's S) is</span>
+				<span class="c1"># renamed here, so every read -- rayTEM's or sea-pearl's -- gets it.</span>
+				<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.rayTEM.schema</span><span class="w"> </span><span class="kn">import</span> <span class="n">migrate_legacy_section</span>
+				<span class="n">migrate_legacy_section</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 		<span class="k">def</span><span class="w"> </span><span class="nf">from_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">):</span>											<span class="c1"># sea_eco will reaload purely-SEASerializable objects, so reinitalize as our shared-inheritance object</span>
 			<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">from_sea</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
 			<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">"sections"</span><span class="p">):</span>

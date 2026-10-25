@@ -65,6 +65,11 @@ if sea_available:
 			"""
 			super().from_hdf5_group(group)
 			_reshape_legacy_identity(self)
+			if hasattr(self, "elements"):
+				# A section saved under a retired code (the spectrometer's S) is
+				# renamed here, so every read -- rayTEM's or sea-pearl's -- gets it.
+				from pySEA.rayTEM.schema import migrate_legacy_section
+				migrate_legacy_section(self)
 		def from_sea(self,filename):											# sea_eco will reaload purely-SEASerializable objects, so reinitalize as our shared-inheritance object
 			super().from_sea(filename)
 			if hasattr(self,"sections"):

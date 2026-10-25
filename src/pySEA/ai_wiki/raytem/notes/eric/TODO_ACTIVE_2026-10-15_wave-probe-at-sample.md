@@ -70,6 +70,22 @@ column's pupil at the objective's exit instead and forms the probe itself.
    emulator removes it (`_remove_frame_quadratic`) and reports it as
    `TracedPupil.frame_defocus_m`.
 
+8. **The pupil reaches the objective on a fifth of the grid (2026-10-20).** On the
+   re-laid-out emulator (half-lens objective, 80 um CA, 1.6 nm coherent seed) the
+   live scaled wave now crosses the focus on OL1's exit face, and at focus gives the
+   Airy probe (44.5 pm vs 42.6 pm). Detuned (OL1 +0.05 %, C10 -1.0 um) its disc at
+   the sample is ~8 % narrow: rms 19.6 nm vs the geometric 21.2 nm (2 um: 39.1 vs
+   42.4). The cause is upstream of OL1: at its entrance the CA image fills only the
+   inner ~0.2 of the grid radius (~20 px), because the frame still follows the wide
+   source seed after the aperture clipped it; the coarse hard edge's high angles
+   become a halo the absorber removes (and dims the edge). A bare half lens
+   reproduces it: a 128 px pupil matches geometry to 1 % (absorber on or off); a
+   20 px pupil gives 0.974 with the absorber and 3.4x without (halo wraps). The
+   fix is the first step below -- re-frame after an `Aperture` so the clipped
+   beam fills the grid. Separately, `subdivided()` on sea-pearl's
+   `MicroscopeModel` does not cut its `LensModel` OL1 body, and returns a copy
+   without the scope's metadata (`wave_aberrations_onto`).
+
 ## Reproduction (sea-pearl + rayTEM in one environment)
 
 ```python

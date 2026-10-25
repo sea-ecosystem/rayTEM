@@ -237,6 +237,18 @@ Both stacks, <code class="docutils literal notranslate"><span class="pre">scope.
 overlay marks on their plane axis. The scaled stack also carries the
 crossovers and image planes of a hybrid run, so a view through z shows them
 and an image of one plane does not.</p>
+<p><strong>Immersion objectives: a probe on a lens face.</strong> A probe-forming objective
+can be modelled the way the sample sits in a real one, inside the field. The
+pre-field is a half lens (a thick <code class="docutils literal notranslate"><span class="pre">Lens</span></code> with <code class="docutils literal notranslate"><span class="pre">K·L</span> <span class="pre">=</span> <span class="pre">π/2</span></code>, so its focal length
+is <code class="docutils literal notranslate"><span class="pre">2L/π</span></code>), with the sample on its exit face and a second half lens behind it.
+Put the condenser aperture’s image (the angle crossover) on the first lens’s
+entrance. The hybrid run then focuses onto the face, logs <code class="docutils literal notranslate"><span class="pre">flatten</span></code>,
+<code class="docutils literal notranslate"><span class="pre">crossover</span></code> and <code class="docutils literal notranslate"><span class="pre">rediverge</span></code> planes there, and <code class="docutils literal notranslate"><span class="pre">wavefield_at('sample')</span></code> returns
+the probe. A plane strictly <em>inside</em> a lens body is refused rather than
+approximated. To see one, re-run on <code class="docutils literal notranslate"><span class="pre">scope.subdivided([z])</span></code>. A hybrid run
+should finish in seconds on such a column. If it stalls near a focus, or logs a
+frame with <code class="docutils literal notranslate"><span class="pre">|s|</span></code> near machine epsilon, that is an engine bug, not a sampling
+limit to tune around. See <a class="reference internal" href="wave-optics-sampling.html#wave-exit-face-focus"><span class="std std-ref">the developer notes</span></a>.</p>
 <p>A stored or exported result does not need the column. Its scaled-wave
 SignalSet (<code class="docutils literal notranslate"><span class="pre">scope.wave_scaled</span></code>, or one loaded from <code class="docutils literal notranslate"><span class="pre">.sea</span></code>) holds U on the
 moving grid plus the frame <code class="docutils literal notranslate"><span class="pre">s(z)</span></code>, <code class="docutils literal notranslate"><span class="pre">R(z)</span></code>, so
