@@ -3257,13 +3257,35 @@ class Aperture(Element):
 			linear scaling factor applied to the radius. e.g. nominally 2mm aperture but fitting tells us it is actually 1.95
 		position : float, optional
 			The position of the element along the z-axis, by default 0
+		transmission : float, optional
+			Fraction of the current inside the radius that the aperture passes,
+			in ``(0, 1]``, by default 1 (a plain diaphragm). Below 1 it stands
+			for current the traced rays do not sample: a gun's anode aperture
+			accepts a tiny solid angle of what the tip emits, a share no
+			affordable ray fan can resolve by clipping. It scales the ray
+			intensity and the wave's transmitted flux alike.
+
+		Raises
+		------
+		ValueError
+			If ``transmission`` is not in ``(0, 1]``.
+
+		Examples
+		--------
+		>>> Aperture(name="GA1", radius=1e-4, transmission=1/3000).transmission  # doctest: +ELLIPSIS
+		0.000333...
 		"""
 
-	def __init__(self, name:str='', radius:float=0., calibration:float=None, position:float=None) -> SEASerializable:
+	def __init__(self, name:str='', radius:float=0., calibration:float=None, position:float=None,
+				 transmission:float=1.0) -> SEASerializable:
 		super().__init__(name=name, kind='Aperture')
 		self._position = position
 		self.radius = radius
 		self.calibration = calibration
+		transmission = float(transmission)
+		if not 0.0 < transmission <= 1.0:
+			raise ValueError(f"Aperture {name!r}: transmission must be in (0, 1], got {transmission}.")
+		self.transmission = transmission
 		self.shape_factor = xp.pi/4 # pi/4 is a shape factor: square grid of rays to round
 
 	#def transfer_matrix(self) -> xp.ndarray:
@@ -3355,7 +3377,9 @@ class Aperture(Element):
 		diaphragm does not dim the survivors. The transmitted current is
 		therefore the sampled sum over surviving rays, quantized in units of
 		``I_total/n_rays``; refine the source's ``np_xy``/``na_xy`` when the
-		quantization matters.
+		quantization matters. A :attr:`transmission` below 1 then scales
+		every survivor by the same factor: the share of the current the
+		traced rays do not sample.
 
 		Parameters
 		----------
@@ -3382,7 +3406,7 @@ class Aperture(Element):
 		"""
 		x = r0[:,columnByName("x")]
 		y = r0[:,columnByName("y")]
-		return I * (x**2 + y**2 <= self.radius**2)
+		return I * (x**2 + y**2 <= self.radius**2) * getattr(self, "transmission", 1.0)
 
 	def transmitted_fraction(self, r0:xp.ndarray) -> float:
 		"""Smooth continuum estimate of the fraction of current this passes.
@@ -3421,7 +3445,7 @@ class Aperture(Element):
 		ymax = xp.amax(xp.abs(r0[:,columnByName("y")]))
 		scale_x = 1.0 if xmax < self.radius else self.radius / xmax
 		scale_y = 1.0 if ymax < self.radius else self.radius / ymax
-		return float(scale_x * scale_y)*self.shape_factor
+		return float(scale_x * scale_y)*self.shape_factor*getattr(self, "transmission", 1.0)
 
 	def propagate_moments(self, mu:xp.ndarray, Sigma:xp.ndarray, closure=None) -> tuple:
 		"""Pass moments through unchanged (aperture is treated as non-truncating here).
@@ -3519,6 +3543,8 @@ class Aperture(Element):
 			s_x, s_y = axis_components(s)
 			px, py = s_x * dx, s_y * dy
 		T = aperture_transmission((ny, nx), px, py, self.radius).astype(complex)
+		# A transmission below 1 scales the passed flux, so the amplitude by its root.
+		T = T * float(getattr(self, "transmission", 1.0)) ** 0.5
 		if scaled:
 			return 0.0, self._scaled_screen(T, (ny, nx), dx, dy, s,
 											self.name or "aperture")
