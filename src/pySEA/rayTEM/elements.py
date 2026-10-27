@@ -3263,7 +3263,9 @@ class Aperture(Element):
 			for current the traced rays do not sample: a gun's anode aperture
 			accepts a tiny solid angle of what the tip emits, a share no
 			affordable ray fan can resolve by clipping. It scales the ray
-			intensity and the wave's transmitted flux alike.
+			intensity, the wave's transmitted flux, and the current every
+			later aperture's smooth per-plane estimate applies to
+			(:meth:`transmitted_fraction` itself stays geometric).
 
 		Raises
 		------
@@ -3445,7 +3447,7 @@ class Aperture(Element):
 		ymax = xp.amax(xp.abs(r0[:,columnByName("y")]))
 		scale_x = 1.0 if xmax < self.radius else self.radius / xmax
 		scale_y = 1.0 if ymax < self.radius else self.radius / ymax
-		return float(scale_x * scale_y)*self.shape_factor*getattr(self, "transmission", 1.0)
+		return float(scale_x * scale_y)*self.shape_factor
 
 	def propagate_moments(self, mu:xp.ndarray, Sigma:xp.ndarray, closure=None) -> tuple:
 		"""Pass moments through unchanged (aperture is treated as non-truncating here).

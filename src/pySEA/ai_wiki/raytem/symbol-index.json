@@ -13,7 +13,7 @@
     "name": "AberrationScreen",
     "qualname": "AberrationScreen",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3630,
+    "source_lineno": 3632,
     "signature": "class AberrationScreen",
     "doc": "A zero-thickness pure aberration plate."
   },
@@ -247,7 +247,7 @@
     "name": "check_lengths",
     "qualname": "check_lengths",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4387,
+    "source_lineno": 4395,
     "signature": "check_lengths(section)",
     "doc": ""
   },
@@ -346,7 +346,7 @@
     "name": "Dipole",
     "qualname": "Dipole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4281,
+    "source_lineno": 4283,
     "signature": "class Dipole",
     "doc": ""
   },
@@ -373,7 +373,7 @@
     "name": "Drift",
     "qualname": "Drift",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3554,
+    "source_lineno": 3556,
     "signature": "class Drift",
     "doc": "Drift element class for free-space propagation."
   },
@@ -769,7 +769,7 @@
     "name": "Lens",
     "qualname": "Lens",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4502,
+    "source_lineno": 4504,
     "signature": "class Lens",
     "doc": "Lens element class for round lenses / symmetric focusing. https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example or Brown1983 page 105"
   },
@@ -823,7 +823,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4486,
+    "source_lineno": 4494,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -832,7 +832,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4318,
+    "source_lineno": 4326,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -1039,7 +1039,7 @@
     "name": "Microscope",
     "qualname": "Microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1430,
+    "source_lineno": 1433,
     "signature": "class Microscope",
     "doc": "Microscope class represents a whole microscope, and is comprised of multiple MicroscopeSections. propagation through a Microscope results in propagation through individual MicroscopeSections"
   },
@@ -1219,7 +1219,7 @@
     "name": "Prism",
     "qualname": "Prism",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 5140,
+    "source_lineno": 5142,
     "signature": "class Prism",
     "doc": ""
   },
@@ -1318,7 +1318,7 @@
     "name": "Quadrapole",
     "qualname": "Quadrapole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3817,
+    "source_lineno": 3819,
     "signature": "class Quadrapole",
     "doc": ""
   },
@@ -1435,7 +1435,7 @@
     "name": "repair",
     "qualname": "repair",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4401,
+    "source_lineno": 4409,
     "signature": "repair(section, combine_drifts)",
     "doc": "Close gaps and overlaps in a section's element list, in place."
   },
@@ -1498,7 +1498,7 @@
     "name": "roundjson",
     "qualname": "roundjson",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4300,
+    "source_lineno": 4308,
     "signature": "roundjson(jdict)",
     "doc": ""
   },
@@ -1879,6 +1879,15 @@
     "source_lineno": 34,
     "signature": "test_a_transmission_outside_zero_to_one_is_refused()",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_a_transmission_reaches_every_later_aperture_in_the_per_plane_current",
+    "qualname": "test_a_transmission_reaches_every_later_aperture_in_the_per_plane_current",
+    "path": "src/pySEA/rayTEM/tests/test_aperture_transmission.py",
+    "source_lineno": 62,
+    "signature": "test_a_transmission_reaches_every_later_aperture_in_the_per_plane_current()",
+    "doc": "The smooth per-plane total composes: a later clipping aperture acts on the passed share."
   },
   {
     "kind": "function",

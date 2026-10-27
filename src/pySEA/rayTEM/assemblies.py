@@ -956,6 +956,9 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 					extent = xp.abs(result.boundary_ray[r,k])
 					if extent > ele.radius:
 						result.boundary_ray[r,[ix,ixt,iy,iyt]] *= ele.radius/extent
+				# An aperture's transmission is current the rays do not sample; it
+				# scales what every later aperture's smooth fraction applies to.
+				I_initial = I_initial * float(getattr(ele, "transmission", 1.0))
 				result.I_per_plane = xp.minimum(planes[-1].I_per_plane,I_initial * ele.transmitted_fraction(planes[-1].rays))
 
 			else:
@@ -3222,6 +3225,11 @@ class Microscope(SealedAttributes, SEASerializable):
 			r1 = s.propagate_ray(z=z,r0=r,I_initial=I_initial,verbose=verbose)
 			if I_initial is None:
 				I_initial = r1.I_per_plane[0]
+			# Carry the section's aperture transmissions to the next section's
+			# apertures, as the section does between its own.
+			for ele in s._propagation_elements():
+				if ele.kind == "Aperture":
+					I_initial = I_initial * float(getattr(ele, "transmission", 1.0))
 			stacks.append(r1)
 			r = r1[-1]
 		self.rays = Rays.concatenate(stacks)

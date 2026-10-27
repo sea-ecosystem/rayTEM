@@ -57,3 +57,27 @@ def test_a_saved_aperture_keeps_its_transmission_and_an_old_one_reads_as_one(tmp
 	reread = Microscope()
 	reread.from_sea(str(tmp_path / "old.sea"))
 	assert reread.sections[0]["A1"].transmission == 1.0
+
+
+def test_a_transmission_reaches_every_later_aperture_in_the_per_plane_current():
+	"""The smooth per-plane total composes: a later clipping aperture acts on the passed share."""
+	def column(transmission: float) -> Microscope:
+		return Microscope(sections=[
+			MicroscopeSection(name="gun", elements=[
+				Source(voltage=200, beam_current=1.5e-6, size=(1e-9, 1e-9), np_xy=(1, 1), angle=(1e-3, 1e-3), na_xy=(11, 11)),
+				Drift(length=0.002),
+				Aperture(name="GA1", radius=1e-3, transmission=transmission),
+				Drift(length=0.01),
+			]),
+			MicroscopeSection(name="condenser", elements=[
+				Drift(length=0.1),
+				Aperture(name="CA1", radius=40e-6),
+				Drift(length=0.01),
+			]),
+		])
+	full, dim = column(1.0), column(1e-3)
+	full.propagate()
+	dim.propagate()
+	ratio = float(np.asarray(dim.rays.I_per_plane)[-1]) / float(np.asarray(full.rays.I_per_plane)[-1])
+	assert ratio == pytest.approx(1e-3, rel=1e-6)
+	assert float(np.asarray(full.rays.I_per_plane)[-1]) < 1.5e-6 * np.pi / 4, "CA1 clips the cone"

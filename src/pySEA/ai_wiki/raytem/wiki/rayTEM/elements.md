@@ -22,29 +22,29 @@
 |   `Source.propagate_ray(self, r0, **kwargs)` | 340 |
 |   `Source.wave(self, mode='fixed')` / `Source._aperture_wave(self, radius)` | 344 |
 | Aperture | 358 |
-|   `Aperture.__init__(self, name, radius, calibration, position, transmission=1.0)` | 369 |
-|   `Aperture.propagate_ray(self, r0, z, z0)` | 373 |
-|   `Aperture.propagate_wave(self, signal, mode='fixed', ...)` | 377 |
-| Drift | 393 |
-|   `Drift.__init__(self, name, length, calibration, position)` | 397 |
-|   `Drift.transfer_matrix(self)` | 401 |
-| Quadrapole | 407 |
-|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 411 |
-|   `Quadrapole.transfer_matrix(self)` | 415 |
-| AberrationScreen | 462 |
-| Dipole | 482 |
-|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 486 |
-|   `Dipole.transfer_matrix(self)` | 490 |
-|   `Dipole.propagate_ray(self, r0, z, z0)` | 494 |
-| Lens | 500 |
-|   `Lens.__init__(self, name, length, strength, calibration, position)` | 523 |
-|   `Lens.transfer_matrix(self)` | 531 |
-|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 538 |
-| Prism | 544 |
-|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 548 |
-|   `Prism.focus_matrix(self)` | 552 |
-|   `Prism.bending_matrix(self, s)` | 556 |
-|   `Prism.transfer_matrix(self)` | 560 |
+|   `Aperture.__init__(self, name, radius, calibration, position, transmission=1.0)` | 373 |
+|   `Aperture.propagate_ray(self, r0, z, z0)` | 377 |
+|   `Aperture.propagate_wave(self, signal, mode='fixed', ...)` | 381 |
+| Drift | 397 |
+|   `Drift.__init__(self, name, length, calibration, position)` | 401 |
+|   `Drift.transfer_matrix(self)` | 405 |
+| Quadrapole | 411 |
+|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 415 |
+|   `Quadrapole.transfer_matrix(self)` | 419 |
+| AberrationScreen | 466 |
+| Dipole | 486 |
+|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 490 |
+|   `Dipole.transfer_matrix(self)` | 494 |
+|   `Dipole.propagate_ray(self, r0, z, z0)` | 498 |
+| Lens | 504 |
+|   `Lens.__init__(self, name, length, strength, calibration, position)` | 527 |
+|   `Lens.transfer_matrix(self)` | 535 |
+|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 542 |
+| Prism | 548 |
+|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 552 |
+|   `Prism.focus_matrix(self)` | 556 |
+|   `Prism.bending_matrix(self, s)` | 560 |
+|   `Prism.transfer_matrix(self)` | 564 |
 <!-- END AUTO-GENERATED TOC -->
 
 # elements.py
@@ -363,8 +363,12 @@ A true circular **mask** (2026-08-30, matching the wave path): `propagate_ray` l
 current inside the radius the aperture passes. It stands for current the traced rays do not sample -- a
 gun's anode aperture accepts a tiny solid angle of what the tip emits, a share no affordable ray fan
 resolves by clipping. `apply_intensity` multiplies the survivors by it, `phase_shift` multiplies the
-screen's amplitude by its square root (so the wave's flux scales by it), and `transmitted_fraction`
-includes it. A file saved before it existed reads as 1. Tests: `tests/test_aperture_transmission.py`.
+screen's amplitude by its square root (so the wave's flux scales by it); it leaves `transmitted_fraction` geometric. The section's smooth per-plane total takes the minimum over
+apertures of the starting current times each one's fraction, so a transmission has to carry forward:
+`MicroscopeSection.propagate_ray` and `Microscope.propagate_ray` multiply the current every later
+aperture's fraction applies to by each transmission they pass (without that, a gun aperture's share never
+reached the condenser aperture). A file saved before it existed reads as 1. Tests:
+`tests/test_aperture_transmission.py`.
 
 ### `Aperture.__init__(self, name, radius, calibration, position, transmission=1.0)`
 
