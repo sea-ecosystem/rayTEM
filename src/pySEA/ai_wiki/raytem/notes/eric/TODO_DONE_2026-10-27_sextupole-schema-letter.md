@@ -8,8 +8,8 @@ the work matches the slug `sextupole-schema-letter`.
 
 **Goal:** `S` in the column naming schema names a sextupole, not a stigmator; a
 quadrupole, stigmating or not, is `Q`.
-**Why:** the U200's 200 kV schematic labels gun-lens slots `GL_4Sa`, `GL_6Sa`,
-`GL_7Sb`, `GL_9Sb`, which are sextupoles. Under the old meaning they would be read as
+**Why:** a gun lens's multipole stack can hold sextupole slots. Under the old meaning
+they would be read as
 stigmators and validated as quadrupoles.
 
 - [x] rayTEM `schema.py`: `S` → "sextupole", realized by a `Sextupole` class (none

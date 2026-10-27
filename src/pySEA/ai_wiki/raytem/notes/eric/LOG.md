@@ -4,7 +4,7 @@ Newest entries at top.
 
 ## 2026-10-27 — [Done] Schema letter S means sextupole
 **Goal:** `S` in the column naming schema names a sextupole; quadrupoles (stigmating or not) are `Q`.
-**Why:** the U200's gun-lens stack has sextupole slots (`GL_4Sa` …); under the old meaning they would be read as stigmators and checked as quadrupoles.
+**Why:** a gun lens's multipole stack can hold sextupole slots; under the old meaning they would be read as stigmators and checked as quadrupoles.
 TODO: [TODO_DONE_2026-10-27_sextupole-schema-letter.md](TODO_DONE_2026-10-27_sextupole-schema-letter.md)
 - [x] schema, tests, example notebook, wiki
 - [x] sea-pearl scope-map intents (SM-3) wording
