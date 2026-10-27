@@ -18,6 +18,12 @@ stigmators and validated as quadrupoles.
       as a sextupole name
 - [x] rayTEM `examples/01_basicRays.ipynb`: the stigmator pair `PSa`/`PSb` → `PQa`/`PQb`
 - [x] rayTEM wiki `schema.md`; run the refresh
-- [ ] sea-pearl scope-map schema `intents.md` (SM-3) and `scope_templates.py` docstring:
+- [x] sea-pearl scope-map schema `intents.md` (SM-3) and `scope_templates.py` docstring:
       `S` = sextupole; behaviour unchanged (two-axis `focus`)
-- [ ] tests pass in both repos
+- [x] tests pass in both repos
+
+**Outcome:** done. rayTEM `b5fd790`, sea-pearl `scope-map` intents and message. rayTEM full
+suite: one failure, `test_rotated_quadrupole`, which fails on the parent commit too. The
+saved U200, emulator and emulator_column scopes validate with no errors (none of them
+names anything with `S`). Not run: the example notebook (no Jupyter here); only the two
+element names and their echoes in its saved output changed.

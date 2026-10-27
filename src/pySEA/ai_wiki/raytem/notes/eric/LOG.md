@@ -2,12 +2,13 @@
 
 Newest entries at top.
 
-## 2026-10-27 — [Under Construction] Schema letter S means sextupole
+## 2026-10-27 — [Done] Schema letter S means sextupole
 **Goal:** `S` in the column naming schema names a sextupole; quadrupoles (stigmating or not) are `Q`.
 **Why:** the U200's gun-lens stack has sextupole slots (`GL_4Sa` …); under the old meaning they would be read as stigmators and checked as quadrupoles.
-TODO: [TODO_ACTIVE_2026-10-27_sextupole-schema-letter.md](TODO_ACTIVE_2026-10-27_sextupole-schema-letter.md)
-- [ ] schema, tests, example notebook, wiki
-- [ ] sea-pearl scope-map intents (SM-3) wording
+TODO: [TODO_DONE_2026-10-27_sextupole-schema-letter.md](TODO_DONE_2026-10-27_sextupole-schema-letter.md)
+- [x] schema, tests, example notebook, wiki
+- [x] sea-pearl scope-map intents (SM-3) wording
+**Outcome:** `S` = sextupole (class `Sextupole`, not yet in rayTEM); a `Quadrapole` is `Q` only, and one named with `S` is reported with `Q`. One pre-existing suite failure (`test_rotated_quadrupole`), unchanged.
 
 ## 2026-10-22 — [Done] Screen sampling judged where the wave is
 **Goal:** the scaled wave's aliasing guard judges a screen only where the field has amplitude.
