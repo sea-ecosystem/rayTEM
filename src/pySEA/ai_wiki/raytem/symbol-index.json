@@ -13,7 +13,7 @@
     "name": "AberrationScreen",
     "qualname": "AberrationScreen",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3604,
+    "source_lineno": 3630,
     "signature": "class AberrationScreen",
     "doc": "A zero-thickness pure aberration plate."
   },
@@ -346,7 +346,7 @@
     "name": "Dipole",
     "qualname": "Dipole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4255,
+    "source_lineno": 4281,
     "signature": "class Dipole",
     "doc": ""
   },
@@ -373,7 +373,7 @@
     "name": "Drift",
     "qualname": "Drift",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3528,
+    "source_lineno": 3554,
     "signature": "class Drift",
     "doc": "Drift element class for free-space propagation."
   },
@@ -769,7 +769,7 @@
     "name": "Lens",
     "qualname": "Lens",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4476,
+    "source_lineno": 4502,
     "signature": "class Lens",
     "doc": "Lens element class for round lenses / symmetric focusing. https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example or Brown1983 page 105"
   },
@@ -1219,7 +1219,7 @@
     "name": "Prism",
     "qualname": "Prism",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 5114,
+    "source_lineno": 5140,
     "signature": "class Prism",
     "doc": ""
   },
@@ -1318,7 +1318,7 @@
     "name": "Quadrapole",
     "qualname": "Quadrapole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3791,
+    "source_lineno": 3817,
     "signature": "class Quadrapole",
     "doc": ""
   },
@@ -1801,6 +1801,15 @@
   },
   {
     "kind": "function",
+    "name": "test_a_saved_aperture_keeps_its_transmission_and_an_old_one_reads_as_one",
+    "qualname": "test_a_saved_aperture_keeps_its_transmission_and_an_old_one_reads_as_one",
+    "path": "src/pySEA/rayTEM/tests/test_aperture_transmission.py",
+    "source_lineno": 47,
+    "signature": "test_a_saved_aperture_keeps_its_transmission_and_an_old_one_reads_as_one(tmp_path)",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_a_saved_S_section_comes_back_as_E",
     "qualname": "test_a_saved_S_section_comes_back_as_E",
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
@@ -1860,6 +1869,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 2690,
     "signature": "test_a_thick_medium_still_applies_its_screen()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_a_transmission_outside_zero_to_one_is_refused",
+    "qualname": "test_a_transmission_outside_zero_to_one_is_refused",
+    "path": "src/pySEA/rayTEM/tests/test_aperture_transmission.py",
+    "source_lineno": 34,
+    "signature": "test_a_transmission_outside_zero_to_one_is_refused()",
     "doc": ""
   },
   {
@@ -3907,6 +3925,15 @@
   },
   {
     "kind": "function",
+    "name": "test_the_ray_current_after_the_aperture_is_scaled_by_its_transmission",
+    "qualname": "test_the_ray_current_after_the_aperture_is_scaled_by_its_transmission",
+    "path": "src/pySEA/rayTEM/tests/test_aperture_transmission.py",
+    "source_lineno": 26,
+    "signature": "test_the_ray_current_after_the_aperture_is_scaled_by_its_transmission()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_the_stacks_carry_the_columns_marks_bound_to_their_plane_axis",
     "qualname": "test_the_stacks_carry_the_columns_marks_bound_to_their_plane_axis",
     "path": "src/pySEA/rayTEM/tests/test_scaled_wave_physical_plane.py",
@@ -3930,6 +3957,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 3078,
     "signature": "test_the_wave_carries_current_too()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_the_wave_screen_passes_the_same_share_of_flux",
+    "qualname": "test_the_wave_screen_passes_the_same_share_of_flux",
+    "path": "src/pySEA/rayTEM/tests/test_aperture_transmission.py",
+    "source_lineno": 40,
+    "signature": "test_the_wave_screen_passes_the_same_share_of_flux()",
     "doc": ""
   },
   {

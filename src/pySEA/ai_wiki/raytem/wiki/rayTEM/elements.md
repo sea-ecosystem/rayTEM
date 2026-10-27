@@ -22,29 +22,29 @@
 |   `Source.propagate_ray(self, r0, **kwargs)` | 340 |
 |   `Source.wave(self, mode='fixed')` / `Source._aperture_wave(self, radius)` | 344 |
 | Aperture | 358 |
-|   `Aperture.__init__(self, name, radius, calibration, position)` | 362 |
-|   `Aperture.propagate_ray(self, r0, z, z0)` | 366 |
-|   `Aperture.propagate_wave(self, signal, mode='fixed', ...)` | 370 |
-| Drift | 386 |
-|   `Drift.__init__(self, name, length, calibration, position)` | 390 |
-|   `Drift.transfer_matrix(self)` | 394 |
-| Quadrapole | 400 |
-|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 404 |
-|   `Quadrapole.transfer_matrix(self)` | 408 |
-| AberrationScreen | 455 |
-| Dipole | 475 |
-|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 479 |
-|   `Dipole.transfer_matrix(self)` | 483 |
-|   `Dipole.propagate_ray(self, r0, z, z0)` | 487 |
-| Lens | 493 |
-|   `Lens.__init__(self, name, length, strength, calibration, position)` | 516 |
-|   `Lens.transfer_matrix(self)` | 524 |
-|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 531 |
-| Prism | 537 |
-|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 541 |
-|   `Prism.focus_matrix(self)` | 545 |
-|   `Prism.bending_matrix(self, s)` | 549 |
-|   `Prism.transfer_matrix(self)` | 553 |
+|   `Aperture.__init__(self, name, radius, calibration, position, transmission=1.0)` | 369 |
+|   `Aperture.propagate_ray(self, r0, z, z0)` | 373 |
+|   `Aperture.propagate_wave(self, signal, mode='fixed', ...)` | 377 |
+| Drift | 393 |
+|   `Drift.__init__(self, name, length, calibration, position)` | 397 |
+|   `Drift.transfer_matrix(self)` | 401 |
+| Quadrapole | 407 |
+|   `Quadrapole.__init__(self, name, position, length, strength, calibration)` | 411 |
+|   `Quadrapole.transfer_matrix(self)` | 415 |
+| AberrationScreen | 462 |
+| Dipole | 482 |
+|   `Dipole.__init__(self, name, position, length, strength, calibration, axis)` | 486 |
+|   `Dipole.transfer_matrix(self)` | 490 |
+|   `Dipole.propagate_ray(self, r0, z, z0)` | 494 |
+| Lens | 500 |
+|   `Lens.__init__(self, name, length, strength, calibration, position)` | 523 |
+|   `Lens.transfer_matrix(self)` | 531 |
+|   `Lens.calibration_from_f_and_I(self, f, I, rotationPerAmp)` | 538 |
+| Prism | 544 |
+|   `Prism.__init__(self, name, position, length, radius, angle, w, g, k1, strength, calibration)` | 548 |
+|   `Prism.focus_matrix(self)` | 552 |
+|   `Prism.bending_matrix(self, s)` | 556 |
+|   `Prism.transfer_matrix(self)` | 560 |
 <!-- END AUTO-GENERATED TOC -->
 
 # elements.py
@@ -359,7 +359,14 @@ passthrough in every mode (drivers seed from the generator).
 
 A true circular **mask** (2026-08-30, matching the wave path): `propagate_ray` leaves the geometry untouched, and `apply_intensity` zeroes `I` for rays with `x² + y² > radius²` at the aperture plane — blocked rays keep propagating as ghosts with zero intensity, so array shapes stay stable and `sum(I)` at any plane is the surviving current (a SAMPLED estimate, quantized by `I_total/n_rays`; refine `np_xy`/`na_xy` when that matters). Survivors pass unattenuated. `plot2D` truncates dead rays at the plane where `I` hits zero. This replaced the old whole-beam rescale (`radius/xmax` on positions+angles, area-ratio attenuation), which coincided with masking only for laminar point-source fans, compressed survivor emittance for finite sources, mislabeled pupil zones for downstream aberrations, and — per the original design comment kept in the source — only composed correctly for a single aperture. Masks compose across any number of apertures.
 
-### `Aperture.__init__(self, name, radius, calibration, position)`
+**Transmission** (2026-10-27): `Aperture(transmission=...)`, in `(0, 1]`, default 1, is the share of the
+current inside the radius the aperture passes. It stands for current the traced rays do not sample -- a
+gun's anode aperture accepts a tiny solid angle of what the tip emits, a share no affordable ray fan
+resolves by clipping. `apply_intensity` multiplies the survivors by it, `phase_shift` multiplies the
+screen's amplitude by its square root (so the wave's flux scales by it), and `transmitted_fraction`
+includes it. A file saved before it existed reads as 1. Tests: `tests/test_aperture_transmission.py`.
+
+### `Aperture.__init__(self, name, radius, calibration, position, transmission=1.0)`
 
 `calibration` is an optional linear scale on `radius` (e.g. the physical aperture is 2 mm but measured to be 1.95 mm).
 

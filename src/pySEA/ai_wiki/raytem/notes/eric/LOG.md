@@ -2,6 +2,13 @@
 
 Newest entries at top.
 
+## 2026-10-27 — [Done] Aperture transmission: current the traced rays do not sample
+**Goal:** an aperture can pass a stated share of the current inside its radius.
+**Why:** a gun aperture must take a µA tip emission down to a nA column current, which clipping rays cannot do with an affordable ray fan.
+TODO: [TODO_DONE_2026-10-27_aperture-transmission.md](TODO_DONE_2026-10-27_aperture-transmission.md)
+- [x] `Aperture(transmission=...)` on the ray, wave and fitting paths; tests; wiki
+**Outcome:** default 1 leaves every column and file unchanged; one pre-existing suite failure.
+
 ## 2026-10-27 — [Done] Schema letter S means sextupole
 **Goal:** `S` in the column naming schema names a sextupole; quadrupoles (stigmating or not) are `Q`.
 **Why:** a gun lens's multipole stack can hold sextupole slots; under the old meaning they would be read as stigmators and checked as quadrupoles.
