@@ -12,12 +12,12 @@ quadrupole, stigmating or not, is `Q`.
 `GL_7Sb`, `GL_9Sb`, which are sextupoles. Under the old meaning they would be read as
 stigmators and validated as quadrupoles.
 
-- [ ] rayTEM `schema.py`: `S` → "sextupole", realized by a `Sextupole` class (none
+- [x] rayTEM `schema.py`: `S` → "sextupole", realized by a `Sextupole` class (none
       exists yet, so nothing in rayTEM is typed `S` until one is added); module docs
-- [ ] rayTEM tests: `test_schema.py` — `Quadrapole` names only `Q`; parse tests keep `PSa`
+- [x] rayTEM tests: `test_schema.py` — `Quadrapole` names only `Q`; parse tests keep `PSa`
       as a sextupole name
-- [ ] rayTEM `examples/01_basicRays.ipynb`: the stigmator pair `PSa`/`PSb` → `PQa`/`PQb`
-- [ ] rayTEM wiki `schema.md`; run the refresh
+- [x] rayTEM `examples/01_basicRays.ipynb`: the stigmator pair `PSa`/`PSb` → `PQa`/`PQb`
+- [x] rayTEM wiki `schema.md`; run the refresh
 - [ ] sea-pearl scope-map schema `intents.md` (SM-3) and `scope_templates.py` docstring:
       `S` = sextupole; behaviour unchanged (two-axis `focus`)
 - [ ] tests pass in both repos

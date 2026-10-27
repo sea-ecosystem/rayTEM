@@ -8,34 +8,34 @@
 |   `point_source(shape)` | 65 |
 |   `kernel_phase(shape, dx, dy, wavelength, dz, include_carrier=True)` | 70 |
 |   `apply_phase(field, phase, space='position')` | 75 |
-|   `quadratic_phase(shape, dx, dy, wavelength, power_x, power_y)` | 105 |
-|   `linear_phase(shape, dx, dy, wavelength, tilt_x, tilt_y)` | 109 |
-|   `angular_spectrum_propagate(field, dx, dy, wavelength, dz, include_carrier=True)` | 112 |
-|   `focal_phase(field, dx, dy, wavelength, power_x, power_y)` | 117 |
-|   `tilt_phase(field, dx, dy, wavelength, tilt_x, tilt_y)` | 121 |
-|   `aperture_mask(field, dx, dy, radius, antialias=True)` | 125 |
-|   `aperture_transmission(shape, dx, dy, radius, antialias=True)` | 140 |
-|   `resample_screen(data, dx_src, dy_src, shape, dx, dy)` | 145 |
-|   `bandlimited_disk(shape, dx, dy, radius)` | 155 |
-|   `boundary_window(shape, margin=0.1)` | 162 |
-| Scaled-Fresnel core (handoff Eqs 23–55) | 173 |
-|   `scaled_delta_tau(dz, s0, R0)` | 179 |
-|   `factor_wave(psi, dx, dy, wavelength, s, R)` | 184 |
-|   `fourier_resample(field, d_in, n_out, d_out)` | 188 |
-|   `reconstruct_physical_wave(U, dxi, deta, wavelength, s, R, target_dx=None, target_shape=None)` | 194 |
-|   `axis_components(value)` / `join_axes(vx, vy)` | 199 |
-|   `rotate_field(U, angle)` | 207 |
-|   `segment_block(dz, kappa)` / `_segment_slope(...)` / `segment_zero(...)` | 218 |
-|   `scaled_delta_tau_quadratic(dz, s0, R0, kappa)` | 239 |
-|   `propagate_quadratic_segment_scaled(U, dxi, deta, wavelength, dz, s, R, kappa, s_min=1e-3, absorb=0.0, rotate=0.0)` | 263 |
-|   `apply_thin_lens_scaled(s, R, power)` | 292 |
-|   `beam_support_radius(U, dxi, deta, threshold=1e-6)` / `beam_support_extents(...)` | 298 |
-|   `propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min=1e-3, absorb=0.0)` | 306 |
-| Frame switching (crossover traversal) | 315 |
-|   `min_representable_curvature(n, dxi, wavelength, s, safety=0.5, x_max=None)` | 320 |
-|   `change_scaled_frame(U, dxi, deta, wavelength, s_old, R_old, R_new, s_new=None, safety=0.5)` | 327 |
-|   `propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross=None, safety=0.5, s_min=1e-3, absorb=0.0, crossover='flat')` | 338 |
-|   `propagate_quadratic_segment_hybrid(U, dxi, deta, wavelength, dz, s, R, kappa, ...)` | 372 |
+|   `quadratic_phase(shape, dx, dy, wavelength, power_x, power_y)` | 109 |
+|   `linear_phase(shape, dx, dy, wavelength, tilt_x, tilt_y)` | 113 |
+|   `angular_spectrum_propagate(field, dx, dy, wavelength, dz, include_carrier=True)` | 116 |
+|   `focal_phase(field, dx, dy, wavelength, power_x, power_y)` | 121 |
+|   `tilt_phase(field, dx, dy, wavelength, tilt_x, tilt_y)` | 125 |
+|   `aperture_mask(field, dx, dy, radius, antialias=True)` | 129 |
+|   `aperture_transmission(shape, dx, dy, radius, antialias=True)` | 144 |
+|   `resample_screen(data, dx_src, dy_src, shape, dx, dy)` | 149 |
+|   `bandlimited_disk(shape, dx, dy, radius)` | 159 |
+|   `boundary_window(shape, margin=0.1)` | 166 |
+| Scaled-Fresnel core (handoff Eqs 23–55) | 177 |
+|   `scaled_delta_tau(dz, s0, R0)` | 183 |
+|   `factor_wave(psi, dx, dy, wavelength, s, R)` | 188 |
+|   `fourier_resample(field, d_in, n_out, d_out)` | 192 |
+|   `reconstruct_physical_wave(U, dxi, deta, wavelength, s, R, target_dx=None, target_shape=None)` | 198 |
+|   `axis_components(value)` / `join_axes(vx, vy)` | 203 |
+|   `rotate_field(U, angle)` | 211 |
+|   `segment_block(dz, kappa)` / `_segment_slope(...)` / `segment_zero(...)` | 222 |
+|   `scaled_delta_tau_quadratic(dz, s0, R0, kappa)` | 243 |
+|   `propagate_quadratic_segment_scaled(U, dxi, deta, wavelength, dz, s, R, kappa, s_min=1e-3, absorb=0.0, rotate=0.0)` | 267 |
+|   `apply_thin_lens_scaled(s, R, power)` | 296 |
+|   `beam_support_radius(U, dxi, deta, threshold=1e-6)` / `beam_support_extents(...)` | 302 |
+|   `propagate_free_scaled(U, dxi, deta, wavelength, dz, s, R, s_min=1e-3, absorb=0.0)` | 310 |
+| Frame switching (crossover traversal) | 319 |
+|   `min_representable_curvature(n, dxi, wavelength, s, safety=0.5, x_max=None)` | 324 |
+|   `change_scaled_frame(U, dxi, deta, wavelength, s_old, R_old, R_new, s_new=None, safety=0.5)` | 331 |
+|   `propagate_free_scaled_hybrid(U, dxi, deta, wavelength, dz, s, R, z, z_cross=None, safety=0.5, s_min=1e-3, absorb=0.0, crossover='flat')` | 342 |
+|   `propagate_quadratic_segment_hybrid(U, dxi, deta, wavelength, dz, s, R, kappa, ...)` | 376 |
 <!-- END AUTO-GENERATED TOC -->
 
 # waveoptics.py

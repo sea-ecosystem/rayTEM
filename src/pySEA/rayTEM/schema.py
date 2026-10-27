@@ -45,8 +45,8 @@ Code Meaning               Class
 ==== ====================  ============
 L    round lens            Lens
 D    dipole / deflector    Dipole
-S    stigmator             Quadrapole
-Q    quadrupole            Quadrapole
+S    sextupole             Sextupole
+Q    quadrupole/stigmator  Quadrapole
 A    aperture              Aperture
 P    prism / sector        Prism
 V    drift volume          Drift
@@ -55,9 +55,15 @@ V    drift volume          Drift
 ``V`` is the one type that may be named but is never *required* to be -- see
 :data:`NAME_REQUIRED_CLASSES`.
 
+A quadrupole is ``Q`` whether it focuses or stigmates. ``S`` meant stigmator until
+2026-10-27; it now names a sextupole (Eric: "quads are for stigmation; use S for
+sextupoles"), as in a gun lens's multipole stack. rayTEM has no
+``Sextupole`` element yet, so no class is typed ``S`` and a ``Quadrapole`` named with
+``S`` is reported, with ``Q`` as the letter to use.
+
 Multipoles
 ----------
-A deflector, quadrupole or stigmator is named on its own in its section, like
+A deflector, quadrupole or sextupole is named on its own in its section, like
 any element, never relative to the lens it sits by (Eric, 2026-10-21):
 ``CD1`` is the condenser's first dipole and ``CD1a``/``CD1b`` its two
 windings. ``CL1_D1a`` is refused, with ``CD1a`` named in the message.
@@ -189,8 +195,8 @@ Extends the single-letter codes so that names already in the wild
 ELEMENT_TYPE_CODES: dict[str, str] = {
 	"L": "round lens",
 	"D": "dipole / deflector",
-	"S": "stigmator",
-	"Q": "quadrupole",
+	"S": "sextupole",
+	"Q": "quadrupole / stigmator",
 	"A": "aperture",
 	"P": "prism / sector",
 	"V": "drift volume",
@@ -200,7 +206,7 @@ ELEMENT_TYPE_CODES: dict[str, str] = {
 ELEMENT_TYPE_CLASSES: dict[str, tuple[str, ...]] = {
 	"L": ("Lens",),
 	"D": ("Dipole",),
-	"S": ("Quadrapole",),
+	"S": ("Sextupole",),
 	"Q": ("Quadrapole",),
 	"A": ("Aperture",),
 	"P": ("Prism",),

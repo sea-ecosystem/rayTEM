@@ -148,6 +148,15 @@ def test_a_multipole_named_on_its_host_is_refused_with_its_own_name(name, expect
 	assert repr(expected) in issues[0].message
 
 
+def test_a_quadrupole_named_as_a_sextupole_is_refused_with_q():
+	# S meant stigmator until 2026-10-27; a stigmating quadrupole is now Q
+	quad = Quadrapole(name="PSa", strength=0.1, length=0)
+	issues = validate_element_name("PSa", section="P", element=quad)
+	assert [i.severity for i in issues] == ["error"]
+	assert "sextupole" in issues[0].message and "'Q'" in issues[0].message
+	assert validate_element_name("PQa", section="P", element=quad) == []
+
+
 def test_a_winding_is_named_after_its_multipole():
 	assert canonical_element_name("C", "D", 1, "a") == "CD1a"
 	assert canonical_element_name("P", "S", None, "b") == "PSb"
@@ -235,8 +244,8 @@ def test_element_type_codes_follow_the_class():
 	assert element_type_codes_for(Lens) == ("L",)
 	assert element_type_codes_for(Dipole) == ("D",)
 	assert element_type_codes_for(Aperture) == ("A",)
-	# a Quadrapole may be named as either a stigmator or a plain quadrupole
-	assert set(element_type_codes_for(Quadrapole)) == {"Q", "S"}
+	# a Quadrapole is Q whether it focuses or stigmates; S is a sextupole (2026-10-27)
+	assert element_type_codes_for(Quadrapole) == ("Q",)
 	# a Drift may be named as a drift volume; a Source has no type letter at all
 	assert element_type_codes_for(Drift) == ("V",)
 	assert element_type_codes_for(Source) == ()
@@ -378,13 +387,13 @@ def test_assembly_convenience_methods():
 
 
 def test_register_section_extends_the_vocabulary(vocabulary):
-	section = MicroscopeSection(name="wien filter", elements=[Quadrapole(name="WSa", strength=0.5, length=0.1)])
+	section = MicroscopeSection(name="wien filter", elements=[Quadrapole(name="WQa", strength=0.5, length=0.1)])
 	# before registration the section is simply unmanaged
 	assert validate_section(section, strict=True).ok
 	vocabulary.register_section("W", "wien filter", aliases=("wien",))
 	assert section_code("wien filter") == "W" and section_code("wien") == "W"
-	parsed = parse_element_name("WSa")
-	assert (parsed.section, parsed.type, parsed.axis) == ("W", "S", "a")
+	parsed = parse_element_name("WQa")
+	assert (parsed.section, parsed.type, parsed.axis) == ("W", "Q", "a")
 	assert validate_section(section, strict=True).ok
 
 
@@ -440,6 +449,6 @@ def test_register_rejects_collisions(vocabulary):
 
 def test_describe_schema_lists_the_live_vocabulary():
 	text = describe_schema()
-	for token in ["condenser", "probe corrector", "spectrometer", "stigmator",
+	for token in ["condenser", "probe corrector", "spectrometer", "stigmator", "sextupole",
 	              "drift volume", "CL1", "CD1a", "not CL1_D1a", "column order"]:
 		assert token in text
