@@ -139,6 +139,7 @@ __all__ = [
 	"validate_section",
 	"validate_microscope",
 	"describe_schema",
+	"get_schema_vocabulary",
 	"migrate_legacy_section",
 	"register_section",
 	"register_element_type",
@@ -223,7 +224,7 @@ never name-checked.
 AXIS_SUFFIXES: tuple[str, ...] = ("a", "b", "x", "y", "u", "v")
 """Permitted axis/component suffixes, as in ``CD1a`` or ``PSa``."""
 
-NAME_REQUIRED_CLASSES: set[str] = {"Lens", "Dipole", "Quadrapole", "Aperture", "Prism"}
+NAME_REQUIRED_CLASSES: set[str] = {"Lens", "Dipole", "Quadrapole", "Sextupole", "Aperture", "Prism"}
 """Classes that must carry a schema name inside a managed section.
 
 Deliberately narrower than :data:`ELEMENT_TYPE_CLASSES`. ``Drift`` can be
@@ -231,6 +232,15 @@ Deliberately narrower than :data:`ELEMENT_TYPE_CLASSES`. ``Drift`` can be
 drifts are auto-inserted by :class:`~pySEA.rayTEM.assemblies.MicroscopeSection`
 and are also how named planes (``sample``, ``VOA``, ``CCD``) are represented.
 ``Source`` is likewise nameable in prose but never required.
+"""
+
+_UNTYPED_CLASSES: tuple[str, ...] = ("Element", "Source")
+"""rayTEM classes outside every type code, listed as exempt by
+:func:`get_schema_vocabulary`.
+
+They appear in no constant above precisely because they are never typed, so
+the vocabulary has to name them explicitly for a reader to know they are
+exempt rather than forgotten.
 """
 
 
@@ -1099,3 +1109,144 @@ def describe_schema() -> str:
 		"Drift, Source and plain Element objects are never name-checked.",
 	]
 	return "\n".join(lines)
+
+
+def get_schema_vocabulary() -> dict:
+	"""Return the current vocabulary as plain JSON-serialisable data.
+
+	The structured counterpart of :func:`describe_schema`: the same live
+	vocabulary, as dicts, lists, strings and booleans an agent or another
+	process can read without parsing prose. It is built from the module
+	constants on every call, so codes added by :func:`register_section` or
+	:func:`register_element_type` appear here.
+
+	Returns
+	-------
+	dict
+		With keys:
+
+		``sections``
+			One ``{"code", "name", "aliases"}`` per section code, sorted by
+			code. ``aliases`` are the other free-form names that resolve to the
+			code, sorted.
+		``element_types``
+			One ``{"code", "description", "classes", "name_required"}`` per
+			type code, sorted by code. ``name_required`` is ``True`` when any
+			of its classes is in :data:`NAME_REQUIRED_CLASSES`.
+		``axis_suffixes``
+			The permitted axis suffixes, in :data:`AXIS_SUFFIXES` order.
+		``patterns``
+			``element``, with ``form``, ``examples`` and ``description``:
+			the one name pattern, a multipole's winding included (``CD1a``).
+		``retired``
+			Forms that no longer validate, each ``{"form", "example",
+			"write_instead", "description"}``: the attached multipole
+			(``CL1_D1a``) and the spectrometer's old code ``S``.
+		``name_regex``
+			The full element-name regex :func:`parse_element_name` matches.
+		``name_required_classes``
+			Sorted :data:`NAME_REQUIRED_CLASSES`.
+		``exempt_classes``
+			Sorted classes never required to carry a schema name: those under
+			a type code that does not require one (``Drift``) and the untyped
+			``Element`` and ``Source``.
+		``rules``
+			The scoping rules, one sentence each.
+
+	Related
+	-------
+	describe_schema : The same vocabulary as printable text.
+	validate_microscope : Checks names against this vocabulary.
+
+	Notes
+	-----
+	``exempt_classes`` cannot list every class that is never required to
+	carry a name: any class absent from ``element_types`` (``Gun``,
+	``AberrationScreen``) is exempt too, and the rules say so.
+
+	Examples
+	--------
+	>>> vocabulary = get_schema_vocabulary()
+	>>> [s["code"] for s in vocabulary["sections"]]
+	['A', 'C', 'D', 'E', 'G', 'M', 'O', 'P']
+	>>> vocabulary["patterns"]["element"]["form"]
+	'<SECTION><TYPE>[INDEX][AXIS]'
+	>>> [r["write_instead"] for r in vocabulary["retired"]]
+	['CD1a', 'EP1']
+	"""
+
+	sections = [
+		{
+			"code": code,
+			"name": name,
+			"aliases": sorted(
+				alias
+				for alias, target in SECTION_ALIASES.items()
+				if target == code and alias != name.lower()
+			),
+		}
+		for code, name in sorted(SECTION_CODES.items())
+	]
+	element_types = [
+		{
+			"code": code,
+			"description": description,
+			"classes": list(ELEMENT_TYPE_CLASSES.get(code, ())),
+			"name_required": any(
+				c in NAME_REQUIRED_CLASSES for c in ELEMENT_TYPE_CLASSES.get(code, ())
+			),
+		}
+		for code, description in sorted(ELEMENT_TYPE_CODES.items())
+	]
+	typed = {c for classes in ELEMENT_TYPE_CLASSES.values() for c in classes}
+	exempt = (typed - NAME_REQUIRED_CLASSES) | set(_UNTYPED_CLASSES)
+	return {
+		"sections": sections,
+		"element_types": element_types,
+		"axis_suffixes": list(AXIS_SUFFIXES),
+		"patterns": {
+			"element": {
+				"form": "<SECTION><TYPE>[INDEX][AXIS]",
+				"examples": ["CL1", "PV1", "CA1", "EP1", "CD1a", "PSa"],
+				"description": (
+					"Section letter, then type letter, then an optional index, then "
+					"an optional lower-case axis suffix (a winding: CD1a is winding a "
+					"of the condenser's first dipole). With no index the axis follows "
+					"the type (PSa). An older underscore before the axis (PD1_a) "
+					"still parses."
+				),
+			},
+		},
+		"retired": [
+			{
+				"form": "<HOST>_<TYPE>[INDEX][AXIS]",
+				"example": "CL1_D1a",
+				"write_instead": "CD1a",
+				"description": (
+					"A multipole named by the element it sits by is refused; it is "
+					"named on its own in its section."
+				),
+			},
+			{
+				"form": "section S (spectrometer)",
+				"example": "SP1",
+				"write_instead": "EP1",
+				"description": (
+					"The spectrometer is E. A saved section named S is renamed E as "
+					"it is read (migrate_legacy_section); there is no S alias."
+				),
+			},
+		],
+		"name_regex": _ELEMENT_RE.pattern,
+		"name_required_classes": sorted(NAME_REQUIRED_CLASSES),
+		"exempt_classes": sorted(exempt),
+		"rules": [
+			"The first letter is always the section and the second the type, so a letter used for both (A, D, P) is unambiguous by position.",
+			"A section name may be a code letter, a canonical name or an alias; a section whose name resolves to no code is not schema-managed and its elements are not checked.",
+			"Inside a managed section, every element of a name_required class must carry a name that parses, with the owning section's letter and a type letter its class allows.",
+			"A deflector, quadrupole or stigmator is named on its own in its section (CD1a), never relative to the lens it sits by (CL1_D1a is refused).",
+			"Numbers count each type within its section in column order: a number may be missing, but numbers never run backwards. They are the schema's, not a controller's slot numbers.",
+			"Any other class (the exempt classes, and classes absent from element_types such as Gun) is checked only when its name parses as a schema name, so named planes such as 'sample' or 'VOA' stay valid.",
+			"Element names must be unique within a section and across the whole column.",
+		],
+	}

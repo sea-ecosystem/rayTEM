@@ -10,6 +10,14 @@ TODO: [TODO_DONE_2026-10-27_sextupole-schema-letter.md](TODO_DONE_2026-10-27_sex
 - [x] sea-pearl scope-map intents (SM-3) wording
 **Outcome:** `S` = sextupole (class `Sextupole`, not yet in rayTEM); a `Quadrapole` is `Q` only, and one named with `S` is reported with `Q`. One pre-existing suite failure (`test_rotated_quadrupole`), unchanged.
 
+## 2026-10-25 — [Done] The vocabulary accessor follows the E / own-multipole schema
+**Goal:** `get_schema_vocabulary()` reports the schema as `d03b599` left it.
+**Why:** the accessor (local since 2026-10-16) still served section `S` and the attached `CL1_D1a` pattern the validator now refuses; sea-pearl's MCP naming tools pass it straight through.
+TODO: [TODO_DONE_2026-10-25_vocabulary-follows-e-and-own-multipoles.md](TODO_DONE_2026-10-25_vocabulary-follows-e-and-own-multipoles.md)
+- [x] merge `origin/dev` into the local `dev` (remote schema taken as is)
+- [x] one `element` pattern; a `retired` key naming what to write instead; rules updated
+**Outcome:** merged; `test_schema.py` 85 passed, schema doctests pass. **Cross-repo note:** sea-pearl's `sea_pearl_get_naming_schema` / `sea_pearl_validate_names` adapted on its `dev` the same day.
+
 ## 2026-10-22 — [Done] Screen sampling judged where the wave is
 **Goal:** the scaled wave's aliasing guard judges a screen only where the field has amplitude.
 **Why:** coefficients folded onto the objective out-run the grid corner, far past the beam, and refused well-sampled propagations (sea-pearl emulator: fifth order, C30 of a few um).
@@ -36,6 +44,14 @@ TODO: [TODO_DONE_2026-10-20_wave-seed-and-crossover-markers.md](TODO_DONE_2026-1
 - [x] merge with sea-pearl `emulator-condenser-balance`
 - [x] docs: Into the SEA-weeds (exit-face case, relative tolerances, the decision against a one-step Collins/ABCD lens), Propagation Modes guide, CLAUDE.md/AGENTS.md, wiki
 **Outcome:** the live scaled wave crosses a focus on a half lens's exit face (one-line tolerance fix in `segment_zero`, no new propagator); 315 tests pass; merged to `dev` with sea-pearl's emulator column.
+
+## 2026-10-16 — [Done] The naming schema's vocabulary as data
+**Goal:** `schema.get_schema_vocabulary()` returns the live vocabulary as JSON-serialisable data.
+**Why:** sea-pearl's builder skill hand-copied the vocabulary table; sea-pearl's MCP server will serve this instead (`sea_pearl_get_naming_schema`).
+TODO: [TODO_DONE_2026-10-16_schema-vocabulary-accessor.md](TODO_DONE_2026-10-16_schema-vocabulary-accessor.md)
+- [x] accessor + tests
+- [x] wiki, on `dev`
+**Outcome:** `1422b9e`, committed on `dev` (local, not pushed). Sections with aliases, element types with classes and `name_required`, axis suffixes, both patterns, the name regex, `exempt_classes` (`Drift`, plus the untyped `Element`/`Source` via a new private `_UNTYPED_CLASSES`) and the scoping rules; rebuilt per call, so registrations show. 5 new tests (80 in `test_schema.py`); full suite 315 passed, the 4 known Windows file-lock failures. **Cross-repo note:** sea-pearl serves it as `sea_pearl_get_naming_schema` / `sea_pearl_validate_names`. Not fixed: 3 module doctests in `schema.py` were already stale on `dev` (`ElementName` repr gained `attachment`; `element_type_codes_for(Drift)` is `('V',)`).
 
 ## 2026-10-16 — [Done] Column naming schema for sections and elements (ported)
 **Goal:** give rayTEM a controlled vocabulary + validator for microscope section and element names.
