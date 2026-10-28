@@ -70,8 +70,24 @@ if sea_available:
 				# renamed here, so every read -- rayTEM's or sea-pearl's -- gets it.
 				from pySEA.rayTEM.schema import migrate_legacy_section
 				migrate_legacy_section(self)
-		def from_sea(self,filename):											# sea_eco will reaload purely-SEASerializable objects, so reinitalize as our shared-inheritance object
-			super().from_sea(filename)
+		def from_sea(self,filename=None,*,file_path=None,mode="full"):		# sea_eco will reaload purely-SEASerializable objects, so reinitalize as our shared-inheritance object
+			"""Load this column from a ``.sea`` file, rebuilding each element as its rayTEM class.
+
+			Parameters
+			----------
+			filename : str, optional
+				Path to the ``.sea`` file.
+			file_path : str, optional
+				The same, under the name :func:`pySEA.sea_eco.io.load` passes.
+			mode : {"full", "mapped", "lazy"}, optional
+				sea_eco's loading policy; ``"full"`` (default) reads everything and
+				closes the file.
+
+			Returns
+			-------
+			None
+			"""
+			super().from_sea(filename if filename is not None else file_path, mode=mode)
 			if hasattr(self,"sections"):
 				if "None" in self.name:
 					self.name = ""
@@ -102,7 +118,7 @@ else:
 			pass
 		def to_sea(self,filename,force_datasets=None,validate_seaid=None):
 			print("WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead")
-		def from_sea(self,filename):
+		def from_sea(self,filename=None,*,file_path=None,mode="full"):
 			print("WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead")
 
 
