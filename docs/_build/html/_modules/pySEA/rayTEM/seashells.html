@@ -161,8 +161,24 @@
 				<span class="c1"># renamed here, so every read -- rayTEM's or sea-pearl's -- gets it.</span>
 				<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.rayTEM.schema</span><span class="w"> </span><span class="kn">import</span> <span class="n">migrate_legacy_section</span>
 				<span class="n">migrate_legacy_section</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-		<span class="k">def</span><span class="w"> </span><span class="nf">from_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">):</span>											<span class="c1"># sea_eco will reaload purely-SEASerializable objects, so reinitalize as our shared-inheritance object</span>
-			<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">from_sea</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+		<span class="k">def</span><span class="w"> </span><span class="nf">from_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="o">*</span><span class="p">,</span><span class="n">file_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">mode</span><span class="o">=</span><span class="s2">"full"</span><span class="p">):</span>		<span class="c1"># sea_eco will reaload purely-SEASerializable objects, so reinitalize as our shared-inheritance object</span>
+<span class="w">			</span><span class="sd">"""Load this column from a ``.sea`` file, rebuilding each element as its rayTEM class.</span>
+
+<span class="sd">			Parameters</span>
+<span class="sd">			----------</span>
+<span class="sd">			filename : str, optional</span>
+<span class="sd">				Path to the ``.sea`` file.</span>
+<span class="sd">			file_path : str, optional</span>
+<span class="sd">				The same, under the name :func:`pySEA.sea_eco.io.load` passes.</span>
+<span class="sd">			mode : {"full", "mapped", "lazy"}, optional</span>
+<span class="sd">				sea_eco's loading policy; ``"full"`` (default) reads everything and</span>
+<span class="sd">				closes the file.</span>
+
+<span class="sd">			Returns</span>
+<span class="sd">			-------</span>
+<span class="sd">			None</span>
+<span class="sd">			"""</span>
+			<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">from_sea</span><span class="p">(</span><span class="n">filename</span> <span class="k">if</span> <span class="n">filename</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">file_path</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)</span>
 			<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">"sections"</span><span class="p">):</span>
 				<span class="k">if</span> <span class="s2">"None"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
 					<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">""</span>
@@ -200,7 +216,7 @@
 
 <div class="viewcode-block" id="SEASerializable.from_sea">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.seashells.SEASerializable.from_sea">[docs]</a>
-		<span class="k">def</span><span class="w"> </span><span class="nf">from_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">):</span>
+		<span class="k">def</span><span class="w"> </span><span class="nf">from_sea</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="o">*</span><span class="p">,</span><span class="n">file_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">mode</span><span class="o">=</span><span class="s2">"full"</span><span class="p">):</span>
 			<span class="nb">print</span><span class="p">(</span><span class="s2">"WARNING: sea_eco does not appear to be installed, so microscope.to_sea is unavailable. Please install sea_eco, or use microscope.save instead"</span><span class="p">)</span></div>
 </div>
 
