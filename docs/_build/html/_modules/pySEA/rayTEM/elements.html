@@ -3479,13 +3479,37 @@
 <span class="sd">			linear scaling factor applied to the radius. e.g. nominally 2mm aperture but fitting tells us it is actually 1.95</span>
 <span class="sd">		position : float, optional</span>
 <span class="sd">			The position of the element along the z-axis, by default 0</span>
+<span class="sd">		transmission : float, optional</span>
+<span class="sd">			Fraction of the current inside the radius that the aperture passes,</span>
+<span class="sd">			in ``(0, 1]``, by default 1 (a plain diaphragm). Below 1 it stands</span>
+<span class="sd">			for current the traced rays do not sample: a gun's anode aperture</span>
+<span class="sd">			accepts a tiny solid angle of what the tip emits, a share no</span>
+<span class="sd">			affordable ray fan can resolve by clipping. It scales the ray</span>
+<span class="sd">			intensity, the wave's transmitted flux, and the current every</span>
+<span class="sd">			later aperture's smooth per-plane estimate applies to</span>
+<span class="sd">			(:meth:`transmitted_fraction` itself stays geometric).</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If ``transmission`` is not in ``(0, 1]``.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; Aperture(name="GA1", radius=1e-4, transmission=1/3000).transmission  # doctest: +ELLIPSIS</span>
+<span class="sd">		0.000333...</span>
 <span class="sd">		"""</span>
 
-	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span> <span class="n">radius</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">calibration</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">position</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>
+	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span> <span class="n">radius</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">calibration</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">position</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+				 <span class="n">transmission</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>
 		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">'Aperture'</span><span class="p">)</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">_position</span> <span class="o">=</span> <span class="n">position</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="o">=</span> <span class="n">radius</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">calibration</span> <span class="o">=</span> <span class="n">calibration</span>
+		<span class="n">transmission</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">transmission</span><span class="p">)</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="mf">0.0</span> <span class="o">&lt;</span> <span class="n">transmission</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Aperture </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">: transmission must be in (0, 1], got </span><span class="si">{</span><span class="n">transmission</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">transmission</span> <span class="o">=</span> <span class="n">transmission</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">shape_factor</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">4</span> <span class="c1"># pi/4 is a shape factor: square grid of rays to round</span>
 
 	<span class="c1">#def transfer_matrix(self) -&gt; xp.ndarray:</span>
@@ -3579,7 +3603,9 @@
 <span class="sd">		diaphragm does not dim the survivors. The transmitted current is</span>
 <span class="sd">		therefore the sampled sum over surviving rays, quantized in units of</span>
 <span class="sd">		``I_total/n_rays``; refine the source's ``np_xy``/``na_xy`` when the</span>
-<span class="sd">		quantization matters.</span>
+<span class="sd">		quantization matters. A :attr:`transmission` below 1 then scales</span>
+<span class="sd">		every survivor by the same factor: the share of the current the</span>
+<span class="sd">		traced rays do not sample.</span>
 
 <span class="sd">		Parameters</span>
 <span class="sd">		----------</span>
@@ -3606,7 +3632,7 @@
 <span class="sd">		"""</span>
 		<span class="n">x</span> <span class="o">=</span> <span class="n">r0</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)]</span>
 		<span class="n">y</span> <span class="o">=</span> <span class="n">r0</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)]</span>
-		<span class="k">return</span> <span class="n">I</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">y</span><span class="o">**</span><span class="mi">2</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span></div>
+		<span class="k">return</span> <span class="n">I</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">y</span><span class="o">**</span><span class="mi">2</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"transmission"</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Aperture.transmitted_fraction">
@@ -3752,6 +3778,8 @@
 			<span class="n">s_x</span><span class="p">,</span> <span class="n">s_y</span> <span class="o">=</span> <span class="n">axis_components</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
 			<span class="n">px</span><span class="p">,</span> <span class="n">py</span> <span class="o">=</span> <span class="n">s_x</span> <span class="o">*</span> <span class="n">dx</span><span class="p">,</span> <span class="n">s_y</span> <span class="o">*</span> <span class="n">dy</span>
 		<span class="n">T</span> <span class="o">=</span> <span class="n">aperture_transmission</span><span class="p">((</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">),</span> <span class="n">px</span><span class="p">,</span> <span class="n">py</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">complex</span><span class="p">)</span>
+		<span class="c1"># A transmission below 1 scales the passed flux, so the amplitude by its root.</span>
+		<span class="n">T</span> <span class="o">=</span> <span class="n">T</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"transmission"</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span> <span class="o">**</span> <span class="mf">0.5</span>
 		<span class="k">if</span> <span class="n">scaled</span><span class="p">:</span>
 			<span class="k">return</span> <span class="mf">0.0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scaled_screen</span><span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="p">(</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">),</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span>
 											<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s2">"aperture"</span><span class="p">)</span>
