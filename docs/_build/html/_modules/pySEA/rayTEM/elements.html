@@ -1024,6 +1024,19 @@
 	<span class="n">shift_y</span> <span class="o">=</span> <span class="mf">0.0</span>
 	<span class="n">tilt_x</span> <span class="o">=</span> <span class="mf">0.0</span>
 	<span class="n">tilt_y</span> <span class="o">=</span> <span class="mf">0.0</span>
+	<span class="c1">#: Where this element's own axis lies, relative to the column's optic axis.</span>
+	<span class="c1">#: A SETTING, and not the same thing as shift_x/tilt_x above, which are</span>
+	<span class="c1">#: what the element DOES to a ray (a dipole's kick): this is where the</span>
+	<span class="c1">#: element IS. None (the default) is an element on the axis, and every</span>
+	<span class="c1">#: propagation skips the step - an identity frame change costs nothing.</span>
+	<span class="c1">#: Otherwise (x, xt, y, yt): the axis's offset (m) and tilt (rad) at the</span>
+	<span class="c1">#: element's centre, in the convention's order. Rays enter the element's</span>
+	<span class="c1">#: own frame, the element acts as it always has (its matrix, aberrations</span>
+	<span class="c1">#: about its own axis, an aperture clipping about its own centre), and</span>
+	<span class="c1">#: leave it again: see :meth:`alignment_offsets`, :meth:`affine_matrix`.</span>
+	<span class="c1">#: Eric (2026-10-30): "That way we can begin to calibrate what the actual</span>
+	<span class="c1">#: geometry is in the microscope."</span>
+	<span class="n">alignment</span> <span class="o">=</span> <span class="kc">None</span>
 	<span class="c1">#: Larmor rotation accumulated through this element (radians). Set by the</span>
 	<span class="c1">#: elements that have an axial field (a side effect of transfer_matrix);</span>
 	<span class="c1">#: 0 for everything else. A RESULT, not a setting.</span>
@@ -1244,6 +1257,127 @@
 <span class="sd">		propagate_ray, propagate_moments : Consumers of this matrix.</span>
 <span class="sd">		"""</span>
 		<span class="k">return</span> <span class="n">xp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">convention</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Element.alignment_offsets">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Element.alignment_offsets">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">alignment_offsets</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""Return where this element's own axis is at its entrance and its exit.</span>
+
+<span class="sd">		The two frame changes :attr:`alignment` stands for. A ray enters the</span>
+<span class="sd">		element's frame by subtracting the entrance offset and leaves it by</span>
+<span class="sd">		adding the exit offset; between them the element acts as it would on</span>
+<span class="sd">		the axis. The axis is a straight line through the element's centre, so</span>
+<span class="sd">		a tilt moves it by ``±tilt·length/2`` at the faces.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		tuple of xp.ndarray or None</span>
+<span class="sd">			``(entrance, exit)``, each shape ``(len(convention),)`` with the</span>
+<span class="sd">			axis's x, xt, y, yt (``z`` and ``E`` zero), or None for an</span>
+<span class="sd">			element on the axis (:attr:`alignment` None).</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If :attr:`alignment` is not four numbers.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		affine_matrix : The same frame changes as homogeneous matrices.</span>
+<span class="sd">		propagate_ray : Applies them.</span>
+
+<span class="sd">		Notes</span>
+<span class="sd">		-----</span>
+<span class="sd">		Paraxial: a tilt is an angle added to the ray's slope, the small-angle</span>
+<span class="sd">		form of rotating the frame, and the element's length along its own axis</span>
+<span class="sd">		is taken as its length along the column's.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; lens = Drift(length=0.01)</span>
+<span class="sd">		&gt;&gt;&gt; lens.alignment_offsets() is None</span>
+<span class="sd">		True</span>
+<span class="sd">		&gt;&gt;&gt; lens.alignment = (1e-6, 0.0, 0.0, 2e-3)</span>
+<span class="sd">		&gt;&gt;&gt; [round(float(v), 9) for v in lens.alignment_offsets()[1][:4]]</span>
+<span class="sd">		[1e-06, 0.0, 1e-05, 0.002]</span>
+<span class="sd">		"""</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">return</span> <span class="kc">None</span>
+		<span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">xp</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alignment</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))]</span>
+		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">.alignment is (x, xt, y, yt) or None; "</span>
+							 <span class="sa">f</span><span class="s2">"got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span><span class="si">}</span><span class="s2"> numbers."</span><span class="p">)</span>
+		<span class="n">x</span><span class="p">,</span> <span class="n">xt</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">yt</span> <span class="o">=</span> <span class="n">values</span>
+		<span class="n">half</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
+		<span class="n">entrance</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">convention</span><span class="p">))</span>
+		<span class="n">leaving</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">convention</span><span class="p">))</span>
+		<span class="k">for</span> <span class="n">column</span><span class="p">,</span> <span class="n">angle</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="n">slope</span> <span class="ow">in</span> <span class="p">((</span><span class="s2">"x"</span><span class="p">,</span> <span class="s2">"xt"</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">xt</span><span class="p">),</span> <span class="p">(</span><span class="s2">"y"</span><span class="p">,</span> <span class="s2">"yt"</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">yt</span><span class="p">)):</span>
+			<span class="n">entrance</span><span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="n">column</span><span class="p">)]</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">-</span> <span class="n">slope</span> <span class="o">*</span> <span class="n">half</span>
+			<span class="n">leaving</span><span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="n">column</span><span class="p">)]</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">+</span> <span class="n">slope</span> <span class="o">*</span> <span class="n">half</span>
+			<span class="n">entrance</span><span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="n">angle</span><span class="p">)]</span> <span class="o">=</span> <span class="n">leaving</span><span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="n">angle</span><span class="p">)]</span> <span class="o">=</span> <span class="n">slope</span>
+		<span class="k">return</span> <span class="n">entrance</span><span class="p">,</span> <span class="n">leaving</span></div>
+
+
+<div class="viewcode-block" id="Element.affine_matrix">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Element.affine_matrix">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">affine_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""Return this element's paraxial map in the column's frame, as one homogeneous matrix.</span>
+
+<span class="sd">		The transfer matrix with the element's additive terms (its length on</span>
+<span class="sd">		``z``, a dipole's kick) in the last column, and, when the element is</span>
+<span class="sd">		off the axis, its alignment around it:</span>
+
+<span class="sd">		.. math::</span>
+
+<span class="sd">			\tilde M = T_{\rm exit}\begin{pmatrix} M &amp; a \\ 0 &amp; 1 \end{pmatrix}T_{\rm entrance},</span>
+<span class="sd">			\qquad T = \begin{pmatrix} I &amp; \pm d \\ 0 &amp; 1 \end{pmatrix}</span>
+
+<span class="sd">		so a ray ``r`` leaves as ``(affine_matrix() @ [*r, 1])[:-1]``. It is</span>
+<span class="sd">		:meth:`propagate_ray` without the aberrations, which are not linear.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		xp.ndarray</span>
+<span class="sd">			Shape ``(len(convention) + 1, len(convention) + 1)``.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			From :meth:`alignment_offsets`.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		transfer_matrix : The linear part, which the alignment leaves alone.</span>
+<span class="sd">		alignment_offsets : The frame changes.</span>
+
+<span class="sd">		Notes</span>
+<span class="sd">		-----</span>
+<span class="sd">		Paraxially the alignment only translates the frame, so the linear part</span>
+<span class="sd">		of :math:`\tilde M` is :math:`M` itself and only the last column moves,</span>
+<span class="sd">		to :math:`a + d_{\rm exit} - M d_{\rm entrance}`: a displaced lens is a</span>
+<span class="sd">		lens plus a steering kick, which is why dipoles correct it.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; Drift(length=0.01).affine_matrix().shape</span>
+<span class="sd">		(7, 7)</span>
+<span class="sd">		"""</span>
+		<span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">convention</span><span class="p">)</span>
+		<span class="n">affine</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="n">affine</span><span class="p">[:</span><span class="n">n</span><span class="p">,</span> <span class="p">:</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transfer_matrix</span><span class="p">()</span>			<span class="c1"># first: a dipole sets its kick here</span>
+		<span class="n">affine</span><span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"z"</span><span class="p">),</span> <span class="n">n</span><span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span>
+		<span class="n">affine</span><span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">),</span> <span class="n">n</span><span class="p">]</span> <span class="o">+=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"shift_x"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+		<span class="n">affine</span><span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">),</span> <span class="n">n</span><span class="p">]</span> <span class="o">+=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"shift_y"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+		<span class="n">affine</span><span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"xt"</span><span class="p">),</span> <span class="n">n</span><span class="p">]</span> <span class="o">+=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"tilt_x"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+		<span class="n">affine</span><span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"yt"</span><span class="p">),</span> <span class="n">n</span><span class="p">]</span> <span class="o">+=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"tilt_y"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+		<span class="n">offsets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment_offsets</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">offsets</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">affine</span>
+		<span class="n">entering</span><span class="p">,</span> <span class="n">leaving</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">xp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="n">entering</span><span class="p">[:</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">offsets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+		<span class="n">leaving</span><span class="p">[:</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">offsets</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+		<span class="k">return</span> <span class="n">leaving</span> <span class="o">@</span> <span class="n">affine</span> <span class="o">@</span> <span class="n">entering</span></div>
 
 
 <div class="viewcode-block" id="Element.phase_shift">
@@ -2080,9 +2214,18 @@
 <span class="sd">		-------</span>
 <span class="sd">		xp.ndarray</span>
 <span class="sd">			List of propagated rays with initial condition (x, θx, y, θy, z, E)</span>
+
+<span class="sd">		Notes</span>
+<span class="sd">		-----</span>
+<span class="sd">		An element off the axis (:attr:`alignment`) acts in its own frame: the</span>
+<span class="sd">		rays, and so what :meth:`aberration_kick` and :meth:`apply_intensity`</span>
+<span class="sd">		see, are taken relative to its axis, and returned to the column's.</span>
 <span class="sd">		"""</span>
 		<span class="n">paired</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">r0</span><span class="p">,</span><span class="n">Rays</span><span class="p">)</span>
 		<span class="n">rays</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">r0</span><span class="p">)</span>
+		<span class="n">offsets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment_offsets</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">offsets</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>					<span class="c1"># into the element's own frame (None: skipped)</span>
+			<span class="n">rays</span> <span class="o">=</span> <span class="n">rays</span> <span class="o">-</span> <span class="n">offsets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 		<span class="n">m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transfer_matrix</span><span class="p">()</span>
 		<span class="n">rf</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'mn,in-&gt;im'</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">rays</span><span class="p">)</span> <span class="c1"># matrix multiplication for a "list of vectors"</span>
 		<span class="c1"># additive terms: z_new = z_old+length (rotation is handled separately, see apply_rotation)</span>
@@ -2106,6 +2249,8 @@
 		<span class="k">if</span> <span class="n">chromatic</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 			<span class="n">rf</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"xt"</span><span class="p">)]</span> <span class="o">+=</span> <span class="n">chromatic</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 			<span class="n">rf</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"yt"</span><span class="p">)]</span> <span class="o">+=</span> <span class="n">chromatic</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+		<span class="k">if</span> <span class="n">offsets</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>					<span class="c1"># and back into the column's</span>
+			<span class="n">rf</span> <span class="o">=</span> <span class="n">rf</span> <span class="o">+</span> <span class="n">offsets</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
 
 		<span class="k">if</span> <span class="n">paired</span><span class="p">:</span>
 			<span class="n">result</span> <span class="o">=</span> <span class="n">r0</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
@@ -2254,8 +2399,11 @@
 			<span class="n">Sigma_out</span> <span class="o">=</span> <span class="n">M</span> <span class="o">@</span> <span class="n">Sigma</span> <span class="o">@</span> <span class="n">M</span><span class="o">.</span><span class="n">T</span>
 			<span class="n">mu_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">(</span><span class="n">mu</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
 			<span class="k">return</span> <span class="n">mu_out</span><span class="p">,</span> <span class="n">Sigma_out</span>
+		<span class="c1"># The aberrations act about the element's own axis (alignment), as on the ray path.</span>
+		<span class="n">offsets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment_offsets</span><span class="p">()</span>
+		<span class="n">mu_local</span> <span class="o">=</span> <span class="n">mu</span> <span class="k">if</span> <span class="n">offsets</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">mu</span> <span class="o">-</span> <span class="n">offsets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 		<span class="n">M_l</span><span class="p">,</span> <span class="n">delta_mean</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aberration_moment_pieces</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="n">Sigma</span><span class="p">,</span> <span class="n">ab</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">P</span><span class="p">),</span>
-															   <span class="n">mu</span><span class="p">,</span> <span class="n">closure</span><span class="p">)</span>
+															   <span class="n">mu_local</span><span class="p">,</span> <span class="n">closure</span><span class="p">)</span>
 		<span class="n">Sigma_out</span> <span class="o">=</span> <span class="n">M_l</span> <span class="o">@</span> <span class="n">Sigma</span> <span class="o">@</span> <span class="n">M_l</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">M_l</span> <span class="o">@</span> <span class="n">C</span> <span class="o">+</span> <span class="n">C</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">M_l</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="n">D</span>
 		<span class="c1"># The mean moves by the ENSEMBLE-average kick, which is not what the</span>
 		<span class="c1"># centroid ray feels: propagate_ray would apply delta(mu). Take the</span>
@@ -2263,7 +2411,7 @@
 		<span class="c1"># aberration's linear and nonlinear contributions explicitly.</span>
 		<span class="k">with</span> <span class="n">suspended_aberrations</span><span class="p">([</span><span class="bp">self</span><span class="p">]):</span>
 			<span class="n">mu_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate_ray</span><span class="p">(</span><span class="n">mu</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
-		<span class="n">mu_out</span> <span class="o">=</span> <span class="n">mu_out</span> <span class="o">+</span> <span class="p">(</span><span class="n">M_l</span> <span class="o">-</span> <span class="n">M</span><span class="p">)</span> <span class="o">@</span> <span class="n">mu</span> <span class="o">+</span> <span class="n">delta_mean</span>
+		<span class="n">mu_out</span> <span class="o">=</span> <span class="n">mu_out</span> <span class="o">+</span> <span class="p">(</span><span class="n">M_l</span> <span class="o">-</span> <span class="n">M</span><span class="p">)</span> <span class="o">@</span> <span class="n">mu_local</span> <span class="o">+</span> <span class="n">delta_mean</span>
 		<span class="k">return</span> <span class="n">mu_out</span><span class="p">,</span> <span class="n">Sigma_out</span></div>
 
 
@@ -2688,6 +2836,9 @@
 <span class="sd">		ValueError</span>
 <span class="sd">			Unknown mode; from the scaled path: the single frame reaching</span>
 <span class="sd">			its crossover, or an under-sampled screen.</span>
+<span class="sd">		NotImplementedError</span>
+<span class="sd">			'scaled' or 'hybrid' on an element off the axis</span>
+<span class="sd">			(:attr:`alignment`); the fixed path carries it.</span>
 
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
@@ -2733,11 +2884,67 @@
 		<span class="n">dimensions</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="s2">"dimensions"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">dimensions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 			<span class="n">dimensions</span> <span class="o">=</span> <span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">)</span>
+		<span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wave_frame</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">leaving</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 		<span class="k">for</span> <span class="n">phase</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phase_shift</span><span class="p">(</span><span class="n">dimensions</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">):</span>
 			<span class="n">data</span> <span class="o">=</span> <span class="n">apply_phase</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">phase</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">phase_space_of</span><span class="p">(</span><span class="n">phase</span><span class="p">))</span>
+		<span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wave_frame</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">leaving</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 		<span class="n">z_out</span> <span class="o">=</span> <span class="p">(</span><span class="n">z</span> <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span>
 		<span class="k">return</span> <span class="n">make_wavefield_signal</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z_out</span><span class="p">,</span>
 									 <span class="n">name</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="s2">"name"</span><span class="p">,</span> <span class="s2">"wavefield"</span><span class="p">))</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_wave_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">leaving</span><span class="p">:</span><span class="nb">bool</span><span class="p">):</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""Move a physical wavefield into this element's own frame, or out of it.</span>
+
+<span class="sd">		The wave form of :meth:`alignment_offsets`: entering, the field is</span>
+<span class="sd">		translated by minus the axis's entrance offset and tilted by minus its</span>
+<span class="sd">		angle; leaving, tilted back and translated by the exit offset. Between</span>
+<span class="sd">		the two the element's :meth:`phase_shift` program acts about its own</span>
+<span class="sd">		axis.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		data : np.ndarray</span>
+<span class="sd">			Complex field ``(ny, nx)`` on the fixed grid.</span>
+<span class="sd">		dx, dy : float</span>
+<span class="sd">			Sample spacings (metres).</span>
+<span class="sd">		wavelength : float</span>
+<span class="sd">			Wavelength (metres).</span>
+<span class="sd">		leaving : bool</span>
+<span class="sd">			Out of the element's frame (True) or into it (False).</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		np.ndarray</span>
+<span class="sd">			The field in the new frame; ``data`` itself when the element is on</span>
+<span class="sd">			the axis.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			From :meth:`alignment_offsets`.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		_propagate_wave_fixed : The consumer.</span>
+<span class="sd">		waveoptics.shift_phase, waveoptics.linear_phase : The two moves.</span>
+
+<span class="sd">		Notes</span>
+<span class="sd">		-----</span>
+<span class="sd">		A global phase is dropped. The grid is periodic, so an offset beyond</span>
+<span class="sd">		the field's empty margin wraps.</span>
+<span class="sd">		"""</span>
+		<span class="n">offsets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment_offsets</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">offsets</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">data</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.waveoptics</span><span class="w"> </span><span class="kn">import</span> <span class="n">apply_phase</span><span class="p">,</span> <span class="n">linear_phase</span><span class="p">,</span> <span class="n">shift_phase</span>
+		<span class="n">axis</span> <span class="o">=</span> <span class="n">offsets</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">leaving</span> <span class="k">else</span> <span class="n">offsets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+		<span class="n">sign</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="k">if</span> <span class="n">leaving</span> <span class="k">else</span> <span class="o">-</span><span class="mf">1.0</span>
+		<span class="n">ix</span><span class="p">,</span> <span class="n">ixt</span><span class="p">,</span> <span class="n">iy</span><span class="p">,</span> <span class="n">iyt</span> <span class="o">=</span> <span class="p">(</span><span class="n">columnByName</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="s2">"xt"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">,</span> <span class="s2">"yt"</span><span class="p">))</span>
+		<span class="n">ramp</span> <span class="o">=</span> <span class="n">linear_phase</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">sign</span> <span class="o">*</span> <span class="n">axis</span><span class="p">[</span><span class="n">ixt</span><span class="p">],</span> <span class="n">sign</span> <span class="o">*</span> <span class="n">axis</span><span class="p">[</span><span class="n">iyt</span><span class="p">])</span>
+		<span class="n">move</span> <span class="o">=</span> <span class="n">shift_phase</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">sign</span> <span class="o">*</span> <span class="n">axis</span><span class="p">[</span><span class="n">ix</span><span class="p">],</span> <span class="n">sign</span> <span class="o">*</span> <span class="n">axis</span><span class="p">[</span><span class="n">iy</span><span class="p">])</span>
+		<span class="k">if</span> <span class="n">leaving</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">apply_phase</span><span class="p">(</span><span class="n">apply_phase</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ramp</span><span class="p">),</span> <span class="n">move</span><span class="p">,</span> <span class="s2">"scattering"</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">apply_phase</span><span class="p">(</span><span class="n">apply_phase</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">move</span><span class="p">,</span> <span class="s2">"scattering"</span><span class="p">),</span> <span class="n">ramp</span><span class="p">)</span>
 
 	<span class="k">def</span><span class="w"> </span><span class="nf">_propagate_wave_scaled</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">hybrid</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">s_min</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">,</span>
 							   <span class="n">log</span><span class="p">:</span><span class="nb">list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">absorb</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
@@ -2765,6 +2972,11 @@
 <span class="sd">			Scaled wavefield at the element exit (same ξ/η grid; updated</span>
 <span class="sd">			s/R/τ/z and crossover marker).</span>
 
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		NotImplementedError</span>
+<span class="sd">			If the element is off the axis (:attr:`alignment`).</span>
+
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
 <span class="sd">		propagate_wave : The mode-dispatching public method.</span>
@@ -2774,6 +2986,9 @@
 								 <span class="n">axis_components</span><span class="p">,</span> <span class="n">join_axes</span><span class="p">)</span>
 		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span><span class="n">make_scaled_wavefield_signal</span><span class="p">,</span> <span class="n">read_scaled_wavefield</span><span class="p">,</span>
 								<span class="n">scaled_frame_crossover</span><span class="p">,</span> <span class="n">phase_space_of</span><span class="p">)</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> is off the axis (alignment); the scaled "</span>
+									  <span class="s2">"and hybrid wave paths do not carry an alignment yet - use mode='fixed'."</span><span class="p">)</span>
 		<span class="n">U</span><span class="p">,</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">deta</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">read_scaled_wavefield</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span>
 		<span class="n">z</span> <span class="o">=</span> <span class="n">z</span> <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.0</span>
 		<span class="n">z_cross</span> <span class="o">=</span> <span class="n">scaled_frame_crossover</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span>
@@ -3123,6 +3338,9 @@
 		<span class="n">array</span><span class="o">=</span><span class="n">fix_ray_dims</span><span class="p">(</span><span class="n">array</span><span class="p">,[</span><span class="s2">"x"</span><span class="p">,</span><span class="s2">"y"</span><span class="p">,</span><span class="s2">"xt"</span><span class="p">,</span><span class="s2">"yt"</span><span class="p">])</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">voltage</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>					<span class="c1"># beam energy (keV) rides in the E column when defined</span>
 			<span class="n">array</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"E"</span><span class="p">)]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">voltage</span>
+		<span class="n">offsets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment_offsets</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">offsets</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>					<span class="c1"># a gun off the axis: the beam leaves along the gun's</span>
+			<span class="n">array</span> <span class="o">=</span> <span class="n">array</span> <span class="o">+</span> <span class="n">offsets</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
 		<span class="k">return</span> <span class="n">Rays</span><span class="p">(</span><span class="n">array</span><span class="p">,</span><span class="n">I_per_ray</span><span class="o">=</span><span class="n">xp</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">),</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_current</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">)),</span><span class="n">I_per_plane</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">beam_current</span><span class="p">)</span></div>
 
 
@@ -3168,6 +3386,9 @@
 		<span class="n">mu0</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">convention</span><span class="p">))</span>
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">voltage</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 			<span class="n">mu0</span><span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"E"</span><span class="p">)]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">voltage</span>
+		<span class="n">offsets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment_offsets</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">offsets</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>					<span class="c1"># the beam leaves along the gun's axis</span>
+			<span class="n">mu0</span> <span class="o">=</span> <span class="n">mu0</span> <span class="o">+</span> <span class="n">offsets</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
 		<span class="k">return</span> <span class="n">mu0</span><span class="p">,</span> <span class="n">Sigma0</span></div>
 
 
@@ -3237,6 +3458,8 @@
 <span class="sd">			cannot be derived (zero source size and no wave_extent), if</span>
 <span class="sd">			wave_kind is not recognized, or if wave_kind='aperture'</span>
 <span class="sd">			with no aperture_radius set (or one that does not fit the grid).</span>
+<span class="sd">		NotImplementedError</span>
+<span class="sd">			If the source is off the axis (:attr:`Element.alignment`).</span>
 
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
@@ -3246,6 +3469,9 @@
 <span class="sd">		"""</span>
 		<span class="kn">from</span><span class="w"> </span><span class="nn">.waveoptics</span><span class="w"> </span><span class="kn">import</span> <span class="n">plane_wave</span><span class="p">,</span> <span class="n">gaussian_field</span><span class="p">,</span> <span class="n">point_source</span>
 		<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_wavefield_signal</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">'The source'</span><span class="si">}</span><span class="s2"> is off the axis (alignment); its wave does not "</span>
+									  <span class="s2">"carry an alignment yet. Trace rays or moments, or put it on the axis."</span><span class="p">)</span>
 		<span class="k">if</span> <span class="n">mode</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'scaled'</span><span class="p">,</span> <span class="s1">'hybrid'</span><span class="p">):</span>
 			<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_scaled_wavefield_signal</span><span class="p">,</span> <span class="n">read_wavefield</span>
 			<span class="n">data</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">read_wavefield</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wave</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">'fixed'</span><span class="p">))</span>
@@ -3670,6 +3896,9 @@
 <span class="sd">		apply_intensity : The mask actually applied during propagation.</span>
 <span class="sd">		generalized_CL_PL_fitting.fit_VOA : The fitting consumer.</span>
 <span class="sd">		"""</span>
+		<span class="n">offsets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alignment_offsets</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">offsets</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>					<span class="c1"># about the aperture's own centre</span>
+			<span class="n">r0</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">r0</span><span class="p">)</span> <span class="o">-</span> <span class="n">offsets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 		<span class="n">xmax</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">r0</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)]))</span>
 		<span class="n">ymax</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">r0</span><span class="p">[:,</span><span class="n">columnByName</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)]))</span>
 		<span class="n">scale_x</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="k">if</span> <span class="n">xmax</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="o">/</span> <span class="n">xmax</span>

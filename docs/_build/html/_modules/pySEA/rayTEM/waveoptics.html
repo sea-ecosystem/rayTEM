@@ -464,6 +464,51 @@
 
 
 
+<div class="viewcode-block" id="shift_phase">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.waveoptics.shift_phase">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">shift_phase</span><span class="p">(</span><span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">dx</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">shift_x</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">shift_y</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""Reciprocal-space phase that translates a field by ``(shift_x, shift_y)``.</span>
+
+<span class="sd">	The Fourier shift theorem: :math:`\psi(x - s) \leftrightarrow</span>
+<span class="sd">	\tilde\psi(k)\,e^{-i k\cdot s}`, so this returns</span>
+<span class="sd">	:math:`\chi = -(k_x s_x + k_y s_y)` on the unshifted ``fftfreq`` grid, for</span>
+<span class="sd">	:func:`apply_phase` with ``space='scattering'``. Sub-pixel shifts are exact</span>
+<span class="sd">	for a band-limited field; the grid is periodic, so what leaves one edge</span>
+<span class="sd">	enters the other.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	shape : tuple of int</span>
+<span class="sd">		Field shape ``(ny, nx)``.</span>
+<span class="sd">	dx, dy : float</span>
+<span class="sd">		Sample spacings (metres).</span>
+<span class="sd">	shift_x, shift_y : float</span>
+<span class="sd">		The translation (metres).</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	np.ndarray</span>
+<span class="sd">		Real phase array, shape ``(ny, nx)``, in fftfreq (unshifted) order.</span>
+
+<span class="sd">	Related</span>
+<span class="sd">	-------</span>
+<span class="sd">	linear_phase : The position-space ramp that tilts a field.</span>
+<span class="sd">	apply_phase : Applies it.</span>
+
+<span class="sd">	Examples</span>
+<span class="sd">	--------</span>
+<span class="sd">	&gt;&gt;&gt; field = np.zeros((8, 8), complex); field[4, 4] = 1</span>
+<span class="sd">	&gt;&gt;&gt; moved = apply_phase(field, shift_phase((8, 8), 1.0, 1.0, 2.0, 0.0), "scattering")</span>
+<span class="sd">	&gt;&gt;&gt; np.unravel_index(int(np.argmax(np.abs(moved))), (8, 8))</span>
+<span class="sd">	(np.int64(4), np.int64(6))</span>
+<span class="sd">	"""</span>
+	<span class="n">ny</span><span class="p">,</span> <span class="n">nx</span> <span class="o">=</span> <span class="n">shape</span>
+	<span class="n">kx</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftfreq</span><span class="p">(</span><span class="n">nx</span><span class="p">,</span> <span class="n">d</span><span class="o">=</span><span class="n">dx</span><span class="p">)</span>
+	<span class="n">ky</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftfreq</span><span class="p">(</span><span class="n">ny</span><span class="p">,</span> <span class="n">d</span><span class="o">=</span><span class="n">dy</span><span class="p">)</span>
+	<span class="n">KX</span><span class="p">,</span> <span class="n">KY</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">kx</span><span class="p">,</span> <span class="n">ky</span><span class="p">)</span>
+	<span class="k">return</span> <span class="o">-</span><span class="p">(</span><span class="n">KX</span> <span class="o">*</span> <span class="n">shift_x</span> <span class="o">+</span> <span class="n">KY</span> <span class="o">*</span> <span class="n">shift_y</span><span class="p">)</span></div>
+
+
 <div class="viewcode-block" id="focal_phase">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.waveoptics.focal_phase">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">focal_phase</span><span class="p">(</span><span class="n">field</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">dx</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
