@@ -14,8 +14,8 @@ deflection). The alignment says where the element's own axis is: its offset and 
 element's centre. Rays enter the element's frame, the element acts as it always has (matrix,
 aberrations about its own axis, an aperture clips about its own centre), and leave it.
 
-- [ ] `Element.alignment` (None, or x, xt, y, yt at the centre); `affine_matrix()` (7×7 homogeneous)
-- [ ] ray path (and so intensity, the mean of the moments); aberrated moments use the element's frame
-- [ ] fixed wave path: shift and tilt the field into the element's frame and back; scaled/hybrid refuse clearly
-- [ ] tests (identity when None, displaced lens = steering, aperture clips about its centre, round trip in .sea)
+- [x] `Element.alignment` (None, or x, xt, y, yt at the centre); `affine_matrix()` (7×7 homogeneous)
+- [x] ray path (and so intensity, the mean of the moments); aberrated moments use the element's frame
+- [x] fixed wave path: shift and tilt the field into the element's frame and back; scaled/hybrid refuse clearly (and `Source.wave`; a gun's rays and moments leave along its axis)
+- [x] tests (identity when None, displaced lens = steering, aperture clips about its centre, round trip in .sea) — `tests/test_element_alignment.py`, 11 pass; suite 342 pass, 1 pre-existing failure (`test_rotated_quadrupole`, also on `dev`)
 - [ ] wiki, refresh, merge into `dev`
