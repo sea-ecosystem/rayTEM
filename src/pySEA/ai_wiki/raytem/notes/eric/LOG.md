@@ -2,6 +2,12 @@
 
 Newest entries at top.
 
+## 2026-10-30 — [Under Construction] Element alignment
+**Goal:** every element can carry its own axis's offset and tilt; None (the default) skips the step.
+**Why:** Eric wants to calibrate the column's real geometry, and the emulator needs skewed, translated lenses to test the alignment procedures.
+TODO: [TODO_ACTIVE_2026-10-30_element-alignment.md](TODO_ACTIVE_2026-10-30_element-alignment.md)
+- [ ] alignment on rays, moments and the fixed wave path; tests; wiki
+
 ## 2026-10-27 — [Done] Aperture transmission: current the traced rays do not sample
 **Goal:** an aperture can pass a stated share of the current inside its radius.
 **Why:** a gun aperture must take a µA tip emission down to a nA column current, which clipping rays cannot do with an affordable ray fan.
