@@ -18,4 +18,6 @@ aberrations about its own axis, an aperture clips about its own centre), and lea
 - [x] ray path (and so intensity, the mean of the moments); aberrated moments use the element's frame
 - [x] fixed wave path: shift and tilt the field into the element's frame and back; scaled/hybrid refuse clearly (and `Source.wave`; a gun's rays and moments leave along its axis)
 - [x] tests (identity when None, displaced lens = steering, aperture clips about its centre, round trip in .sea) — `tests/test_element_alignment.py`, 11 pass; suite 342 pass, 1 pre-existing failure (`test_rotated_quadrupole`, also on `dev`)
-- [ ] wiki, refresh, merge into `dev`
+- [x] wiki, refresh, merge into `dev`
+
+**Not yet:** the scaled and hybrid wave paths and `Source.wave` refuse an aligned element; the section driver's display boundary ray is still clipped about the column's axis; a roll about the axis stays `Element.rotation` (quadrupoles).

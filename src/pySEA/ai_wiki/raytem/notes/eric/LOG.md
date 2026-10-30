@@ -2,11 +2,12 @@
 
 Newest entries at top.
 
-## 2026-10-30 — [Under Construction] Element alignment
+## 2026-10-30 — [Done] Element alignment
 **Goal:** every element can carry its own axis's offset and tilt; None (the default) skips the step.
 **Why:** Eric wants to calibrate the column's real geometry, and the emulator needs skewed, translated lenses to test the alignment procedures.
-TODO: [TODO_ACTIVE_2026-10-30_element-alignment.md](TODO_ACTIVE_2026-10-30_element-alignment.md)
-- [ ] alignment on rays, moments and the fixed wave path; tests; wiki
+TODO: [TODO_DONE_2026-10-30_element-alignment.md](TODO_DONE_2026-10-30_element-alignment.md)
+- [x] alignment on rays, moments and the fixed wave path; tests; wiki
+**Outcome:** `Element.alignment` (None, or the axis's x, xt, y, yt at the element's centre) on every element; `alignment_offsets()` and `affine_matrix()` (7×7 homogeneous, the ray path without aberrations). A displaced lens steers by d/f, a drift is unchanged however it lies, an aperture clips about its own centre; the fixed wave path moves the field in and out. Scaled/hybrid waves refuse it for now. 11 new tests; suite 342 pass, 1 pre-existing failure.
 
 ## 2026-10-27 — [Done] Aperture transmission: current the traced rays do not sample
 **Goal:** an aperture can pass a stated share of the current inside its radius.
