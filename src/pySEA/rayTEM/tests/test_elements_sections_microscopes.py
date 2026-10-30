@@ -542,17 +542,17 @@ def test_rotated_quadrupole():
 	with pytest.raises(NotImplementedError):
 		Q(strength=30.0, length=0.02, rotation=0.3).transfer_block()
 	# the rotation survives a .sea round trip
-	sec = MicroscopeSection(name="C", elements=[
+	sec = MicroscopeSection(name="S", elements=[
 		Source(voltage=200, size=(2e-6, 2e-6), np_xy=(3, 3),
 			   angle=(1e-4, 1e-4), na_xy=(3, 3)),
 		Drift(length=0.05),
-		Quadrapole(name="CQ", strength=2.0, rotation=np.pi / 4),
+		Quadrapole(name="SQ", strength=2.0, rotation=np.pi / 4),
 		Drift(length=0.05)])
 	m = Microscope(sections=[sec])
 	m.to_sea("t_rot.sea")
 	back = load_microscope("t_rot.sea")
 	os.remove("t_rot.sea")
-	assert back["CQ"].rotation == pytest.approx(np.pi / 4)
+	assert back["SQ"].rotation == pytest.approx(np.pi / 4)
 	assert np.allclose(back.propagate_ray(), m.propagate_ray())
 
 
