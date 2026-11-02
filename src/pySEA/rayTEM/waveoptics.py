@@ -346,6 +346,48 @@ def linear_phase(shape: tuple, dx: float, dy: float, wavelength: float,
 	return k * (tilt_x * X + tilt_y * Y)
 
 
+def shift_phase(shape: tuple, dx: float, dy: float, shift_x: float, shift_y: float) -> np.ndarray:
+	r"""Reciprocal-space phase that translates a field by ``(shift_x, shift_y)``.
+
+	The Fourier shift theorem: :math:`\psi(x - s) \leftrightarrow
+	\tilde\psi(k)\,e^{-i k\cdot s}`, so this returns
+	:math:`\chi = -(k_x s_x + k_y s_y)` on the unshifted ``fftfreq`` grid, for
+	:func:`apply_phase` with ``space='scattering'``. Sub-pixel shifts are exact
+	for a band-limited field; the grid is periodic, so what leaves one edge
+	enters the other.
+
+	Parameters
+	----------
+	shape : tuple of int
+		Field shape ``(ny, nx)``.
+	dx, dy : float
+		Sample spacings (metres).
+	shift_x, shift_y : float
+		The translation (metres).
+
+	Returns
+	-------
+	np.ndarray
+		Real phase array, shape ``(ny, nx)``, in fftfreq (unshifted) order.
+
+	Related
+	-------
+	linear_phase : The position-space ramp that tilts a field.
+	apply_phase : Applies it.
+
+	Examples
+	--------
+	>>> field = np.zeros((8, 8), complex); field[4, 4] = 1
+	>>> moved = apply_phase(field, shift_phase((8, 8), 1.0, 1.0, 2.0, 0.0), "scattering")
+	>>> np.unravel_index(int(np.argmax(np.abs(moved))), (8, 8))
+	(np.int64(4), np.int64(6))
+	"""
+	ny, nx = shape
+	kx = 2 * np.pi * np.fft.fftfreq(nx, d=dx)
+	ky = 2 * np.pi * np.fft.fftfreq(ny, d=dy)
+	KX, KY = np.meshgrid(kx, ky)
+	return -(KX * shift_x + KY * shift_y)
+
 def focal_phase(field: np.ndarray, dx: float, dy: float, wavelength: float,
 				power_x: float, power_y: float) -> np.ndarray:
 	r"""Apply a (possibly astigmatic) thin focusing phase.

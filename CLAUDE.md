@@ -239,6 +239,7 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 - `src/pySEA/rayTEM/tests/test_covariance_propagation.py` — Tests for covariance propagation, moment closure, and examples/08.
 - `src/pySEA/rayTEM/tests/test_display_signals.py` — Tests for the derived display Signals: ray diagram, beam envelope, wave cross-section.
 - `src/pySEA/rayTEM/tests/test_eight_configurations.py` — Tests driving examples/07_eightConfigurations.py.
+- `src/pySEA/rayTEM/tests/test_element_alignment.py` — An element's ``alignment``: where its own axis is, off the column's.
 - `src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py`
 - `src/pySEA/rayTEM/tests/test_microscope_identity.py`
 - `src/pySEA/rayTEM/tests/test_rotating_frame.py` — ``Rays.convert_to_rotating_reference_frame`` is a vectorized form of its old loop.

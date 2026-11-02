@@ -883,6 +883,19 @@ class Element(SealedAttributes, SEASerializable):
 	shift_y = 0.0
 	tilt_x = 0.0
 	tilt_y = 0.0
+	#: Where this element's own axis lies, relative to the column's optic axis.
+	#: A SETTING, and not the same thing as shift_x/tilt_x above, which are
+	#: what the element DOES to a ray (a dipole's kick): this is where the
+	#: element IS. None (the default) is an element on the axis, and every
+	#: propagation skips the step - an identity frame change costs nothing.
+	#: Otherwise (x, xt, y, yt): the axis's offset (m) and tilt (rad) at the
+	#: element's centre, in the convention's order. Rays enter the element's
+	#: own frame, the element acts as it always has (its matrix, aberrations
+	#: about its own axis, an aperture clipping about its own centre), and
+	#: leave it again: see :meth:`alignment_offsets`, :meth:`affine_matrix`.
+	#: Eric (2026-10-30): "That way we can begin to calibrate what the actual
+	#: geometry is in the microscope."
+	alignment = None
 	#: Larmor rotation accumulated through this element (radians). Set by the
 	#: elements that have an axial field (a side effect of transfer_matrix);
 	#: 0 for everything else. A RESULT, not a setting.
@@ -1092,6 +1105,121 @@ class Element(SealedAttributes, SEASerializable):
 		propagate_ray, propagate_moments : Consumers of this matrix.
 		"""
 		return xp.eye(len(convention))
+
+	def alignment_offsets(self) -> tuple | None:
+		r"""Return where this element's own axis is at its entrance and its exit.
+
+		The two frame changes :attr:`alignment` stands for. A ray enters the
+		element's frame by subtracting the entrance offset and leaves it by
+		adding the exit offset; between them the element acts as it would on
+		the axis. The axis is a straight line through the element's centre, so
+		a tilt moves it by ``±tilt·length/2`` at the faces.
+
+		Returns
+		-------
+		tuple of xp.ndarray or None
+			``(entrance, exit)``, each shape ``(len(convention),)`` with the
+			axis's x, xt, y, yt (``z`` and ``E`` zero), or None for an
+			element on the axis (:attr:`alignment` None).
+
+		Raises
+		------
+		ValueError
+			If :attr:`alignment` is not four numbers.
+
+		Related
+		-------
+		affine_matrix : The same frame changes as homogeneous matrices.
+		propagate_ray : Applies them.
+
+		Notes
+		-----
+		Paraxial: a tilt is an angle added to the ray's slope, the small-angle
+		form of rotating the frame, and the element's length along its own axis
+		is taken as its length along the column's.
+
+		Examples
+		--------
+		>>> lens = Drift(length=0.01)
+		>>> lens.alignment_offsets() is None
+		True
+		>>> lens.alignment = (1e-6, 0.0, 0.0, 2e-3)
+		>>> [round(float(v), 9) for v in lens.alignment_offsets()[1][:4]]
+		[1e-06, 0.0, 1e-05, 0.002]
+		"""
+		if self.alignment is None:
+			return None
+		values = [float(v) for v in xp.ravel(xp.asarray(self.alignment, dtype=float))]
+		if len(values) != 4:
+			raise ValueError(f"{self.name or type(self).__name__}.alignment is (x, xt, y, yt) or None; "
+							 f"got {len(values)} numbers.")
+		x, xt, y, yt = values
+		half = 0.5 * float(self.length or 0.0)
+		entrance = xp.zeros(len(convention))
+		leaving = xp.zeros(len(convention))
+		for column, angle, offset, slope in (("x", "xt", x, xt), ("y", "yt", y, yt)):
+			entrance[columnByName(column)] = offset - slope * half
+			leaving[columnByName(column)] = offset + slope * half
+			entrance[columnByName(angle)] = leaving[columnByName(angle)] = slope
+		return entrance, leaving
+
+	def affine_matrix(self) -> xp.ndarray:
+		r"""Return this element's paraxial map in the column's frame, as one homogeneous matrix.
+
+		The transfer matrix with the element's additive terms (its length on
+		``z``, a dipole's kick) in the last column, and, when the element is
+		off the axis, its alignment around it:
+
+		.. math::
+
+			\tilde M = T_{\rm exit}\begin{pmatrix} M & a \\ 0 & 1 \end{pmatrix}T_{\rm entrance},
+			\qquad T = \begin{pmatrix} I & \pm d \\ 0 & 1 \end{pmatrix}
+
+		so a ray ``r`` leaves as ``(affine_matrix() @ [*r, 1])[:-1]``. It is
+		:meth:`propagate_ray` without the aberrations, which are not linear.
+
+		Returns
+		-------
+		xp.ndarray
+			Shape ``(len(convention) + 1, len(convention) + 1)``.
+
+		Raises
+		------
+		ValueError
+			From :meth:`alignment_offsets`.
+
+		Related
+		-------
+		transfer_matrix : The linear part, which the alignment leaves alone.
+		alignment_offsets : The frame changes.
+
+		Notes
+		-----
+		Paraxially the alignment only translates the frame, so the linear part
+		of :math:`\tilde M` is :math:`M` itself and only the last column moves,
+		to :math:`a + d_{\rm exit} - M d_{\rm entrance}`: a displaced lens is a
+		lens plus a steering kick, which is why dipoles correct it.
+
+		Examples
+		--------
+		>>> Drift(length=0.01).affine_matrix().shape
+		(7, 7)
+		"""
+		n = len(convention)
+		affine = xp.eye(n + 1)
+		affine[:n, :n] = self.transfer_matrix()			# first: a dipole sets its kick here
+		affine[columnByName("z"), n] += self.length
+		affine[columnByName("x"), n] += getattr(self, "shift_x", 0)
+		affine[columnByName("y"), n] += getattr(self, "shift_y", 0)
+		affine[columnByName("xt"), n] += getattr(self, "tilt_x", 0)
+		affine[columnByName("yt"), n] += getattr(self, "tilt_y", 0)
+		offsets = self.alignment_offsets()
+		if offsets is None:
+			return affine
+		entering, leaving = xp.eye(n + 1), xp.eye(n + 1)
+		entering[:n, n] = -offsets[0]
+		leaving[:n, n] = offsets[1]
+		return leaving @ affine @ entering
 
 	def phase_shift(self, dimensions, wavelength:float, scaled:bool=False, s:float=1.0):
 		r"""Wave-side element contract: the phase this element imprints on a wave.
@@ -1916,9 +2044,18 @@ class Element(SealedAttributes, SEASerializable):
 		-------
 		xp.ndarray
 			List of propagated rays with initial condition (x, θx, y, θy, z, E)
+
+		Notes
+		-----
+		An element off the axis (:attr:`alignment`) acts in its own frame: the
+		rays, and so what :meth:`aberration_kick` and :meth:`apply_intensity`
+		see, are taken relative to its axis, and returned to the column's.
 		"""
 		paired = isinstance(r0,Rays)
 		rays = xp.asarray(r0)
+		offsets = self.alignment_offsets()
+		if offsets is not None:					# into the element's own frame (None: skipped)
+			rays = rays - offsets[0]
 		m = self.transfer_matrix()
 		rf = xp.einsum('mn,in->im', m, rays) # matrix multiplication for a "list of vectors"
 		# additive terms: z_new = z_old+length (rotation is handled separately, see apply_rotation)
@@ -1942,6 +2079,8 @@ class Element(SealedAttributes, SEASerializable):
 		if chromatic is not None:
 			rf[:,columnByName("xt")] += chromatic[0]
 			rf[:,columnByName("yt")] += chromatic[1]
+		if offsets is not None:					# and back into the column's
+			rf = rf + offsets[1]
 
 		if paired:
 			result = r0.copy()
@@ -2081,8 +2220,11 @@ class Element(SealedAttributes, SEASerializable):
 			Sigma_out = M @ Sigma @ M.T
 			mu_out = self.propagate_ray(mu.reshape(1, -1))[0]
 			return mu_out, Sigma_out
+		# The aberrations act about the element's own axis (alignment), as on the ray path.
+		offsets = self.alignment_offsets()
+		mu_local = mu if offsets is None else mu - offsets[0]
 		M_l, delta_mean, C, D = self._aberration_moment_pieces(M, Sigma, ab, float(P),
-															   mu, closure)
+															   mu_local, closure)
 		Sigma_out = M_l @ Sigma @ M_l.T + M_l @ C + C.T @ M_l.T + D
 		# The mean moves by the ENSEMBLE-average kick, which is not what the
 		# centroid ray feels: propagate_ray would apply delta(mu). Take the
@@ -2090,7 +2232,7 @@ class Element(SealedAttributes, SEASerializable):
 		# aberration's linear and nonlinear contributions explicitly.
 		with suspended_aberrations([self]):
 			mu_out = self.propagate_ray(mu.reshape(1, -1))[0]
-		mu_out = mu_out + (M_l - M) @ mu + delta_mean
+		mu_out = mu_out + (M_l - M) @ mu_local + delta_mean
 		return mu_out, Sigma_out
 
 	def aberration_monomials(self, P:float) -> dict:
@@ -2500,6 +2642,9 @@ class Element(SealedAttributes, SEASerializable):
 		ValueError
 			Unknown mode; from the scaled path: the single frame reaching
 			its crossover, or an under-sampled screen.
+		NotImplementedError
+			'scaled' or 'hybrid' on an element off the axis
+			(:attr:`alignment`); the fixed path carries it.
 
 		Related
 		-------
@@ -2544,11 +2689,67 @@ class Element(SealedAttributes, SEASerializable):
 		dimensions = getattr(signal, "dimensions", None)
 		if dimensions is None:
 			dimensions = (data.shape, dx, dy)
+		data = self._wave_frame(data, dx, dy, wavelength, leaving=False)
 		for phase in self.phase_shift(dimensions, wavelength):
 			data = apply_phase(data, phase.data, phase_space_of(phase))
+		data = self._wave_frame(data, dx, dy, wavelength, leaving=True)
 		z_out = (z if z is not None else 0.0) + self.length
 		return make_wavefield_signal(data, dx, dy, wavelength, z=z_out,
 									 name=getattr(signal, "name", "wavefield"))
+
+	def _wave_frame(self, data, dx:float, dy:float, wavelength:float, leaving:bool):
+		r"""Move a physical wavefield into this element's own frame, or out of it.
+
+		The wave form of :meth:`alignment_offsets`: entering, the field is
+		translated by minus the axis's entrance offset and tilted by minus its
+		angle; leaving, tilted back and translated by the exit offset. Between
+		the two the element's :meth:`phase_shift` program acts about its own
+		axis.
+
+		Parameters
+		----------
+		data : np.ndarray
+			Complex field ``(ny, nx)`` on the fixed grid.
+		dx, dy : float
+			Sample spacings (metres).
+		wavelength : float
+			Wavelength (metres).
+		leaving : bool
+			Out of the element's frame (True) or into it (False).
+
+		Returns
+		-------
+		np.ndarray
+			The field in the new frame; ``data`` itself when the element is on
+			the axis.
+
+		Raises
+		------
+		ValueError
+			From :meth:`alignment_offsets`.
+
+		Related
+		-------
+		_propagate_wave_fixed : The consumer.
+		waveoptics.shift_phase, waveoptics.linear_phase : The two moves.
+
+		Notes
+		-----
+		A global phase is dropped. The grid is periodic, so an offset beyond
+		the field's empty margin wraps.
+		"""
+		offsets = self.alignment_offsets()
+		if offsets is None:
+			return data
+		from .waveoptics import apply_phase, linear_phase, shift_phase
+		axis = offsets[1] if leaving else offsets[0]
+		sign = 1.0 if leaving else -1.0
+		ix, ixt, iy, iyt = (columnByName(k) for k in ("x", "xt", "y", "yt"))
+		ramp = linear_phase(data.shape, dx, dy, wavelength, sign * axis[ixt], sign * axis[iyt])
+		move = shift_phase(data.shape, dx, dy, sign * axis[ix], sign * axis[iy])
+		if leaving:
+			return apply_phase(apply_phase(data, ramp), move, "scattering")
+		return apply_phase(apply_phase(data, move, "scattering"), ramp)
 
 	def _propagate_wave_scaled(self, signal, hybrid:bool=False, s_min:float=1e-3,
 							   log:list=None, absorb:float=0.1,
@@ -2576,6 +2777,11 @@ class Element(SealedAttributes, SEASerializable):
 			Scaled wavefield at the element exit (same ξ/η grid; updated
 			s/R/τ/z and crossover marker).
 
+		Raises
+		------
+		NotImplementedError
+			If the element is off the axis (:attr:`alignment`).
+
 		Related
 		-------
 		propagate_wave : The mode-dispatching public method.
@@ -2585,6 +2791,9 @@ class Element(SealedAttributes, SEASerializable):
 								 axis_components, join_axes)
 		from .seashells import (make_scaled_wavefield_signal, read_scaled_wavefield,
 								scaled_frame_crossover, phase_space_of)
+		if self.alignment is not None:
+			raise NotImplementedError(f"{self.name or type(self).__name__} is off the axis (alignment); the scaled "
+									  "and hybrid wave paths do not carry an alignment yet - use mode='fixed'.")
 		U, dxi, deta, wavelength, s, R, tau, z = read_scaled_wavefield(signal)
 		z = z if z is not None else 0.0
 		z_cross = scaled_frame_crossover(signal)
@@ -2926,6 +3135,9 @@ class Source(Element):
 		array=fix_ray_dims(array,["x","y","xt","yt"])
 		if self.voltage is not None:					# beam energy (keV) rides in the E column when defined
 			array[:,columnByName("E")] = self.voltage
+		offsets = self.alignment_offsets()
+		if offsets is not None:					# a gun off the axis: the beam leaves along the gun's
+			array = array + offsets[1]
 		return Rays(array,I_per_ray=xp.full(len(array),self.beam_current/len(array)),I_per_plane=self.beam_current)
 
 	# dummy propagation in case someone tries to propagate through since this is technically an element
@@ -2965,6 +3177,9 @@ class Source(Element):
 		mu0 = xp.zeros(len(convention))
 		if self.voltage is not None:
 			mu0[columnByName("E")] = self.voltage
+		offsets = self.alignment_offsets()
+		if offsets is not None:					# the beam leaves along the gun's axis
+			mu0 = mu0 + offsets[1]
 		return mu0, Sigma0
 
 	def propagate_moments(self, mu:xp.ndarray, Sigma:xp.ndarray, closure=None) -> tuple:
@@ -3028,6 +3243,8 @@ class Source(Element):
 			cannot be derived (zero source size and no wave_extent), if
 			wave_kind is not recognized, or if wave_kind='aperture'
 			with no aperture_radius set (or one that does not fit the grid).
+		NotImplementedError
+			If the source is off the axis (:attr:`Element.alignment`).
 
 		Related
 		-------
@@ -3037,6 +3254,9 @@ class Source(Element):
 		"""
 		from .waveoptics import plane_wave, gaussian_field, point_source
 		from .seashells import make_wavefield_signal
+		if self.alignment is not None:
+			raise NotImplementedError(f"{self.name or 'The source'} is off the axis (alignment); its wave does not "
+									  "carry an alignment yet. Trace rays or moments, or put it on the axis.")
 		if mode in ('scaled', 'hybrid'):
 			from .seashells import make_scaled_wavefield_signal, read_wavefield
 			data, dx, dy, wavelength, z = read_wavefield(self.wave(mode='fixed'))
@@ -3443,6 +3663,9 @@ class Aperture(Element):
 		apply_intensity : The mask actually applied during propagation.
 		generalized_CL_PL_fitting.fit_VOA : The fitting consumer.
 		"""
+		offsets = self.alignment_offsets()
+		if offsets is not None:					# about the aperture's own centre
+			r0 = xp.asarray(r0) - offsets[0]
 		xmax = xp.amax(xp.abs(r0[:,columnByName("x")]))
 		ymax = xp.amax(xp.abs(r0[:,columnByName("y")]))
 		scale_x = 1.0 if xmax < self.radius else self.radius / xmax
