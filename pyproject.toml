@@ -34,3 +34,5 @@ python_files = ["test_*.py"]
 
 [tool.uv.sources]
 sea-ecosystem = { path = "../sea-ecosystem", editable = true }
+sea-eco = { path = "../sea-eco", editable = true }
+sea-sand = { path = "../sea-sand", editable = true }
