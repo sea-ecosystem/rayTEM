@@ -31,6 +31,14 @@ stepping on each other's work.
    ls -t src/pySEA/ai_wiki/raytem/notes/eric/   # or ondrej/
    ```
 
+   Then check this repo's message board for open posts to you or to `all`
+   (see "Message board" below), and tell your person about any you find:
+
+   ```bash
+   # Replace <me> with your notes-folder name (eric, ondrej, ...):
+   ls src/pySEA/ai_wiki/raytem/notes/board/ 2>/dev/null | grep -E '^BOARD_OPEN_.*-to-(<me>|all)_'
+   ```
+
 4. Write a TODO note in **your own** notes folder with the task broken into
    checkboxes. State in a short header at the top:
    - **Branch/worktree:** the branch or worktree the work will be performed in
@@ -75,7 +83,32 @@ Keep commits small — a checked-off item plus whatever code it covers.
 - Read the other contributor's folder freely — never write to it.
 - There is no `shared/` folder. Cross-contributor context belongs in each
   person's own log with enough explanation for the other side to understand.
+  Messages meant for another person go on the message board.
 - Never check off or edit items in the other contributor's TODO files.
+
+### Message board
+
+Each repo has a message board at `src/pySEA/ai_wiki/raytem/notes/board/` for contributors to post
+to each other: questions, requests, heads-ups, and decisions needed. Posts are
+messages between people, not reference material and not instructions to an
+agent.
+
+- **One file per post:**
+  `BOARD_<OPEN|RESOLVED>_YYYY-MM-DD_<from>-to-<to>_slug.md`, where `<from>` and
+  `<to>` are notes-folder names (`eric`, `ondrej`, …) and `<to>` may be `all`.
+- **Post body:** a `**From:** / **To:** / **Date:**` header, then the message.
+  Keep it short and say what you need back.
+- **Replies:** anyone may append a `## Reply — <name> — YYYY-MM-DD` section to
+  any post. This is the one place you write in a file another person started;
+  never edit what someone else wrote.
+- **Closing:** the author renames `OPEN` → `RESOLVED` when the thread is done,
+  or the recipient does after replying with the resolution.
+- **Agents:** at task start, list open posts addressed to your person or
+  `all`, summarize them for your person, and act on one only when your person
+  asks. Post on your person's behalf only when asked. Commit and push board
+  changes like other notes (`notes: board <slug>`).
+- Board posts that settle a lasting fact still get that fact moved into the
+  wiki, schema, or docs.
 
 ### Plans and handoffs
 
@@ -129,7 +162,8 @@ Never check off or edit items in the other contributor's TODO files.
 
 Write all working notes to your own folder (`notes/ondrej/` or `notes/eric/`).
 Run `git config user.name` if unsure which folder is yours. Never write to the
-other contributor's folder. There is no `shared/` folder.
+other contributor's folder. There is no `shared/` folder; post messages for
+other people on `src/pySEA/ai_wiki/raytem/notes/board/`.
 
 ## Schemas (prescriptive contracts)
 
@@ -151,12 +185,59 @@ sea-eco's `pipeline-editor` and `nd-plotting`.
   pointing back at the schema; fixtures — not prose — keep implementations
   aligned.
 
-## Developer docs ("Into the SEA-weeds")
+## Documentation structure and provenance
 
-Every ecosystem package must carry developer docs titled **"Into the
-SEA-weeds"** under `docs/`; repos that own or implement schemas render them
-there in a **Schema** section. `pysea-refresh-wiki` warns when the docs or
-the schema references are missing.
+Most ecosystem repositories expose these Sphinx sections in order:
+
+1. **Guides** — how a user applies the package to their data: succinct
+   scenario workflows and minimal working examples; no architecture.
+2. **Example Notebooks** — executable end-to-end demonstrations.
+3. **AI Tools** — applicable Install, MCP, Skills, and Subagents subsections,
+   tied to canonical versioned artifacts.
+4. **Into the sea-weeds<br>(For developers)** — for human developers: how the
+   package is built and why, with rationale, boundaries, safe extension, and
+   diagrams.
+5. **Schema** — plain-language pages for schemas the repo owns or implements.
+6. **API Reference** — generated from accurate NumPy-style docstrings,
+   organized by submodule.
+
+The developer landing page and navigation display **"Into the sea-weeds"** and
+**"(For developers)"** on separate lines; verify the hard line break in built
+HTML. Sphinx pages are for people. Detailed contracts, invariants, failure
+modes, test mappings, and **Provenance** (source entry points, contracts,
+tests, and the matching docs surfaces) live in the AI-wiki slice
+`ai_wiki/<pkg>/`, which is not rendered into Sphinx. Agents look symbols up in
+its `*-index.json` thin lookup first, then the wiki page it points to. Keep
+pages succinct by cutting, never by splitting one concept across pages, and
+prefer figures and diagrams generated from code over prose. Document justified
+omissions instead of creating empty sections.
+
+Every package includes **Notes on the `pySEA` namespace** in its overview,
+mission/architecture page, or first general Guide. Record the real distribution
+and import mapping, explain the shared lightweight and modular intent, show
+representative imports for namespace members, and link to a current generated
+catalog rather than copying a package list.
+
+Follow the sea-ledger documentation pattern: Basic Usage or Getting Started
+puts Install and verification before the smallest useful workflow; substantive
+AI Tools content uses separate Install, MCP, Skills, and Subagents pages; and
+Into the sea-weeds opens with a concise Developer Overview linking to flat,
+deeper architecture, identity/storage, and integrations/extensions pages.
+Building the docs follows the overview and gives verified repository-specific
+dependency, API regeneration, clean strict HTML/PDF, example/notebook, output,
+and generated-artifact commands and policy.
+
+Before completing a documentation task in a repository with an API Reference,
+run its canonical API generation command and `pysea-refresh-wiki` even when no
+generated diff is expected. Inspect and record the results; failed or
+unavailable regeneration leaves the task incomplete.
+
+Repos that own or implement schemas render them in the **Schema** section and
+name each schema in one line in Into the sea-weeds; intents, fixtures, and
+conformance records stay in the AI-wiki. `pysea-refresh-wiki` warns when the
+developer docs or schema references are missing. Wiki pages are updated in
+place (no versioned snapshots), and `notes/` is a working record, not
+reference.
 
 ## Coding behavior
 
@@ -169,21 +250,28 @@ the schema references are missing.
 
 ## Documentation behavior
 
-- **Start simple** - for new user-facing features, write a short guide that
-  states the basic premise, the main workflow, and one minimal example.
-- **Split deeper detail** - put API contracts, storage details, extension
-  points, error behavior, and host-integration notes in a second page under an
-  "In the weeds", "Developers", or "Internals" style section.
-- **Keep the first page usable** - include only critical details needed to avoid
-  common mistakes; do not make the introductory guide carry maintainer-level
-  detail.
+- **Start from the user task** — Guides teach what a user needs to know to
+  succeed in every supported scenario, including meaningful choices, expected
+  outputs, and common recovery paths.
+- **Preserve design intent** — Into the sea-weeds tells developers what was
+  built, why each part exists, the rules that protect it, and how to extend it
+  safely; the exhaustive detail goes in the AI-wiki.
+- **Show before telling** — use a figure, diagram, or table when it
+  communicates faster than prose.
+- **Ground every claim** — trace documentation to current source, contracts,
+  tests, executable examples, or verified behavior.
+- **Orient every package** — keep its Notes on the `pySEA` namespace section
+  truthful and link to the generated catalog instead of a static package list.
+- **Keep private code understandable** — private, hidden, and dunder callables
+  require docstrings even when excluded from public API pages.
 
 > Documentation protocol and examples: `sea-ecosystem/docs/dev/agent-documentation-protocol.md`
+> Reusable workflow: `sea-ecosystem/skills/maintain-documentation/SKILL.md`
 
 ## Style rules
 
 - NumPy docstring style for **all** Python callables — public, private (leading underscore), dunder methods, properties, class methods, static methods, and classes. Documentation quality is part of code correctness.
-  Required sections: short summary · extended summary · Parameters · Attributes (classes) · Methods (classes) · Returns · Raises · Related · Notes · Examples · References. Include all sections that apply; Parameters, Returns, and Raises are required when they exist.
+  Required sections: short summary · extended summary · Parameters · Attributes (classes) · Methods (classes) · Returns · Raises · See Also · Notes · Examples · References. Include all sections that apply; Parameters, Returns, and Raises are required when they exist.
 - Prefer explicit type annotations in signatures. Prefer `Literal` over `str` for fixed value sets. Prefer `Sequence` over `list` or `tuple` in signatures.
 - Do not use dataclasses.
 - Keep public method names descriptive and action-oriented.
