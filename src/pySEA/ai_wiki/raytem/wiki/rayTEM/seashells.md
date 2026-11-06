@@ -11,8 +11,8 @@
 | SEASerializable (sea_eco absent) | 92 |
 | Module-level functions | 98 |
 |   Signal factories and readers (the wave/rays/covariance seam) | 100 |
-|   Display-Signal factories (derived views with PLOT-8 markers) | 157 |
-|   `safeReinstantiate(source, cls)` | 202 |
+|   Display-Signal factories (derived views with PLOT-8 markers) | 168 |
+|   `safeReinstantiate(source, cls)` | 213 |
 <!-- END AUTO-GENERATED TOC -->
 
 # seashells.py
@@ -115,6 +115,17 @@ warning) when sea_eco is absent:
   and read back as `(x, y)` pairs; isotropic planes keep the scalar keys, so
   old files load unchanged. `scaled_frame_crossover` / `scaled_frame_tag`
   read the hybrid engine's crossover marker and event tags.
+- `make_collins_wavefield_signal(data, lattice, center, tilt, curvature, wavelength, z, name)` /
+  `read_collins_wavefield(signal)` (+ `_CollinsWavefield` fallback) — the
+  Collins mode's state (2026-11-06): samples, 2 × 2 lattice, central ray
+  position and angle, 2 × 2 curvature, in metadata keys `collins_lattice_m`,
+  `collins_center_m`, `collins_tilt_rad`, `collins_curvature_per_m` (built through
+  `make_wavefield_signal(..., metadata=...)`, whose axes get the lattice column
+  lengths: exact for a diagonal positive lattice, a display scale otherwise).
+  `as_collins_wavefield(signal)` converts a fixed (`diag(dx, dy)`, flat) or
+  scaled (`U/√|s_x s_y|` on `diag(s Δξ)`, curvature `diag(1/R)`) plane without
+  resampling. The sea_eco-Signal branch was not exercised in the sandbox that
+  wrote it (no sea-sand there); the fallback branch is tested.
 - `make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, name, markers)` —
   stacked scaled result: main Signal `U` `(n_planes, nη, nξ)` plus companion
   1-D `s(z)`/`R(z)`/`tau(z)` Signals sharing the unstructured plane-z axis.

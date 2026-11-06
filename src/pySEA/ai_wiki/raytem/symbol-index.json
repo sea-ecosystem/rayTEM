@@ -13,7 +13,7 @@
     "name": "AberrationScreen",
     "qualname": "AberrationScreen",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3855,
+    "source_lineno": 3901,
     "signature": "class AberrationScreen",
     "doc": "A zero-thickness pure aberration plate."
   },
@@ -76,7 +76,7 @@
     "name": "Aperture",
     "qualname": "Aperture",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3463,
+    "source_lineno": 3509,
     "signature": "class Aperture",
     "doc": "Aperture element class. An aperture MASKS the beam: rays outside the"
   },
@@ -127,10 +127,19 @@
   },
   {
     "kind": "function",
+    "name": "as_collins_wavefield",
+    "qualname": "as_collins_wavefield",
+    "path": "src/pySEA/rayTEM/seashells.py",
+    "source_lineno": 1951,
+    "signature": "as_collins_wavefield(signal)",
+    "doc": "Return any rayTEM wavefield as a Collins wavefield, without resampling."
+  },
+  {
+    "kind": "function",
     "name": "as_ndarray",
     "qualname": "as_ndarray",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 568,
+    "source_lineno": 573,
     "signature": "as_ndarray(x)",
     "doc": "Return the raw ndarray behind a sea_eco ``Signal`` (passthrough for arrays)."
   },
@@ -247,7 +256,7 @@
     "name": "check_lengths",
     "qualname": "check_lengths",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4395,
+    "source_lineno": 4540,
     "signature": "check_lengths(section)",
     "doc": ""
   },
@@ -268,6 +277,60 @@
     "source_lineno": 124,
     "signature": "collectPresets()",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "collins_blocks",
+    "qualname": "collins_blocks",
+    "path": "src/pySEA/rayTEM/waveoptics.py",
+    "source_lineno": 2546,
+    "signature": "collins_blocks(matrix)",
+    "doc": "Split a 4 \u00d7 4 paraxial ray map into its 2 \u00d7 2 Collins blocks."
+  },
+  {
+    "kind": "function",
+    "name": "collins_field_at",
+    "qualname": "collins_field_at",
+    "path": "src/pySEA/rayTEM/waveoptics.py",
+    "source_lineno": 2992,
+    "signature": "collins_field_at(field, lattice, center, tilt, curvature, wavelength, x, y)",
+    "doc": "Evaluate a Collins-carried wave at physical points."
+  },
+  {
+    "kind": "function",
+    "name": "collins_intensity_on_grid",
+    "qualname": "collins_intensity_on_grid",
+    "path": "src/pySEA/rayTEM/waveoptics.py",
+    "source_lineno": 3049,
+    "signature": "collins_intensity_on_grid(field, lattice, center, shape, dx, dy, grid_center)",
+    "doc": "Integrate a Collins-carried wave's intensity over the pixels of a detector grid."
+  },
+  {
+    "kind": "function",
+    "name": "collins_propagate",
+    "qualname": "collins_propagate",
+    "path": "src/pySEA/rayTEM/waveoptics.py",
+    "source_lineno": 2946,
+    "signature": "collins_propagate(field, lattice, curvature, wavelength, matrix)",
+    "doc": "Carry a field through a linear paraxial map in one Collins step."
+  },
+  {
+    "kind": "class",
+    "name": "CollinsPlan",
+    "qualname": "CollinsPlan",
+    "path": "src/pySEA/rayTEM/waveoptics.py",
+    "source_lineno": 2635,
+    "signature": "class CollinsPlan",
+    "doc": "One Collins step, planned for a given input grid: kernels precomputed, applied in O(N log N)."
+  },
+  {
+    "kind": "class",
+    "name": "CollinsTransfer",
+    "qualname": "CollinsTransfer",
+    "path": "src/pySEA/rayTEM/collins.py",
+    "source_lineno": 145,
+    "signature": "class CollinsTransfer",
+    "doc": "A sequence of elements contracted into Collins steps, with apertures as masks between them."
   },
   {
     "kind": "function",
@@ -304,6 +367,15 @@
     "source_lineno": 78,
     "signature": "condenser_section()",
     "doc": "Build a schema-conforming condenser section."
+  },
+  {
+    "kind": "function",
+    "name": "contract_collins",
+    "qualname": "contract_collins",
+    "path": "src/pySEA/rayTEM/collins.py",
+    "source_lineno": 383,
+    "signature": "contract_collins(elements)",
+    "doc": "Contract a sequence of elements into a :class:`CollinsTransfer`."
   },
   {
     "kind": "class",
@@ -346,7 +418,7 @@
     "name": "Dipole",
     "qualname": "Dipole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4506,
+    "source_lineno": 4552,
     "signature": "class Dipole",
     "doc": ""
   },
@@ -373,7 +445,7 @@
     "name": "Drift",
     "qualname": "Drift",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3779,
+    "source_lineno": 3825,
     "signature": "class Drift",
     "doc": "Drift element class for free-space propagation."
   },
@@ -445,9 +517,18 @@
     "name": "Element",
     "qualname": "Element",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 876,
+    "source_lineno": 878,
     "signature": "class Element",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "element_affine_map",
+    "qualname": "element_affine_map",
+    "path": "src/pySEA/rayTEM/collins.py",
+    "source_lineno": 53,
+    "signature": "element_affine_map(element)",
+    "doc": "Return an element's paraxial map on ``(x, xt, y, yt, 1)`` as a 5 x 5 homogeneous matrix."
   },
   {
     "kind": "function",
@@ -661,7 +742,7 @@
     "name": "grid_of",
     "qualname": "grid_of",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 537,
+    "source_lineno": 542,
     "signature": "grid_of(dimensions)",
     "doc": "Normalize a transverse-grid description to ``(ny, nx, dy, dx)``."
   },
@@ -670,7 +751,7 @@
     "name": "Gun",
     "qualname": "Gun",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3411,
+    "source_lineno": 3457,
     "signature": "class Gun",
     "doc": "A Source by its microscope name."
   },
@@ -769,7 +850,7 @@
     "name": "Lens",
     "qualname": "Lens",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4727,
+    "source_lineno": 4773,
     "signature": "class Lens",
     "doc": "Lens element class for round lenses / symmetric focusing. https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example or Brown1983 page 105"
   },
@@ -823,7 +904,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4494,
+    "source_lineno": 4639,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -832,7 +913,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4326,
+    "source_lineno": 4471,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -919,10 +1000,19 @@
   },
   {
     "kind": "function",
+    "name": "make_collins_wavefield_signal",
+    "qualname": "make_collins_wavefield_signal",
+    "path": "src/pySEA/rayTEM/seashells.py",
+    "source_lineno": 1857,
+    "signature": "make_collins_wavefield_signal(data, lattice, center, tilt, curvature, wavelength, z, name)",
+    "doc": "Wrap a Collins-carried field as a wavefield ``Signal``."
+  },
+  {
+    "kind": "function",
     "name": "make_covariance_signal",
     "qualname": "make_covariance_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 588,
+    "source_lineno": 593,
     "signature": "make_covariance_signal(covariance, z, components, name)",
     "doc": "Wrap a stack of per-plane covariance matrices as a calibrated sea_eco ``Signal``."
   },
@@ -931,7 +1021,7 @@
     "name": "make_envelope_signal",
     "qualname": "make_envelope_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 1558,
+    "source_lineno": 1563,
     "signature": "make_envelope_signal(widths, z, quantities, units, markers, name, source)",
     "doc": "Wrap per-plane RMS beam widths as a sea_eco Signal with column markers."
   },
@@ -940,7 +1030,7 @@
     "name": "make_kernel_phase_signal",
     "qualname": "make_kernel_phase_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 480,
+    "source_lineno": 485,
     "signature": "make_kernel_phase_signal(data, fx, fy, name)",
     "doc": "Wrap a reciprocal-space propagator phase \u03c7(f_x, f_y) as a space-tagged Signal."
   },
@@ -949,7 +1039,7 @@
     "name": "make_ray_diagram_signal",
     "qualname": "make_ray_diagram_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 1486,
+    "source_lineno": 1491,
     "signature": "make_ray_diagram_signal(positions, z, markers, axis, frame, name, source)",
     "doc": "Wrap a ray diagram -- every ray's transverse position per plane -- as a sea_eco Signal."
   },
@@ -958,7 +1048,7 @@
     "name": "make_rays_signalset",
     "qualname": "make_rays_signalset",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 342,
+    "source_lineno": 347,
     "signature": "make_rays_signalset(rays, I, R, components, name)",
     "doc": "Wrap traced rays and their intensity/rotation as a sea_eco ``SignalSet``."
   },
@@ -967,7 +1057,7 @@
     "name": "make_scaled_wave_signalset",
     "qualname": "make_scaled_wave_signalset",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 904,
+    "source_lineno": 909,
     "signature": "make_scaled_wave_signalset(U, dxi, deta, wavelength, s, R, tau, z, tags, name, markers)",
     "doc": "Wrap a stack of reduced fields and their frame state as a sea_eco ``SignalSet``."
   },
@@ -976,7 +1066,7 @@
     "name": "make_scaled_wavefield_signal",
     "qualname": "make_scaled_wavefield_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 714,
+    "source_lineno": 719,
     "signature": "make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z, z_cross, tag, name)",
     "doc": "Wrap a reduced field ``U(\u03be, \u03b7)`` as a single-plane scaled-wavefield ``Signal``."
   },
@@ -985,7 +1075,7 @@
     "name": "make_screen_phase_signal",
     "qualname": "make_screen_phase_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 428,
+    "source_lineno": 433,
     "signature": "make_screen_phase_signal(data, dx, dy, name)",
     "doc": "Wrap a real-space screen as a space-tagged Signal."
   },
@@ -994,7 +1084,7 @@
     "name": "make_wave_cross_section_signal",
     "qualname": "make_wave_cross_section_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 1632,
+    "source_lineno": 1637,
     "signature": "make_wave_cross_section_signal(profile, z, x, markers, name, source)",
     "doc": "Wrap a scaled-wave ``|\u03c8(x, 0, z)|`` cross-section as a sea_eco image Signal."
   },
@@ -1004,7 +1094,7 @@
     "qualname": "make_wavefield_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
     "source_lineno": 276,
-    "signature": "make_wavefield_signal(data, dx, dy, wavelength, z, name, markers)",
+    "signature": "make_wavefield_signal(data, dx, dy, wavelength, z, name, markers, metadata)",
     "doc": "Wrap a complex field array as a calibrated sea_eco wavefield ``Signal``."
   },
   {
@@ -1039,7 +1129,7 @@
     "name": "Microscope",
     "qualname": "Microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1433,
+    "source_lineno": 1480,
     "signature": "class Microscope",
     "doc": "Microscope class represents a whole microscope, and is comprised of multiple MicroscopeSections. propagation through a Microscope results in propagation through individual MicroscopeSections"
   },
@@ -1156,7 +1246,7 @@
     "name": "phase_space_of",
     "qualname": "phase_space_of",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 518,
+    "source_lineno": 523,
     "signature": "phase_space_of(phase)",
     "doc": "Return the application domain of a phase produced by the factories above."
   },
@@ -1219,7 +1309,7 @@
     "name": "Prism",
     "qualname": "Prism",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 5365,
+    "source_lineno": 5411,
     "signature": "class Prism",
     "doc": ""
   },
@@ -1318,7 +1408,7 @@
     "name": "Quadrapole",
     "qualname": "Quadrapole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4042,
+    "source_lineno": 4088,
     "signature": "class Quadrapole",
     "doc": ""
   },
@@ -1360,10 +1450,19 @@
   },
   {
     "kind": "function",
+    "name": "read_collins_wavefield",
+    "qualname": "read_collins_wavefield",
+    "path": "src/pySEA/rayTEM/seashells.py",
+    "source_lineno": 1918,
+    "signature": "read_collins_wavefield(signal)",
+    "doc": "Read ``(data, lattice, center, tilt, curvature, wavelength, z)`` from a Collins wavefield."
+  },
+  {
+    "kind": "function",
     "name": "read_display_signal",
     "qualname": "read_display_signal",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 1704,
+    "source_lineno": 1709,
     "signature": "read_display_signal(signal)",
     "doc": "Read ``(data, axes, markers, metadata)`` from a display Signal or its fallback."
   },
@@ -1372,7 +1471,7 @@
     "name": "read_scaled_wavefield",
     "qualname": "read_scaled_wavefield",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 807,
+    "source_lineno": 812,
     "signature": "read_scaled_wavefield(signal)",
     "doc": "Read ``(U, dxi, deta, wavelength, s, R, tau, z)`` from a scaled wavefield."
   },
@@ -1381,7 +1480,7 @@
     "name": "read_wavefield",
     "qualname": "read_wavefield",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 634,
+    "source_lineno": 639,
     "signature": "read_wavefield(signal)",
     "doc": "Read ``(data, dx, dy, wavelength, z)`` from a wavefield Signal or fallback."
   },
@@ -1435,7 +1534,7 @@
     "name": "repair",
     "qualname": "repair",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4409,
+    "source_lineno": 4554,
     "signature": "repair(section, combine_drifts)",
     "doc": "Close gaps and overlaps in a section's element list, in place."
   },
@@ -1498,7 +1597,7 @@
     "name": "roundjson",
     "qualname": "roundjson",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4308,
+    "source_lineno": 4453,
     "signature": "roundjson(jdict)",
     "doc": ""
   },
@@ -1507,7 +1606,7 @@
     "name": "safeReinstantiate",
     "qualname": "safeReinstantiate",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 1766,
+    "source_lineno": 1771,
     "signature": "safeReinstantiate(source, cls)",
     "doc": ""
   },
@@ -1534,7 +1633,7 @@
     "name": "scaled_frame_crossover",
     "qualname": "scaled_frame_crossover",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 843,
+    "source_lineno": 848,
     "signature": "scaled_frame_crossover(signal)",
     "doc": "Read the crossover marker of a scaled wavefield's flat frame, if any."
   },
@@ -1543,7 +1642,7 @@
     "name": "scaled_frame_tag",
     "qualname": "scaled_frame_tag",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 876,
+    "source_lineno": 881,
     "signature": "scaled_frame_tag(signal)",
     "doc": "Read the frame-event tag of a scaled wavefield plane, if any."
   },
@@ -1552,7 +1651,7 @@
     "name": "scaled_wave_physical_plane",
     "qualname": "scaled_wave_physical_plane",
     "path": "src/pySEA/rayTEM/seashells.py",
-    "source_lineno": 1024,
+    "source_lineno": 1029,
     "signature": "scaled_wave_physical_plane(scaled_wave, plane, name)",
     "doc": "Reconstruct the physical wavefield of one plane of a stored scaled wave."
   },
@@ -1597,7 +1696,7 @@
     "name": "SealedAttributes",
     "qualname": "SealedAttributes",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 563,
+    "source_lineno": 565,
     "signature": "class SealedAttributes",
     "doc": "Refuses attribute names the class does not have, once built."
   },
@@ -1705,7 +1804,7 @@
     "name": "Source",
     "qualname": "Source",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2951,
+    "source_lineno": 2997,
     "signature": "class Source",
     "doc": "Source element class. Source element can be put in a MicroscopeSection and then propagating \"through\" the section will mean the starting rays r0 are generated by the Source (instead of requiring the user pass in starting rays)"
   },
@@ -1723,7 +1822,7 @@
     "name": "suspended_aberrations",
     "qualname": "suspended_aberrations",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 431,
+    "source_lineno": 433,
     "signature": "class suspended_aberrations",
     "doc": "Context manager that temporarily detaches elements' aberrations."
   },
@@ -1762,6 +1861,15 @@
     "source_lineno": 76,
     "signature": "test_a_column_saved_with_a_string_id_keeps_it(tmp_path)",
     "doc": "Columns saved 2026-09-22..2026-10-12 stored the id as a string; it is wrapped on load."
+  },
+  {
+    "kind": "function",
+    "name": "test_a_dipole_moves_the_central_ray_and_not_the_samples",
+    "qualname": "test_a_dipole_moves_the_central_ray_and_not_the_samples",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 155,
+    "signature": "test_a_dipole_moves_the_central_ray_and_not_the_samples()",
+    "doc": ""
   },
   {
     "kind": "function",
@@ -1833,6 +1941,15 @@
     "path": "src/pySEA/rayTEM/tests/test_schema.py",
     "source_lineno": 155,
     "signature": "test_a_quadrupole_named_as_a_sextupole_is_refused_with_q()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_a_rotated_quadrupole_is_carried",
+    "qualname": "test_a_rotated_quadrupole_is_carried",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 197,
+    "signature": "test_a_rotated_quadrupole_is_carried()",
     "doc": ""
   },
   {
@@ -2035,11 +2152,29 @@
   },
   {
     "kind": "function",
+    "name": "test_agrees_with_the_hybrid_walker_through_crossovers",
+    "qualname": "test_agrees_with_the_hybrid_walker_through_crossovers",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 213,
+    "signature": "test_agrees_with_the_hybrid_walker_through_crossovers()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_aligned_C12_makes_two_line_foci",
     "qualname": "test_aligned_C12_makes_two_line_foci",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 2784,
     "signature": "test_aligned_C12_makes_two_line_foci()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_an_aberrated_element_is_refused_until_screens_exist",
+    "qualname": "test_an_aberrated_element_is_refused_until_screens_exist",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 192,
+    "signature": "test_an_aberrated_element_is_refused_until_screens_exist()",
     "doc": ""
   },
   {
@@ -2059,6 +2194,15 @@
     "source_lineno": 58,
     "signature": "test_an_anisotropic_frame_uses_each_axis_scale()",
     "doc": "Per-axis s_x/s_y companions give per-axis pixel sizes and amplitude 1/\u221a(s_x s_y)."
+  },
+  {
+    "kind": "function",
+    "name": "test_an_aperture_masks_as_the_fixed_path_does",
+    "qualname": "test_an_aperture_masks_as_the_fixed_path_does",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 182,
+    "signature": "test_an_aperture_masks_as_the_fixed_path_does()",
+    "doc": ""
   },
   {
     "kind": "function",
@@ -2503,6 +2647,15 @@
   },
   {
     "kind": "function",
+    "name": "test_contracted_transfer_equals_element_by_element",
+    "qualname": "test_contracted_transfer_equals_element_by_element",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 118,
+    "signature": "test_contracted_transfer_equals_element_by_element()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_convergence_angle_is_a_semi_angle_and_a_total_deflection",
     "qualname": "test_convergence_angle_is_a_semi_angle_and_a_total_deflection",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -2674,6 +2827,15 @@
   },
   {
     "kind": "function",
+    "name": "test_dispatcher_routes_wave_collins",
+    "qualname": "test_dispatcher_routes_wave_collins",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 241,
+    "signature": "test_dispatcher_routes_wave_collins()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_display_signals_never_copy_the_column",
     "qualname": "test_display_signals_never_copy_the_column",
     "path": "src/pySEA/rayTEM/tests/test_display_signals.py",
@@ -2689,6 +2851,15 @@
     "source_lineno": 213,
     "signature": "test_display_signals_refuse_to_propagate()",
     "doc": "Nothing stored -> an actionable RuntimeError, and nothing gets propagated."
+  },
+  {
+    "kind": "function",
+    "name": "test_drift_is_the_angular_spectrum",
+    "qualname": "test_drift_is_the_angular_spectrum",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 51,
+    "signature": "test_drift_is_the_angular_spectrum()",
+    "doc": ""
   },
   {
     "kind": "function",
@@ -2989,6 +3160,15 @@
   },
   {
     "kind": "function",
+    "name": "test_four_f_images_with_magnification_and_rotation_on_the_lattice",
+    "qualname": "test_four_f_images_with_magnification_and_rotation_on_the_lattice",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 75,
+    "signature": "test_four_f_images_with_magnification_and_rotation_on_the_lattice()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_frame_focal_surface",
     "qualname": "test_frame_focal_surface",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
@@ -3169,6 +3349,15 @@
   },
   {
     "kind": "function",
+    "name": "test_is_current_follows_the_elements",
+    "qualname": "test_is_current_follows_the_elements",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 166,
+    "signature": "test_is_current_follows_the_elements()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_it_refuses_what_is_not_a_stored_scaled_wave",
     "qualname": "test_it_refuses_what_is_not_a_stored_scaled_wave",
     "path": "src/pySEA/rayTEM/tests/test_scaled_wave_physical_plane.py",
@@ -3210,6 +3399,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 2127,
     "signature": "test_lens_phase_carries_the_quartic_in_both_representations()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_line_focus_of_a_rotated_astigmatic_lens_matches_brute_force",
+    "qualname": "test_line_focus_of_a_rotated_astigmatic_lens_matches_brute_force",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 87,
+    "signature": "test_line_focus_of_a_rotated_astigmatic_lens_matches_brute_force(angle)",
     "doc": ""
   },
   {
@@ -3988,6 +4186,15 @@
   },
   {
     "kind": "function",
+    "name": "test_the_beam_lands_where_the_central_ray_does_through_rotating_lenses",
+    "qualname": "test_the_beam_lands_where_the_central_ray_does_through_rotating_lenses",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 133,
+    "signature": "test_the_beam_lands_where_the_central_ray_does_through_rotating_lenses()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_the_fixed_wave_clips_and_steers_about_the_elements_axis",
     "qualname": "test_the_fixed_wave_clips_and_steers_about_the_elements_axis",
     "path": "src/pySEA/rayTEM/tests/test_element_alignment.py",
@@ -4029,6 +4236,15 @@
     "path": "src/pySEA/rayTEM/tests/test_element_alignment.py",
     "source_lineno": 86,
     "signature": "test_the_mean_moves_and_the_spread_does_not()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_the_plan_is_reused_on_the_same_grid",
+    "qualname": "test_the_plan_is_reused_on_the_same_grid",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 174,
+    "signature": "test_the_plan_is_reused_on_the_same_grid()",
     "doc": ""
   },
   {
@@ -4182,6 +4398,15 @@
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
     "source_lineno": 1552,
     "signature": "test_transfer_block_refuses_to_invent_a_kick_in_a_body()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_two_f_is_a_fourier_transform_with_the_gaussian_width",
+    "qualname": "test_two_f_is_a_fourier_transform_with_the_gaussian_width",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 60,
+    "signature": "test_two_f_is_a_fourier_transform_with_the_gaussian_width()",
     "doc": ""
   },
   {

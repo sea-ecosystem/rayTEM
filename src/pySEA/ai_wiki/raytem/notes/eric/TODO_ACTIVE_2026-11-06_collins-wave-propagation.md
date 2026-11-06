@@ -17,7 +17,7 @@ inside the scaled wave (the 2026-08-19 decision still holds for that method).
 - [x] `propagate_wave_collins` on Element, MicroscopeSection, Microscope; `kind="wave_collins"`
 - [x] tests: analytic (drift, 2f Fourier, 2f-2f imaging, Gaussian q), rotated quadrupole and
       Larmor vs rays, against the hybrid walker
-- [ ] docs: wave-optics-sampling.md decision amended; propagation_modes.md; CLAUDE.md invariant; wiki
+- [x] docs: wave-optics-sampling.md decision amended; propagation_modes.md; CLAUDE.md invariant; wiki
 
 Verification (2026-11-06, `tests/test_collins_wave.py`, 15 pass): drift = angular spectrum to 1e-12;
 2f = Gaussian far-field width to 1e-3, power conserved to 1e-10; 4f imaging carries ×(−5) and a
