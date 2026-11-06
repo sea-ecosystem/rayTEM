@@ -593,6 +593,7 @@
 		<span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span> <span class="o">=</span> <span class="kc">None</span>	<span class="c1"># per-plane covariance matrix (beam-envelope mode)</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">wave</span> <span class="o">=</span> <span class="kc">None</span>				<span class="c1"># per-plane complex wavefield Signal (wave-optics mode)</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">wave_scaled</span> <span class="o">=</span> <span class="kc">None</span>			<span class="c1"># per-plane scaled-Fresnel SignalSet (U + s/R/tau companions)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">wave_collins</span> <span class="o">=</span> <span class="kc">None</span>		<span class="c1"># Collins-mode result: the wavefield at the run's end</span>
 
 		
 		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
@@ -1468,9 +1469,58 @@
 								<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s2">"section"</span><span class="p">)</span></div>
 
 
+<div class="viewcode-block" id="MicroscopeSection.propagate_wave_collins">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.propagate_wave_collins">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">propagate_wave_collins</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wave0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">apply_aberrations</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""Propagate a wavefield through the section in contracted Collins steps.</span>
+
+<span class="sd">		Every run of linear elements between apertures is one Collins step</span>
+<span class="sd">		(:class:`~pySEA.rayTEM.collins.CollinsTransfer`): the product of the</span>
+<span class="sd">		elements' ray maps carries the wave across its lenses, drifts and</span>
+<span class="sd">		crossovers at once; each aperture masks between runs.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		wave0 : Signal or seashells wavefield fallback, optional</span>
+<span class="sd">			Initial wavefield in any representation. If ``None`` and the</span>
+<span class="sd">			first element is a ``Source``, its fixed-grid wave is used.</span>
+<span class="sd">		apply_aberrations : bool, optional</span>
+<span class="sd">			``False`` suspends every element's aberrations for the run, so an</span>
+<span class="sd">			aberrated section propagates as its ideal counterpart. By default</span>
+<span class="sd">			True, which refuses an aberrated element (Collins steps hold no</span>
+<span class="sd">			screen yet).</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		Signal or seashells._CollinsWavefield</span>
+<span class="sd">			The wave at the section's exit, also stored on ``self.wave_collins``.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		UserWarning</span>
+<span class="sd">			If ``wave0`` is ``None`` and the first element is not a ``Source``.</span>
+<span class="sd">		NotImplementedError</span>
+<span class="sd">			For an element with a non-quadratic phase.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		Microscope.propagate_wave_collins : Across sections, between named elements.</span>
+<span class="sd">		"""</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.collins</span><span class="w"> </span><span class="kn">import</span> <span class="n">CollinsTransfer</span>
+		<span class="n">elements</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_propagation_elements</span><span class="p">())</span>
+		<span class="k">if</span> <span class="n">wave0</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">Source</span><span class="p">):</span>
+				<span class="n">wave0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">wave</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">'fixed'</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="k">raise</span> <span class="ne">UserWarning</span><span class="p">(</span><span class="s2">"First element is not a Source, and no wave0 provided to propagate_wave_collins."</span><span class="p">)</span>
+		<span class="k">with</span> <span class="n">suspended_aberrations</span><span class="p">(</span><span class="n">elements</span> <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="p">],</span> <span class="ow">not</span> <span class="n">apply_aberrations</span><span class="p">):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">wave_collins</span> <span class="o">=</span> <span class="n">CollinsTransfer</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">wave0</span><span class="p">)</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave_collins</span></div>
+
+
 <div class="viewcode-block" id="MicroscopeSection.propagate">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.propagate">[docs]</a>
-	<span class="k">def</span><span class="w"> </span><span class="nf">propagate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"ray"</span><span class="p">,</span><span class="s2">"rays"</span><span class="p">,</span><span class="s2">"moments"</span><span class="p">,</span><span class="s2">"envelope"</span><span class="p">,</span><span class="s2">"covariance"</span><span class="p">,</span><span class="s2">"wave"</span><span class="p">,</span><span class="s2">"wave-scaled"</span><span class="p">,</span><span class="s2">"wave_scaled"</span><span class="p">,</span><span class="s2">"wave-hybrid"</span><span class="p">,</span><span class="s2">"wave_hybrid"</span><span class="p">]</span><span class="o">=</span><span class="s2">"ray"</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">propagate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"ray"</span><span class="p">,</span><span class="s2">"rays"</span><span class="p">,</span><span class="s2">"moments"</span><span class="p">,</span><span class="s2">"envelope"</span><span class="p">,</span><span class="s2">"covariance"</span><span class="p">,</span><span class="s2">"wave"</span><span class="p">,</span><span class="s2">"wave-scaled"</span><span class="p">,</span><span class="s2">"wave_scaled"</span><span class="p">,</span><span class="s2">"wave-hybrid"</span><span class="p">,</span><span class="s2">"wave_hybrid"</span><span class="p">,</span><span class="s2">"wave-collins"</span><span class="p">,</span><span class="s2">"wave_collins"</span><span class="p">]</span><span class="o">=</span><span class="s2">"ray"</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">		</span><span class="sd">"""Unified propagation dispatcher across the three modes.</span>
 
 <span class="sd">		Routes to :meth:`propagate_ray`, :meth:`propagate_moments`, or</span>
@@ -1592,6 +1642,7 @@
 		<span class="bp">self</span><span class="o">.</span><span class="n">mu</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">;</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariance_matrix</span> <span class="o">=</span> <span class="kc">None</span>	<span class="c1"># beam-envelope mode results</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">wave</span> <span class="o">=</span> <span class="kc">None</span>								<span class="c1"># wave-optics mode result (complex wavefield Signal)</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">wave_scaled</span> <span class="o">=</span> <span class="kc">None</span>							<span class="c1"># scaled-Fresnel mode result (SignalSet: U + s/R/tau)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">wave_collins</span> <span class="o">=</span> <span class="kc">None</span>		<span class="c1"># Collins-mode result: the wavefield at the run's end</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">crossovers</span> <span class="o">=</span> <span class="kc">None</span>							<span class="c1"># focal planes the hybrid wave run's own frame crossed: the conjugate family its seed belongs to (diffraction/back-focal for the usual flat seed)</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">image_planes</span> <span class="o">=</span> <span class="kc">None</span>						<span class="c1"># {'x': ndarray, 'y': ndarray} -- the image family, logged by the hybrid run even though the frame never crosses it</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">diffraction_planes</span> <span class="o">=</span> <span class="kc">None</span>					<span class="c1"># {'x': ndarray, 'y': ndarray} -- the diffraction family, per axis (astigmatic optics differ between axes)</span>
@@ -4134,9 +4185,112 @@
 											  <span class="n">source</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="s2">"microscope"</span><span class="p">)</span></div>
 
 
+<div class="viewcode-block" id="Microscope.collins_transfer">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.Microscope.collins_transfer">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">collins_transfer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span><span class="nb">str</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop</span><span class="p">:</span><span class="nb">str</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""Contract the elements between two named elements into a Collins transfer.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		start : str, optional</span>
+<span class="sd">			The transfer begins just after the element of this name; by</span>
+<span class="sd">			default at the first element.</span>
+<span class="sd">		stop : str, optional</span>
+<span class="sd">			The transfer ends with the element of this name (included); by</span>
+<span class="sd">			default at the last element.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		collins.CollinsTransfer</span>
+<span class="sd">			The contracted transfer; keep it and rebuild it when</span>
+<span class="sd">			:meth:`~pySEA.rayTEM.collins.CollinsTransfer.is_current` is False.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If a named element is not in the column, or ``stop`` comes before</span>
+<span class="sd">			``start``.</span>
+<span class="sd">		NotImplementedError</span>
+<span class="sd">			For an element with a non-quadratic phase in the run.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; transfer = scope.collins_transfer("sample", "CCD")  # doctest: +SKIP</span>
+<span class="sd">		&gt;&gt;&gt; ccd_wave = transfer.apply(exit_wave)                 # doctest: +SKIP</span>
+<span class="sd">		"""</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.collins</span><span class="w"> </span><span class="kn">import</span> <span class="n">CollinsTransfer</span>
+		<span class="n">elements</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">section</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sections</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">section</span><span class="o">.</span><span class="n">_propagation_elements</span><span class="p">()]</span>
+		<span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="s2">"name"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">elements</span><span class="p">]</span>
+		<span class="n">first</span><span class="p">,</span> <span class="n">last</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">if</span> <span class="n">start</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
+				<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"no element named </span><span class="si">{</span><span class="n">start</span><span class="si">!r}</span><span class="s2"> in the column."</span><span class="p">)</span>
+			<span class="n">first</span> <span class="o">=</span> <span class="n">names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">start</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+		<span class="k">if</span> <span class="n">stop</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">if</span> <span class="n">stop</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
+				<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"no element named </span><span class="si">{</span><span class="n">stop</span><span class="si">!r}</span><span class="s2"> in the column."</span><span class="p">)</span>
+			<span class="n">last</span> <span class="o">=</span> <span class="n">names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">stop</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+		<span class="k">if</span> <span class="n">last</span> <span class="o">&lt;</span> <span class="n">first</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">stop</span><span class="si">!r}</span><span class="s2"> comes before </span><span class="si">{</span><span class="n">start</span><span class="si">!r}</span><span class="s2"> in the column."</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">CollinsTransfer</span><span class="p">(</span><span class="n">elements</span><span class="p">[</span><span class="n">first</span><span class="p">:</span><span class="n">last</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="Microscope.propagate_wave_collins">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.Microscope.propagate_wave_collins">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">propagate_wave_collins</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wave0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span><span class="nb">str</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop</span><span class="p">:</span><span class="nb">str</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+							   <span class="n">apply_aberrations</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""Propagate a wavefield through the column in contracted Collins steps.</span>
+
+<span class="sd">		rayTEM's fifth propagation mode: each run of linear elements between</span>
+<span class="sd">		apertures is carried in one Collins (linear canonical) step of its ray</span>
+<span class="sd">		map, across lenses, drifts, crossovers, Larmor rotation and rotated</span>
+<span class="sd">		quadrupoles alike (:mod:`~pySEA.rayTEM.collins`). Separate from the</span>
+<span class="sd">		scaled/hybrid walker of :meth:`propagate_wave`, which it does not</span>
+<span class="sd">		replace.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		wave0 : Signal or seashells wavefield fallback, optional</span>
+<span class="sd">			Initial wavefield in any representation. If ``None`` and the column</span>
+<span class="sd">			starts with a ``Source``, its fixed-grid wave is used.</span>
+<span class="sd">		start, stop : str, optional</span>
+<span class="sd">			Element names bounding the run, as :meth:`collins_transfer`.</span>
+<span class="sd">		apply_aberrations : bool, optional</span>
+<span class="sd">			``False`` suspends every element's aberrations for the run. By</span>
+<span class="sd">			default True, which refuses an aberrated element in the run.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		Signal or seashells._CollinsWavefield</span>
+<span class="sd">			The wave at the run's end, also stored on ``self.wave_collins``.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		UserWarning</span>
+<span class="sd">			If ``wave0`` is ``None`` and the column does not start with a ``Source``.</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			From :meth:`collins_transfer`.</span>
+<span class="sd">		NotImplementedError</span>
+<span class="sd">			For an element with a non-quadratic phase in the run.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		collins_transfer : Keep the contracted transfer and reuse it.</span>
+<span class="sd">		"""</span>
+		<span class="k">if</span> <span class="n">wave0</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">first</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sections</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">elements</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sections</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">sections</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">elements</span> <span class="k">else</span> <span class="kc">None</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">first</span><span class="p">,</span> <span class="n">Source</span><span class="p">):</span>
+				<span class="k">raise</span> <span class="ne">UserWarning</span><span class="p">(</span><span class="s2">"The column does not start with a Source, and no wave0 provided to propagate_wave_collins."</span><span class="p">)</span>
+			<span class="n">wave0</span> <span class="o">=</span> <span class="n">first</span><span class="o">.</span><span class="n">wave</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">'fixed'</span><span class="p">)</span>
+		<span class="n">elements</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">section</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sections</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">section</span><span class="o">.</span><span class="n">_propagation_elements</span><span class="p">()]</span>
+		<span class="k">with</span> <span class="n">suspended_aberrations</span><span class="p">(</span><span class="n">elements</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sections</span><span class="p">),</span> <span class="ow">not</span> <span class="n">apply_aberrations</span><span class="p">):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">wave_collins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collins_transfer</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">wave0</span><span class="p">)</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">wave_collins</span></div>
+
+
 <div class="viewcode-block" id="Microscope.propagate">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.assemblies.Microscope.propagate">[docs]</a>
-	<span class="k">def</span><span class="w"> </span><span class="nf">propagate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"ray"</span><span class="p">,</span><span class="s2">"rays"</span><span class="p">,</span><span class="s2">"moments"</span><span class="p">,</span><span class="s2">"envelope"</span><span class="p">,</span><span class="s2">"covariance"</span><span class="p">,</span><span class="s2">"wave"</span><span class="p">,</span><span class="s2">"wave-scaled"</span><span class="p">,</span><span class="s2">"wave_scaled"</span><span class="p">,</span><span class="s2">"wave-hybrid"</span><span class="p">,</span><span class="s2">"wave_hybrid"</span><span class="p">]</span><span class="o">=</span><span class="s2">"ray"</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">propagate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"ray"</span><span class="p">,</span><span class="s2">"rays"</span><span class="p">,</span><span class="s2">"moments"</span><span class="p">,</span><span class="s2">"envelope"</span><span class="p">,</span><span class="s2">"covariance"</span><span class="p">,</span><span class="s2">"wave"</span><span class="p">,</span><span class="s2">"wave-scaled"</span><span class="p">,</span><span class="s2">"wave_scaled"</span><span class="p">,</span><span class="s2">"wave-hybrid"</span><span class="p">,</span><span class="s2">"wave_hybrid"</span><span class="p">,</span><span class="s2">"wave-collins"</span><span class="p">,</span><span class="s2">"wave_collins"</span><span class="p">]</span><span class="o">=</span><span class="s2">"ray"</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">		</span><span class="sd">"""Unified propagation dispatcher across the three modes.</span>
 
 <span class="sd">		Routes to :meth:`propagate_ray`, :meth:`propagate_moments`, or</span>

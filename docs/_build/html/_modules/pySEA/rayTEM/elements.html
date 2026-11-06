@@ -380,6 +380,8 @@
 	<span class="s2">"wave_scaled"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"propagate_wave"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"mode"</span><span class="p">:</span> <span class="s2">"scaled"</span><span class="p">}),</span>
 	<span class="s2">"wave-hybrid"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"propagate_wave"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"mode"</span><span class="p">:</span> <span class="s2">"hybrid"</span><span class="p">}),</span>
 	<span class="s2">"wave_hybrid"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"propagate_wave"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"mode"</span><span class="p">:</span> <span class="s2">"hybrid"</span><span class="p">}),</span>
+	<span class="s2">"wave-collins"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"propagate_wave_collins"</span><span class="p">,</span> <span class="p">{}),</span>
+	<span class="s2">"wave_collins"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"propagate_wave_collins"</span><span class="p">,</span> <span class="p">{}),</span>
 <span class="p">}</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">_propagate_method_name</span><span class="p">(</span><span class="n">kind</span><span class="p">:</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
 <span class="w">	</span><span class="sd">"""Resolve a propagation-mode keyword to its method name and forced kwargs.</span>
@@ -3107,9 +3109,56 @@
 		<span class="k">return</span> <span class="n">make_scaled_wavefield_signal</span><span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="n">dxi</span><span class="p">,</span> <span class="n">deta</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span>
 											<span class="n">z_cross</span><span class="o">=</span><span class="n">z_cross</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
 
+<div class="viewcode-block" id="Element.propagate_wave_collins">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Element.propagate_wave_collins">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">propagate_wave_collins</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">):</span>
+<span class="w">		</span><span class="sa">r</span><span class="sd">"""Propagate a wavefield through this element in one Collins (linear canonical) step.</span>
+
+<span class="sd">		The element's wave action is taken to be its ray map</span>
+<span class="sd">		(:meth:`affine_matrix`: transfer matrix with Larmor rotation, a</span>
+<span class="sd">		quadrupole's rotation, a dipole's kick and the alignment), carried by</span>
+<span class="sd">		the Collins integral of that map in one step; an :class:`Aperture`</span>
+<span class="sd">		masks instead. This is rayTEM's fifth propagation mode, separate from</span>
+<span class="sd">		the scaled/hybrid walker; it pays off on runs of elements, where</span>
+<span class="sd">		:meth:`MicroscopeSection.propagate_wave_collins` contracts them into</span>
+<span class="sd">		one step each (:mod:`~pySEA.rayTEM.collins`).</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		signal : Signal or seashells wavefield fallback</span>
+<span class="sd">			Any rayTEM wavefield (fixed, scaled or Collins), converted without</span>
+<span class="sd">			resampling (:func:`~pySEA.rayTEM.seashells.as_collins_wavefield`).</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		Signal or seashells._CollinsWavefield</span>
+<span class="sd">			The wave after the element, as a Collins wavefield.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		NotImplementedError</span>
+<span class="sd">			If the element carries aberrations or a phase screen: a Collins</span>
+<span class="sd">			step holds only quadratic phases (use ``mode='hybrid'`` or</span>
+<span class="sd">			``'fixed'`` of :meth:`propagate_wave`).</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If the input grid cannot sample the step.</span>
+
+<span class="sd">		Related</span>
+<span class="sd">		-------</span>
+<span class="sd">		collins.CollinsTransfer : The contraction this uses.</span>
+<span class="sd">		propagate_wave : The fixed and scaled/hybrid wave modes.</span>
+
+<span class="sd">		Examples</span>
+<span class="sd">		--------</span>
+<span class="sd">		&gt;&gt;&gt; Lens(focal_length=0.01, length=0.0).propagate_wave_collins(wave)  # doctest: +SKIP</span>
+<span class="sd">		"""</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.collins</span><span class="w"> </span><span class="kn">import</span> <span class="n">CollinsTransfer</span>
+		<span class="k">return</span> <span class="n">CollinsTransfer</span><span class="p">([</span><span class="bp">self</span><span class="p">])</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span></div>
+
+
 <div class="viewcode-block" id="Element.propagate">
 <a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.elements.Element.propagate">[docs]</a>
-	<span class="k">def</span><span class="w"> </span><span class="nf">propagate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"ray"</span><span class="p">,</span><span class="s2">"rays"</span><span class="p">,</span><span class="s2">"moments"</span><span class="p">,</span><span class="s2">"envelope"</span><span class="p">,</span><span class="s2">"covariance"</span><span class="p">,</span><span class="s2">"wave"</span><span class="p">,</span><span class="s2">"wave-scaled"</span><span class="p">,</span><span class="s2">"wave_scaled"</span><span class="p">,</span><span class="s2">"wave-hybrid"</span><span class="p">,</span><span class="s2">"wave_hybrid"</span><span class="p">]</span><span class="o">=</span><span class="s2">"ray"</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">propagate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"ray"</span><span class="p">,</span><span class="s2">"rays"</span><span class="p">,</span><span class="s2">"moments"</span><span class="p">,</span><span class="s2">"envelope"</span><span class="p">,</span><span class="s2">"covariance"</span><span class="p">,</span><span class="s2">"wave"</span><span class="p">,</span><span class="s2">"wave-scaled"</span><span class="p">,</span><span class="s2">"wave_scaled"</span><span class="p">,</span><span class="s2">"wave-hybrid"</span><span class="p">,</span><span class="s2">"wave_hybrid"</span><span class="p">,</span><span class="s2">"wave-collins"</span><span class="p">,</span><span class="s2">"wave_collins"</span><span class="p">]</span><span class="o">=</span><span class="s2">"ray"</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">		</span><span class="sd">"""Unified propagation dispatcher across the three modes.</span>
 
 <span class="sd">		Routes to :meth:propagate_ray, :meth:propagate_moments, or</span>

@@ -2728,6 +2728,618 @@
 	<span class="n">disk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftshift</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifft2</span><span class="p">(</span><span class="n">F</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">dx</span><span class="p">)</span> <span class="o">*</span> <span class="nb">abs</span><span class="p">(</span><span class="n">dy</span><span class="p">))</span>
 	<span class="k">return</span> <span class="n">disk</span><span class="o">.</span><span class="n">real</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">complex</span><span class="p">)</span></div>
 
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Collins (linear canonical) propagation: one step through any linear map</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1">#</span>
+<span class="c1"># The field is carried on a *lattice*: sample (ix, iy) sits at</span>
+<span class="c1"># ``xi = L @ (ix - nx//2, iy - ny//2)`` relative to the beam's central ray,</span>
+<span class="c1"># so a magnification, a Larmor rotation or a shear is a change of ``L`` and</span>
+<span class="c1"># never a resampling. A quadratic phase ``exp(i pi/lambda xi^T Q xi)`` is</span>
+<span class="c1"># carried analytically as the 2 x 2 curvature ``Q`` (a full matrix, so a</span>
+<span class="c1"># general astigmatic beam needs nothing special), and the central ray's</span>
+<span class="c1"># position and angle travel with the rays, outside the array.</span>
+
+<div class="viewcode-block" id="collins_blocks">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.waveoptics.collins_blocks">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">collins_blocks</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""Split a 4 × 4 paraxial ray map into its 2 × 2 Collins blocks.</span>
+
+<span class="sd">	The ray vector is ordered ``(x, xt, y, yt)`` as rayTEM's ``convention``;</span>
+<span class="sd">	Collins' form groups positions and angles:</span>
+<span class="sd">	:math:`(\mathbf x', \boldsymbol\theta') = (A\mathbf x + B\boldsymbol\theta,</span>
+<span class="sd">	C\mathbf x + D\boldsymbol\theta)`.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	matrix : array_like</span>
+<span class="sd">		The 4 × 4 map, rows and columns ``(x, xt, y, yt)``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	tuple of numpy.ndarray</span>
+<span class="sd">		``(A, B, C, D)``, each 2 × 2 (rows and columns ``x, y``).</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	ValueError</span>
+<span class="sd">		If ``matrix`` is not 4 × 4.</span>
+
+<span class="sd">	Examples</span>
+<span class="sd">	--------</span>
+<span class="sd">	&gt;&gt;&gt; A, B, C, D = collins_blocks(np.eye(4))</span>
+<span class="sd">	&gt;&gt;&gt; A.tolist(), B.tolist()</span>
+<span class="sd">	([[1.0, 0.0], [0.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]])</span>
+<span class="sd">	"""</span>
+	<span class="n">M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">M</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">):</span>
+		<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"collins_blocks needs a 4 x 4 (x, xt, y, yt) map; got shape </span><span class="si">{</span><span class="n">M</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+	<span class="n">pos</span><span class="p">,</span> <span class="n">ang</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+	<span class="k">return</span> <span class="p">(</span><span class="n">M</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">pos</span><span class="p">)],</span> <span class="n">M</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">ang</span><span class="p">)],</span>
+			<span class="n">M</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">ang</span><span class="p">,</span> <span class="n">pos</span><span class="p">)],</span> <span class="n">M</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">ang</span><span class="p">,</span> <span class="n">ang</span><span class="p">)])</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_symmetric</span><span class="p">(</span><span class="n">m</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Return the symmetric part of a 2 × 2 matrix.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	m : numpy.ndarray</span>
+<span class="sd">		A 2 × 2 matrix that is symmetric up to rounding.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	numpy.ndarray</span>
+<span class="sd">		``(m + m.T) / 2``.</span>
+<span class="sd">	"""</span>
+	<span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">m</span> <span class="o">+</span> <span class="n">m</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_index_grid</span><span class="p">(</span><span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Return the centred index coordinates ``(ux, uy)`` of a ``(ny, nx)`` grid.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	shape : tuple of int</span>
+<span class="sd">		``(ny, nx)``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	tuple of numpy.ndarray</span>
+<span class="sd">		``(UX, UY)``, each ``(ny, nx)``, zero at index ``(ny//2, nx//2)`` as</span>
+<span class="sd">		:func:`transverse_coordinates` places its origin.</span>
+<span class="sd">	"""</span>
+	<span class="n">ny</span><span class="p">,</span> <span class="n">nx</span> <span class="o">=</span> <span class="n">shape</span>
+	<span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nx</span><span class="p">)</span> <span class="o">-</span> <span class="n">nx</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">ny</span><span class="p">)</span> <span class="o">-</span> <span class="n">ny</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_quadratic_form</span><span class="p">(</span><span class="n">Q</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Evaluate ``[X, Y] Q [X, Y]^T`` pointwise for a symmetric 2 × 2 ``Q``.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	Q : numpy.ndarray</span>
+<span class="sd">		Symmetric 2 × 2 matrix.</span>
+<span class="sd">	X, Y : numpy.ndarray</span>
+<span class="sd">		Coordinates, broadcastable.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	numpy.ndarray</span>
+<span class="sd">		``Q00 X² + 2 Q01 X Y + Q11 Y²``.</span>
+<span class="sd">	"""</span>
+	<span class="k">return</span> <span class="n">Q</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">X</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">Q</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">X</span> <span class="o">*</span> <span class="n">Y</span> <span class="o">+</span> <span class="n">Q</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">Y</span><span class="o">**</span><span class="mi">2</span>
+
+
+<div class="viewcode-block" id="CollinsPlan">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.waveoptics.CollinsPlan">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CollinsPlan</span><span class="p">:</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""One Collins step, planned for a given input grid: kernels precomputed, applied in O(N log N).</span>
+
+<span class="sd">	A linear paraxial system with ray map :math:`M = \begin{pmatrix}A&amp;B\\C&amp;D\end{pmatrix}`</span>
+<span class="sd">	carries a scalar wave by the Collins integral (the linear canonical</span>
+<span class="sd">	transform of :math:`M`). The field arrives as samples ``f`` on a lattice</span>
+<span class="sd">	``L`` with a carried curvature ``Q``; the curvature is folded into the map</span>
+<span class="sd">	as a thin lens, :math:`M_{\rm eff} = M\begin{pmatrix}I&amp;0\\Q&amp;I\end{pmatrix}`,</span>
+<span class="sd">	and the step is then evaluated in whichever form the grid samples:</span>
+
+<span class="sd">	- **near** — :math:`M_{\rm eff} = \begin{pmatrix}A&amp;0\\C&amp;A^{-T}\end{pmatrix}</span>
+<span class="sd">	  \begin{pmatrix}I&amp;Z\\0&amp;I\end{pmatrix}`, :math:`Z = A^{-1}B`: a Fresnel</span>
+<span class="sd">	  step with the matrix "distance" ``Z`` (one k-space multiplication on</span>
+<span class="sd">	  the input grid), then an imaging map: lattice ``A L``, curvature</span>
+<span class="sd">	  :math:`CA^{-1}`, amplitude :math:`|\det A|^{-1/2}`. Used where the</span>
+<span class="sd">	  Fresnel transfer function is sampled (near an image plane).</span>
+<span class="sd">	- **far** — chirp · FFT · chirp: :math:`P = B^{-1}A` multiplies the input,</span>
+<span class="sd">	  one FFT, output lattice :math:`\lambda B L^{-T}N^{-1}`, curvature</span>
+<span class="sd">	  :math:`DB^{-1}`. Used where the input chirp is sampled (near a</span>
+<span class="sd">	  diffraction plane, including :math:`A = 0`).</span>
+<span class="sd">	- **mixed** — neither holds for both axes (a line focus, a strong</span>
+<span class="sd">	  stigmator): the Fresnel step is diagonalised in index coordinates (the</span>
+<span class="sd">	  field is resampled once onto that eigen-lattice if it is not already</span>
+<span class="sd">	  diagonal) and each axis takes the near or far 1-D form it samples,</span>
+<span class="sd">	  before the imaging map.</span>
+
+<span class="sd">	The two sampling conditions are exact complements per axis, so one of</span>
+<span class="sd">	the 1-D forms always holds; nothing in the step depends on crossovers.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	shape : tuple of int</span>
+<span class="sd">		Input field shape ``(ny, nx)``.</span>
+<span class="sd">	lattice : array_like</span>
+<span class="sd">		2 × 2 input lattice ``L`` (metres per index step; column 0 for x</span>
+<span class="sd">		indices, column 1 for y).</span>
+<span class="sd">	curvature : array_like</span>
+<span class="sd">		2 × 2 symmetric input curvature ``Q`` (1/m): the field carries</span>
+<span class="sd">		:math:`e^{i\pi\xi^TQ\xi/\lambda}`.</span>
+<span class="sd">	wavelength : float</span>
+<span class="sd">		Wavelength (metres).</span>
+<span class="sd">	matrix : array_like</span>
+<span class="sd">		The 4 × 4 ray map ``(x, xt, y, yt)`` of the step.</span>
+
+<span class="sd">	Attributes</span>
+<span class="sd">	----------</span>
+<span class="sd">	form : str</span>
+<span class="sd">		``"near"``, ``"far"`` or ``"mixed"``.</span>
+<span class="sd">	lattice_out : numpy.ndarray</span>
+<span class="sd">		The output lattice.</span>
+<span class="sd">	curvature_out : numpy.ndarray</span>
+<span class="sd">		The output curvature.</span>
+<span class="sd">	shape : tuple of int</span>
+<span class="sd">		The input (and output) field shape.</span>
+
+<span class="sd">	Methods</span>
+<span class="sd">	-------</span>
+<span class="sd">	apply(field)</span>
+<span class="sd">		Carry one input field through the step.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	ValueError</span>
+<span class="sd">		If the map is singular for this sampling: neither ``A`` nor ``B``</span>
+<span class="sd">		invertible, or ``A`` singular and the far form's input chirp</span>
+<span class="sd">		undersampled.</span>
+
+<span class="sd">	See Also</span>
+<span class="sd">	--------</span>
+<span class="sd">	collins_propagate : Plan and apply in one call.</span>
+<span class="sd">	collins_intensity_on_grid : Sample the result on a detector.</span>
+
+<span class="sd">	Notes</span>
+<span class="sd">	-----</span>
+<span class="sd">	Global phases (the carrier and the Gouy phase) are dropped: they change</span>
+<span class="sd">	no intensity downstream. The step is unitary: ``sum(|f|²)·|det L|`` is</span>
+<span class="sd">	conserved by every form (Parseval for the FFTs, the Jacobian for the</span>
+<span class="sd">	lattice maps); the periodic FFT wraps a beam that outgrows its grid, as</span>
+<span class="sd">	the fixed-grid path does without an absorber.</span>
+
+<span class="sd">	References</span>
+<span class="sd">	----------</span>
+<span class="sd">	S. A. Collins, "Lens-system diffraction integral written in terms of</span>
+<span class="sd">	matrix optics", J. Opt. Soc. Am. 60, 1168 (1970).</span>
+
+<span class="sd">	Examples</span>
+<span class="sd">	--------</span>
+<span class="sd">	A 2f system (lens of focal length f between two drifts f) is a Fourier</span>
+<span class="sd">	transform, planned in the far form:</span>
+
+<span class="sd">	&gt;&gt;&gt; f = 0.01; lam = 2.5e-12</span>
+<span class="sd">	&gt;&gt;&gt; M = np.array([[0, f, 0, 0], [-1/f, 0, 0, 0], [0, 0, 0, f], [0, 0, -1/f, 0]])</span>
+<span class="sd">	&gt;&gt;&gt; CollinsPlan((64, 64), np.eye(2) * 1e-10, np.zeros((2, 2)), lam, M).form</span>
+<span class="sd">	'far'</span>
+<span class="sd">	"""</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">lattice</span><span class="p">,</span> <span class="n">curvature</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">matrix</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Plan the step: choose its form and precompute its kernels.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		shape, lattice, curvature, wavelength, matrix</span>
+<span class="sd">			As the class.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			As the class.</span>
+<span class="sd">		"""</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+		<span class="n">ny</span><span class="p">,</span> <span class="n">nx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span>
+		<span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+		<span class="n">Q</span> <span class="o">=</span> <span class="n">_symmetric</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">curvature</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+		<span class="n">lam</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">wavelength</span><span class="p">)</span>
+		<span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">D</span> <span class="o">=</span> <span class="n">collins_blocks</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+		<span class="c1"># fold the carried curvature in as a thin lens</span>
+		<span class="n">A</span><span class="p">,</span> <span class="n">C</span> <span class="o">=</span> <span class="n">A</span> <span class="o">+</span> <span class="n">B</span> <span class="o">@</span> <span class="n">Q</span><span class="p">,</span> <span class="n">C</span> <span class="o">+</span> <span class="n">D</span> <span class="o">@</span> <span class="n">Q</span>
+		<span class="n">N</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_lattice_in</span> <span class="o">=</span> <span class="n">L</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_scale</span> <span class="o">=</span> <span class="mf">1.0</span>
+		<span class="n">a_ok</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cond</span><span class="p">(</span><span class="n">A</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e12</span>
+		<span class="n">b_ok</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cond</span><span class="p">(</span><span class="n">B</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e12</span>
+		<span class="k">if</span> <span class="n">a_ok</span><span class="p">:</span>
+			<span class="n">Ainv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">A</span><span class="p">)</span>
+			<span class="n">Linv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">L</span><span class="p">)</span>
+			<span class="n">S</span> <span class="o">=</span> <span class="n">_symmetric</span><span class="p">(</span><span class="n">lam</span> <span class="o">*</span> <span class="n">Linv</span> <span class="o">@</span> <span class="p">(</span><span class="n">Ainv</span> <span class="o">@</span> <span class="n">B</span><span class="p">)</span> <span class="o">@</span> <span class="n">Linv</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>	<span class="c1"># Fresnel matrix in index units</span>
+			<span class="n">near_ok</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">N</span><span class="p">))</span>
+			<span class="n">far_ok</span> <span class="o">=</span> <span class="kc">False</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="n">near_ok</span> <span class="ow">and</span> <span class="n">b_ok</span><span class="p">:</span>
+				<span class="n">T</span> <span class="o">=</span> <span class="n">_symmetric</span><span class="p">(</span><span class="n">L</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">B</span><span class="p">)</span> <span class="o">@</span> <span class="n">A</span> <span class="o">@</span> <span class="n">L</span> <span class="o">/</span> <span class="n">lam</span><span class="p">)</span>
+				<span class="n">far_ok</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">T</span><span class="p">)</span> <span class="o">@</span> <span class="n">N</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">))</span>
+			<span class="k">if</span> <span class="n">near_ok</span><span class="p">:</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">form</span> <span class="o">=</span> <span class="s2">"near"</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">_plan_near</span><span class="p">(</span><span class="n">S</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">_plan_imaging</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)))</span>
+			<span class="k">elif</span> <span class="n">far_ok</span><span class="p">:</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">form</span> <span class="o">=</span> <span class="s2">"far"</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">_plan_far</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">form</span> <span class="o">=</span> <span class="s2">"mixed"</span>
+				<span class="n">L_cur</span><span class="p">,</span> <span class="n">Qf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_plan_mixed</span><span class="p">(</span><span class="n">S</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">_plan_imaging</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">L_cur</span><span class="p">,</span> <span class="n">Qf</span><span class="p">)</span>
+		<span class="k">elif</span> <span class="n">b_ok</span><span class="p">:</span>
+			<span class="n">T</span> <span class="o">=</span> <span class="n">_symmetric</span><span class="p">(</span><span class="n">L</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">B</span><span class="p">)</span> <span class="o">@</span> <span class="n">A</span> <span class="o">@</span> <span class="n">L</span> <span class="o">/</span> <span class="n">lam</span><span class="p">)</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">T</span><span class="p">)</span> <span class="o">@</span> <span class="n">N</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">):</span>
+				<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Collins step: A is singular and the far form's input chirp is undersampled "</span>
+								 <span class="sa">f</span><span class="s2">"on this </span><span class="si">{</span><span class="n">ny</span><span class="si">}</span><span class="s2"> x </span><span class="si">{</span><span class="n">nx</span><span class="si">}</span><span class="s2"> grid; use a finer pixel or split the run before this plane."</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">form</span> <span class="o">=</span> <span class="s2">"far"</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_plan_far</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Collins step: neither A nor B of the ray map is invertible; the map is degenerate."</span><span class="p">)</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_plan_near</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">S</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">N</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Precompute the near form's Fresnel transfer function on the FFT grid.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		S : numpy.ndarray</span>
+<span class="sd">			Symmetric 2 × 2 Fresnel matrix in index units (index²).</span>
+<span class="sd">		N : numpy.ndarray</span>
+<span class="sd">			``(nx, ny)``.</span>
+<span class="sd">		"""</span>
+		<span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">1e-9</span><span class="p">:</span>
+			<span class="k">return</span>		<span class="c1"># a pure imaging map: nothing to propagate</span>
+		<span class="n">ny</span><span class="p">,</span> <span class="n">nx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span>
+		<span class="n">NX</span><span class="p">,</span> <span class="n">NY</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftfreq</span><span class="p">(</span><span class="n">nx</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftfreq</span><span class="p">(</span><span class="n">ny</span><span class="p">))</span>	<span class="c1"># cycles per index</span>
+		<span class="n">H</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">_quadratic_form</span><span class="p">(</span><span class="n">S</span><span class="p">,</span> <span class="n">NX</span><span class="p">,</span> <span class="n">NY</span><span class="p">))</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">"kspace"</span><span class="p">,</span> <span class="n">H</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_plan_far</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">lam</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">N</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Precompute the far form: input chirp, FFT, output lattice and curvature.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		A, B, D : numpy.ndarray</span>
+<span class="sd">			Blocks of the effective map.</span>
+<span class="sd">		L : numpy.ndarray</span>
+<span class="sd">			Input lattice.</span>
+<span class="sd">		lam : float</span>
+<span class="sd">			Wavelength (metres).</span>
+<span class="sd">		N : numpy.ndarray</span>
+<span class="sd">			``(nx, ny)``.</span>
+<span class="sd">		"""</span>
+		<span class="n">Binv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">B</span><span class="p">)</span>
+		<span class="n">UX</span><span class="p">,</span> <span class="n">UY</span> <span class="o">=</span> <span class="n">_index_grid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+		<span class="n">X</span> <span class="o">=</span> <span class="n">L</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">UX</span> <span class="o">+</span> <span class="n">L</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">UY</span>
+		<span class="n">Y</span> <span class="o">=</span> <span class="n">L</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">UX</span> <span class="o">+</span> <span class="n">L</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">UY</span>
+		<span class="n">chirp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">lam</span> <span class="o">*</span> <span class="n">_quadratic_form</span><span class="p">(</span><span class="n">_symmetric</span><span class="p">(</span><span class="n">Binv</span> <span class="o">@</span> <span class="n">A</span><span class="p">),</span> <span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">))</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">"multiply"</span><span class="p">,</span> <span class="n">chirp</span><span class="p">))</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">"fft2"</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_scale</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="n">L</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="n">lam</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="n">B</span><span class="p">))))</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">lattice_out</span> <span class="o">=</span> <span class="n">lam</span> <span class="o">*</span> <span class="n">B</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">L</span><span class="p">)</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">N</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">curvature_out</span> <span class="o">=</span> <span class="n">_symmetric</span><span class="p">(</span><span class="n">D</span> <span class="o">@</span> <span class="n">Binv</span><span class="p">)</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_plan_mixed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">S</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">L</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">lam</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">N</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Precompute the mixed form's per-axis Fresnel steps, on the eigen-lattice of ``S``.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		S : numpy.ndarray</span>
+<span class="sd">			Symmetric 2 × 2 Fresnel matrix in index units.</span>
+<span class="sd">		L : numpy.ndarray</span>
+<span class="sd">			Input lattice.</span>
+<span class="sd">		lam : float</span>
+<span class="sd">			Wavelength (metres).</span>
+<span class="sd">		N : numpy.ndarray</span>
+<span class="sd">			``(nx, ny)``.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		tuple</span>
+<span class="sd">			``(L_cur, Qf)``: the lattice and the curvature after the Fresnel</span>
+<span class="sd">			steps, before the imaging map.</span>
+<span class="sd">		"""</span>
+		<span class="n">ny</span><span class="p">,</span> <span class="n">nx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span>
+		<span class="n">scale</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">S</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span> <span class="nb">abs</span><span class="p">(</span><span class="n">S</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]),</span> <span class="mf">1e-300</span><span class="p">)</span>
+		<span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">S</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mf">1e-9</span> <span class="o">*</span> <span class="n">scale</span><span class="p">:</span>
+			<span class="c1"># rotate the index axes onto S's eigenvectors: u = V u'</span>
+			<span class="n">w</span><span class="p">,</span> <span class="n">V</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
+			<span class="n">UX</span><span class="p">,</span> <span class="n">UY</span> <span class="o">=</span> <span class="n">_index_grid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+			<span class="n">src_x</span> <span class="o">=</span> <span class="n">V</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">UX</span> <span class="o">+</span> <span class="n">V</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">UY</span> <span class="o">+</span> <span class="n">nx</span> <span class="o">//</span> <span class="mi">2</span>
+			<span class="n">src_y</span> <span class="o">=</span> <span class="n">V</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">UX</span> <span class="o">+</span> <span class="n">V</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">UY</span> <span class="o">+</span> <span class="n">ny</span> <span class="o">//</span> <span class="mi">2</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">"resample"</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">src_y</span><span class="p">,</span> <span class="n">src_x</span><span class="p">])))</span>
+			<span class="n">L</span> <span class="o">=</span> <span class="n">L</span> <span class="o">@</span> <span class="n">V</span>
+			<span class="n">S</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+		<span class="n">Qf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+		<span class="n">L_cur</span> <span class="o">=</span> <span class="n">L</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+		<span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">axis</span> <span class="ow">in</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)):</span>			<span class="c1"># x indices run along array axis 1</span>
+			<span class="n">a</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">S</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">j</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">N</span><span class="p">[</span><span class="n">j</span><span class="p">])</span>
+			<span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-9</span><span class="p">:</span>
+				<span class="k">continue</span>
+			<span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">n</span><span class="p">:</span>
+				<span class="n">nu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftfreq</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+				<span class="n">H</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">a</span> <span class="o">*</span> <span class="n">nu</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">"kspace"</span><span class="p">,</span> <span class="n">H</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="k">if</span> <span class="n">axis</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">H</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span> <span class="p">(</span><span class="n">axis</span><span class="p">,)))</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">-</span> <span class="n">n</span> <span class="o">//</span> <span class="mi">2</span>
+				<span class="n">chirp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">u</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">a</span><span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">"multiply_axis"</span><span class="p">,</span> <span class="n">chirp</span><span class="p">,</span> <span class="n">axis</span><span class="p">))</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">"fft1"</span><span class="p">,</span> <span class="n">axis</span><span class="p">))</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">_scale</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">a</span><span class="p">))</span>
+				<span class="n">Linv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">L_cur</span><span class="p">)</span>
+				<span class="n">Qf</span> <span class="o">=</span> <span class="n">Qf</span> <span class="o">+</span> <span class="p">(</span><span class="n">lam</span> <span class="o">/</span> <span class="n">a</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">Linv</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">Linv</span><span class="p">[</span><span class="n">j</span><span class="p">])</span>
+				<span class="n">L_cur</span> <span class="o">=</span> <span class="n">L_cur</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+				<span class="n">L_cur</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">*=</span> <span class="n">a</span> <span class="o">/</span> <span class="n">n</span>
+		<span class="k">return</span> <span class="n">L_cur</span><span class="p">,</span> <span class="n">Qf</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_plan_imaging</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">A</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">C</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">L</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Qf</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Close a near or mixed step with the imaging map ``x = A xi``.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		A, C : numpy.ndarray</span>
+<span class="sd">			Blocks of the effective map.</span>
+<span class="sd">		L : numpy.ndarray</span>
+<span class="sd">			Lattice after the Fresnel step.</span>
+<span class="sd">		Qf : numpy.ndarray</span>
+<span class="sd">			Curvature after the Fresnel step.</span>
+<span class="sd">		"""</span>
+		<span class="n">Ainv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">A</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_scale</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="n">A</span><span class="p">)))</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">lattice_out</span> <span class="o">=</span> <span class="n">A</span> <span class="o">@</span> <span class="n">L</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">curvature_out</span> <span class="o">=</span> <span class="n">_symmetric</span><span class="p">(</span><span class="n">C</span> <span class="o">@</span> <span class="n">Ainv</span> <span class="o">+</span> <span class="n">Ainv</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Qf</span> <span class="o">@</span> <span class="n">Ainv</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CollinsPlan.apply">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.waveoptics.CollinsPlan.apply">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Carry one input field through the planned step.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		field : numpy.ndarray</span>
+<span class="sd">			Complex samples ``(ny, nx)`` on the planned input lattice.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		numpy.ndarray</span>
+<span class="sd">			The output samples on :attr:`lattice_out`, carrying</span>
+<span class="sd">			:attr:`curvature_out`.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			If ``field`` does not have the planned shape.</span>
+<span class="sd">		"""</span>
+		<span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"CollinsPlan was planned for shape </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">; got </span><span class="si">{</span><span class="n">f</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+		<span class="n">f</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">complex</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="p">:</span>
+			<span class="n">kind</span> <span class="o">=</span> <span class="n">step</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+			<span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"kspace"</span><span class="p">:</span>
+				<span class="n">_</span><span class="p">,</span> <span class="n">H</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">step</span>
+				<span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifftn</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftn</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="n">axes</span><span class="p">)</span> <span class="o">*</span> <span class="n">H</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="n">axes</span><span class="p">)</span>
+			<span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"multiply"</span><span class="p">:</span>
+				<span class="n">f</span> <span class="o">*=</span> <span class="n">step</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+			<span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"multiply_axis"</span><span class="p">:</span>
+				<span class="n">_</span><span class="p">,</span> <span class="n">chirp</span><span class="p">,</span> <span class="n">axis</span> <span class="o">=</span> <span class="n">step</span>
+				<span class="n">f</span> <span class="o">*=</span> <span class="n">chirp</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="k">if</span> <span class="n">axis</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">chirp</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+			<span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"fft2"</span><span class="p">:</span>
+				<span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftshift</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fft2</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifftshift</span><span class="p">(</span><span class="n">f</span><span class="p">)))</span>
+			<span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"fft1"</span><span class="p">:</span>
+				<span class="n">axis</span> <span class="o">=</span> <span class="n">step</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+				<span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftshift</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fft</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifftshift</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="n">axis</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">),</span> <span class="n">axes</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
+			<span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"resample"</span><span class="p">:</span>
+				<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.ndimage</span><span class="w"> </span><span class="kn">import</span> <span class="n">map_coordinates</span>
+				<span class="n">coords</span> <span class="o">=</span> <span class="n">step</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+				<span class="n">f</span> <span class="o">=</span> <span class="p">(</span><span class="n">map_coordinates</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">real</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"constant"</span><span class="p">,</span> <span class="n">cval</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+					 <span class="o">+</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">map_coordinates</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">imag</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"constant"</span><span class="p">,</span> <span class="n">cval</span><span class="o">=</span><span class="mf">0.0</span><span class="p">))</span>
+		<span class="k">return</span> <span class="n">f</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scale</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="collins_propagate">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.waveoptics.collins_propagate">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">collins_propagate</span><span class="p">(</span><span class="n">field</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">lattice</span><span class="p">,</span> <span class="n">curvature</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">matrix</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""Carry a field through a linear paraxial map in one Collins step.</span>
+
+<span class="sd">	Plans the step (:class:`CollinsPlan`) and applies it. The field is</span>
+<span class="sd">	relative to the beam's central ray; the caller moves the central ray</span>
+<span class="sd">	itself with the affine ray map.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	field : numpy.ndarray</span>
+<span class="sd">		Complex samples ``(ny, nx)``.</span>
+<span class="sd">	lattice : array_like</span>
+<span class="sd">		2 × 2 lattice ``L`` of the samples (metres per index step).</span>
+<span class="sd">	curvature : array_like</span>
+<span class="sd">		2 × 2 symmetric curvature ``Q`` the field carries (1/m).</span>
+<span class="sd">	wavelength : float</span>
+<span class="sd">		Wavelength (metres).</span>
+<span class="sd">	matrix : array_like</span>
+<span class="sd">		4 × 4 ray map ``(x, xt, y, yt)``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	tuple</span>
+<span class="sd">		``(field_out, lattice_out, curvature_out, form)``.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	ValueError</span>
+<span class="sd">		From :class:`CollinsPlan`.</span>
+
+<span class="sd">	See Also</span>
+<span class="sd">	--------</span>
+<span class="sd">	CollinsPlan : The step, reusable for many fields on one grid.</span>
+
+<span class="sd">	Examples</span>
+<span class="sd">	--------</span>
+<span class="sd">	A drift keeps the lattice and propagates in the near form:</span>
+
+<span class="sd">	&gt;&gt;&gt; f = gaussian_field((64, 64), 1e-9, 1e-9, 5e-9)  # doctest: +SKIP</span>
+<span class="sd">	&gt;&gt;&gt; M = np.eye(4); M[0, 1] = M[2, 3] = 1e-6</span>
+<span class="sd">	&gt;&gt;&gt; out, L, Q, form = collins_propagate(f, np.eye(2) * 1e-9, np.zeros((2, 2)), 2.5e-12, M)  # doctest: +SKIP</span>
+<span class="sd">	"""</span>
+	<span class="n">plan</span> <span class="o">=</span> <span class="n">CollinsPlan</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">field</span><span class="p">),</span> <span class="n">lattice</span><span class="p">,</span> <span class="n">curvature</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">matrix</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">plan</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">field</span><span class="p">),</span> <span class="n">plan</span><span class="o">.</span><span class="n">lattice_out</span><span class="p">,</span> <span class="n">plan</span><span class="o">.</span><span class="n">curvature_out</span><span class="p">,</span> <span class="n">plan</span><span class="o">.</span><span class="n">form</span></div>
+
+
+
+<div class="viewcode-block" id="collins_field_at">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.waveoptics.collins_field_at">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">collins_field_at</span><span class="p">(</span><span class="n">field</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">lattice</span><span class="p">,</span> <span class="n">center</span><span class="p">,</span> <span class="n">tilt</span><span class="p">,</span> <span class="n">curvature</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+					 <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""Evaluate a Collins-carried wave at physical points.</span>
+
+<span class="sd">	:math:`\psi(\mathbf x) = f(L^{-1}\boldsymbol\xi)\,</span>
+<span class="sd">	e^{i\pi\boldsymbol\xi^TQ\boldsymbol\xi/\lambda + 2\pi i\,\mathbf t\cdot\boldsymbol\xi/\lambda}`,</span>
+<span class="sd">	:math:`\boldsymbol\xi = \mathbf x - \mathbf x_0`, with ``f`` interpolated</span>
+<span class="sd">	(cubic) between its samples and the phases exact.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	field : numpy.ndarray</span>
+<span class="sd">		Complex samples ``(ny, nx)``.</span>
+<span class="sd">	lattice : array_like</span>
+<span class="sd">		2 × 2 lattice.</span>
+<span class="sd">	center : array_like</span>
+<span class="sd">		Central ray position ``(x0, y0)`` (metres).</span>
+<span class="sd">	tilt : array_like</span>
+<span class="sd">		Central ray angle ``(xt0, yt0)`` (radians).</span>
+<span class="sd">	curvature : array_like</span>
+<span class="sd">		2 × 2 curvature (1/m).</span>
+<span class="sd">	wavelength : float</span>
+<span class="sd">		Wavelength (metres).</span>
+<span class="sd">	x, y : array_like</span>
+<span class="sd">		Physical coordinates (metres), broadcastable.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	numpy.ndarray</span>
+<span class="sd">		Complex ψ at the points (zero outside the sampled lattice).</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	See Also</span>
+<span class="sd">	--------</span>
+<span class="sd">	collins_intensity_on_grid : Intensity integrated over detector pixels.</span>
+<span class="sd">	"""</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.ndimage</span><span class="w"> </span><span class="kn">import</span> <span class="n">map_coordinates</span>
+	<span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+	<span class="n">ny</span><span class="p">,</span> <span class="n">nx</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">shape</span>
+	<span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+	<span class="n">Q</span> <span class="o">=</span> <span class="n">_symmetric</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">curvature</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+	<span class="n">X</span><span class="p">,</span> <span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">broadcast_arrays</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span>
+	<span class="n">xi_x</span><span class="p">,</span> <span class="n">xi_y</span> <span class="o">=</span> <span class="n">X</span> <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">Y</span> <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+	<span class="n">Linv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">L</span><span class="p">)</span>
+	<span class="n">ux</span> <span class="o">=</span> <span class="n">Linv</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">xi_x</span> <span class="o">+</span> <span class="n">Linv</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">xi_y</span>
+	<span class="n">uy</span> <span class="o">=</span> <span class="n">Linv</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">xi_x</span> <span class="o">+</span> <span class="n">Linv</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">xi_y</span>
+	<span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">uy</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">+</span> <span class="n">ny</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">ux</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">+</span> <span class="n">nx</span> <span class="o">//</span> <span class="mi">2</span><span class="p">])</span>
+	<span class="n">samples</span> <span class="o">=</span> <span class="p">(</span><span class="n">map_coordinates</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">real</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"constant"</span><span class="p">,</span> <span class="n">cval</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+			   <span class="o">+</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">map_coordinates</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">imag</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"constant"</span><span class="p">,</span> <span class="n">cval</span><span class="o">=</span><span class="mf">0.0</span><span class="p">))</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+	<span class="n">phase</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">wavelength</span> <span class="o">*</span> <span class="p">(</span><span class="n">_quadratic_form</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">xi_x</span><span class="p">,</span> <span class="n">xi_y</span><span class="p">)</span>
+								  <span class="o">+</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">tilt</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="n">xi_x</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">tilt</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">xi_y</span><span class="p">))</span>
+	<span class="k">return</span> <span class="n">samples</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">phase</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="collins_intensity_on_grid">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.waveoptics.collins_intensity_on_grid">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">collins_intensity_on_grid</span><span class="p">(</span><span class="n">field</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">lattice</span><span class="p">,</span> <span class="n">center</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">dx</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">dy</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+							  <span class="n">grid_center</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">	</span><span class="sa">r</span><span class="sd">"""Integrate a Collins-carried wave's intensity over the pixels of a detector grid.</span>
+
+<span class="sd">	Each sample carries power :math:`|f|^2|\det L|`. When the samples are</span>
+<span class="sd">	finer than the pixels each sample's power is shared bilinearly between</span>
+<span class="sd">	the four pixels around it (cloud-in-cell: the power is conserved</span>
+<span class="sd">	exactly, and the result is continuous in the sample positions); when</span>
+<span class="sd">	they are coarser, :math:`|f|^2` is</span>
+<span class="sd">	interpolated (linear) at the pixel centres and multiplied by the pixel</span>
+<span class="sd">	area. The curvature and tilt are phases and do not enter.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	field : numpy.ndarray</span>
+<span class="sd">		Complex samples ``(ny, nx)``.</span>
+<span class="sd">	lattice : array_like</span>
+<span class="sd">		2 × 2 lattice.</span>
+<span class="sd">	center : array_like</span>
+<span class="sd">		Central ray position ``(x0, y0)`` on the detector plane (metres).</span>
+<span class="sd">	shape : tuple of int</span>
+<span class="sd">		Detector shape ``(rows, cols)``.</span>
+<span class="sd">	dx, dy : float</span>
+<span class="sd">		Pixel pitch along x (columns) and y (rows), metres.</span>
+<span class="sd">	grid_center : array_like, optional</span>
+<span class="sd">		Physical position of the detector's centre pixel ``(rows//2,</span>
+<span class="sd">		cols//2)``, by default the axis.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	numpy.ndarray</span>
+<span class="sd">		Power per pixel, ``shape``; it sums to the power that lands on the</span>
+<span class="sd">		detector.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	None</span>
+
+<span class="sd">	See Also</span>
+<span class="sd">	--------</span>
+<span class="sd">	collins_field_at : The complex field at points.</span>
+<span class="sd">	"""</span>
+	<span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+	<span class="n">ny</span><span class="p">,</span> <span class="n">nx</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">shape</span>
+	<span class="n">rows</span><span class="p">,</span> <span class="n">cols</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+	<span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+	<span class="n">cell</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="n">L</span><span class="p">))</span>
+	<span class="n">power</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+	<span class="k">if</span> <span class="n">cell</span> <span class="o">&lt;=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">dx</span> <span class="o">*</span> <span class="n">dy</span><span class="p">):</span>
+		<span class="c1"># cloud-in-cell: each sample's power is shared bilinearly between the four</span>
+		<span class="c1"># pixels around it, so the result is continuous in the sample positions</span>
+		<span class="c1"># (nearest-pixel binning flips samples that sit on a pixel edge)</span>
+		<span class="n">UX</span><span class="p">,</span> <span class="n">UY</span> <span class="o">=</span> <span class="n">_index_grid</span><span class="p">((</span><span class="n">ny</span><span class="p">,</span> <span class="n">nx</span><span class="p">))</span>
+		<span class="n">X</span> <span class="o">=</span> <span class="n">L</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">UX</span> <span class="o">+</span> <span class="n">L</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">UY</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">grid_center</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+		<span class="n">Y</span> <span class="o">=</span> <span class="n">L</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">UX</span> <span class="o">+</span> <span class="n">L</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">UY</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">grid_center</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+		<span class="n">cx</span> <span class="o">=</span> <span class="p">(</span><span class="n">X</span> <span class="o">/</span> <span class="n">dx</span> <span class="o">+</span> <span class="n">cols</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+		<span class="n">cy</span> <span class="o">=</span> <span class="p">(</span><span class="n">Y</span> <span class="o">/</span> <span class="n">dy</span> <span class="o">+</span> <span class="n">rows</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+		<span class="n">c0</span><span class="p">,</span> <span class="n">r0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">cx</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">cy</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+		<span class="n">fx</span><span class="p">,</span> <span class="n">fy</span> <span class="o">=</span> <span class="n">cx</span> <span class="o">-</span> <span class="n">c0</span><span class="p">,</span> <span class="n">cy</span> <span class="o">-</span> <span class="n">r0</span>
+		<span class="n">weight</span> <span class="o">=</span> <span class="p">(</span><span class="n">power</span> <span class="o">*</span> <span class="n">cell</span><span class="p">)</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+		<span class="n">flat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">rows</span> <span class="o">*</span> <span class="n">cols</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">dc</span><span class="p">,</span> <span class="n">dr</span><span class="p">,</span> <span class="n">w</span> <span class="ow">in</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">fx</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">fy</span><span class="p">)),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">fx</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">fy</span><span class="p">)),</span>
+						  <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">fx</span><span class="p">)</span> <span class="o">*</span> <span class="n">fy</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">fx</span> <span class="o">*</span> <span class="n">fy</span><span class="p">)):</span>
+			<span class="n">c</span><span class="p">,</span> <span class="n">r</span> <span class="o">=</span> <span class="n">c0</span> <span class="o">+</span> <span class="n">dc</span><span class="p">,</span> <span class="n">r0</span> <span class="o">+</span> <span class="n">dr</span>
+			<span class="n">inside</span> <span class="o">=</span> <span class="p">(</span><span class="n">c</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">c</span> <span class="o">&lt;</span> <span class="n">cols</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">r</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">r</span> <span class="o">&lt;</span> <span class="n">rows</span><span class="p">)</span>
+			<span class="n">flat</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="n">inside</span><span class="p">]</span> <span class="o">*</span> <span class="n">cols</span> <span class="o">+</span> <span class="n">c</span><span class="p">[</span><span class="n">inside</span><span class="p">],</span> <span class="n">weights</span><span class="o">=</span><span class="p">(</span><span class="n">weight</span> <span class="o">*</span> <span class="n">w</span><span class="p">)[</span><span class="n">inside</span><span class="p">],</span>
+								<span class="n">minlength</span><span class="o">=</span><span class="n">rows</span> <span class="o">*</span> <span class="n">cols</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">flat</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">)</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.ndimage</span><span class="w"> </span><span class="kn">import</span> <span class="n">map_coordinates</span>
+	<span class="n">PX</span><span class="p">,</span> <span class="n">PY</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">cols</span><span class="p">)</span> <span class="o">-</span> <span class="n">cols</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">dx</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">grid_center</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+						 <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span> <span class="o">-</span> <span class="n">rows</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">dy</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">grid_center</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+	<span class="n">Linv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">L</span><span class="p">)</span>
+	<span class="n">ux</span> <span class="o">=</span> <span class="n">Linv</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">PX</span> <span class="o">+</span> <span class="n">Linv</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">PY</span>
+	<span class="n">uy</span> <span class="o">=</span> <span class="n">Linv</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">PX</span> <span class="o">+</span> <span class="n">Linv</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">PY</span>
+	<span class="n">density</span> <span class="o">=</span> <span class="n">map_coordinates</span><span class="p">(</span><span class="n">power</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">uy</span> <span class="o">+</span> <span class="n">ny</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">ux</span> <span class="o">+</span> <span class="n">nx</span> <span class="o">//</span> <span class="mi">2</span><span class="p">]),</span> <span class="n">order</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+							  <span class="n">mode</span><span class="o">=</span><span class="s2">"constant"</span><span class="p">,</span> <span class="n">cval</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">density</span> <span class="o">*</span> <span class="nb">abs</span><span class="p">(</span><span class="n">dx</span> <span class="o">*</span> <span class="n">dy</span><span class="p">)</span></div>
+
 </pre></div>
 
            </div>

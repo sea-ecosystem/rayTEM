@@ -169,15 +169,17 @@
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.angular_spectrum_propagate">angular_spectrum_propagate() (in module pySEA.rayTEM.waveoptics)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Aperture">Aperture (class in pySEA.rayTEM.elements)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.aperture_mask">aperture_mask() (in module pySEA.rayTEM.waveoptics)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.aperture_transmission">aperture_transmission() (in module pySEA.rayTEM.waveoptics)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.append">append() (pySEA.rayTEM.assemblies.MicroscopeSection method)</a>
+</li>
+      <li><a href="api_reference.html#id13">apply() (pySEA.rayTEM.waveoptics.CollinsPlan method)</a>, <a href="api_reference.html#pySEA.rayTEM.waveoptics.CollinsPlan.apply">[1]</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Aperture.apply_intensity">apply_intensity() (pySEA.rayTEM.elements.Aperture method)</a>
 
@@ -190,6 +192,8 @@
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Element.apply_rotation">apply_rotation() (pySEA.rayTEM.elements.Element method)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.apply_thin_lens_scaled">apply_thin_lens_scaled() (in module pySEA.rayTEM.waveoptics)</a>
+</li>
+      <li><a href="api_reference.html#pySEA.rayTEM.seashells.as_collins_wavefield">as_collins_wavefield() (in module pySEA.rayTEM.seashells)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.as_dict">as_dict() (pySEA.rayTEM.aberrations.Aberrations method)</a>
 </li>
@@ -261,10 +265,22 @@
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.postprocessing.closest_plane">closest_plane() (in module pySEA.rayTEM.postprocessing)</a>
 </li>
-      <li><a href="api_reference.html#pySEA.rayTEM.elements.columnByName">columnByName() (in module pySEA.rayTEM.elements)</a>
+      <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.collins_blocks">collins_blocks() (in module pySEA.rayTEM.waveoptics)</a>
+</li>
+      <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.collins_field_at">collins_field_at() (in module pySEA.rayTEM.waveoptics)</a>
+</li>
+      <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.collins_intensity_on_grid">collins_intensity_on_grid() (in module pySEA.rayTEM.waveoptics)</a>
+</li>
+      <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.collins_propagate">collins_propagate() (in module pySEA.rayTEM.waveoptics)</a>
+</li>
+      <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope.collins_transfer">collins_transfer() (pySEA.rayTEM.assemblies.Microscope method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.CollinsPlan">CollinsPlan (class in pySEA.rayTEM.waveoptics)</a>
+</li>
+      <li><a href="api_reference.html#pySEA.rayTEM.elements.columnByName">columnByName() (in module pySEA.rayTEM.elements)</a>
+</li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Rays.concatenate">concatenate() (pySEA.rayTEM.elements.Rays class method)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope.conjugate_planes">conjugate_planes() (pySEA.rayTEM.assemblies.Microscope method)</a>
@@ -294,6 +310,8 @@
 </li>
       </ul></li>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope.current_at">current_at() (pySEA.rayTEM.assemblies.Microscope method)</a>
+</li>
+      <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.CollinsPlan.curvature_out">curvature_out (pySEA.rayTEM.waveoptics.CollinsPlan attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -390,6 +408,8 @@
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope.focus_error">focus_error() (pySEA.rayTEM.assemblies.Microscope method)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Prism.focus_matrix">focus_matrix() (pySEA.rayTEM.elements.Prism method)</a>
+</li>
+      <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.CollinsPlan.form">form (pySEA.rayTEM.waveoptics.CollinsPlan attribute)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.fourier_resample">fourier_resample() (in module pySEA.rayTEM.waveoptics)</a>
 </li>
@@ -497,16 +517,18 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Element.larmor_rotation">larmor_rotation (pySEA.rayTEM.elements.Element attribute)</a>
 </li>
+      <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.CollinsPlan.lattice_out">lattice_out (pySEA.rayTEM.waveoptics.CollinsPlan attribute)</a>
+</li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Lens">Lens (class in pySEA.rayTEM.elements)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.aberrations.LETTER_TO_KRIVANEK">LETTER_TO_KRIVANEK (in module pySEA.rayTEM.aberrations)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.linear_phase">linear_phase() (in module pySEA.rayTEM.waveoptics)</a>
 </li>
-      <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope.load_calibration">load_calibration() (pySEA.rayTEM.assemblies.Microscope method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope.load_calibration">load_calibration() (pySEA.rayTEM.assemblies.Microscope method)</a>
+</li>
       <li><a href="api_reference.html#pySEA.rayTEM.postprocessing.load_guesses">load_guesses() (in module pySEA.rayTEM.postprocessing)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.load_microscope">load_microscope() (in module pySEA.rayTEM.assemblies)</a>
@@ -523,6 +545,8 @@
 <h2 id="M">M</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api_reference.html#pySEA.rayTEM.seashells.make_collins_wavefield_signal">make_collins_wavefield_signal() (in module pySEA.rayTEM.seashells)</a>
+</li>
       <li><a href="api_reference.html#pySEA.rayTEM.seashells.make_covariance_signal">make_covariance_signal() (in module pySEA.rayTEM.seashells)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.seashells.make_envelope_signal">make_envelope_signal() (in module pySEA.rayTEM.seashells)</a>
@@ -547,10 +571,10 @@
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.MEDIUM_SLICES">MEDIUM_SLICES (in module pySEA.rayTEM.elements)</a>
 </li>
-      <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope">Microscope (class in pySEA.rayTEM.assemblies)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope">Microscope (class in pySEA.rayTEM.assemblies)</a>
+</li>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.MICROSCOPE_CLSID">MICROSCOPE_CLSID (in module pySEA.rayTEM.assemblies)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection">MicroscopeSection (class in pySEA.rayTEM.assemblies)</a>
@@ -712,6 +736,14 @@
         <li><a href="api_reference.html#pySEA.rayTEM.elements.Source.propagate_wave">(pySEA.rayTEM.elements.Source method)</a>
 </li>
       </ul></li>
+      <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope.propagate_wave_collins">propagate_wave_collins() (pySEA.rayTEM.assemblies.Microscope method)</a>
+
+      <ul>
+        <li><a href="api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.propagate_wave_collins">(pySEA.rayTEM.assemblies.MicroscopeSection method)</a>
+</li>
+        <li><a href="api_reference.html#pySEA.rayTEM.elements.Element.propagate_wave_collins">(pySEA.rayTEM.elements.Element method)</a>
+</li>
+      </ul></li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.AberrationScreen.pupil_power">pupil_power (pySEA.rayTEM.elements.AberrationScreen attribute)</a>
 </li>
       <li>
@@ -790,6 +822,8 @@
         <li><a href="api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.rays_signalset">(pySEA.rayTEM.assemblies.MicroscopeSection property)</a>
 </li>
       </ul></li>
+      <li><a href="api_reference.html#pySEA.rayTEM.seashells.read_collins_wavefield">read_collins_wavefield() (in module pySEA.rayTEM.seashells)</a>
+</li>
       <li><a href="api_reference.html#pySEA.rayTEM.seashells.read_display_signal">read_display_signal() (in module pySEA.rayTEM.seashells)</a>
 </li>
   </ul></td>
@@ -853,6 +887,8 @@
       <li><a href="api_reference.html#id11">setdefault() (pySEA.rayTEM.aberrations.Aberrations method)</a>, <a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.setdefault">[1]</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.postprocessing.setkeys_to_settables_dict">setkeys_to_settables_dict() (in module pySEA.rayTEM.postprocessing)</a>
+</li>
+      <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.CollinsPlan.shape">shape (pySEA.rayTEM.waveoptics.CollinsPlan attribute)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.shift_phase">shift_phase() (in module pySEA.rayTEM.waveoptics)</a>
 </li>
