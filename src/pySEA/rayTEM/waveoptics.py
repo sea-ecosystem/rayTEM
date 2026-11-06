@@ -2529,3 +2529,597 @@ def bandlimited_disk(shape: tuple, dx: float, dy: float, radius: float) -> np.nd
 	# continuous inverse FT -> DFT samples on the centred grid
 	disk = np.fft.fftshift(np.fft.ifft2(F)) / (abs(dx) * abs(dy))
 	return disk.real.astype(complex)
+
+
+# ---------------------------------------------------------------------------
+# Collins (linear canonical) propagation: one step through any linear map
+# ---------------------------------------------------------------------------
+#
+# The field is carried on a *lattice*: sample (ix, iy) sits at
+# ``xi = L @ (ix - nx//2, iy - ny//2)`` relative to the beam's central ray,
+# so a magnification, a Larmor rotation or a shear is a change of ``L`` and
+# never a resampling. A quadratic phase ``exp(i pi/lambda xi^T Q xi)`` is
+# carried analytically as the 2 x 2 curvature ``Q`` (a full matrix, so a
+# general astigmatic beam needs nothing special), and the central ray's
+# position and angle travel with the rays, outside the array.
+
+def collins_blocks(matrix) -> tuple:
+	r"""Split a 4 × 4 paraxial ray map into its 2 × 2 Collins blocks.
+
+	The ray vector is ordered ``(x, xt, y, yt)`` as rayTEM's ``convention``;
+	Collins' form groups positions and angles:
+	:math:`(\mathbf x', \boldsymbol\theta') = (A\mathbf x + B\boldsymbol\theta,
+	C\mathbf x + D\boldsymbol\theta)`.
+
+	Parameters
+	----------
+	matrix : array_like
+		The 4 × 4 map, rows and columns ``(x, xt, y, yt)``.
+
+	Returns
+	-------
+	tuple of numpy.ndarray
+		``(A, B, C, D)``, each 2 × 2 (rows and columns ``x, y``).
+
+	Raises
+	------
+	ValueError
+		If ``matrix`` is not 4 × 4.
+
+	Examples
+	--------
+	>>> A, B, C, D = collins_blocks(np.eye(4))
+	>>> A.tolist(), B.tolist()
+	([[1.0, 0.0], [0.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]])
+	"""
+	M = np.asarray(matrix, dtype=float)
+	if M.shape != (4, 4):
+		raise ValueError(f"collins_blocks needs a 4 x 4 (x, xt, y, yt) map; got shape {M.shape}.")
+	pos, ang = [0, 2], [1, 3]
+	return (M[np.ix_(pos, pos)], M[np.ix_(pos, ang)],
+			M[np.ix_(ang, pos)], M[np.ix_(ang, ang)])
+
+
+def _symmetric(m: np.ndarray) -> np.ndarray:
+	"""Return the symmetric part of a 2 × 2 matrix.
+
+	Parameters
+	----------
+	m : numpy.ndarray
+		A 2 × 2 matrix that is symmetric up to rounding.
+
+	Returns
+	-------
+	numpy.ndarray
+		``(m + m.T) / 2``.
+	"""
+	return 0.5 * (m + m.T)
+
+
+def _index_grid(shape: tuple) -> tuple:
+	"""Return the centred index coordinates ``(ux, uy)`` of a ``(ny, nx)`` grid.
+
+	Parameters
+	----------
+	shape : tuple of int
+		``(ny, nx)``.
+
+	Returns
+	-------
+	tuple of numpy.ndarray
+		``(UX, UY)``, each ``(ny, nx)``, zero at index ``(ny//2, nx//2)`` as
+		:func:`transverse_coordinates` places its origin.
+	"""
+	ny, nx = shape
+	return np.meshgrid(np.arange(nx) - nx // 2, np.arange(ny) - ny // 2)
+
+
+def _quadratic_form(Q: np.ndarray, X: np.ndarray, Y: np.ndarray) -> np.ndarray:
+	"""Evaluate ``[X, Y] Q [X, Y]^T`` pointwise for a symmetric 2 × 2 ``Q``.
+
+	Parameters
+	----------
+	Q : numpy.ndarray
+		Symmetric 2 × 2 matrix.
+	X, Y : numpy.ndarray
+		Coordinates, broadcastable.
+
+	Returns
+	-------
+	numpy.ndarray
+		``Q00 X² + 2 Q01 X Y + Q11 Y²``.
+	"""
+	return Q[0, 0] * X**2 + 2.0 * Q[0, 1] * X * Y + Q[1, 1] * Y**2
+
+
+class CollinsPlan:
+	r"""One Collins step, planned for a given input grid: kernels precomputed, applied in O(N log N).
+
+	A linear paraxial system with ray map :math:`M = \begin{pmatrix}A&B\\C&D\end{pmatrix}`
+	carries a scalar wave by the Collins integral (the linear canonical
+	transform of :math:`M`). The field arrives as samples ``f`` on a lattice
+	``L`` with a carried curvature ``Q``; the curvature is folded into the map
+	as a thin lens, :math:`M_{\rm eff} = M\begin{pmatrix}I&0\\Q&I\end{pmatrix}`,
+	and the step is then evaluated in whichever form the grid samples:
+
+	- **near** — :math:`M_{\rm eff} = \begin{pmatrix}A&0\\C&A^{-T}\end{pmatrix}
+	  \begin{pmatrix}I&Z\\0&I\end{pmatrix}`, :math:`Z = A^{-1}B`: a Fresnel
+	  step with the matrix "distance" ``Z`` (one k-space multiplication on
+	  the input grid), then an imaging map: lattice ``A L``, curvature
+	  :math:`CA^{-1}`, amplitude :math:`|\det A|^{-1/2}`. Used where the
+	  Fresnel transfer function is sampled (near an image plane).
+	- **far** — chirp · FFT · chirp: :math:`P = B^{-1}A` multiplies the input,
+	  one FFT, output lattice :math:`\lambda B L^{-T}N^{-1}`, curvature
+	  :math:`DB^{-1}`. Used where the input chirp is sampled (near a
+	  diffraction plane, including :math:`A = 0`).
+	- **mixed** — neither holds for both axes (a line focus, a strong
+	  stigmator): the Fresnel step is diagonalised in index coordinates (the
+	  field is resampled once onto that eigen-lattice if it is not already
+	  diagonal) and each axis takes the near or far 1-D form it samples,
+	  before the imaging map.
+
+	The two sampling conditions are exact complements per axis, so one of
+	the 1-D forms always holds; nothing in the step depends on crossovers.
+
+	Parameters
+	----------
+	shape : tuple of int
+		Input field shape ``(ny, nx)``.
+	lattice : array_like
+		2 × 2 input lattice ``L`` (metres per index step; column 0 for x
+		indices, column 1 for y).
+	curvature : array_like
+		2 × 2 symmetric input curvature ``Q`` (1/m): the field carries
+		:math:`e^{i\pi\xi^TQ\xi/\lambda}`.
+	wavelength : float
+		Wavelength (metres).
+	matrix : array_like
+		The 4 × 4 ray map ``(x, xt, y, yt)`` of the step.
+
+	Attributes
+	----------
+	form : str
+		``"near"``, ``"far"`` or ``"mixed"``.
+	lattice_out : numpy.ndarray
+		The output lattice.
+	curvature_out : numpy.ndarray
+		The output curvature.
+	shape : tuple of int
+		The input (and output) field shape.
+
+	Methods
+	-------
+	apply(field)
+		Carry one input field through the step.
+
+	Raises
+	------
+	ValueError
+		If the map is singular for this sampling: neither ``A`` nor ``B``
+		invertible, or ``A`` singular and the far form's input chirp
+		undersampled.
+
+	See Also
+	--------
+	collins_propagate : Plan and apply in one call.
+	collins_intensity_on_grid : Sample the result on a detector.
+
+	Notes
+	-----
+	Global phases (the carrier and the Gouy phase) are dropped: they change
+	no intensity downstream. The step is unitary: ``sum(|f|²)·|det L|`` is
+	conserved by every form (Parseval for the FFTs, the Jacobian for the
+	lattice maps); the periodic FFT wraps a beam that outgrows its grid, as
+	the fixed-grid path does without an absorber.
+
+	References
+	----------
+	S. A. Collins, "Lens-system diffraction integral written in terms of
+	matrix optics", J. Opt. Soc. Am. 60, 1168 (1970).
+
+	Examples
+	--------
+	A 2f system (lens of focal length f between two drifts f) is a Fourier
+	transform, planned in the far form:
+
+	>>> f = 0.01; lam = 2.5e-12
+	>>> M = np.array([[0, f, 0, 0], [-1/f, 0, 0, 0], [0, 0, 0, f], [0, 0, -1/f, 0]])
+	>>> CollinsPlan((64, 64), np.eye(2) * 1e-10, np.zeros((2, 2)), lam, M).form
+	'far'
+	"""
+
+	def __init__(self, shape: tuple, lattice, curvature, wavelength: float, matrix) -> None:
+		"""Plan the step: choose its form and precompute its kernels.
+
+		Parameters
+		----------
+		shape, lattice, curvature, wavelength, matrix
+			As the class.
+
+		Raises
+		------
+		ValueError
+			As the class.
+		"""
+		self.shape = (int(shape[0]), int(shape[1]))
+		ny, nx = self.shape
+		L = np.asarray(lattice, dtype=float).reshape(2, 2)
+		Q = _symmetric(np.asarray(curvature, dtype=float).reshape(2, 2))
+		lam = float(wavelength)
+		A, B, C, D = collins_blocks(matrix)
+		# fold the carried curvature in as a thin lens
+		A, C = A + B @ Q, C + D @ Q
+		N = np.array([nx, ny], dtype=float)
+		self._lattice_in = L
+		self._steps: list = []
+		self._scale = 1.0
+		a_ok = np.linalg.cond(A) < 1e12
+		b_ok = np.linalg.cond(B) < 1e12
+		if a_ok:
+			Ainv = np.linalg.inv(A)
+			Linv = np.linalg.inv(L)
+			S = _symmetric(lam * Linv @ (Ainv @ B) @ Linv.T)	# Fresnel matrix in index units
+			near_ok = bool(np.all(np.abs(S).sum(axis=1) <= N))
+			far_ok = False
+			if not near_ok and b_ok:
+				T = _symmetric(L.T @ np.linalg.inv(B) @ A @ L / lam)
+				far_ok = bool(np.all(np.abs(T) @ N <= 1.0))
+			if near_ok:
+				self.form = "near"
+				self._plan_near(S, N)
+				self._plan_imaging(A, C, L, np.zeros((2, 2)))
+			elif far_ok:
+				self.form = "far"
+				self._plan_far(A, B, D, L, lam, N)
+			else:
+				self.form = "mixed"
+				L_cur, Qf = self._plan_mixed(S, L, lam, N)
+				self._plan_imaging(A, C, L_cur, Qf)
+		elif b_ok:
+			T = _symmetric(L.T @ np.linalg.inv(B) @ A @ L / lam)
+			if not np.all(np.abs(T) @ N <= 1.0):
+				raise ValueError("Collins step: A is singular and the far form's input chirp is undersampled "
+								 f"on this {ny} x {nx} grid; use a finer pixel or split the run before this plane.")
+			self.form = "far"
+			self._plan_far(A, B, D, L, lam, N)
+		else:
+			raise ValueError("Collins step: neither A nor B of the ray map is invertible; the map is degenerate.")
+
+	def _plan_near(self, S: np.ndarray, N: np.ndarray) -> None:
+		"""Precompute the near form's Fresnel transfer function on the FFT grid.
+
+		Parameters
+		----------
+		S : numpy.ndarray
+			Symmetric 2 × 2 Fresnel matrix in index units (index²).
+		N : numpy.ndarray
+			``(nx, ny)``.
+		"""
+		if np.abs(S).max() < 1e-9:
+			return		# a pure imaging map: nothing to propagate
+		ny, nx = self.shape
+		NX, NY = np.meshgrid(np.fft.fftfreq(nx), np.fft.fftfreq(ny))	# cycles per index
+		H = np.exp(-1j * np.pi * _quadratic_form(S, NX, NY))
+		self._steps.append(("kspace", H, (0, 1)))
+
+	def _plan_far(self, A, B, D, L, lam: float, N: np.ndarray) -> None:
+		"""Precompute the far form: input chirp, FFT, output lattice and curvature.
+
+		Parameters
+		----------
+		A, B, D : numpy.ndarray
+			Blocks of the effective map.
+		L : numpy.ndarray
+			Input lattice.
+		lam : float
+			Wavelength (metres).
+		N : numpy.ndarray
+			``(nx, ny)``.
+		"""
+		Binv = np.linalg.inv(B)
+		UX, UY = _index_grid(self.shape)
+		X = L[0, 0] * UX + L[0, 1] * UY
+		Y = L[1, 0] * UX + L[1, 1] * UY
+		chirp = np.exp(1j * np.pi / lam * _quadratic_form(_symmetric(Binv @ A), X, Y))
+		self._steps.append(("multiply", chirp))
+		self._steps.append(("fft2", None))
+		self._scale = abs(np.linalg.det(L)) / (lam * np.sqrt(abs(np.linalg.det(B))))
+		self.lattice_out = lam * B @ np.linalg.inv(L).T @ np.diag(1.0 / N)
+		self.curvature_out = _symmetric(D @ Binv)
+
+	def _plan_mixed(self, S: np.ndarray, L: np.ndarray, lam: float, N: np.ndarray) -> tuple:
+		"""Precompute the mixed form's per-axis Fresnel steps, on the eigen-lattice of ``S``.
+
+		Parameters
+		----------
+		S : numpy.ndarray
+			Symmetric 2 × 2 Fresnel matrix in index units.
+		L : numpy.ndarray
+			Input lattice.
+		lam : float
+			Wavelength (metres).
+		N : numpy.ndarray
+			``(nx, ny)``.
+
+		Returns
+		-------
+		tuple
+			``(L_cur, Qf)``: the lattice and the curvature after the Fresnel
+			steps, before the imaging map.
+		"""
+		ny, nx = self.shape
+		scale = max(abs(S[0, 0]), abs(S[1, 1]), 1e-300)
+		if abs(S[0, 1]) > 1e-9 * scale:
+			# rotate the index axes onto S's eigenvectors: u = V u'
+			w, V = np.linalg.eigh(S)
+			UX, UY = _index_grid(self.shape)
+			src_x = V[0, 0] * UX + V[0, 1] * UY + nx // 2
+			src_y = V[1, 0] * UX + V[1, 1] * UY + ny // 2
+			self._steps.append(("resample", np.array([src_y, src_x])))
+			L = L @ V
+			S = np.diag(w)
+		Qf = np.zeros((2, 2))
+		L_cur = L.copy()
+		for j, axis in ((0, 1), (1, 0)):			# x indices run along array axis 1
+			a, n = float(S[j, j]), int(N[j])
+			if abs(a) < 1e-9:
+				continue
+			if abs(a) <= n:
+				nu = np.fft.fftfreq(n)
+				H = np.exp(-1j * np.pi * a * nu**2)
+				self._steps.append(("kspace", H[:, None] if axis == 0 else H[None, :], (axis,)))
+			else:
+				u = np.arange(n) - n // 2
+				chirp = np.exp(1j * np.pi * u**2 / a)
+				self._steps.append(("multiply_axis", chirp, axis))
+				self._steps.append(("fft1", axis))
+				self._scale /= np.sqrt(abs(a))
+				Linv = np.linalg.inv(L_cur)
+				Qf = Qf + (lam / a) * np.outer(Linv[j], Linv[j])
+				L_cur = L_cur.copy()
+				L_cur[:, j] *= a / n
+		return L_cur, Qf
+
+	def _plan_imaging(self, A: np.ndarray, C: np.ndarray, L: np.ndarray, Qf: np.ndarray) -> None:
+		"""Close a near or mixed step with the imaging map ``x = A xi``.
+
+		Parameters
+		----------
+		A, C : numpy.ndarray
+			Blocks of the effective map.
+		L : numpy.ndarray
+			Lattice after the Fresnel step.
+		Qf : numpy.ndarray
+			Curvature after the Fresnel step.
+		"""
+		Ainv = np.linalg.inv(A)
+		self._scale /= np.sqrt(abs(np.linalg.det(A)))
+		self.lattice_out = A @ L
+		self.curvature_out = _symmetric(C @ Ainv + Ainv.T @ Qf @ Ainv)
+
+	def apply(self, field: np.ndarray) -> np.ndarray:
+		"""Carry one input field through the planned step.
+
+		Parameters
+		----------
+		field : numpy.ndarray
+			Complex samples ``(ny, nx)`` on the planned input lattice.
+
+		Returns
+		-------
+		numpy.ndarray
+			The output samples on :attr:`lattice_out`, carrying
+			:attr:`curvature_out`.
+
+		Raises
+		------
+		ValueError
+			If ``field`` does not have the planned shape.
+		"""
+		f = np.asarray(field)
+		if f.shape != self.shape:
+			raise ValueError(f"CollinsPlan was planned for shape {self.shape}; got {f.shape}.")
+		f = f.astype(complex, copy=True)
+		for step in self._steps:
+			kind = step[0]
+			if kind == "kspace":
+				_, H, axes = step
+				f = np.fft.ifftn(np.fft.fftn(f, axes=axes) * H, axes=axes)
+			elif kind == "multiply":
+				f *= step[1]
+			elif kind == "multiply_axis":
+				_, chirp, axis = step
+				f *= chirp[:, None] if axis == 0 else chirp[None, :]
+			elif kind == "fft2":
+				f = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(f)))
+			elif kind == "fft1":
+				axis = step[1]
+				f = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(f, axes=axis), axis=axis), axes=axis)
+			elif kind == "resample":
+				from scipy.ndimage import map_coordinates
+				coords = step[1]
+				f = (map_coordinates(f.real, coords, order=3, mode="constant", cval=0.0)
+					 + 1j * map_coordinates(f.imag, coords, order=3, mode="constant", cval=0.0))
+		return f * self._scale
+
+
+def collins_propagate(field: np.ndarray, lattice, curvature, wavelength: float, matrix) -> tuple:
+	r"""Carry a field through a linear paraxial map in one Collins step.
+
+	Plans the step (:class:`CollinsPlan`) and applies it. The field is
+	relative to the beam's central ray; the caller moves the central ray
+	itself with the affine ray map.
+
+	Parameters
+	----------
+	field : numpy.ndarray
+		Complex samples ``(ny, nx)``.
+	lattice : array_like
+		2 × 2 lattice ``L`` of the samples (metres per index step).
+	curvature : array_like
+		2 × 2 symmetric curvature ``Q`` the field carries (1/m).
+	wavelength : float
+		Wavelength (metres).
+	matrix : array_like
+		4 × 4 ray map ``(x, xt, y, yt)``.
+
+	Returns
+	-------
+	tuple
+		``(field_out, lattice_out, curvature_out, form)``.
+
+	Raises
+	------
+	ValueError
+		From :class:`CollinsPlan`.
+
+	See Also
+	--------
+	CollinsPlan : The step, reusable for many fields on one grid.
+
+	Examples
+	--------
+	A drift keeps the lattice and propagates in the near form:
+
+	>>> f = gaussian_field((64, 64), 1e-9, 1e-9, 5e-9)  # doctest: +SKIP
+	>>> M = np.eye(4); M[0, 1] = M[2, 3] = 1e-6
+	>>> out, L, Q, form = collins_propagate(f, np.eye(2) * 1e-9, np.zeros((2, 2)), 2.5e-12, M)  # doctest: +SKIP
+	"""
+	plan = CollinsPlan(np.shape(field), lattice, curvature, wavelength, matrix)
+	return plan.apply(field), plan.lattice_out, plan.curvature_out, plan.form
+
+
+def collins_field_at(field: np.ndarray, lattice, center, tilt, curvature, wavelength: float,
+					 x, y) -> np.ndarray:
+	r"""Evaluate a Collins-carried wave at physical points.
+
+	:math:`\psi(\mathbf x) = f(L^{-1}\boldsymbol\xi)\,
+	e^{i\pi\boldsymbol\xi^TQ\boldsymbol\xi/\lambda + 2\pi i\,\mathbf t\cdot\boldsymbol\xi/\lambda}`,
+	:math:`\boldsymbol\xi = \mathbf x - \mathbf x_0`, with ``f`` interpolated
+	(cubic) between its samples and the phases exact.
+
+	Parameters
+	----------
+	field : numpy.ndarray
+		Complex samples ``(ny, nx)``.
+	lattice : array_like
+		2 × 2 lattice.
+	center : array_like
+		Central ray position ``(x0, y0)`` (metres).
+	tilt : array_like
+		Central ray angle ``(xt0, yt0)`` (radians).
+	curvature : array_like
+		2 × 2 curvature (1/m).
+	wavelength : float
+		Wavelength (metres).
+	x, y : array_like
+		Physical coordinates (metres), broadcastable.
+
+	Returns
+	-------
+	numpy.ndarray
+		Complex ψ at the points (zero outside the sampled lattice).
+
+	Raises
+	------
+	None
+
+	See Also
+	--------
+	collins_intensity_on_grid : Intensity integrated over detector pixels.
+	"""
+	from scipy.ndimage import map_coordinates
+	f = np.asarray(field)
+	ny, nx = f.shape
+	L = np.asarray(lattice, dtype=float).reshape(2, 2)
+	Q = _symmetric(np.asarray(curvature, dtype=float).reshape(2, 2))
+	X, Y = np.broadcast_arrays(np.asarray(x, dtype=float), np.asarray(y, dtype=float))
+	xi_x, xi_y = X - float(center[0]), Y - float(center[1])
+	Linv = np.linalg.inv(L)
+	ux = Linv[0, 0] * xi_x + Linv[0, 1] * xi_y
+	uy = Linv[1, 0] * xi_x + Linv[1, 1] * xi_y
+	coords = np.array([uy.ravel() + ny // 2, ux.ravel() + nx // 2])
+	samples = (map_coordinates(f.real, coords, order=3, mode="constant", cval=0.0)
+			   + 1j * map_coordinates(f.imag, coords, order=3, mode="constant", cval=0.0)).reshape(X.shape)
+	phase = np.pi / wavelength * (_quadratic_form(Q, xi_x, xi_y)
+								  + 2.0 * (float(tilt[0]) * xi_x + float(tilt[1]) * xi_y))
+	return samples * np.exp(1j * phase)
+
+
+def collins_intensity_on_grid(field: np.ndarray, lattice, center, shape: tuple, dx: float, dy: float,
+							  grid_center=(0.0, 0.0)) -> np.ndarray:
+	r"""Integrate a Collins-carried wave's intensity over the pixels of a detector grid.
+
+	Each sample carries power :math:`|f|^2|\det L|`. When the samples are
+	finer than the pixels each sample's power is shared bilinearly between
+	the four pixels around it (cloud-in-cell: the power is conserved
+	exactly, and the result is continuous in the sample positions); when
+	they are coarser, :math:`|f|^2` is
+	interpolated (linear) at the pixel centres and multiplied by the pixel
+	area. The curvature and tilt are phases and do not enter.
+
+	Parameters
+	----------
+	field : numpy.ndarray
+		Complex samples ``(ny, nx)``.
+	lattice : array_like
+		2 × 2 lattice.
+	center : array_like
+		Central ray position ``(x0, y0)`` on the detector plane (metres).
+	shape : tuple of int
+		Detector shape ``(rows, cols)``.
+	dx, dy : float
+		Pixel pitch along x (columns) and y (rows), metres.
+	grid_center : array_like, optional
+		Physical position of the detector's centre pixel ``(rows//2,
+		cols//2)``, by default the axis.
+
+	Returns
+	-------
+	numpy.ndarray
+		Power per pixel, ``shape``; it sums to the power that lands on the
+		detector.
+
+	Raises
+	------
+	None
+
+	See Also
+	--------
+	collins_field_at : The complex field at points.
+	"""
+	f = np.asarray(field)
+	ny, nx = f.shape
+	rows, cols = int(shape[0]), int(shape[1])
+	L = np.asarray(lattice, dtype=float).reshape(2, 2)
+	cell = abs(np.linalg.det(L))
+	power = np.abs(f) ** 2
+	if cell <= abs(dx * dy):
+		# cloud-in-cell: each sample's power is shared bilinearly between the four
+		# pixels around it, so the result is continuous in the sample positions
+		# (nearest-pixel binning flips samples that sit on a pixel edge)
+		UX, UY = _index_grid((ny, nx))
+		X = L[0, 0] * UX + L[0, 1] * UY + float(center[0]) - float(grid_center[0])
+		Y = L[1, 0] * UX + L[1, 1] * UY + float(center[1]) - float(grid_center[1])
+		cx = (X / dx + cols // 2).ravel()
+		cy = (Y / dy + rows // 2).ravel()
+		c0, r0 = np.floor(cx).astype(np.int64), np.floor(cy).astype(np.int64)
+		fx, fy = cx - c0, cy - r0
+		weight = (power * cell).ravel()
+		flat = np.zeros(rows * cols)
+		for dc, dr, w in ((0, 0, (1 - fx) * (1 - fy)), (1, 0, fx * (1 - fy)),
+						  (0, 1, (1 - fx) * fy), (1, 1, fx * fy)):
+			c, r = c0 + dc, r0 + dr
+			inside = (c >= 0) & (c < cols) & (r >= 0) & (r < rows)
+			flat += np.bincount(r[inside] * cols + c[inside], weights=(weight * w)[inside],
+								minlength=rows * cols)
+		return flat.reshape(rows, cols)
+	from scipy.ndimage import map_coordinates
+	PX, PY = np.meshgrid((np.arange(cols) - cols // 2) * dx + float(grid_center[0]) - float(center[0]),
+						 (np.arange(rows) - rows // 2) * dy + float(grid_center[1]) - float(center[1]))
+	Linv = np.linalg.inv(L)
+	ux = Linv[0, 0] * PX + Linv[0, 1] * PY
+	uy = Linv[1, 0] * PX + Linv[1, 1] * PY
+	density = map_coordinates(power, np.array([uy + ny // 2, ux + nx // 2]), order=1,
+							  mode="constant", cval=0.0)
+	return density * abs(dx * dy)

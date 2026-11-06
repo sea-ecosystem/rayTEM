@@ -262,6 +262,8 @@ _PROPAGATE_KINDS = {
 	"wave_scaled": ("propagate_wave", {"mode": "scaled"}),
 	"wave-hybrid": ("propagate_wave", {"mode": "hybrid"}),
 	"wave_hybrid": ("propagate_wave", {"mode": "hybrid"}),
+	"wave-collins": ("propagate_wave_collins", {}),
+	"wave_collins": ("propagate_wave_collins", {}),
 }
 def _propagate_method_name(kind:str) -> tuple:
 	"""Resolve a propagation-mode keyword to its method name and forced kwargs.
@@ -2912,7 +2914,51 @@ class Element(SealedAttributes, SEASerializable):
 		return make_scaled_wavefield_signal(U, dxi, deta, wavelength, s, R, tau, z=z,
 											z_cross=z_cross, name=name)
 
-	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray", **kwargs):
+	def propagate_wave_collins(self, signal):
+		r"""Propagate a wavefield through this element in one Collins (linear canonical) step.
+
+		The element's wave action is taken to be its ray map
+		(:meth:`affine_matrix`: transfer matrix with Larmor rotation, a
+		quadrupole's rotation, a dipole's kick and the alignment), carried by
+		the Collins integral of that map in one step; an :class:`Aperture`
+		masks instead. This is rayTEM's fifth propagation mode, separate from
+		the scaled/hybrid walker; it pays off on runs of elements, where
+		:meth:`MicroscopeSection.propagate_wave_collins` contracts them into
+		one step each (:mod:`~pySEA.rayTEM.collins`).
+
+		Parameters
+		----------
+		signal : Signal or seashells wavefield fallback
+			Any rayTEM wavefield (fixed, scaled or Collins), converted without
+			resampling (:func:`~pySEA.rayTEM.seashells.as_collins_wavefield`).
+
+		Returns
+		-------
+		Signal or seashells._CollinsWavefield
+			The wave after the element, as a Collins wavefield.
+
+		Raises
+		------
+		NotImplementedError
+			If the element carries aberrations or a phase screen: a Collins
+			step holds only quadratic phases (use ``mode='hybrid'`` or
+			``'fixed'`` of :meth:`propagate_wave`).
+		ValueError
+			If the input grid cannot sample the step.
+
+		Related
+		-------
+		collins.CollinsTransfer : The contraction this uses.
+		propagate_wave : The fixed and scaled/hybrid wave modes.
+
+		Examples
+		--------
+		>>> Lens(focal_length=0.01, length=0.0).propagate_wave_collins(wave)  # doctest: +SKIP
+		"""
+		from .collins import CollinsTransfer
+		return CollinsTransfer([self]).apply(signal)
+
+	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid","wave-collins","wave_collins"]="ray", **kwargs):
 		"""Unified propagation dispatcher across the three modes.
 
 		Routes to :meth:propagate_ray, :meth:propagate_moments, or

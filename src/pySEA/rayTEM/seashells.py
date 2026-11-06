@@ -273,7 +273,7 @@ class _Wavefield:
 		self.z = z
 
 
-def make_wavefield_signal(data, dx, dy, wavelength, z=None, name="wavefield", markers=None):
+def make_wavefield_signal(data, dx, dy, wavelength, z=None, name="wavefield", markers=None, metadata=None):
 	"""Wrap a complex field array as a calibrated sea_eco wavefield ``Signal``.
 
 	Builds a ``Signal`` whose transverse axes carry the pixel-size calibration and
@@ -300,6 +300,9 @@ def make_wavefield_signal(data, dx, dy, wavelength, z=None, name="wavefield", ma
 		``{"kind", "label", "z0", "z1"}`` spans (metres), stored as PLOT-8
 		overlays bound to ``z``, so a view through z shows them and an x–y
 		image of one plane does not. By default ``None``.
+	metadata : Mapping, optional
+		Further metadata entries, merged into the Signal's (a Collins
+		wavefield's frame, :func:`make_collins_wavefield_signal`). By default ``None``.
 
 	Returns
 	-------
@@ -323,6 +326,8 @@ def make_wavefield_signal(data, dx, dy, wavelength, z=None, name="wavefield", ma
 	ydim = _Dimension(name="y", space="position", scale=dy, offset=-(ny // 2) * dy, size=ny, units="m")
 	# calibration is also mirrored into metadata for robust, parse-free read-back
 	meta = {"wavelength_m": float(wavelength), "dx_m": float(dx), "dy_m": float(dy)}
+	if metadata:
+		meta.update(metadata)
 	if data.ndim == 3:
 		zvals = _np.asarray(z if z is not None else range(data.shape[0]), dtype=float)
 		# unstructured z: pass a representative scale/offset so sea_eco skips its
@@ -1800,3 +1805,200 @@ def safeReinstantiate(source,cls):
 	# holds real rayTEM objects.
 	obj.__dict__.update(dic)
 	return obj
+
+
+class _CollinsWavefield:
+	"""Lightweight fallback container for a Collins-carried wavefield when sea_eco is unavailable.
+
+	Mirrors :func:`make_collins_wavefield_signal`: the samples ``f`` on a
+	lattice, relative to the beam's central ray, with the curvature they
+	carry, so Collins propagation runs and round-trips in-memory without the
+	calibrated-Signal machinery.
+
+	Parameters
+	----------
+	data : numpy.ndarray
+		Complex samples ``(ny, nx)``.
+	lattice : numpy.ndarray
+		2 × 2 lattice (metres per index step; column 0 for x indices).
+	center : numpy.ndarray
+		Central ray position ``(x0, y0)`` (metres).
+	tilt : numpy.ndarray
+		Central ray angle ``(xt0, yt0)`` (radians).
+	curvature : numpy.ndarray
+		2 × 2 symmetric curvature (1/m).
+	wavelength : float
+		Wavelength (metres).
+	z : float or None
+		Plane position (metres).
+
+	Attributes
+	----------
+	data, lattice, center, tilt, curvature, wavelength, z
+		As the parameters.
+	"""
+	def __init__(self, data, lattice, center, tilt, curvature, wavelength, z):
+		"""Store the state.
+
+		Parameters
+		----------
+		data, lattice, center, tilt, curvature, wavelength, z
+			As the class.
+		"""
+		self.data = data
+		self.lattice = lattice
+		self.center = center
+		self.tilt = tilt
+		self.curvature = curvature
+		self.wavelength = wavelength
+		self.z = z
+
+
+def make_collins_wavefield_signal(data, lattice, center, tilt, curvature, wavelength, z=None,
+								  name="collins wavefield"):
+	r"""Wrap a Collins-carried field as a wavefield ``Signal``.
+
+	The physical wave is
+	:math:`\psi(\mathbf x) = f(L^{-1}\boldsymbol\xi)\,e^{i\pi\boldsymbol\xi^TQ\boldsymbol\xi/\lambda
+	+ 2\pi i\,\mathbf t\cdot\boldsymbol\xi/\lambda}`, :math:`\boldsymbol\xi = \mathbf x - \mathbf x_0`.
+	The Signal's axes are the lattice's index axes, calibrated by the lengths
+	of its columns (exact when the lattice is diagonal and positive, a display
+	scale otherwise); the full frame is kept in metadata under ``collins_*``
+	keys.
+
+	Parameters
+	----------
+	data : numpy.ndarray
+		Complex samples ``(ny, nx)``.
+	lattice : array_like
+		2 × 2 lattice ``L``.
+	center : array_like
+		Central ray position ``(x0, y0)`` (metres).
+	tilt : array_like
+		Central ray angle ``(xt0, yt0)`` (radians).
+	curvature : array_like
+		2 × 2 symmetric curvature ``Q`` (1/m).
+	wavelength : float
+		Wavelength (metres).
+	z : float, optional
+		Plane position (metres).
+	name : str, optional
+		Signal name.
+
+	Returns
+	-------
+	Signal or _CollinsWavefield
+		A calibrated ``Signal`` when sea_eco is present, else the fallback.
+
+	Raises
+	------
+	None
+
+	See Also
+	--------
+	read_collins_wavefield : The inverse.
+	as_collins_wavefield : Convert a fixed or scaled wavefield.
+	"""
+	import numpy as _np
+	data = _np.asarray(data)
+	L = _np.asarray(lattice, dtype=float).reshape(2, 2)
+	x0 = _np.asarray(center, dtype=float).reshape(2)
+	t0 = _np.asarray(tilt, dtype=float).reshape(2)
+	Q = _np.asarray(curvature, dtype=float).reshape(2, 2)
+	if not sea_available:
+		return _CollinsWavefield(data, L, x0, t0, Q, float(wavelength), z)
+	frame = {"collins_lattice_m": [float(v) for v in L.ravel()],
+			 "collins_center_m": [float(v) for v in x0],
+			 "collins_tilt_rad": [float(v) for v in t0],
+			 "collins_curvature_per_m": [float(v) for v in Q.ravel()]}
+	return make_wavefield_signal(data, float(_np.hypot(*L[:, 0])), float(_np.hypot(*L[:, 1])),
+								 wavelength, z=z, name=name, metadata=frame)
+
+
+def read_collins_wavefield(signal):
+	"""Read ``(data, lattice, center, tilt, curvature, wavelength, z)`` from a Collins wavefield.
+
+	Parameters
+	----------
+	signal : Signal or _CollinsWavefield
+		Made by :func:`make_collins_wavefield_signal`.
+
+	Returns
+	-------
+	tuple
+		``(data, lattice, center, tilt, curvature, wavelength, z)``; the
+		lattice and curvature 2 × 2 arrays, center and tilt 2-vectors.
+
+	Raises
+	------
+	ValueError
+		If ``signal`` carries no Collins frame (use :func:`as_collins_wavefield`).
+	"""
+	import numpy as _np
+	if isinstance(signal, _CollinsWavefield):
+		return (signal.data, signal.lattice, signal.center, signal.tilt, signal.curvature,
+				signal.wavelength, signal.z)
+	meta = signal.metadata.to_dict() if getattr(signal, "metadata", None) is not None else {}
+	if "collins_lattice_m" not in meta:
+		raise ValueError("not a Collins wavefield; convert it with as_collins_wavefield().")
+	return (signal.data, _np.asarray(meta["collins_lattice_m"], dtype=float).reshape(2, 2),
+			_np.asarray(meta["collins_center_m"], dtype=float),
+			_np.asarray(meta["collins_tilt_rad"], dtype=float),
+			_np.asarray(meta["collins_curvature_per_m"], dtype=float).reshape(2, 2),
+			meta.get("wavelength_m"), meta.get("z_m", None))
+
+
+def as_collins_wavefield(signal):
+	r"""Return any rayTEM wavefield as a Collins wavefield, without resampling.
+
+	- A Collins wavefield is returned as is.
+	- A fixed-grid wavefield becomes samples on ``diag(dx, dy)``, on the axis,
+	  with no curvature.
+	- A scaled wavefield :math:`\psi = (1/s)\,U(x/s)\,e^{ikx^2/2R}` becomes
+	  ``U/sqrt(|s_x s_y|)`` on ``diag(s_x Δξ, s_y Δη)`` with curvature
+	  ``diag(1/R_x, 1/R_y)`` (its τ is a phase and is dropped).
+
+	Parameters
+	----------
+	signal : Signal or _Wavefield or _ScaledWavefield or _CollinsWavefield
+		A wavefield in any of rayTEM's representations.
+
+	Returns
+	-------
+	Signal or _CollinsWavefield
+		The same wave as a Collins wavefield.
+
+	Raises
+	------
+	ValueError
+		If the input is a stack of planes rather than one plane.
+
+	See Also
+	--------
+	make_collins_wavefield_signal, read_collins_wavefield
+	"""
+	import numpy as _np
+	if isinstance(signal, _CollinsWavefield):
+		return signal
+	meta = {}
+	if not isinstance(signal, (_Wavefield, _ScaledWavefield)):
+		meta = signal.metadata.to_dict() if getattr(signal, "metadata", None) is not None else {}
+		if "collins_lattice_m" in meta:
+			return signal
+	name = getattr(signal, "name", "collins wavefield") or "collins wavefield"
+	if isinstance(signal, _ScaledWavefield) or "s" in meta or "s_x" in meta:
+		U, dxi, deta, wavelength, s, R, _tau, z = read_scaled_wavefield(signal)
+		s_x, s_y = (s if isinstance(s, (tuple, list)) else (s, s))
+		R_x, R_y = (R if isinstance(R, (tuple, list)) else (R, R))
+		U = _np.asarray(U)
+		if U.ndim != 2:
+			raise ValueError("as_collins_wavefield converts one plane; got a stack.")
+		Q = _np.diag([0.0 if not _np.isfinite(R_x) else 1.0 / R_x, 0.0 if not _np.isfinite(R_y) else 1.0 / R_y])
+		return make_collins_wavefield_signal(U / _np.sqrt(abs(s_x * s_y)), _np.diag([s_x * dxi, s_y * deta]),
+											 (0.0, 0.0), (0.0, 0.0), Q, wavelength, z=z, name=name)
+	data, dx, dy, wavelength, z = read_wavefield(signal)
+	data = _np.asarray(data)
+	if data.ndim != 2:
+		raise ValueError("as_collins_wavefield converts one plane; got a stack.")
+	return make_collins_wavefield_signal(data, _np.diag([dx, dy]), (0.0, 0.0), (0.0, 0.0),
+										 _np.zeros((2, 2)), wavelength, z=z, name=name)

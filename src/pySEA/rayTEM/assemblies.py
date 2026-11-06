@@ -500,6 +500,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		self.covariance_matrix = None	# per-plane covariance matrix (beam-envelope mode)
 		self.wave = None				# per-plane complex wavefield Signal (wave-optics mode)
 		self.wave_scaled = None			# per-plane scaled-Fresnel SignalSet (U + s/R/tau companions)
+		self.wave_collins = None		# Collins-mode result: the wavefield at the run's end
 
 		
 		if self.elements is None or (self.elements)==0:
@@ -1342,7 +1343,53 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		return _envelope_signal(beam, self._display_markers(float(beam.z()[0])),
 								self.name or "section")
 
-	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray", **kwargs):
+	def propagate_wave_collins(self, wave0=None, apply_aberrations:bool=True):
+		r"""Propagate a wavefield through the section in contracted Collins steps.
+
+		Every run of linear elements between apertures is one Collins step
+		(:class:`~pySEA.rayTEM.collins.CollinsTransfer`): the product of the
+		elements' ray maps carries the wave across its lenses, drifts and
+		crossovers at once; each aperture masks between runs.
+
+		Parameters
+		----------
+		wave0 : Signal or seashells wavefield fallback, optional
+			Initial wavefield in any representation. If ``None`` and the
+			first element is a ``Source``, its fixed-grid wave is used.
+		apply_aberrations : bool, optional
+			``False`` suspends every element's aberrations for the run, so an
+			aberrated section propagates as its ideal counterpart. By default
+			True, which refuses an aberrated element (Collins steps hold no
+			screen yet).
+
+		Returns
+		-------
+		Signal or seashells._CollinsWavefield
+			The wave at the section's exit, also stored on ``self.wave_collins``.
+
+		Raises
+		------
+		UserWarning
+			If ``wave0`` is ``None`` and the first element is not a ``Source``.
+		NotImplementedError
+			For an element with a non-quadratic phase.
+
+		Related
+		-------
+		Microscope.propagate_wave_collins : Across sections, between named elements.
+		"""
+		from .collins import CollinsTransfer
+		elements = list(self._propagation_elements())
+		if wave0 is None:
+			if isinstance(self.elements[0], Source):
+				wave0 = self.elements[0].wave(mode='fixed')
+			else:
+				raise UserWarning("First element is not a Source, and no wave0 provided to propagate_wave_collins.")
+		with suspended_aberrations(elements + [self], not apply_aberrations):
+			self.wave_collins = CollinsTransfer(elements).apply(wave0)
+		return self.wave_collins
+
+	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid","wave-collins","wave_collins"]="ray", **kwargs):
 		"""Unified propagation dispatcher across the three modes.
 
 		Routes to :meth:`propagate_ray`, :meth:`propagate_moments`, or
@@ -1451,6 +1498,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		self.mu = None ; self.covariance_matrix = None	# beam-envelope mode results
 		self.wave = None								# wave-optics mode result (complex wavefield Signal)
 		self.wave_scaled = None							# scaled-Fresnel mode result (SignalSet: U + s/R/tau)
+		self.wave_collins = None		# Collins-mode result: the wavefield at the run's end
 		self.crossovers = None							# focal planes the hybrid wave run's own frame crossed: the conjugate family its seed belongs to (diffraction/back-focal for the usual flat seed)
 		self.image_planes = None						# {'x': ndarray, 'y': ndarray} -- the image family, logged by the hybrid run even though the frame never crosses it
 		self.diffraction_planes = None					# {'x': ndarray, 'y': ndarray} -- the diffraction family, per axis (astigmatic optics differ between axes)
@@ -3924,7 +3972,104 @@ class Microscope(SealedAttributes, SEASerializable):
 		return make_wave_cross_section_signal(profile, z, x, markers,
 											  source=self.name or "microscope")
 
-	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid"]="ray", **kwargs):
+	def collins_transfer(self, start:str|None=None, stop:str|None=None):
+		r"""Contract the elements between two named elements into a Collins transfer.
+
+		Parameters
+		----------
+		start : str, optional
+			The transfer begins just after the element of this name; by
+			default at the first element.
+		stop : str, optional
+			The transfer ends with the element of this name (included); by
+			default at the last element.
+
+		Returns
+		-------
+		collins.CollinsTransfer
+			The contracted transfer; keep it and rebuild it when
+			:meth:`~pySEA.rayTEM.collins.CollinsTransfer.is_current` is False.
+
+		Raises
+		------
+		ValueError
+			If a named element is not in the column, or ``stop`` comes before
+			``start``.
+		NotImplementedError
+			For an element with a non-quadratic phase in the run.
+
+		Examples
+		--------
+		>>> transfer = scope.collins_transfer("sample", "CCD")  # doctest: +SKIP
+		>>> ccd_wave = transfer.apply(exit_wave)                 # doctest: +SKIP
+		"""
+		from .collins import CollinsTransfer
+		elements = [e for section in self.sections for e in section._propagation_elements()]
+		names = [getattr(e, "name", None) for e in elements]
+		first, last = 0, len(elements)
+		if start is not None:
+			if start not in names:
+				raise ValueError(f"no element named {start!r} in the column.")
+			first = names.index(start) + 1
+		if stop is not None:
+			if stop not in names:
+				raise ValueError(f"no element named {stop!r} in the column.")
+			last = names.index(stop) + 1
+		if last < first:
+			raise ValueError(f"{stop!r} comes before {start!r} in the column.")
+		return CollinsTransfer(elements[first:last])
+
+	def propagate_wave_collins(self, wave0=None, start:str|None=None, stop:str|None=None,
+							   apply_aberrations:bool=True):
+		r"""Propagate a wavefield through the column in contracted Collins steps.
+
+		rayTEM's fifth propagation mode: each run of linear elements between
+		apertures is carried in one Collins (linear canonical) step of its ray
+		map, across lenses, drifts, crossovers, Larmor rotation and rotated
+		quadrupoles alike (:mod:`~pySEA.rayTEM.collins`). Separate from the
+		scaled/hybrid walker of :meth:`propagate_wave`, which it does not
+		replace.
+
+		Parameters
+		----------
+		wave0 : Signal or seashells wavefield fallback, optional
+			Initial wavefield in any representation. If ``None`` and the column
+			starts with a ``Source``, its fixed-grid wave is used.
+		start, stop : str, optional
+			Element names bounding the run, as :meth:`collins_transfer`.
+		apply_aberrations : bool, optional
+			``False`` suspends every element's aberrations for the run. By
+			default True, which refuses an aberrated element in the run.
+
+		Returns
+		-------
+		Signal or seashells._CollinsWavefield
+			The wave at the run's end, also stored on ``self.wave_collins``.
+
+		Raises
+		------
+		UserWarning
+			If ``wave0`` is ``None`` and the column does not start with a ``Source``.
+		ValueError
+			From :meth:`collins_transfer`.
+		NotImplementedError
+			For an element with a non-quadratic phase in the run.
+
+		Related
+		-------
+		collins_transfer : Keep the contracted transfer and reuse it.
+		"""
+		if wave0 is None:
+			first = self.sections[0].elements[0] if self.sections and self.sections[0].elements else None
+			if not isinstance(first, Source):
+				raise UserWarning("The column does not start with a Source, and no wave0 provided to propagate_wave_collins.")
+			wave0 = first.wave(mode='fixed')
+		elements = [e for section in self.sections for e in section._propagation_elements()]
+		with suspended_aberrations(elements + list(self.sections), not apply_aberrations):
+			self.wave_collins = self.collins_transfer(start, stop).apply(wave0)
+		return self.wave_collins
+
+	def propagate(self, *args, kind:Literal["ray","rays","moments","envelope","covariance","wave","wave-scaled","wave_scaled","wave-hybrid","wave_hybrid","wave-collins","wave_collins"]="ray", **kwargs):
 		"""Unified propagation dispatcher across the three modes.
 
 		Routes to :meth:`propagate_ray`, :meth:`propagate_moments`, or
