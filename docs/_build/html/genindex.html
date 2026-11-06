@@ -161,6 +161,8 @@
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope.adjust_element_length">adjust_element_length() (pySEA.rayTEM.assemblies.Microscope method)</a>
 </li>
+      <li><a href="api_reference.html#id14">affine_map() (pySEA.rayTEM.collins.CollinsTransfer method)</a>, <a href="api_reference.html#pySEA.rayTEM.collins.CollinsTransfer.affine_map">[1]</a>
+</li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Element.affine_matrix">affine_matrix() (pySEA.rayTEM.elements.Element method)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Element.alignment">alignment (pySEA.rayTEM.elements.Element attribute)</a>
@@ -179,8 +181,12 @@
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.append">append() (pySEA.rayTEM.assemblies.MicroscopeSection method)</a>
 </li>
-      <li><a href="api_reference.html#id13">apply() (pySEA.rayTEM.waveoptics.CollinsPlan method)</a>, <a href="api_reference.html#pySEA.rayTEM.waveoptics.CollinsPlan.apply">[1]</a>
+      <li><a href="api_reference.html#id15">apply() (pySEA.rayTEM.collins.CollinsTransfer method)</a>, <a href="api_reference.html#pySEA.rayTEM.collins.CollinsTransfer.apply">[1]</a>
+
+      <ul>
+        <li><a href="api_reference.html#id13">(pySEA.rayTEM.waveoptics.CollinsPlan method)</a>, <a href="api_reference.html#pySEA.rayTEM.waveoptics.CollinsPlan.apply">[1]</a>
 </li>
+      </ul></li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Aperture.apply_intensity">apply_intensity() (pySEA.rayTEM.elements.Aperture method)</a>
 
       <ul>
@@ -275,15 +281,19 @@
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope.collins_transfer">collins_transfer() (pySEA.rayTEM.assemblies.Microscope method)</a>
 </li>
+      <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.CollinsPlan">CollinsPlan (class in pySEA.rayTEM.waveoptics)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.CollinsPlan">CollinsPlan (class in pySEA.rayTEM.waveoptics)</a>
+      <li><a href="api_reference.html#pySEA.rayTEM.collins.CollinsTransfer">CollinsTransfer (class in pySEA.rayTEM.collins)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.columnByName">columnByName() (in module pySEA.rayTEM.elements)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Rays.concatenate">concatenate() (pySEA.rayTEM.elements.Rays class method)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope.conjugate_planes">conjugate_planes() (pySEA.rayTEM.assemblies.Microscope method)</a>
+</li>
+      <li><a href="api_reference.html#pySEA.rayTEM.collins.contract_collins">contract_collins() (in module pySEA.rayTEM.collins)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.convention">convention (pySEA.rayTEM.aberrations.Aberrations attribute)</a>
 </li>
@@ -345,18 +355,24 @@
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Element">Element (class in pySEA.rayTEM.elements)</a>
 </li>
-      <li><a href="api_reference.html#pySEA.rayTEM.elements.suspended_aberrations.elements">elements (pySEA.rayTEM.elements.suspended_aberrations attribute)</a>
+      <li><a href="api_reference.html#pySEA.rayTEM.collins.element_affine_map">element_affine_map() (in module pySEA.rayTEM.collins)</a>
 </li>
+      <li><a href="api_reference.html#pySEA.rayTEM.collins.CollinsTransfer.elements">elements (pySEA.rayTEM.collins.CollinsTransfer attribute)</a>
+
+      <ul>
+        <li><a href="api_reference.html#pySEA.rayTEM.elements.suspended_aberrations.elements">(pySEA.rayTEM.elements.suspended_aberrations attribute)</a>
+</li>
+      </ul></li>
       <li><a href="api_reference.html#pySEA.rayTEM.postprocessing.emittance">emittance() (in module pySEA.rayTEM.postprocessing)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope.envelope_signal">envelope_signal() (pySEA.rayTEM.assemblies.Microscope method)</a>
 
       <ul>
         <li><a href="api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.envelope_signal">(pySEA.rayTEM.assemblies.MicroscopeSection method)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#pySEA.rayTEM.postprocessing.error_angles">error_angles() (in module pySEA.rayTEM.postprocessing)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.postprocessing.error_at_plane">error_at_plane() (in module pySEA.rayTEM.postprocessing)</a>
@@ -469,14 +485,16 @@
         <li><a href="api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.index">(pySEA.rayTEM.assemblies.MicroscopeSection method)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope.insert">insert() (pySEA.rayTEM.assemblies.Microscope method)</a>
 
       <ul>
         <li><a href="api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.insert">(pySEA.rayTEM.assemblies.MicroscopeSection method)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api_reference.html#id16">is_current() (pySEA.rayTEM.collins.CollinsTransfer method)</a>, <a href="api_reference.html#pySEA.rayTEM.collins.CollinsTransfer.is_current">[1]</a>
+</li>
       <li><a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.items">items() (pySEA.rayTEM.aberrations.Aberrations method)</a>
 </li>
   </ul></td>
@@ -571,10 +589,10 @@
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.MEDIUM_SLICES">MEDIUM_SLICES (in module pySEA.rayTEM.elements)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope">Microscope (class in pySEA.rayTEM.assemblies)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.MICROSCOPE_CLSID">MICROSCOPE_CLSID (in module pySEA.rayTEM.assemblies)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection">MicroscopeSection (class in pySEA.rayTEM.assemblies)</a>
@@ -588,6 +606,8 @@
         <li><a href="api_reference.html#module-pySEA.rayTEM.aberrations">pySEA.rayTEM.aberrations</a>
 </li>
         <li><a href="api_reference.html#module-pySEA.rayTEM.assemblies">pySEA.rayTEM.assemblies</a>
+</li>
+        <li><a href="api_reference.html#module-pySEA.rayTEM.collins">pySEA.rayTEM.collins</a>
 </li>
         <li><a href="api_reference.html#module-pySEA.rayTEM.elements">pySEA.rayTEM.elements</a>
 </li>
@@ -761,6 +781,13 @@
 </li>
       </ul></li>
       <li>
+    pySEA.rayTEM.collins
+
+      <ul>
+        <li><a href="api_reference.html#module-pySEA.rayTEM.collins">module</a>
+</li>
+      </ul></li>
+      <li>
     pySEA.rayTEM.elements
 
       <ul>
@@ -878,10 +905,10 @@
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.seashells.SEASerializable">SEASerializable (class in pySEA.rayTEM.seashells)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.segment_block">segment_block() (in module pySEA.rayTEM.waveoptics)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#pySEA.rayTEM.waveoptics.segment_zero">segment_zero() (in module pySEA.rayTEM.waveoptics)</a>
 </li>
       <li><a href="api_reference.html#id11">setdefault() (pySEA.rayTEM.aberrations.Aberrations method)</a>, <a href="api_reference.html#pySEA.rayTEM.aberrations.Aberrations.setdefault">[1]</a>
@@ -902,9 +929,13 @@
         <li><a href="api_reference.html#pySEA.rayTEM.assemblies.MicroscopeSection.show">(pySEA.rayTEM.assemblies.MicroscopeSection method)</a>
 </li>
       </ul></li>
+      <li><a href="api_reference.html#pySEA.rayTEM.collins.CollinsTransfer.signature">signature (pySEA.rayTEM.collins.CollinsTransfer attribute)</a>
+</li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Source">Source (class in pySEA.rayTEM.elements)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.elements.Rays.stack">stack() (pySEA.rayTEM.elements.Rays class method)</a>
+</li>
+      <li><a href="api_reference.html#pySEA.rayTEM.collins.CollinsTransfer.steps">steps (pySEA.rayTEM.collins.CollinsTransfer attribute)</a>
 </li>
       <li><a href="api_reference.html#pySEA.rayTEM.assemblies.Microscope.subdivided">subdivided() (pySEA.rayTEM.assemblies.Microscope method)</a>
 </li>

@@ -55,6 +55,7 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#fixed-grid-wave">Fixed-grid wave</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#scaled-fresnel-wave-mode-hybrid">Scaled-Fresnel wave (<code class="docutils literal notranslate"><span class="pre">mode=&quot;hybrid&quot;</span></code>)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#collins-wave-propagate-wave-collins">Collins wave (<code class="docutils literal notranslate"><span class="pre">propagate_wave_collins</span></code>)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#they-answer-for-each-other">They answer for each other</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#plotting-a-result-somewhere-other-than-matplotlib">Plotting a result somewhere other than matplotlib</a></li>
 </ul>
@@ -106,7 +107,7 @@
              
   <section id="propagation-modes">
 <h1>Propagation Modes<a class="headerlink" href="#propagation-modes" title="Link to this heading"></a></h1>
-<p>One geometry, four propagations. Every mode runs through the same
+<p>One geometry, five propagations. Every mode runs through the same
 element-by-element hierarchy and the same dispatcher,
 <code class="docutils literal notranslate"><span class="pre">scope.propagate(kind=...)</span></code>; the mode only changes <em>what</em> travels.</p>
 <table class="docutils align-default">
@@ -137,6 +138,11 @@ element-by-element hierarchy and the same dispatcher,
 <td><p><code class="docutils literal notranslate"><span class="pre">propagate_wave(mode=&quot;hybrid&quot;)</span></code></p></td>
 <td><p>scaled-Fresnel field <code class="docutils literal notranslate"><span class="pre">ψ</span> <span class="pre">=</span> <span class="pre">U(x/s)/s</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">.wave_scaled</span></code> (a <code class="docutils literal notranslate"><span class="pre">SignalSet</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>Collins wave</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">propagate_wave_collins()</span></code></p></td>
+<td><p>samples on a lattice, with a curvature and the central ray</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.wave_collins</span></code> (a <code class="docutils literal notranslate"><span class="pre">Signal</span></code>)</p></td>
 </tr>
 </tbody>
 </table>
@@ -260,6 +266,34 @@ physical extent that grows and shrinks with z.</p>
 <span class="n">psi</span> <span class="o">=</span> <span class="n">scaled_wave_physical_plane</span><span class="p">(</span><span class="n">scope</span><span class="o">.</span><span class="n">wave_scaled</span><span class="p">,</span> <span class="n">plane</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>   <span class="c1"># metres</span>
 </pre></div>
 </div>
+</section>
+<section id="collins-wave-propagate-wave-collins">
+<h2>Collins wave (<code class="docutils literal notranslate"><span class="pre">propagate_wave_collins</span></code>)<a class="headerlink" href="#collins-wave-propagate-wave-collins" title="Link to this heading"></a></h2>
+<p>The fast way to a plane far down the column. Each run of linear elements
+between apertures (lenses, drifts, dipoles, quadrupoles, rotated or not) is
+one step: its ray map is the product of the elements’ <code class="docutils literal notranslate"><span class="pre">affine_matrix()</span></code>, and
+the wave is carried by the Collins integral of that map, however many lenses
+and crossovers the run contains. A probe’s exit wave reaches a camera in one
+or two FFT pairs, whether the camera sits at an image plane, a diffraction
+plane or between them.</p>
+<p>The field rides on a lattice: sample <code class="docutils literal notranslate"><span class="pre">(i,</span> <span class="pre">j)</span></code> sits at <code class="docutils literal notranslate"><span class="pre">L·(i,</span> <span class="pre">j)</span></code> from the
+beam’s central ray, so a magnification or a Larmor rotation changes <code class="docutils literal notranslate"><span class="pre">L</span></code>, not
+the samples. The wave’s curvature is carried as a 2 × 2 matrix, so an
+astigmatic or rotated beam needs nothing special. The central ray moves with
+the rays, dipole kicks included.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">transfer</span> <span class="o">=</span> <span class="n">scope</span><span class="o">.</span><span class="n">collins_transfer</span><span class="p">(</span><span class="s2">"sample"</span><span class="p">,</span> <span class="s2">"CCD"</span><span class="p">)</span>      <span class="c1"># contract once</span>
+<span class="n">ccd</span> <span class="o">=</span> <span class="n">transfer</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">exit_wave</span><span class="p">)</span>                         <span class="c1"># each frame: one step</span>
+<span class="n">counts</span> <span class="o">=</span> <span class="n">waveoptics</span><span class="o">.</span><span class="n">collins_intensity_on_grid</span><span class="p">(</span><span class="o">*</span><span class="n">read_collins_wavefield</span><span class="p">(</span><span class="n">ccd</span><span class="p">)[:</span><span class="mi">3</span><span class="p">],</span>
+                                              <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">),</span> <span class="n">dx</span><span class="o">=</span><span class="mf">26e-6</span><span class="p">,</span> <span class="n">dy</span><span class="o">=</span><span class="mf">26e-6</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Keep the transfer and rebuild it when <code class="docutils literal notranslate"><span class="pre">transfer.is_current()</span></code> is False (a lens
+current, a dipole or an aperture changed). Rebuilding costs a product of small
+matrices; the transfer also keeps each step’s kernels for the grid it last saw.</p>
+<p>What it does not do: it logs no interior planes, and it refuses an element
+with aberrations or a supplied phase screen (<code class="docutils literal notranslate"><span class="pre">apply_aberrations=False</span></code> runs
+the ideal column). Use the scaled wave for a walk through the column, and this
+mode for a plane you already know you want.</p>
 </section>
 <section id="they-answer-for-each-other">
 <h2>They answer for each other<a class="headerlink" href="#they-answer-for-each-other" title="Link to this heading"></a></h2>

@@ -362,6 +362,20 @@
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.waveoptics.shift_phase"><code class="docutils literal notranslate"><span class="pre">shift_phase()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.waveoptics.tilt_phase"><code class="docutils literal notranslate"><span class="pre">tilt_phase()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.waveoptics.transverse_coordinates"><code class="docutils literal notranslate"><span class="pre">transverse_coordinates()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer.elements"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.elements</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer.steps"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.steps</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer.signature"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.signature</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer.is_current"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.is_current()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer.affine_map"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.affine_map()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer.apply"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.apply()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id14"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.affine_map()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id15"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.apply()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id16"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.is_current()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.collins.contract_collins"><code class="docutils literal notranslate"><span class="pre">contract_collins()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.collins.element_affine_map"><code class="docutils literal notranslate"><span class="pre">element_affine_map()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.beam_widths"><code class="docutils literal notranslate"><span class="pre">beam_widths()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.closest_plane"><code class="docutils literal notranslate"><span class="pre">closest_plane()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.postprocessing.dedupe"><code class="docutils literal notranslate"><span class="pre">dedupe()</span></code></a></li>
@@ -1847,7 +1861,7 @@ the Collins integral of that map in one step; an <a class="reference internal" h
 masks instead. This is rayTEM’s fifth propagation mode, separate from
 the scaled/hybrid walker; it pays off on runs of elements, where
 <code class="xref py py-meth docutils literal notranslate"><span class="pre">MicroscopeSection.propagate_wave_collins()</span></code> contracts them into
-one step each (<code class="xref py py-mod docutils literal notranslate"><span class="pre">collins</span></code>).</p>
+one step each (<a class="reference internal" href="#module-pySEA.rayTEM.collins" title="pySEA.rayTEM.collins"><code class="xref py py-mod docutils literal notranslate"><span class="pre">collins</span></code></a>).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>signal</strong> (<em>Signal</em><em> or </em><em>seashells wavefield fallback</em>) – Any rayTEM wavefield (fixed, scaled or Collins), converted without
@@ -3519,10 +3533,10 @@ default at the last element.</p></li>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>The contracted transfer; keep it and rebuild it when
-<code class="xref py py-meth docutils literal notranslate"><span class="pre">is_current()</span></code> is False.</p>
+<a class="reference internal" href="#id16" title="pySEA.rayTEM.collins.CollinsTransfer.is_current"><code class="xref py py-meth docutils literal notranslate"><span class="pre">is_current()</span></code></a> is False.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>collins.CollinsTransfer</p>
+<dd class="field-odd"><p><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer" title="pySEA.rayTEM.collins.CollinsTransfer">collins.CollinsTransfer</a></p>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
@@ -4295,7 +4309,7 @@ nothing is aberrated.</p></li>
 <p>rayTEM’s fifth propagation mode: each run of linear elements between
 apertures is carried in one Collins (linear canonical) step of its ray
 map, across lenses, drifts, crossovers, Larmor rotation and rotated
-quadrupoles alike (<code class="xref py py-mod docutils literal notranslate"><span class="pre">collins</span></code>). Separate from the
+quadrupoles alike (<a class="reference internal" href="#module-pySEA.rayTEM.collins" title="pySEA.rayTEM.collins"><code class="xref py py-mod docutils literal notranslate"><span class="pre">collins</span></code></a>). Separate from the
 scaled/hybrid walker of <a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.propagate_wave" title="pySEA.rayTEM.assemblies.Microscope.propagate_wave"><code class="xref py py-meth docutils literal notranslate"><span class="pre">propagate_wave()</span></code></a>, which it does not
 replace.</p>
 <dl class="field-list simple">
@@ -5161,7 +5175,7 @@ the SignalSet is <code class="docutils literal notranslate"><span class="pre">No
 <span class="sig-name descname"><span class="pre">propagate_wave_collins</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_aberrations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#MicroscopeSection.propagate_wave_collins"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.MicroscopeSection.propagate_wave_collins" title="Link to this definition"></a></dt>
 <dd><p>Propagate a wavefield through the section in contracted Collins steps.</p>
 <p>Every run of linear elements between apertures is one Collins step
-(<code class="xref py py-class docutils literal notranslate"><span class="pre">CollinsTransfer</span></code>): the product of the
+(<a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer" title="pySEA.rayTEM.collins.CollinsTransfer"><code class="xref py py-class docutils literal notranslate"><span class="pre">CollinsTransfer</span></code></a>): the product of the
 elements’ ray maps carries the wave across its lenses, drifts and
 crossovers at once; each aperture masks between runs.</p>
 <dl class="field-list simple">
@@ -7968,6 +7982,236 @@ origin at index <code class="docutils literal notranslate"><span class="pre">(ny
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>tuple of np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p id="module-pySEA.rayTEM.collins">Collins wave propagation: runs of linear elements contracted into one step each.</p>
+<p>A run of elements with no aperture and no non-quadratic screen inside it is a
+linear paraxial system: its ray map is the product of the elements’
+<a class="reference internal" href="#pySEA.rayTEM.elements.Element.affine_matrix" title="pySEA.rayTEM.elements.Element.affine_matrix"><code class="xref py py-meth docutils literal notranslate"><span class="pre">affine_matrix()</span></code></a> (Larmor rotation, rotated
+quadrupoles, dipole kicks and element alignment included), and the wave it
+carries is the Collins integral of that map – one step however many lenses,
+drifts and crossovers the run contains. <a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer" title="pySEA.rayTEM.collins.CollinsTransfer"><code class="xref py py-class docutils literal notranslate"><span class="pre">CollinsTransfer</span></code></a> contracts a
+sequence of elements into such steps, with each aperture applied as a mask
+between them, and caches each step’s precomputed kernels for the grid it last
+saw, so applying it to a new wave on the same grid costs one or two FFT
+pairs.</p>
+<p>This is rayTEM’s fifth propagation mode (<code class="docutils literal notranslate"><span class="pre">propagate_wave_collins</span></code>), separate
+from the scaled/hybrid walker: Eric (2026-11-06) chose it for the emulator’s
+detector planes, where the walker’s per-crossover frame switches would leave
+almost nothing to contract. The scaled wave is unchanged and still carries no
+Collins lens body.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">waveoptics.CollinsPlan</span></code></dt><dd><p>One planned step.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">seashells.make_collins_wavefield_signal</span></code></dt><dd><p>The wavefield it carries.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">elements.Element.propagate_wave_collins</span></code></dt><dd><p>The per-element entry point.</p>
+</dd>
+</dl>
+</div>
+<dl class="py class">
+<dt class="sig sig-object py" id="pySEA.rayTEM.collins.CollinsTransfer">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.collins.</span></span><span class="sig-name descname"><span class="pre">CollinsTransfer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">elements</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#CollinsTransfer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.collins.CollinsTransfer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A sequence of elements contracted into Collins steps, with apertures as masks between them.</p>
+<p>Contiguous linear elements (lenses, drifts, dipoles, quadrupoles and
+any other element whose wave action is its ray map) are multiplied into
+one affine map each; an aperture ends a run and is applied as a mask at
+its entrance plane. An element carrying a non-quadratic phase (an
+aberration screen, an aberrated lens) is refused: Collins steps hold no
+screen yet (decision D2 open).</p>
+<p>Each step keeps the <a class="reference internal" href="#pySEA.rayTEM.waveoptics.CollinsPlan" title="pySEA.rayTEM.waveoptics.CollinsPlan"><code class="xref py py-class docutils literal notranslate"><span class="pre">CollinsPlan</span></code></a> it
+last built, keyed by the input grid, so applying the transfer to many
+waves on one grid (an emulator’s frames) recomputes no kernel.
+Contracting itself costs a product of small matrices: rebuild the
+transfer whenever <a class="reference internal" href="#id16" title="pySEA.rayTEM.collins.CollinsTransfer.is_current"><code class="xref py py-meth docutils literal notranslate"><span class="pre">is_current()</span></code></a> says an element changed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>elements</strong> (<em>Sequence</em><em>[</em><a class="reference internal" href="#pySEA.rayTEM.elements.Element" title="pySEA.rayTEM.elements.Element"><em>Element</em></a><em>]</em>) – The elements, in beam order. A <a class="reference internal" href="#pySEA.rayTEM.elements.Source" title="pySEA.rayTEM.elements.Source"><code class="xref py py-class docutils literal notranslate"><span class="pre">Source</span></code></a>
+is skipped (it starts a wave, it does not act on one).</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.collins.CollinsTransfer.elements">
+<span class="sig-name descname"><span class="pre">elements</span></span><a class="headerlink" href="#pySEA.rayTEM.collins.CollinsTransfer.elements" title="Link to this definition"></a></dt>
+<dd><p>The contracted elements, sources removed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of <a class="reference internal" href="#pySEA.rayTEM.elements.Element" title="pySEA.rayTEM.elements.Element">Element</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.collins.CollinsTransfer.steps">
+<span class="sig-name descname"><span class="pre">steps</span></span><a class="headerlink" href="#pySEA.rayTEM.collins.CollinsTransfer.steps" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">(&quot;map&quot;,</span> <span class="pre">affine,</span> <span class="pre">z_length)</span></code> or <code class="docutils literal notranslate"><span class="pre">(&quot;aperture&quot;,</span> <span class="pre">element,</span> <span class="pre">0.0)</span></code>, in
+beam order; <code class="docutils literal notranslate"><span class="pre">affine</span></code> is 5 x 5 on <code class="docutils literal notranslate"><span class="pre">(x,</span> <span class="pre">xt,</span> <span class="pre">y,</span> <span class="pre">yt,</span> <span class="pre">1)</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.collins.CollinsTransfer.signature">
+<span class="sig-name descname"><span class="pre">signature</span></span><a class="headerlink" href="#pySEA.rayTEM.collins.CollinsTransfer.signature" title="Link to this definition"></a></dt>
+<dd><p>Per-element <code class="xref py py-func docutils literal notranslate"><span class="pre">_element_signature()</span></code> at contraction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.collins.CollinsTransfer.is_current">
+<span class="sig-name descname"><span class="pre">is_current</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#CollinsTransfer.is_current"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.collins.CollinsTransfer.is_current" title="Link to this definition"></a></dt>
+<dd><p>Whether every element still has the settings it was contracted with.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.collins.CollinsTransfer.affine_map">
+<span class="sig-name descname"><span class="pre">affine_map</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#CollinsTransfer.affine_map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.collins.CollinsTransfer.affine_map" title="Link to this definition"></a></dt>
+<dd><p>The whole transfer’s ray map (apertures pass rays unchanged).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.collins.CollinsTransfer.apply">
+<span class="sig-name descname"><span class="pre">apply</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">signal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#CollinsTransfer.apply"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.collins.CollinsTransfer.apply" title="Link to this definition"></a></dt>
+<dd><p>Carry a wave through the transfer.</p>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>NotImplementedError</strong> – From the constructor, for an element with a non-quadratic phase.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pySEA.rayTEM.collins.contract_collins" title="pySEA.rayTEM.collins.contract_collins"><code class="xref py py-obj docutils literal notranslate"><span class="pre">contract_collins</span></code></a></dt><dd><p>Build one.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.rayTEM.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Lens</span><span class="p">,</span> <span class="n">Drift</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">transfer</span> <span class="o">=</span> <span class="n">CollinsTransfer</span><span class="p">([</span><span class="n">Drift</span><span class="p">(</span><span class="n">length</span><span class="o">=</span><span class="mf">0.01</span><span class="p">),</span> <span class="n">Lens</span><span class="p">(</span><span class="n">focal_length</span><span class="o">=</span><span class="mf">0.01</span><span class="p">),</span> <span class="n">Drift</span><span class="p">(</span><span class="n">length</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">[</span><span class="n">step</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="n">transfer</span><span class="o">.</span><span class="n">steps</span><span class="p">]</span>
+<span class="go">['map']</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="id14">
+<span class="sig-name descname"><span class="pre">affine_map</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#CollinsTransfer.affine_map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id14" title="Link to this definition"></a></dt>
+<dd><p>Return the whole transfer’s ray map on <code class="docutils literal notranslate"><span class="pre">(x,</span> <span class="pre">xt,</span> <span class="pre">y,</span> <span class="pre">yt,</span> <span class="pre">1)</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>5 x 5, the product of the steps’ maps (apertures pass rays).</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>numpy.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id15">
+<span class="sig-name descname"><span class="pre">apply</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">signal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#CollinsTransfer.apply"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id15" title="Link to this definition"></a></dt>
+<dd><p>Carry a wave through the transfer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>signal</strong> (<em>Signal</em><em> or </em><em>wavefield fallback</em>) – Any rayTEM wavefield (fixed, scaled or Collins); converted by
+<a class="reference internal" href="#pySEA.rayTEM.seashells.as_collins_wavefield" title="pySEA.rayTEM.seashells.as_collins_wavefield"><code class="xref py py-func docutils literal notranslate"><span class="pre">as_collins_wavefield()</span></code></a> without
+resampling.</p></li>
+<li><p><strong>log</strong> (<em>list</em><em>, </em><em>optional</em>) – When given, the wave after each step is appended to it.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The Collins wavefield after the last step.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Signal or seashells._CollinsWavefield</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – From <a class="reference internal" href="#pySEA.rayTEM.waveoptics.CollinsPlan" title="pySEA.rayTEM.waveoptics.CollinsPlan"><code class="xref py py-class docutils literal notranslate"><span class="pre">CollinsPlan</span></code></a>, for a step
+    the input grid cannot sample.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id16">
+<span class="sig-name descname"><span class="pre">is_current</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#CollinsTransfer.is_current"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id16" title="Link to this definition"></a></dt>
+<dd><p>Say whether every element still has the settings it was contracted with.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>False once any element’s map (a lens current, a dipole, an
+alignment) or an aperture changed; rebuild the transfer then.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pySEA.rayTEM.collins.contract_collins">
+<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.collins.</span></span><span class="sig-name descname"><span class="pre">contract_collins</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">elements</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer" title="pySEA.rayTEM.collins.CollinsTransfer"><span class="pre">CollinsTransfer</span></a></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#contract_collins"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.collins.contract_collins" title="Link to this definition"></a></dt>
+<dd><p>Contract a sequence of elements into a <a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer" title="pySEA.rayTEM.collins.CollinsTransfer"><code class="xref py py-class docutils literal notranslate"><span class="pre">CollinsTransfer</span></code></a>.</p>
+<p>Any contiguous run works: a whole section, several sections joined
+(G+C+A+OL1), or a slice between two named elements.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>elements</strong> (<em>Sequence</em><em>[</em><a class="reference internal" href="#pySEA.rayTEM.elements.Element" title="pySEA.rayTEM.elements.Element"><em>Element</em></a><em>]</em>) – The elements, in beam order.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The contracted transfer.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer" title="pySEA.rayTEM.collins.CollinsTransfer">CollinsTransfer</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>NotImplementedError</strong> – For an element with a non-quadratic phase.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.collins_transfer" title="pySEA.rayTEM.assemblies.Microscope.collins_transfer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pySEA.rayTEM.assemblies.Microscope.collins_transfer</span></code></a></dt><dd><p>Between two named elements.</p>
+</dd>
+</dl>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pySEA.rayTEM.collins.element_affine_map">
+<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.collins.</span></span><span class="sig-name descname"><span class="pre">element_affine_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">element</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#element_affine_map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.collins.element_affine_map" title="Link to this definition"></a></dt>
+<dd><p>Return an element’s paraxial map on <code class="docutils literal notranslate"><span class="pre">(x,</span> <span class="pre">xt,</span> <span class="pre">y,</span> <span class="pre">yt,</span> <span class="pre">1)</span></code> as a 5 x 5 homogeneous matrix.</p>
+<p>Taken from <a class="reference internal" href="#pySEA.rayTEM.elements.Element.affine_matrix" title="pySEA.rayTEM.elements.Element.affine_matrix"><code class="xref py py-meth docutils literal notranslate"><span class="pre">affine_matrix()</span></code></a>: the
+transfer matrix (lab frame, Larmor rotation and a quadrupole’s rotation
+included), a dipole’s kick and the element’s alignment in the last
+column. Aberrations are not linear and are not in it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>element</strong> (<a class="reference internal" href="#pySEA.rayTEM.elements.Element" title="pySEA.rayTEM.elements.Element"><em>Element</em></a>) – A rayTEM element.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Shape <code class="docutils literal notranslate"><span class="pre">(5,</span> <span class="pre">5)</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – From the element’s <code class="docutils literal notranslate"><span class="pre">affine_matrix</span></code> (an alignment it cannot place).</p>
 </dd>
 </dl>
 </dd></dl>

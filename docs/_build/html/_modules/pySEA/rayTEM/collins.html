@@ -1,0 +1,547 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pySEA.rayTEM.collins &mdash; rayTEM 0.0.1beta documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=e02f3e7d"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            rayTEM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../propagation_modes.html">Propagation Modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../operating_the_column.html">Operating the Column</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../terminology.html">Terminology</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Example Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">AI Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../ai_tools/install.html">AI Tools</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Into the SEA-weeds (For developers)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../dev_documentation.html">Into the SEA-weeds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../wave-optics-sampling.html">Why full-column electron wave propagation breaks fixed-grid sampling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_reference.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">rayTEM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">pySEA.rayTEM.collins</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for pySEA.rayTEM.collins</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Collins wave propagation: runs of linear elements contracted into one step each.</span>
+
+<span class="sd">A run of elements with no aperture and no non-quadratic screen inside it is a</span>
+<span class="sd">linear paraxial system: its ray map is the product of the elements'</span>
+<span class="sd">:meth:`~pySEA.rayTEM.elements.Element.affine_matrix` (Larmor rotation, rotated</span>
+<span class="sd">quadrupoles, dipole kicks and element alignment included), and the wave it</span>
+<span class="sd">carries is the Collins integral of that map -- one step however many lenses,</span>
+<span class="sd">drifts and crossovers the run contains. :class:`CollinsTransfer` contracts a</span>
+<span class="sd">sequence of elements into such steps, with each aperture applied as a mask</span>
+<span class="sd">between them, and caches each step's precomputed kernels for the grid it last</span>
+<span class="sd">saw, so applying it to a new wave on the same grid costs one or two FFT</span>
+<span class="sd">pairs.</span>
+
+<span class="sd">This is rayTEM's fifth propagation mode (``propagate_wave_collins``), separate</span>
+<span class="sd">from the scaled/hybrid walker: Eric (2026-11-06) chose it for the emulator's</span>
+<span class="sd">detector planes, where the walker's per-crossover frame switches would leave</span>
+<span class="sd">almost nothing to contract. The scaled wave is unchanged and still carries no</span>
+<span class="sd">Collins lens body.</span>
+
+<span class="sd">Related</span>
+<span class="sd">-------</span>
+<span class="sd">waveoptics.CollinsPlan : One planned step.</span>
+<span class="sd">seashells.make_collins_wavefield_signal : The wavefield it carries.</span>
+<span class="sd">elements.Element.propagate_wave_collins : The per-element entry point.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Sequence</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">as_collins_wavefield</span><span class="p">,</span> <span class="n">make_collins_wavefield_signal</span><span class="p">,</span> <span class="n">read_collins_wavefield</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.waveoptics</span><span class="w"> </span><span class="kn">import</span> <span class="n">CollinsPlan</span>
+
+<span class="c1">#: The ray components a Collins map acts on, in ``convention`` order.</span>
+<span class="n">_RAY_COMPONENTS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="s2">"xt"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">,</span> <span class="s2">"yt"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_ray_indices</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Return the ``convention`` indices of ``x, xt, y, yt``.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	list of int</span>
+<span class="sd">		Four indices into a ray vector.</span>
+<span class="sd">	"""</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">columnByName</span>
+
+	<span class="k">return</span> <span class="p">[</span><span class="n">columnByName</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">_RAY_COMPONENTS</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="element_affine_map">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.collins.element_affine_map">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">element_affine_map</span><span class="p">(</span><span class="n">element</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Return an element's paraxial map on ``(x, xt, y, yt, 1)`` as a 5 x 5 homogeneous matrix.</span>
+
+<span class="sd">	Taken from :meth:`~pySEA.rayTEM.elements.Element.affine_matrix`: the</span>
+<span class="sd">	transfer matrix (lab frame, Larmor rotation and a quadrupole's rotation</span>
+<span class="sd">	included), a dipole's kick and the element's alignment in the last</span>
+<span class="sd">	column. Aberrations are not linear and are not in it.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	element : Element</span>
+<span class="sd">		A rayTEM element.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	numpy.ndarray</span>
+<span class="sd">		Shape ``(5, 5)``.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	ValueError</span>
+<span class="sd">		From the element's ``affine_matrix`` (an alignment it cannot place).</span>
+<span class="sd">	"""</span>
+	<span class="n">full</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">affine_matrix</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+	<span class="n">idx</span> <span class="o">=</span> <span class="n">_ray_indices</span><span class="p">()</span> <span class="o">+</span> <span class="p">[</span><span class="n">full</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+	<span class="k">return</span> <span class="n">full</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">idx</span><span class="p">)]</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_is_aperture</span><span class="p">(</span><span class="n">element</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Say whether an element masks the beam (an aperture).</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	element : Element</span>
+<span class="sd">		A rayTEM element.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	bool</span>
+<span class="sd">		True for an :class:`~pySEA.rayTEM.elements.Aperture`.</span>
+<span class="sd">	"""</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Aperture</span>
+
+	<span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">Aperture</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_refuse_screen</span><span class="p">(</span><span class="n">element</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Refuse an element whose wave action is not quadratic: its screen has no place in a Collins step.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	element : Element</span>
+<span class="sd">		A rayTEM element.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	NotImplementedError</span>
+<span class="sd">		For an aberration screen, an element carrying aberrations, or one</span>
+<span class="sd">		carrying a supplied phase screen.</span>
+<span class="sd">	"""</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">AberrationScreen</span>
+
+	<span class="n">name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"name"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="n">element</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
+	<span class="n">carries</span> <span class="o">=</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">AberrationScreen</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">bool</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"aberrations"</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+			   <span class="ow">or</span> <span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"_has_screen"</span><span class="p">)</span> <span class="ow">and</span> <span class="n">element</span><span class="o">.</span><span class="n">_has_screen</span><span class="p">()))</span>
+	<span class="k">if</span> <span class="n">carries</span><span class="p">:</span>
+		<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+			<span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> carries a non-quadratic phase (aberrations or a screen), which a Collins step "</span>
+			<span class="s2">"cannot hold yet. Propagate it with mode='hybrid' or 'fixed', or suspend its aberrations "</span>
+			<span class="s2">"(apply_aberrations=False)."</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_element_signature</span><span class="p">(</span><span class="n">element</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Return what a contracted step depends on for one element.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	element : Element</span>
+<span class="sd">		A rayTEM element.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	tuple</span>
+<span class="sd">		The element's affine map (bytes), and for an aperture its radius,</span>
+<span class="sd">		transmission and alignment.</span>
+<span class="sd">	"""</span>
+	<span class="k">if</span> <span class="n">_is_aperture</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">(</span><span class="s2">"aperture"</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">radius</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"transmission"</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)),</span>
+				<span class="nb">repr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"alignment"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)),</span> <span class="n">element_affine_map</span><span class="p">(</span><span class="n">element</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">())</span>
+	<span class="k">return</span> <span class="p">(</span><span class="s2">"map"</span><span class="p">,</span> <span class="n">element_affine_map</span><span class="p">(</span><span class="n">element</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">())</span>
+
+
+<div class="viewcode-block" id="CollinsTransfer">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.collins.CollinsTransfer">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CollinsTransfer</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""A sequence of elements contracted into Collins steps, with apertures as masks between them.</span>
+
+<span class="sd">	Contiguous linear elements (lenses, drifts, dipoles, quadrupoles and</span>
+<span class="sd">	any other element whose wave action is its ray map) are multiplied into</span>
+<span class="sd">	one affine map each; an aperture ends a run and is applied as a mask at</span>
+<span class="sd">	its entrance plane. An element carrying a non-quadratic phase (an</span>
+<span class="sd">	aberration screen, an aberrated lens) is refused: Collins steps hold no</span>
+<span class="sd">	screen yet (decision D2 open).</span>
+
+<span class="sd">	Each step keeps the :class:`~pySEA.rayTEM.waveoptics.CollinsPlan` it</span>
+<span class="sd">	last built, keyed by the input grid, so applying the transfer to many</span>
+<span class="sd">	waves on one grid (an emulator's frames) recomputes no kernel.</span>
+<span class="sd">	Contracting itself costs a product of small matrices: rebuild the</span>
+<span class="sd">	transfer whenever :meth:`is_current` says an element changed.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	elements : Sequence[Element]</span>
+<span class="sd">		The elements, in beam order. A :class:`~pySEA.rayTEM.elements.Source`</span>
+<span class="sd">		is skipped (it starts a wave, it does not act on one).</span>
+
+<span class="sd">	Attributes</span>
+<span class="sd">	----------</span>
+<span class="sd">	elements : list of Element</span>
+<span class="sd">		The contracted elements, sources removed.</span>
+<span class="sd">	steps : list of tuple</span>
+<span class="sd">		``("map", affine, z_length)`` or ``("aperture", element, 0.0)``, in</span>
+<span class="sd">		beam order; ``affine`` is 5 x 5 on ``(x, xt, y, yt, 1)``.</span>
+<span class="sd">	signature : tuple</span>
+<span class="sd">		Per-element :func:`_element_signature` at contraction.</span>
+
+<span class="sd">	Methods</span>
+<span class="sd">	-------</span>
+<span class="sd">	is_current()</span>
+<span class="sd">		Whether every element still has the settings it was contracted with.</span>
+<span class="sd">	affine_map()</span>
+<span class="sd">		The whole transfer's ray map (apertures pass rays unchanged).</span>
+<span class="sd">	apply(signal, log=None)</span>
+<span class="sd">		Carry a wave through the transfer.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	NotImplementedError</span>
+<span class="sd">		From the constructor, for an element with a non-quadratic phase.</span>
+
+<span class="sd">	See Also</span>
+<span class="sd">	--------</span>
+<span class="sd">	contract_collins : Build one.</span>
+
+<span class="sd">	Examples</span>
+<span class="sd">	--------</span>
+<span class="sd">	&gt;&gt;&gt; from pySEA.rayTEM.elements import Lens, Drift</span>
+<span class="sd">	&gt;&gt;&gt; transfer = CollinsTransfer([Drift(length=0.01), Lens(focal_length=0.01), Drift(length=0.01)])  # doctest: +SKIP</span>
+<span class="sd">	&gt;&gt;&gt; [step[0] for step in transfer.steps]  # doctest: +SKIP</span>
+<span class="sd">	['map']</span>
+<span class="sd">	"""</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elements</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Contract the elements.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		elements : Sequence[Element]</span>
+<span class="sd">			As the class.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		NotImplementedError</span>
+<span class="sd">			As the class.</span>
+<span class="sd">		"""</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Source</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">elements</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">Source</span><span class="p">)]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="n">affine</span><span class="p">,</span> <span class="n">length</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="mf">0.0</span>
+		<span class="n">pending</span> <span class="o">=</span> <span class="kc">False</span>
+		<span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">:</span>
+			<span class="k">if</span> <span class="n">_is_aperture</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
+				<span class="k">if</span> <span class="n">pending</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">"map"</span><span class="p">,</span> <span class="n">affine</span><span class="p">,</span> <span class="n">length</span><span class="p">))</span>
+					<span class="n">affine</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">,</span> <span class="kc">False</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">"aperture"</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+				<span class="c1"># an aperture of finite length masks at its entrance, then is a drift</span>
+				<span class="k">if</span> <span class="nb">float</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"length"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">):</span>
+					<span class="n">affine</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="n">element_affine_map</span><span class="p">(</span><span class="n">element</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">length</span><span class="p">),</span> <span class="kc">True</span>
+				<span class="k">continue</span>
+			<span class="n">_refuse_screen</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+			<span class="n">affine</span> <span class="o">=</span> <span class="n">element_affine_map</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="o">@</span> <span class="n">affine</span>
+			<span class="n">length</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"length"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
+			<span class="n">pending</span> <span class="o">=</span> <span class="kc">True</span>
+		<span class="k">if</span> <span class="n">pending</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">"map"</span><span class="p">,</span> <span class="n">affine</span><span class="p">,</span> <span class="n">length</span><span class="p">))</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">signature</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">_element_signature</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_plans</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="CollinsTransfer.is_current">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.collins.CollinsTransfer.is_current">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">is_current</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Say whether every element still has the settings it was contracted with.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		bool</span>
+<span class="sd">			False once any element's map (a lens current, a dipole, an</span>
+<span class="sd">			alignment) or an aperture changed; rebuild the transfer then.</span>
+<span class="sd">		"""</span>
+		<span class="k">try</span><span class="p">:</span>
+			<span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">_element_signature</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">)</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">signature</span>
+		<span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># noqa: BLE001 - an element that cannot be read any more has changed</span>
+			<span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="CollinsTransfer.affine_map">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.collins.CollinsTransfer.affine_map">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">affine_map</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Return the whole transfer's ray map on ``(x, xt, y, yt, 1)``.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		numpy.ndarray</span>
+<span class="sd">			5 x 5, the product of the steps' maps (apertures pass rays).</span>
+<span class="sd">		"""</span>
+		<span class="n">total</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">kind</span><span class="p">,</span> <span class="n">affine</span><span class="p">,</span> <span class="n">_length</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">:</span>
+			<span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"map"</span><span class="p">:</span>
+				<span class="n">total</span> <span class="o">=</span> <span class="n">affine</span> <span class="o">@</span> <span class="n">total</span>
+		<span class="k">return</span> <span class="n">total</span></div>
+
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_plan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">lattice</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">curvature</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+			  <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">matrix</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CollinsPlan</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Return step ``index``'s plan for this input grid, reusing the last one when it matches.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		index : int</span>
+<span class="sd">			The step.</span>
+<span class="sd">		shape : tuple of int</span>
+<span class="sd">			Input shape.</span>
+<span class="sd">		lattice, curvature : numpy.ndarray</span>
+<span class="sd">			Input lattice and curvature.</span>
+<span class="sd">		wavelength : float</span>
+<span class="sd">			Wavelength (metres).</span>
+<span class="sd">		matrix : numpy.ndarray</span>
+<span class="sd">			The step's 4 x 4 linear map.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		CollinsPlan</span>
+<span class="sd">			The planned step.</span>
+<span class="sd">		"""</span>
+		<span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">(),</span>
+			   <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">curvature</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">(),</span> <span class="nb">float</span><span class="p">(</span><span class="n">wavelength</span><span class="p">))</span>
+		<span class="n">cached</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_plans</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">cached</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">cached</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">key</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">cached</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+		<span class="n">plan</span> <span class="o">=</span> <span class="n">CollinsPlan</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">lattice</span><span class="p">,</span> <span class="n">curvature</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">matrix</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_plans</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">plan</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">plan</span>
+
+<div class="viewcode-block" id="CollinsTransfer.apply">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.collins.CollinsTransfer.apply">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">signal</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">log</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Carry a wave through the transfer.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		signal : Signal or wavefield fallback</span>
+<span class="sd">			Any rayTEM wavefield (fixed, scaled or Collins); converted by</span>
+<span class="sd">			:func:`~pySEA.rayTEM.seashells.as_collins_wavefield` without</span>
+<span class="sd">			resampling.</span>
+<span class="sd">		log : list, optional</span>
+<span class="sd">			When given, the wave after each step is appended to it.</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		Signal or seashells._CollinsWavefield</span>
+<span class="sd">			The Collins wavefield after the last step.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			From :class:`~pySEA.rayTEM.waveoptics.CollinsPlan`, for a step</span>
+<span class="sd">			the input grid cannot sample.</span>
+<span class="sd">		"""</span>
+		<span class="n">wave</span> <span class="o">=</span> <span class="n">as_collins_wavefield</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span>
+		<span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">read_collins_wavefield</span><span class="p">(</span><span class="n">wave</span><span class="p">)</span>
+		<span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+		<span class="n">z</span> <span class="o">=</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="n">z</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+		<span class="n">name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">wave</span><span class="p">,</span> <span class="s2">"name"</span><span class="p">,</span> <span class="s2">"collins wavefield"</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">"collins wavefield"</span>
+		<span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="p">(</span><span class="n">kind</span><span class="p">,</span> <span class="n">item</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">):</span>
+			<span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"aperture"</span><span class="p">:</span>
+				<span class="n">f</span> <span class="o">=</span> <span class="n">f</span> <span class="o">*</span> <span class="n">_aperture_transmission</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">x0</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_plan</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">item</span><span class="p">[:</span><span class="mi">4</span><span class="p">,</span> <span class="p">:</span><span class="mi">4</span><span class="p">])</span>
+				<span class="n">f</span> <span class="o">=</span> <span class="n">plan</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+				<span class="n">L</span><span class="p">,</span> <span class="n">Q</span> <span class="o">=</span> <span class="n">plan</span><span class="o">.</span><span class="n">lattice_out</span><span class="p">,</span> <span class="n">plan</span><span class="o">.</span><span class="n">curvature_out</span>
+				<span class="n">ray</span> <span class="o">=</span> <span class="n">item</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x0</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">t0</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x0</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">t0</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mf">1.0</span><span class="p">])</span>
+				<span class="n">x0</span><span class="p">,</span> <span class="n">t0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ray</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ray</span><span class="p">[</span><span class="mi">2</span><span class="p">]]),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ray</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">ray</span><span class="p">[</span><span class="mi">3</span><span class="p">]])</span>
+				<span class="n">z</span> <span class="o">+=</span> <span class="n">length</span>
+			<span class="k">if</span> <span class="n">log</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+				<span class="n">log</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">make_collins_wavefield_signal</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">))</span>
+		<span class="k">return</span> <span class="n">make_collins_wavefield_signal</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_aperture_transmission</span><span class="p">(</span><span class="n">aperture</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">lattice</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">center</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Return an aperture's amplitude transmission at a Collins wavefield's samples.</span>
+
+<span class="sd">	The same edge as the fixed path (:func:`~pySEA.rayTEM.waveoptics.aperture_transmission`:</span>
+<span class="sd">	a one-pixel area-coverage ramp), evaluated at each sample's physical</span>
+<span class="sd">	position about the aperture's own axis.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	aperture : Aperture</span>
+<span class="sd">		The aperture.</span>
+<span class="sd">	shape : tuple of int</span>
+<span class="sd">		Field shape ``(ny, nx)``.</span>
+<span class="sd">	lattice : numpy.ndarray</span>
+<span class="sd">		2 x 2 lattice.</span>
+<span class="sd">	center : numpy.ndarray</span>
+<span class="sd">		The central ray's position (metres).</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	numpy.ndarray</span>
+<span class="sd">		Real transmission, ``shape``; the square root of the aperture's</span>
+<span class="sd">		``transmission`` scales it.</span>
+<span class="sd">	"""</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">.waveoptics</span><span class="w"> </span><span class="kn">import</span> <span class="n">_index_grid</span>
+
+	<span class="n">UX</span><span class="p">,</span> <span class="n">UY</span> <span class="o">=</span> <span class="n">_index_grid</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+	<span class="n">axis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+	<span class="n">offsets</span> <span class="o">=</span> <span class="n">aperture</span><span class="o">.</span><span class="n">alignment_offsets</span><span class="p">()</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">aperture</span><span class="p">,</span> <span class="s2">"alignment_offsets"</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+	<span class="k">if</span> <span class="n">offsets</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="n">entrance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">offsets</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+		<span class="n">idx</span> <span class="o">=</span> <span class="n">_ray_indices</span><span class="p">()</span>
+		<span class="n">axis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">entrance</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">entrance</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">2</span><span class="p">]]])</span>
+	<span class="n">X</span> <span class="o">=</span> <span class="n">lattice</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">UX</span> <span class="o">+</span> <span class="n">lattice</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">UY</span> <span class="o">+</span> <span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">axis</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+	<span class="n">Y</span> <span class="o">=</span> <span class="n">lattice</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">UX</span> <span class="o">+</span> <span class="n">lattice</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">UY</span> <span class="o">+</span> <span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">axis</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+	<span class="n">pixel</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="n">lattice</span><span class="p">))))</span>
+	<span class="n">T</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">+</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">aperture</span><span class="o">.</span><span class="n">radius</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">hypot</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">))</span> <span class="o">/</span> <span class="n">pixel</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">T</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">aperture</span><span class="p">,</span> <span class="s2">"transmission"</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span> <span class="o">**</span> <span class="mf">0.5</span>
+
+
+<div class="viewcode-block" id="contract_collins">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.collins.contract_collins">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">contract_collins</span><span class="p">(</span><span class="n">elements</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">CollinsTransfer</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Contract a sequence of elements into a :class:`CollinsTransfer`.</span>
+
+<span class="sd">	Any contiguous run works: a whole section, several sections joined</span>
+<span class="sd">	(G+C+A+OL1), or a slice between two named elements.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	elements : Sequence[Element]</span>
+<span class="sd">		The elements, in beam order.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	CollinsTransfer</span>
+<span class="sd">		The contracted transfer.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	NotImplementedError</span>
+<span class="sd">		For an element with a non-quadratic phase.</span>
+
+<span class="sd">	See Also</span>
+<span class="sd">	--------</span>
+<span class="sd">	pySEA.rayTEM.assemblies.Microscope.collins_transfer : Between two named elements.</span>
+<span class="sd">	"""</span>
+	<span class="k">return</span> <span class="n">CollinsTransfer</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, rayTEM contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

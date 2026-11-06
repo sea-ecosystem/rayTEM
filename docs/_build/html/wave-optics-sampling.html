@@ -610,8 +610,9 @@ that no step is singular.</p>
 <p>When a crossing inside a body misbehaves, it is tempting to replace the body
 with a closed-form one-step transform. The Collins diffraction integral is
 <code class="docutils literal notranslate"><span class="pre">chirp</span> <span class="pre">·</span> <span class="pre">scaled</span> <span class="pre">FFT</span> <span class="pre">·</span> <span class="pre">chirp</span></code>, built from the body’s ABCD block; for a
-quarter-period lens it is a plain Fourier transform. <strong>This has been decided
-against and should not be reintroduced.</strong> The scaled-Fresnel plan
+quarter-period lens it is a plain Fourier transform. <strong>Inside the scaled
+wave this has been decided against and should not be reintroduced.</strong> The
+scaled-Fresnel plan
 (<code class="docutils literal notranslate"><span class="pre">notes/eric/PLAN_2026-08-19_scaled-fresnel-wave.md</span></code>) rejected an earlier
 pilot-Gaussian/ABCD design in favour of the pure phase factorization, for
 these reasons:</p>
@@ -629,8 +630,20 @@ choose it.</p></li>
 crossover markers, the exit-face floor above), and each was cheaper to fix
 there, with a test, than to route around.</p></li>
 </ul>
-<p>The grid-free q-parameter mode in the roadmap below is a separate,
-additional mode for Gaussian beams. It does not replace this propagator.</p>
+<p><strong>Collins as its own mode (Eric, 2026-11-06).</strong> The emulator needs the exit
+wave at its camera, through every post-specimen lens, on each frame. In the
+scaled frame a run contracts only between crossovers, and nearly every lens
+makes one, so contraction there would barely shorten the walk. Collins steps
+compose across crossovers, so Collins became a separate, fifth propagation
+mode, <code class="docutils literal notranslate"><span class="pre">propagate_wave_collins</span></code> (<code class="docutils literal notranslate"><span class="pre">collins.py</span></code>), with contracted
+<code class="docutils literal notranslate"><span class="pre">CollinsTransfer</span></code>s. It does not enter the scaled wave: the walker above, its
+segments and its frame switches are unchanged, and a failure there is still
+fixed there. Collins answers a different question, the wave at a chosen plane
+with no interior. It handles what the scaled frame cannot carry: a rotated
+quadrupole, Larmor rotation of an astigmatic beam. It chooses its output
+pixel by sampling (a near form keeps <code class="docutils literal notranslate"><span class="pre">L</span> <span class="pre">→</span> <span class="pre">A·L</span></code>, a far form gives
+<code class="docutils literal notranslate"><span class="pre">λB/extent</span></code>, a mixed form decides per axis), so <code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">=</span> <span class="pre">0</span></code> (an image plane) is
+the easy case, not a degenerate one.</p>
 </section>
 </section>
 <section id="other-remedies-roadmap">

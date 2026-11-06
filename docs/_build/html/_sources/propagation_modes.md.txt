@@ -1,6 +1,6 @@
 # Propagation Modes
 
-One geometry, four propagations. Every mode runs through the same
+One geometry, five propagations. Every mode runs through the same
 element-by-element hierarchy and the same dispatcher,
 `scope.propagate(kind=...)`; the mode only changes *what* travels.
 
@@ -10,6 +10,7 @@ element-by-element hierarchy and the same dispatcher,
 | moments | `propagate_moments()` | mean + covariance, `Σ' = MΣMᵀ` | `.mu`, `.covariance_matrix`, `.covariance_beam` |
 | wave | `propagate_wave()` | 2D complex wavefield on a fixed grid | `.wave` (a sea-eco `Signal`) |
 | scaled wave | `propagate_wave(mode="hybrid")` | scaled-Fresnel field `ψ = U(x/s)/s` | `.wave_scaled` (a `SignalSet`) |
+| Collins wave | `propagate_wave_collins()` | samples on a lattice, with a curvature and the central ray | `.wave_collins` (a `Signal`) |
 
 ## Rays
 
@@ -140,6 +141,38 @@ physical extent that grows and shrinks with z.
 from pySEA.rayTEM.seashells import scaled_wave_physical_plane
 psi = scaled_wave_physical_plane(scope.wave_scaled, plane=10)   # metres
 ```
+
+## Collins wave (`propagate_wave_collins`)
+
+The fast way to a plane far down the column. Each run of linear elements
+between apertures (lenses, drifts, dipoles, quadrupoles, rotated or not) is
+one step: its ray map is the product of the elements' `affine_matrix()`, and
+the wave is carried by the Collins integral of that map, however many lenses
+and crossovers the run contains. A probe's exit wave reaches a camera in one
+or two FFT pairs, whether the camera sits at an image plane, a diffraction
+plane or between them.
+
+The field rides on a lattice: sample `(i, j)` sits at `L·(i, j)` from the
+beam's central ray, so a magnification or a Larmor rotation changes `L`, not
+the samples. The wave's curvature is carried as a 2 × 2 matrix, so an
+astigmatic or rotated beam needs nothing special. The central ray moves with
+the rays, dipole kicks included.
+
+```python
+transfer = scope.collins_transfer("sample", "CCD")      # contract once
+ccd = transfer.apply(exit_wave)                         # each frame: one step
+counts = waveoptics.collins_intensity_on_grid(*read_collins_wavefield(ccd)[:3],
+                                              shape=(512, 512), dx=26e-6, dy=26e-6)
+```
+
+Keep the transfer and rebuild it when `transfer.is_current()` is False (a lens
+current, a dipole or an aperture changed). Rebuilding costs a product of small
+matrices; the transfer also keeps each step's kernels for the grid it last saw.
+
+What it does not do: it logs no interior planes, and it refuses an element
+with aberrations or a supplied phase screen (`apply_aberrations=False` runs
+the ideal column). Use the scaled wave for a walk through the column, and this
+mode for a plane you already know you want.
 
 ## They answer for each other
 

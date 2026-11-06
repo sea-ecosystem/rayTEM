@@ -466,8 +466,9 @@ that no step is singular.
 When a crossing inside a body misbehaves, it is tempting to replace the body
 with a closed-form one-step transform. The Collins diffraction integral is
 `chirp · scaled FFT · chirp`, built from the body's ABCD block; for a
-quarter-period lens it is a plain Fourier transform. **This has been decided
-against and should not be reintroduced.** The scaled-Fresnel plan
+quarter-period lens it is a plain Fourier transform. **Inside the scaled
+wave this has been decided against and should not be reintroduced.** The
+scaled-Fresnel plan
 (`notes/eric/PLAN_2026-08-19_scaled-fresnel-wave.md`) rejected an earlier
 pilot-Gaussian/ABCD design in favour of the pure phase factorization, for
 these reasons:
@@ -485,8 +486,20 @@ these reasons:
   crossover markers, the exit-face floor above), and each was cheaper to fix
   there, with a test, than to route around.
 
-The grid-free q-parameter mode in the roadmap below is a separate,
-additional mode for Gaussian beams. It does not replace this propagator.
+**Collins as its own mode (Eric, 2026-11-06).** The emulator needs the exit
+wave at its camera, through every post-specimen lens, on each frame. In the
+scaled frame a run contracts only between crossovers, and nearly every lens
+makes one, so contraction there would barely shorten the walk. Collins steps
+compose across crossovers, so Collins became a separate, fifth propagation
+mode, `propagate_wave_collins` (`collins.py`), with contracted
+`CollinsTransfer`s. It does not enter the scaled wave: the walker above, its
+segments and its frame switches are unchanged, and a failure there is still
+fixed there. Collins answers a different question, the wave at a chosen plane
+with no interior. It handles what the scaled frame cannot carry: a rotated
+quadrupole, Larmor rotation of an astigmatic beam. It chooses its output
+pixel by sampling (a near form keeps `L → A·L`, a far form gives
+`λB/extent`, a mixed form decides per axis), so `B = 0` (an image plane) is
+the easy case, not a degenerate one.
 
 ## Other remedies (roadmap)
 
