@@ -292,7 +292,7 @@
     "name": "collins_field_at",
     "qualname": "collins_field_at",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 2992,
+    "source_lineno": 3006,
     "signature": "collins_field_at(field, lattice, center, tilt, curvature, wavelength, x, y)",
     "doc": "Evaluate a Collins-carried wave at physical points."
   },
@@ -301,7 +301,7 @@
     "name": "collins_intensity_on_grid",
     "qualname": "collins_intensity_on_grid",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 3049,
+    "source_lineno": 3063,
     "signature": "collins_intensity_on_grid(field, lattice, center, shape, dx, dy, grid_center)",
     "doc": "Integrate a Collins-carried wave's intensity over the pixels of a detector grid."
   },
@@ -310,7 +310,7 @@
     "name": "collins_propagate",
     "qualname": "collins_propagate",
     "path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 2946,
+    "source_lineno": 2960,
     "signature": "collins_propagate(field, lattice, curvature, wavelength, matrix)",
     "doc": "Carry a field through a linear paraxial map in one Collins step."
   },
@@ -1867,7 +1867,7 @@
     "name": "test_a_dipole_moves_the_central_ray_and_not_the_samples",
     "qualname": "test_a_dipole_moves_the_central_ray_and_not_the_samples",
     "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 155,
+    "source_lineno": 170,
     "signature": "test_a_dipole_moves_the_central_ray_and_not_the_samples()",
     "doc": ""
   },
@@ -1948,7 +1948,7 @@
     "name": "test_a_rotated_quadrupole_is_carried",
     "qualname": "test_a_rotated_quadrupole_is_carried",
     "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 197,
+    "source_lineno": 212,
     "signature": "test_a_rotated_quadrupole_is_carried()",
     "doc": ""
   },
@@ -2155,7 +2155,7 @@
     "name": "test_agrees_with_the_hybrid_walker_through_crossovers",
     "qualname": "test_agrees_with_the_hybrid_walker_through_crossovers",
     "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 213,
+    "source_lineno": 228,
     "signature": "test_agrees_with_the_hybrid_walker_through_crossovers()",
     "doc": ""
   },
@@ -2173,7 +2173,7 @@
     "name": "test_an_aberrated_element_is_refused_until_screens_exist",
     "qualname": "test_an_aberrated_element_is_refused_until_screens_exist",
     "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 192,
+    "source_lineno": 207,
     "signature": "test_an_aberrated_element_is_refused_until_screens_exist()",
     "doc": ""
   },
@@ -2200,7 +2200,7 @@
     "name": "test_an_aperture_masks_as_the_fixed_path_does",
     "qualname": "test_an_aperture_masks_as_the_fixed_path_does",
     "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 182,
+    "source_lineno": 197,
     "signature": "test_an_aperture_masks_as_the_fixed_path_does()",
     "doc": ""
   },
@@ -2650,7 +2650,7 @@
     "name": "test_contracted_transfer_equals_element_by_element",
     "qualname": "test_contracted_transfer_equals_element_by_element",
     "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 118,
+    "source_lineno": 133,
     "signature": "test_contracted_transfer_equals_element_by_element()",
     "doc": ""
   },
@@ -2830,7 +2830,7 @@
     "name": "test_dispatcher_routes_wave_collins",
     "qualname": "test_dispatcher_routes_wave_collins",
     "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 241,
+    "source_lineno": 256,
     "signature": "test_dispatcher_routes_wave_collins()",
     "doc": ""
   },
@@ -3163,7 +3163,7 @@
     "name": "test_four_f_images_with_magnification_and_rotation_on_the_lattice",
     "qualname": "test_four_f_images_with_magnification_and_rotation_on_the_lattice",
     "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 75,
+    "source_lineno": 90,
     "signature": "test_four_f_images_with_magnification_and_rotation_on_the_lattice()",
     "doc": ""
   },
@@ -3352,7 +3352,7 @@
     "name": "test_is_current_follows_the_elements",
     "qualname": "test_is_current_follows_the_elements",
     "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 166,
+    "source_lineno": 181,
     "signature": "test_is_current_follows_the_elements()",
     "doc": ""
   },
@@ -3406,7 +3406,7 @@
     "name": "test_line_focus_of_a_rotated_astigmatic_lens_matches_brute_force",
     "qualname": "test_line_focus_of_a_rotated_astigmatic_lens_matches_brute_force",
     "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 87,
+    "source_lineno": 102,
     "signature": "test_line_focus_of_a_rotated_astigmatic_lens_matches_brute_force(angle)",
     "doc": ""
   },
@@ -4189,8 +4189,17 @@
     "name": "test_the_beam_lands_where_the_central_ray_does_through_rotating_lenses",
     "qualname": "test_the_beam_lands_where_the_central_ray_does_through_rotating_lenses",
     "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 133,
+    "source_lineno": 148,
     "signature": "test_the_beam_lands_where_the_central_ray_does_through_rotating_lenses()",
+    "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_the_far_form_agrees_on_odd_and_even_grids",
+    "qualname": "test_the_far_form_agrees_on_odd_and_even_grids",
+    "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 75,
+    "signature": "test_the_far_form_agrees_on_odd_and_even_grids()",
     "doc": ""
   },
   {
@@ -4243,7 +4252,7 @@
     "name": "test_the_plan_is_reused_on_the_same_grid",
     "qualname": "test_the_plan_is_reused_on_the_same_grid",
     "path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 174,
+    "source_lineno": 189,
     "signature": "test_the_plan_is_reused_on_the_same_grid()",
     "doc": ""
   },

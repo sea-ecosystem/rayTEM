@@ -4825,12 +4825,24 @@
   },
   {
     "class": null,
+    "method": "test_the_far_form_agrees_on_odd_and_even_grids",
+    "kind": "method",
+    "signature": "test_the_far_form_agrees_on_odd_and_even_grids()",
+    "doc": "",
+    "source_path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
+    "source_lineno": 75,
+    "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_collins_wave.md",
+    "wiki_lineno": null,
+    "wiki_method_lineno": null
+  },
+  {
+    "class": null,
     "method": "test_four_f_images_with_magnification_and_rotation_on_the_lattice",
     "kind": "method",
     "signature": "test_four_f_images_with_magnification_and_rotation_on_the_lattice()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 75,
+    "source_lineno": 90,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_collins_wave.md",
     "wiki_lineno": 40,
     "wiki_method_lineno": null
@@ -4842,7 +4854,7 @@
     "signature": "test_line_focus_of_a_rotated_astigmatic_lens_matches_brute_force(angle)",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 87,
+    "source_lineno": 102,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_collins_wave.md",
     "wiki_lineno": 45,
     "wiki_method_lineno": null
@@ -4854,7 +4866,7 @@
     "signature": "test_contracted_transfer_equals_element_by_element()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 118,
+    "source_lineno": 133,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_collins_wave.md",
     "wiki_lineno": 50,
     "wiki_method_lineno": null
@@ -4866,7 +4878,7 @@
     "signature": "test_the_beam_lands_where_the_central_ray_does_through_rotating_lenses()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 133,
+    "source_lineno": 148,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_collins_wave.md",
     "wiki_lineno": 55,
     "wiki_method_lineno": null
@@ -4878,7 +4890,7 @@
     "signature": "test_a_dipole_moves_the_central_ray_and_not_the_samples()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 155,
+    "source_lineno": 170,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_collins_wave.md",
     "wiki_lineno": 60,
     "wiki_method_lineno": null
@@ -4890,7 +4902,7 @@
     "signature": "test_is_current_follows_the_elements()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 166,
+    "source_lineno": 181,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_collins_wave.md",
     "wiki_lineno": 65,
     "wiki_method_lineno": null
@@ -4902,7 +4914,7 @@
     "signature": "test_the_plan_is_reused_on_the_same_grid()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 174,
+    "source_lineno": 189,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_collins_wave.md",
     "wiki_lineno": 70,
     "wiki_method_lineno": null
@@ -4914,7 +4926,7 @@
     "signature": "test_an_aperture_masks_as_the_fixed_path_does()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 182,
+    "source_lineno": 197,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_collins_wave.md",
     "wiki_lineno": 75,
     "wiki_method_lineno": null
@@ -4926,7 +4938,7 @@
     "signature": "test_an_aberrated_element_is_refused_until_screens_exist()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 192,
+    "source_lineno": 207,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_collins_wave.md",
     "wiki_lineno": 80,
     "wiki_method_lineno": null
@@ -4938,7 +4950,7 @@
     "signature": "test_a_rotated_quadrupole_is_carried()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 197,
+    "source_lineno": 212,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_collins_wave.md",
     "wiki_lineno": 85,
     "wiki_method_lineno": null
@@ -4950,7 +4962,7 @@
     "signature": "test_agrees_with_the_hybrid_walker_through_crossovers()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 213,
+    "source_lineno": 228,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_collins_wave.md",
     "wiki_lineno": 90,
     "wiki_method_lineno": null
@@ -4962,7 +4974,7 @@
     "signature": "test_dispatcher_routes_wave_collins()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_collins_wave.py",
-    "source_lineno": 241,
+    "source_lineno": 256,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_collins_wave.md",
     "wiki_lineno": 95,
     "wiki_method_lineno": null
@@ -8922,9 +8934,9 @@
     "signature": "collins_propagate(field, lattice, curvature, wavelength, matrix)",
     "doc": "Carry a field through a linear paraxial map in one Collins step.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 2946,
+    "source_lineno": 2960,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 437,
+    "wiki_lineno": 440,
     "wiki_method_lineno": null
   },
   {
@@ -8934,9 +8946,9 @@
     "signature": "collins_field_at(field, lattice, center, tilt, curvature, wavelength, x, y)",
     "doc": "Evaluate a Collins-carried wave at physical points.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 2992,
+    "source_lineno": 3006,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 440,
+    "wiki_lineno": 443,
     "wiki_method_lineno": null
   },
   {
@@ -8946,9 +8958,9 @@
     "signature": "collins_intensity_on_grid(field, lattice, center, shape, dx, dy, grid_center)",
     "doc": "Integrate a Collins-carried wave's intensity over the pixels of a detector grid.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 3049,
+    "source_lineno": 3063,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
-    "wiki_lineno": 443,
+    "wiki_lineno": 446,
     "wiki_method_lineno": null
   },
   {
@@ -8970,7 +8982,7 @@
     "signature": "apply(self, field)",
     "doc": "Carry one input field through the planned step.",
     "source_path": "src/pySEA/rayTEM/waveoptics.py",
-    "source_lineno": 2900,
+    "source_lineno": 2911,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/waveoptics.md",
     "wiki_lineno": 420,
     "wiki_method_lineno": null

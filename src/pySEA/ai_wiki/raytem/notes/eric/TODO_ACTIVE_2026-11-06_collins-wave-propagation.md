@@ -31,3 +31,9 @@ the walker is 6–14 % from it at 128–512 px and 2.4 % at 1024 px (its frame s
 Full suite: the 41 failures/errors are identical with and without this change (this sandbox has no
 sea-sand, so sea_eco Signals are unavailable); the sea_eco Signal path of the Collins wavefield is
 therefore unexercised here.
+
+Emulator column (sea-pearl `default_column_twin`, sample → CCD, 2026-11-06): one far-form step;
+contracting takes 3.5 ms; the contracted map's √|det B| = 66.097 mm equals the ray-traced camera
+length. At 2048² a cached frame takes 53 ms (planning after an optics change 1.2 s, once), against
+149 ms for numpy's fft2 of the same array. The far form folds the centring shifts and the scale
+into its precomputed chirps (even grids) and uses scipy's threaded FFT.

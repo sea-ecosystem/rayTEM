@@ -40,9 +40,9 @@
 | Collins (linear canonical) step — the fifth mode's numerics | 409 |
 |   `collins_blocks(matrix)` | 417 |
 |   `CollinsPlan(shape, lattice, curvature, wavelength, matrix)` | 420 |
-|   `collins_propagate(field, lattice, curvature, wavelength, matrix)` | 437 |
-|   `collins_field_at(field, lattice, center, tilt, curvature, wavelength, x, y)` | 440 |
-|   `collins_intensity_on_grid(field, lattice, center, shape, dx, dy, grid_center=(0,0))` | 443 |
+|   `collins_propagate(field, lattice, curvature, wavelength, matrix)` | 440 |
+|   `collins_field_at(field, lattice, center, tilt, curvature, wavelength, x, y)` | 443 |
+|   `collins_intensity_on_grid(field, lattice, center, shape, dx, dy, grid_center=(0,0))` | 446 |
 <!-- END AUTO-GENERATED TOC -->
 
 # waveoptics.py
@@ -430,6 +430,9 @@ sampling, with `S = λ L⁻¹ A⁻¹B L⁻ᵀ` (Fresnel matrix in index units):
   the eigen-lattice when `S` is not diagonal), each axis near (`|a| ≤ N`) or far
   (1-D chirp·FFT, lattice column × `a/N`, curvature `+ (λ/a) L⁻ᵀe_j e_jᵀL⁻¹`),
   then the imaging map. The two 1-D conditions are exact complements.
+On even grids the far form's centring shifts and scale are folded into the
+precomputed chirps (checkerboards), so a cached frame is multiply · FFT · multiply
+(scipy FFT, threaded): 53 ms at 2048² on the emulator column.
 Global phases (carrier, Gouy) are dropped. Unitary: `Σ|f|²·|det L|` conserved.
 Raises `ValueError` when neither `A` nor `B` is invertible, or `A` is singular
 and the far chirp is undersampled.

@@ -2821,9 +2821,20 @@ class CollinsPlan:
 		X = L[0, 0] * UX + L[0, 1] * UY
 		Y = L[1, 0] * UX + L[1, 1] * UY
 		chirp = np.exp(1j * np.pi / lam * _quadratic_form(_symmetric(Binv @ A), X, Y))
-		self._steps.append(("multiply", chirp))
-		self._steps.append(("fft2", None))
-		self._scale = abs(np.linalg.det(L)) / (lam * np.sqrt(abs(np.linalg.det(B))))
+		scale = abs(np.linalg.det(L)) / (lam * np.sqrt(abs(np.linalg.det(B))))
+		ny, nx = self.shape
+		if nx % 2 == 0 and ny % 2 == 0:
+			# the centred DFT, fftshift(fft2(ifftshift(.))), is a plain FFT between
+			# two checkerboards on an even grid: fold them (and the scale) into
+			# the precomputed arrays, so a frame is one multiply, one FFT, one multiply
+			board = np.outer((-1.0) ** np.arange(ny), (-1.0) ** np.arange(nx))
+			self._steps.append(("multiply", chirp * board * scale))
+			self._steps.append(("fft2_raw", None))
+			self._steps.append(("multiply", board * (-1.0) ** (nx // 2 + ny // 2)))
+		else:
+			self._steps.append(("multiply", chirp))
+			self._steps.append(("fft2", None))
+			self._scale = scale
 		self.lattice_out = lam * B @ np.linalg.inv(L).T @ np.diag(1.0 / N)
 		self.curvature_out = _symmetric(D @ Binv)
 
@@ -2919,14 +2930,17 @@ class CollinsPlan:
 		f = np.asarray(field)
 		if f.shape != self.shape:
 			raise ValueError(f"CollinsPlan was planned for shape {self.shape}; got {f.shape}.")
+		from scipy import fft as sfft
 		f = f.astype(complex, copy=True)
 		for step in self._steps:
 			kind = step[0]
 			if kind == "kspace":
 				_, H, axes = step
-				f = np.fft.ifftn(np.fft.fftn(f, axes=axes) * H, axes=axes)
+				f = sfft.ifftn(sfft.fftn(f, axes=axes, workers=-1) * H, axes=axes, workers=-1)
 			elif kind == "multiply":
 				f *= step[1]
+			elif kind == "fft2_raw":
+				f = sfft.fft2(f, workers=-1, overwrite_x=True)
 			elif kind == "multiply_axis":
 				_, chirp, axis = step
 				f *= chirp[:, None] if axis == 0 else chirp[None, :]
@@ -2940,7 +2954,7 @@ class CollinsPlan:
 				coords = step[1]
 				f = (map_coordinates(f.real, coords, order=3, mode="constant", cval=0.0)
 					 + 1j * map_coordinates(f.imag, coords, order=3, mode="constant", cval=0.0))
-		return f * self._scale
+		return f * self._scale if self._scale != 1.0 else f
 
 
 def collins_propagate(field: np.ndarray, lattice, curvature, wavelength: float, matrix) -> tuple:

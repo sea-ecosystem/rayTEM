@@ -72,6 +72,21 @@ def test_two_f_is_a_fourier_transform_with_the_gaussian_width():
 					  (np.abs(f0) ** 2).sum() * 4e-20, rtol=1e-10)
 
 
+def test_the_far_form_agrees_on_odd_and_even_grids():
+	# an even grid takes the folded-checkerboard FFT, an odd one the shifted FFT
+	w0, f = 3e-9, 1e-3
+	M = _drift(f) @ _lens(f) @ _drift(f)
+	wf = LAM * f / (np.pi * w0)
+	xs = np.linspace(-2 * wf, 2 * wf, 41)
+	values = []
+	for n in (256, 255):
+		f0, _, _ = _gauss(n, 2e-10, w0)
+		out, L, Q, form = wo.collins_propagate(f0, np.eye(2) * 2e-10, np.zeros((2, 2)), LAM, M)
+		assert form == "far"
+		values.append(wo.collins_field_at(out, L, (0, 0), (0, 0), Q, LAM, xs, 0 * xs))
+	assert np.allclose(np.abs(values[0]), np.abs(values[1]), rtol=1e-3, atol=1e-6 * np.abs(values[0]).max())
+
+
 def test_four_f_images_with_magnification_and_rotation_on_the_lattice():
 	f1, f2, w = 1e-3, 5e-3, 3e-9
 	f0, _, _ = _gauss(256, 2e-10, w, x0=2e-9)
