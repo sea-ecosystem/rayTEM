@@ -204,9 +204,116 @@ def test_an_aperture_masks_as_the_fixed_path_does():
 		["map", "aperture", "map"]
 
 
-def test_an_aberrated_element_is_refused_until_screens_exist():
-	with pytest.raises(NotImplementedError, match="non-quadratic"):
-		contract_collins([Drift(length=1e-3), Lens(strength=40.0, length=2e-3, aberrations={"C30": 1e-3})])
+def test_an_aberrated_element_breaks_the_run_and_is_walked():
+	# decision D2 (Eric 2026-11-09): an aberration is applied where it acts, so
+	# an aberrated element ends the contracted run before it and starts the next
+	elements = [Drift(length=1e-3), Lens(strength=40.0, length=2e-3, aberrations={"C30": 1e-3}),
+				Drift(length=1e-3), Lens(strength=30.0, length=2e-3), Drift(length=1e-3)]
+	transfer = contract_collins(elements)
+	assert [s[0] for s in transfer.steps] == ["map", "walk", "map"]
+	total = np.eye(5)
+	for element in elements:
+		total = element_affine_map(element) @ total
+	assert np.allclose(transfer.affine_map(), total)
+
+
+def test_a_supplied_screen_is_refused():
+	lens = Lens(strength=40.0, length=2e-3)
+	lens.screen = np.zeros((8, 8))
+	with pytest.raises(NotImplementedError, match="supplied screen"):
+		contract_collins([Drift(length=1e-3), lens])
+
+
+def _gauss_wave(n, dx, w):
+	"""Return a fixed-grid Gaussian wavefield of ``n`` samples at pitch ``dx``."""
+	f, _, _ = _gauss(n, dx, w)
+	return make_wavefield_signal(f, dx, dx, LAM, z=0.0)
+
+
+def test_a_thin_aberrated_lens_matches_brute_force():
+	# a 10 nm Gaussian through a 1 um thin lens with C30 = 0.2 mm, to 0.9 f:
+	# the walk (screen, then the lens's Collins step, then the drift's) against
+	# the fixed path's own lens screen and angular spectrum on a 2048^2 grid.
+	# Measured 2026-11-09: 0.27 % of the peak; C30 moves the image ~30 %.
+	f, d, w = 1e-6, 0.9e-6, 10e-9
+	images = {}
+	for C30 in (0.0, 2e-4):
+		lens = Lens(focal_length=f, length=0.0, aberrations={"C30": C30} if C30 else None)
+		ref = read_wavefield(Drift(length=d).propagate_wave(
+			lens.propagate_wave(_gauss_wave(2048, 0.25e-10, w), mode="fixed"), mode="fixed"))[0]
+		X, Y = wo.transverse_coordinates(ref.shape, 0.25e-10, 0.25e-10)
+		out = read_collins_wavefield(contract_collins([lens, Drift(length=d)]).apply(_gauss_wave(512, 2e-10, w)))
+		I1 = np.abs(wo.collins_field_at(out[0], out[1], out[2], out[3], out[4], LAM, X, Y)) ** 2
+		I2 = np.abs(ref) ** 2
+		assert np.abs(I1 - I2).max() < 1e-2 * I2.max()
+		images[C30] = I2
+	assert np.abs(images[2e-4] - images[0.0]).max() > 0.2 * images[0.0].max()
+
+
+def test_an_aberration_screen_after_an_ideal_lens_is_the_aberrated_lens():
+	from pySEA.rayTEM.elements import AberrationScreen
+
+	f, d, w = 1e-6, 0.9e-6, 10e-9
+	plate = AberrationScreen(aberrations={"C30": 2e-4}, pupil_power=1 / f)
+	split = contract_collins([Lens(focal_length=f, length=0.0), plate, Drift(length=d)])
+	assert [s[0] for s in split.steps] == ["map", "walk", "map"]
+	one = contract_collins([Lens(focal_length=f, length=0.0, aberrations={"C30": 2e-4}), Drift(length=d)])
+	a = read_collins_wavefield(split.apply(_gauss_wave(256, 2e-10, w)))
+	b = read_collins_wavefield(one.apply(_gauss_wave(256, 2e-10, w)))
+	X, Y = wo.transverse_coordinates((128, 128), 0.1e-10, 0.1e-10)
+	Ia = np.abs(wo.collins_field_at(a[0], a[1], a[2], a[3], a[4], LAM, X, Y)) ** 2
+	Ib = np.abs(wo.collins_field_at(b[0], b[1], b[2], b[3], b[4], LAM, X, Y)) ** 2
+	assert np.abs(Ia - Ib).max() < 1e-9 * Ib.max()
+	# a plate with no pupil power is transparent: it contracts like a drift of 0
+	clear = AberrationScreen(aberrations={"C30": 2e-4}, pupil_power=0.0)
+	assert [s[0] for s in contract_collins([Drift(length=d), clear, Drift(length=d)]).steps] == ["map"]
+
+
+def _objective(C30, d2):
+	"""Return a drift, a thick 2 mm objective (f = 1.8 mm) and a drift to its focus region."""
+	return [Drift(length=1e-3), Lens(strength=600.0, length=2e-3, name="OL",
+									 aberrations={"C30": C30} if C30 else None), Drift(length=d2)]
+
+
+@pytest.mark.parametrize("d2", [0.6476e-3, 0.648e-3])
+def test_a_thick_aberrated_lens_agrees_with_the_hybrid_walker(d2):
+	# a 20 um aperture wave focused at 11 mrad through a thick lens with
+	# C30 = 2 mm, at and just before its focus: both methods distribute the
+	# aberration over MEDIUM_SLICES slices. Measured 2026-11-09: they differ by
+	# 4-8 % (L1, the walker's resampling), and C30 changes the image by 33-110 %.
+	images = {}
+	for C30 in (0.0, 2e-3):
+		src = Source(voltage=200, wave_shape=(128, 128), wave_extent=128 * 0.5e-6,
+					 wave_kind="aperture", aperture_radius=20e-6)
+		elements = _objective(C30, d2)
+		mic = Microscope(sections=[MicroscopeSection(elements=[src] + elements)])
+		collins = read_collins_wavefield(mic.propagate_wave_collins())
+		state = src.wave(mode="hybrid")
+		for element in elements:
+			state = element.propagate_wave(state, mode="hybrid", crossover="flat", absorb=0.0)
+		walker = read_collins_wavefield(as_collins_wavefield(state))
+		grid = dict(shape=(64, 64), dx=0.05e-9, dy=0.05e-9)
+		I1 = wo.collins_intensity_on_grid(collins[0], collins[1], collins[2], **grid)
+		I2 = wo.collins_intensity_on_grid(walker[0], walker[1], walker[2], **grid)
+		assert np.abs(I1 - I2).sum() < 0.1 * I1.sum()
+		images[C30] = I1
+	assert np.abs(images[2e-3] - images[0.0]).sum() > 0.3 * images[0.0].sum()
+
+
+def test_is_current_follows_an_aberration_and_the_walk_reuses_its_plans():
+	from pySEA.rayTEM.aberrations import Aberrations
+
+	elements = _objective(2e-3, 0.648e-3)
+	transfer = contract_collins(elements)
+	src = Source(voltage=200, wave_shape=(64, 64), wave_extent=64 * 0.5e-6,
+				 wave_kind="aperture", aperture_radius=10e-6)
+	transfer.apply(src.wave(mode="fixed"))
+	plans = dict(transfer._plans)
+	transfer.apply(src.wave(mode="fixed"))
+	assert all(transfer._plans[key][1] is plan for key, (_, plan) in plans.items())
+	assert transfer.is_current()
+	elements[1].aberrations = Aberrations({"C30": 3e-3})
+	assert not transfer.is_current()
 
 
 def test_a_rotated_quadrupole_is_carried():

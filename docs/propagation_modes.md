@@ -169,10 +169,17 @@ Keep the transfer and rebuild it when `transfer.is_current()` is False (a lens
 current, a dipole or an aperture changed). Rebuilding costs a product of small
 matrices; the transfer also keeps each step's kernels for the grid it last saw.
 
+An aberration is not linear, so it breaks the contraction: an aberrated
+element ends the run before it and starts the next after it, and is walked
+where it acts. A thin lens or an `AberrationScreen` applies its aberration at
+its plane; a thick lens applies it in `MEDIUM_SLICES` shares, each between two
+half-slab Collins steps, as the scaled walker distributes it through a medium.
+Assign aberrations in a few places and the column is a few runs, not one.
+
 What it does not do: it logs no interior planes, and it refuses an element
-with aberrations or a supplied phase screen (`apply_aberrations=False` runs
-the ideal column). Use the scaled wave for a walk through the column, and this
-mode for a plane you already know you want.
+with a supplied phase screen or an aberrated element with an alignment
+(`apply_aberrations=False` runs the ideal column). Use the scaled wave for a
+walk through the column, and this mode for a plane you already know you want.
 
 ## They answer for each other
 

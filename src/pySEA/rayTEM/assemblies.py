@@ -1359,8 +1359,8 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		apply_aberrations : bool, optional
 			``False`` suspends every element's aberrations for the run, so an
 			aberrated section propagates as its ideal counterpart. By default
-			True, which refuses an aberrated element (Collins steps hold no
-			screen yet).
+			True: each aberrated element ends a contracted run and is walked
+			(its aberration where it acts, distributed through a thick body).
 
 		Returns
 		-------
@@ -1372,7 +1372,7 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 		UserWarning
 			If ``wave0`` is ``None`` and the first element is not a ``Source``.
 		NotImplementedError
-			For an element with a non-quadratic phase.
+			For an element with a supplied screen, or aberrated and off axis.
 
 		Related
 		-------
@@ -3996,7 +3996,7 @@ class Microscope(SealedAttributes, SEASerializable):
 			If a named element is not in the column, or ``stop`` comes before
 			``start``.
 		NotImplementedError
-			For an element with a non-quadratic phase in the run.
+			For an element in the run with a supplied screen, or aberrated and off axis.
 
 		Examples
 		--------
@@ -4039,7 +4039,8 @@ class Microscope(SealedAttributes, SEASerializable):
 			Element names bounding the run, as :meth:`collins_transfer`.
 		apply_aberrations : bool, optional
 			``False`` suspends every element's aberrations for the run. By
-			default True, which refuses an aberrated element in the run.
+			default True: each aberrated element ends a contracted run and is
+			walked (:meth:`~pySEA.rayTEM.collins.CollinsTransfer._walk`).
 
 		Returns
 		-------
@@ -4053,7 +4054,7 @@ class Microscope(SealedAttributes, SEASerializable):
 		ValueError
 			From :meth:`collins_transfer`.
 		NotImplementedError
-			For an element with a non-quadratic phase in the run.
+			For an element in the run with a supplied screen, or aberrated and off axis.
 
 		Related
 		-------

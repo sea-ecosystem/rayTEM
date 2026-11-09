@@ -72,19 +72,34 @@ Carry a wave through the transfer.
 - **Why a separate mode.** Eric settled D1 of sea-pearl's contracted-section plan:
   contracting in the scaled frame stops at every crossover and nearly every lens
   makes one; Collins composes across them. The scaled walker is untouched.
-- **What contracts.** A step is a maximal run with no `Aperture` inside; an aperture
-  is a mask at its entrance plane (a finite-length one then drifts). Elements with
-  aberrations, `AberrationScreen`s and supplied screens are refused — no
-  approximation sneaks in (decision D2 open in sea-pearl's TODO).
+- **What contracts.** A step is a maximal run with no `Aperture` and no aberrated
+  element inside; an aperture is a mask at its entrance plane (a finite-length one
+  then drifts). Supplied screens, and aberrated elements with an `alignment`, are
+  refused.
+- **Aberrated elements are walked (D2, Eric 2026-11-09).** `("walk", element, length)`
+  steps: an element with aberrations and a nonzero pupil power (`_aberration_power`:
+  `pupil_power`, else `focal_power`) is applied where it acts, so where an
+  aberration originates is kept. Thin: `phase_at` the samples' physical positions
+  (`L·u + x0`), then its map. Thick: `_slab` (shallow copy, `length/(2·MEDIUM_SLICES)`,
+  refused if the slabs' maps do not multiply back to the element's), then
+  `MEDIUM_SLICES` × (half slab, `1/MEDIUM_SLICES` of the aberration, half slab), as
+  `Element._propagate_wave_scaled` slices a medium. C10/C12 are in the screen (as
+  on the scaled thick lens). Each screen passes `_check_screen_sampling`. A
+  zero-power `AberrationScreen` is transparent and contracts.
 - **Caching.** `_plans[step] = (key, CollinsPlan)` with key = input shape, lattice,
-  curvature, wavelength: the emulator's frames on one grid reuse the kernels.
-  `is_current()` compares each element's `affine_matrix` bytes (and an aperture's
+  curvature, wavelength (a walk's parts under `(step, part)`): the emulator's frames
+  on one grid reuse the kernels. `is_current()` compares each element's
+  `affine_matrix` bytes, its aberration coefficients and power (and an aperture's
   radius/transmission/alignment) with the contraction's; rebuilding is cheap.
 - **Central ray.** `apply` moves `(x0, t0)` by the step's affine map (dipoles,
   alignment) and the samples by its linear part only.
 - **Verified** (`tests/test_collins_wave.py`): see that file's docstring and the
   rayTEM TODO `TODO_ACTIVE_2026-11-06_collins-wave-propagation.md` for numbers;
-  against the hybrid walker the Collins step is the converged side.
+  against the hybrid walker the Collins step is the converged side. Walked
+  aberrations: thin C30 lens vs fixed path 2048² (< 1 % of peak, measured 0.27 %);
+  thick C30 lens vs hybrid walker at focus (< 10 % L1, measured 4-8 %; C30 itself
+  changes the image 33-110 %); `AberrationScreen` after an ideal lens equals the
+  aberrated lens to 1e-9.
 
 ---
 *AI maintenance: read this file before editing the source. Update it after.*

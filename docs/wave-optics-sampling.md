@@ -501,6 +501,16 @@ pixel by sampling (a near form keeps `L → A·L`, a far form gives
 `λB/extent`, a mixed form decides per axis), so `B = 0` (an image plane) is
 the easy case, not a degenerate one.
 
+**Aberrations in Collins: walked, not folded (Eric, 2026-11-09, decision D2).**
+An aberration is a non-quadratic phase, so a Collins step cannot hold it, and
+moving it to a run's end (folding it to an equivalent screen elsewhere) would
+lose where along the column it originates. An aberrated element ends the run
+and is walked: its screen at a thin element's plane, or `MEDIUM_SLICES`
+distributed shares between half-slab Collins steps in a thick body, each at
+the local ray height (`CollinsTransfer._walk`). Checked against the fixed path
+(thin lens, 0.3 % of the peak) and the hybrid walker (thick lens at its focus,
+4-8 % L1, the walker's resampling, while C30 changes the image by 33-110 %).
+
 ## Other remedies (roadmap)
 
 1. **Collins / ABCD Gaussian-mode transport (grid-free, exact).** Propagate the

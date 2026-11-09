@@ -2,11 +2,13 @@
 
 Newest entries at top.
 
-## 2026-11-09 — [Under Construction] Collins runs break at aberrated elements, which are walked through
+## 2026-11-09 — [Done] Collins runs break at aberrated elements, which are walked through
 **Goal:** a Collins transfer carries aberrated lenses and plates by walking them in slices (as the scaled walker does), the runs between still contracted.
 **Why:** decision D2 (Eric, 2026-11-09): aberrations depend on where they arise, so no single per-run aberration function; a few breaks are acceptable.
-TODO: [TODO_ACTIVE_2026-11-09_collins-aberration-breaks.md](TODO_ACTIVE_2026-11-09_collins-aberration-breaks.md)
-- [ ] walked steps; tests; docs
+TODO: [TODO_DONE_2026-11-09_collins-aberration-breaks.md](TODO_DONE_2026-11-09_collins-aberration-breaks.md)
+- [x] walked steps; tests; docs
+
+**Outcome:** aberrated elements break the Collins contraction and are walked where they act (thin: screen at the plane; thick: 16 distributed shares between half-slab Collins steps); checked against the fixed path and the hybrid walker.
 
 ## 2026-11-06 — [Done] Collins wave propagation, and contracted section transfers
 **Goal:** a fifth propagation mode, `propagate_wave_collins`, that carries a wave through any run of linear elements in one linear canonical (Collins) step, and contracts unchanged runs for reuse.

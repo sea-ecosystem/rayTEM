@@ -2940,9 +2940,11 @@ class Element(SealedAttributes, SEASerializable):
 		Raises
 		------
 		NotImplementedError
-			If the element carries aberrations or a phase screen: a Collins
-			step holds only quadratic phases (use ``mode='hybrid'`` or
-			``'fixed'`` of :meth:`propagate_wave`).
+			If the element carries a supplied phase screen, or is aberrated
+			and off axis (use ``mode='hybrid'`` or ``'fixed'`` of
+			:meth:`propagate_wave`). An aberrated element is walked: its
+			aberration applied at its plane, or distributed through a thick
+			body (:meth:`collins.CollinsTransfer._walk`).
 		ValueError
 			If the input grid cannot sample the step.
 
