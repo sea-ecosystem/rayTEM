@@ -2,13 +2,15 @@
 
 Newest entries at top.
 
-## 2026-11-06 — [Under Construction] Collins wave propagation, and contracted section transfers
+## 2026-11-06 — [Done] Collins wave propagation, and contracted section transfers
 **Goal:** a fifth propagation mode, `propagate_wave_collins`, that carries a wave through any run of linear elements in one linear canonical (Collins) step, and contracts unchanged runs for reuse.
 **Why:** the emulator must propagate the exit wave to its CCD (image, diffraction or in between) about as fast as today's far field; Eric relented on the one-step transform for this as its own mode (2026-11-06).
-TODO: [TODO_ACTIVE_2026-11-06_collins-wave-propagation.md](TODO_ACTIVE_2026-11-06_collins-wave-propagation.md)
-- [ ] Collins core and wavefield
-- [ ] contraction and the propagate methods
-- [ ] tests, docs, wiki
+TODO: [TODO_DONE_2026-11-06_collins-wave-propagation.md](TODO_DONE_2026-11-06_collins-wave-propagation.md)
+- [x] Collins core and wavefield
+- [x] contraction and the propagate methods
+- [x] tests, docs, wiki
+
+**Outcome:** `propagate_wave_collins` (Element, MicroscopeSection, Microscope; `kind="wave_collins"`) carries a wave through each run of linear elements in one Collins step, contracted and cached (`collins.CollinsTransfer`, `Microscope.collins_transfer`); exact against closed forms, the converged side against the hybrid walker; the emulator's sample→CCD run is one step (53 ms cached at 2048²). Aberrated elements are refused until D2 (sea-pearl TODO).
 
 ## 2026-10-30 — [Done] Element alignment
 **Goal:** every element can carry its own axis's offset and tilt; None (the default) skips the step.
