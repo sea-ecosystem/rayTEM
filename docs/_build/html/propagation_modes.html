@@ -290,10 +290,16 @@ the rays, dipole kicks included.</p>
 <p>Keep the transfer and rebuild it when <code class="docutils literal notranslate"><span class="pre">transfer.is_current()</span></code> is False (a lens
 current, a dipole or an aperture changed). Rebuilding costs a product of small
 matrices; the transfer also keeps each step’s kernels for the grid it last saw.</p>
+<p>An aberration is not linear, so it breaks the contraction: an aberrated
+element ends the run before it and starts the next after it, and is walked
+where it acts. A thin lens or an <code class="docutils literal notranslate"><span class="pre">AberrationScreen</span></code> applies its aberration at
+its plane; a thick lens applies it in <code class="docutils literal notranslate"><span class="pre">MEDIUM_SLICES</span></code> shares, each between two
+half-slab Collins steps, as the scaled walker distributes it through a medium.
+Assign aberrations in a few places and the column is a few runs, not one.</p>
 <p>What it does not do: it logs no interior planes, and it refuses an element
-with aberrations or a supplied phase screen (<code class="docutils literal notranslate"><span class="pre">apply_aberrations=False</span></code> runs
-the ideal column). Use the scaled wave for a walk through the column, and this
-mode for a plane you already know you want.</p>
+with a supplied phase screen or an aberrated element with an alignment
+(<code class="docutils literal notranslate"><span class="pre">apply_aberrations=False</span></code> runs the ideal column). Use the scaled wave for a
+walk through the column, and this mode for a plane you already know you want.</p>
 </section>
 <section id="they-answer-for-each-other">
 <h2>They answer for each other<a class="headerlink" href="#they-answer-for-each-other" title="Link to this heading"></a></h2>

@@ -1875,9 +1875,11 @@ resampling (<a class="reference internal" href="#pySEA.rayTEM.seashells.as_colli
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>NotImplementedError</strong> – If the element carries aberrations or a phase screen: a Collins
-    step holds only quadratic phases (use <code class="docutils literal notranslate"><span class="pre">mode='hybrid'</span></code> or
-    <code class="docutils literal notranslate"><span class="pre">'fixed'</span></code> of <a class="reference internal" href="#pySEA.rayTEM.elements.Element.propagate_wave" title="pySEA.rayTEM.elements.Element.propagate_wave"><code class="xref py py-meth docutils literal notranslate"><span class="pre">propagate_wave()</span></code></a>).</p></li>
+<li><p><strong>NotImplementedError</strong> – If the element carries a supplied phase screen, or is aberrated
+    and off axis (use <code class="docutils literal notranslate"><span class="pre">mode='hybrid'</span></code> or <code class="docutils literal notranslate"><span class="pre">'fixed'</span></code> of
+    <a class="reference internal" href="#pySEA.rayTEM.elements.Element.propagate_wave" title="pySEA.rayTEM.elements.Element.propagate_wave"><code class="xref py py-meth docutils literal notranslate"><span class="pre">propagate_wave()</span></code></a>). An aberrated element is walked: its
+    aberration applied at its plane, or distributed through a thick
+    body (<code class="xref py py-meth docutils literal notranslate"><span class="pre">collins.CollinsTransfer._walk()</span></code>).</p></li>
 <li><p><strong>ValueError</strong> – If the input grid cannot sample the step.</p></li>
 </ul>
 </dd>
@@ -3542,7 +3544,7 @@ default at the last element.</p></li>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>ValueError</strong> – If a named element is not in the column, or <code class="docutils literal notranslate"><span class="pre">stop</span></code> comes before
     <code class="docutils literal notranslate"><span class="pre">start</span></code>.</p></li>
-<li><p><strong>NotImplementedError</strong> – For an element with a non-quadratic phase in the run.</p></li>
+<li><p><strong>NotImplementedError</strong> – For an element in the run with a supplied screen, or aberrated and off axis.</p></li>
 </ul>
 </dd>
 </dl>
@@ -4320,7 +4322,8 @@ starts with a <code class="docutils literal notranslate"><span class="pre">Sourc
 <li><p><strong>start</strong> (<em>str</em><em>, </em><em>optional</em>) – Element names bounding the run, as <a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.collins_transfer" title="pySEA.rayTEM.assemblies.Microscope.collins_transfer"><code class="xref py py-meth docutils literal notranslate"><span class="pre">collins_transfer()</span></code></a>.</p></li>
 <li><p><strong>stop</strong> (<em>str</em><em>, </em><em>optional</em>) – Element names bounding the run, as <a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.collins_transfer" title="pySEA.rayTEM.assemblies.Microscope.collins_transfer"><code class="xref py py-meth docutils literal notranslate"><span class="pre">collins_transfer()</span></code></a>.</p></li>
 <li><p><strong>apply_aberrations</strong> (<em>bool</em><em>, </em><em>optional</em>) – <code class="docutils literal notranslate"><span class="pre">False</span></code> suspends every element’s aberrations for the run. By
-default True, which refuses an aberrated element in the run.</p></li>
+default True: each aberrated element ends a contracted run and is
+walked (<code class="xref py py-meth docutils literal notranslate"><span class="pre">_walk()</span></code>).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -4333,7 +4336,7 @@ default True, which refuses an aberrated element in the run.</p></li>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>UserWarning</strong> – If <code class="docutils literal notranslate"><span class="pre">wave0</span></code> is <code class="docutils literal notranslate"><span class="pre">None</span></code> and the column does not start with a <code class="docutils literal notranslate"><span class="pre">Source</span></code>.</p></li>
 <li><p><strong>ValueError</strong> – From <a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.collins_transfer" title="pySEA.rayTEM.assemblies.Microscope.collins_transfer"><code class="xref py py-meth docutils literal notranslate"><span class="pre">collins_transfer()</span></code></a>.</p></li>
-<li><p><strong>NotImplementedError</strong> – For an element with a non-quadratic phase in the run.</p></li>
+<li><p><strong>NotImplementedError</strong> – For an element in the run with a supplied screen, or aberrated and off axis.</p></li>
 </ul>
 </dd>
 </dl>
@@ -5185,8 +5188,8 @@ crossovers at once; each aperture masks between runs.</p>
 first element is a <code class="docutils literal notranslate"><span class="pre">Source</span></code>, its fixed-grid wave is used.</p></li>
 <li><p><strong>apply_aberrations</strong> (<em>bool</em><em>, </em><em>optional</em>) – <code class="docutils literal notranslate"><span class="pre">False</span></code> suspends every element’s aberrations for the run, so an
 aberrated section propagates as its ideal counterpart. By default
-True, which refuses an aberrated element (Collins steps hold no
-screen yet).</p></li>
+True: each aberrated element ends a contracted run and is walked
+(its aberration where it acts, distributed through a thick body).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -5198,7 +5201,7 @@ screen yet).</p></li>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
 <li><p><strong>UserWarning</strong> – If <code class="docutils literal notranslate"><span class="pre">wave0</span></code> is <code class="docutils literal notranslate"><span class="pre">None</span></code> and the first element is not a <code class="docutils literal notranslate"><span class="pre">Source</span></code>.</p></li>
-<li><p><strong>NotImplementedError</strong> – For an element with a non-quadratic phase.</p></li>
+<li><p><strong>NotImplementedError</strong> – For an element with a supplied screen, or aberrated and off axis.</p></li>
 </ul>
 </dd>
 </dl>
@@ -8002,6 +8005,13 @@ from the scaled/hybrid walker: Eric (2026-11-06) chose it for the emulator’s
 detector planes, where the walker’s per-crossover frame switches would leave
 almost nothing to contract. The scaled wave is unchanged and still carries no
 Collins lens body.</p>
+<p>An aberration is not linear, so it cannot sit inside a contracted step, and
+where along the column it originates matters. An aberrated element therefore
+ends the run before it and starts the next after it, and is walked: a thin one
+is its screen at its plane, a thick one <code class="docutils literal notranslate"><span class="pre">MEDIUM_SLICES</span></code> Collins half-slab
+steps around distributed screens, as the scaled walker slices a medium
+(decision D2, Eric 2026-11-09: “we only will assign aberrations in a few
+places so its just a few breaks in the contractions”).</p>
 <div class="admonition seealso">
 <p class="admonition-title">See also</p>
 <dl class="simple">
@@ -8021,9 +8031,14 @@ Collins lens body.</p>
 <p>Contiguous linear elements (lenses, drifts, dipoles, quadrupoles and
 any other element whose wave action is its ray map) are multiplied into
 one affine map each; an aperture ends a run and is applied as a mask at
-its entrance plane. An element carrying a non-quadratic phase (an
-aberration screen, an aberrated lens) is refused: Collins steps hold no
-screen yet (decision D2 open).</p>
+its entrance plane. An aberrated element (an aberrated lens, an
+<a class="reference internal" href="#pySEA.rayTEM.elements.AberrationScreen" title="pySEA.rayTEM.elements.AberrationScreen"><code class="xref py py-class docutils literal notranslate"><span class="pre">AberrationScreen</span></code></a>) also ends a run and is
+<strong>walked</strong> (decision D2, Eric 2026-11-09): a thin one is its aberration
+screen and its map; a thick one is <code class="docutils literal notranslate"><span class="pre">MEDIUM_SLICES</span></code> slices of half a
+slab, a <code class="docutils literal notranslate"><span class="pre">1/MEDIUM_SLICES</span></code> share of its aberration at the local ray
+height, half a slab – the scaled walker’s slicing – so where along the
+column an aberration originates is kept. An element with a supplied
+screen, or an aberrated one off the column’s axis, is refused.</p>
 <p>Each step keeps the <a class="reference internal" href="#pySEA.rayTEM.waveoptics.CollinsPlan" title="pySEA.rayTEM.waveoptics.CollinsPlan"><code class="xref py py-class docutils literal notranslate"><span class="pre">CollinsPlan</span></code></a> it
 last built, keyed by the input grid, so applying the transfer to many
 waves on one grid (an emulator’s frames) recomputes no kernel.
@@ -8049,8 +8064,9 @@ is skipped (it starts a wave, it does not act on one).</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="pySEA.rayTEM.collins.CollinsTransfer.steps">
 <span class="sig-name descname"><span class="pre">steps</span></span><a class="headerlink" href="#pySEA.rayTEM.collins.CollinsTransfer.steps" title="Link to this definition"></a></dt>
-<dd><p><code class="docutils literal notranslate"><span class="pre">(&quot;map&quot;,</span> <span class="pre">affine,</span> <span class="pre">z_length)</span></code> or <code class="docutils literal notranslate"><span class="pre">(&quot;aperture&quot;,</span> <span class="pre">element,</span> <span class="pre">0.0)</span></code>, in
-beam order; <code class="docutils literal notranslate"><span class="pre">affine</span></code> is 5 x 5 on <code class="docutils literal notranslate"><span class="pre">(x,</span> <span class="pre">xt,</span> <span class="pre">y,</span> <span class="pre">yt,</span> <span class="pre">1)</span></code>.</p>
+<dd><p><code class="docutils literal notranslate"><span class="pre">(&quot;map&quot;,</span> <span class="pre">affine,</span> <span class="pre">z_length)</span></code>, <code class="docutils literal notranslate"><span class="pre">(&quot;aperture&quot;,</span> <span class="pre">element,</span> <span class="pre">0.0)</span></code> or
+<code class="docutils literal notranslate"><span class="pre">(&quot;walk&quot;,</span> <span class="pre">element,</span> <span class="pre">z_length)</span></code>, in beam order; <code class="docutils literal notranslate"><span class="pre">affine</span></code> is 5 x 5
+on <code class="docutils literal notranslate"><span class="pre">(x,</span> <span class="pre">xt,</span> <span class="pre">y,</span> <span class="pre">yt,</span> <span class="pre">1)</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>list of tuple</p>
@@ -8089,7 +8105,9 @@ beam order; <code class="docutils literal notranslate"><span class="pre">affine<
 
 <dl class="field-list simple">
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>NotImplementedError</strong> – From the constructor, for an element with a non-quadratic phase.</p>
+<dd class="field-odd"><p><strong>NotImplementedError</strong> – From the constructor, for an element with a supplied screen, an
+    aberrated element off axis, or a thick aberrated element that is not
+    a uniform medium.</p>
 </dd>
 </dl>
 <div class="admonition seealso">
@@ -8112,7 +8130,8 @@ beam order; <code class="docutils literal notranslate"><span class="pre">affine<
 <dd><p>Return the whole transfer’s ray map on <code class="docutils literal notranslate"><span class="pre">(x,</span> <span class="pre">xt,</span> <span class="pre">y,</span> <span class="pre">yt,</span> <span class="pre">1)</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>5 x 5, the product of the steps’ maps (apertures pass rays).</p>
+<dd class="field-odd"><p>5 x 5, the product of the steps’ maps (apertures pass rays; a
+walked element contributes its paraxial map, not its aberration).</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>numpy.ndarray</p>
@@ -8141,7 +8160,9 @@ resampling.</p></li>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><p><strong>ValueError</strong> – From <a class="reference internal" href="#pySEA.rayTEM.waveoptics.CollinsPlan" title="pySEA.rayTEM.waveoptics.CollinsPlan"><code class="xref py py-class docutils literal notranslate"><span class="pre">CollinsPlan</span></code></a>, for a step
-    the input grid cannot sample.</p>
+    the input grid cannot sample, or from
+    <code class="docutils literal notranslate"><span class="pre">elements._check_screen_sampling</span></code>, for an aberration whose phase
+    steps more than pi between samples inside the beam.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -8180,7 +8201,8 @@ alignment) or an aperture changed; rebuild the transfer then.</p>
 <dd class="field-odd"><p><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer" title="pySEA.rayTEM.collins.CollinsTransfer">CollinsTransfer</a></p>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>NotImplementedError</strong> – For an element with a non-quadratic phase.</p>
+<dd class="field-even"><p><strong>NotImplementedError</strong> – For an element with a supplied screen, an aberrated element off axis,
+    or a thick aberrated element that is not a uniform medium.</p>
 </dd>
 </dl>
 <div class="admonition seealso">

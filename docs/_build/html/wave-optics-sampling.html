@@ -644,6 +644,15 @@ quadrupole, Larmor rotation of an astigmatic beam. It chooses its output
 pixel by sampling (a near form keeps <code class="docutils literal notranslate"><span class="pre">L</span> <span class="pre">→</span> <span class="pre">A·L</span></code>, a far form gives
 <code class="docutils literal notranslate"><span class="pre">λB/extent</span></code>, a mixed form decides per axis), so <code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">=</span> <span class="pre">0</span></code> (an image plane) is
 the easy case, not a degenerate one.</p>
+<p><strong>Aberrations in Collins: walked, not folded (Eric, 2026-11-09, decision D2).</strong>
+An aberration is a non-quadratic phase, so a Collins step cannot hold it, and
+moving it to a run’s end (folding it to an equivalent screen elsewhere) would
+lose where along the column it originates. An aberrated element ends the run
+and is walked: its screen at a thin element’s plane, or <code class="docutils literal notranslate"><span class="pre">MEDIUM_SLICES</span></code>
+distributed shares between half-slab Collins steps in a thick body, each at
+the local ray height (<code class="docutils literal notranslate"><span class="pre">CollinsTransfer._walk</span></code>). Checked against the fixed path
+(thin lens, 0.3 % of the peak) and the hybrid walker (thick lens at its focus,
+4-8 % L1, the walker’s resampling, while C30 changes the image by 33-110 %).</p>
 </section>
 </section>
 <section id="other-remedies-roadmap">

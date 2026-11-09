@@ -108,6 +108,14 @@
 <span class="sd">almost nothing to contract. The scaled wave is unchanged and still carries no</span>
 <span class="sd">Collins lens body.</span>
 
+<span class="sd">An aberration is not linear, so it cannot sit inside a contracted step, and</span>
+<span class="sd">where along the column it originates matters. An aberrated element therefore</span>
+<span class="sd">ends the run before it and starts the next after it, and is walked: a thin one</span>
+<span class="sd">is its screen at its plane, a thick one ``MEDIUM_SLICES`` Collins half-slab</span>
+<span class="sd">steps around distributed screens, as the scaled walker slices a medium</span>
+<span class="sd">(decision D2, Eric 2026-11-09: "we only will assign aberrations in a few</span>
+<span class="sd">places so its just a few breaks in the contractions").</span>
+
 <span class="sd">Related</span>
 <span class="sd">-------</span>
 <span class="sd">waveoptics.CollinsPlan : One planned step.</span>
@@ -190,8 +198,39 @@
 	<span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">Aperture</span><span class="p">)</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_aberration_power</span><span class="p">(</span><span class="n">element</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Return the power an element's aberrations are written against, or 0 when it has none to apply.</span>
+
+<span class="sd">	The same power the ray and wave paths use: an</span>
+<span class="sd">	:class:`~pySEA.rayTEM.elements.AberrationScreen`'s ``pupil_power``, else</span>
+<span class="sd">	the element's ``focal_power``.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	element : Element</span>
+<span class="sd">		A rayTEM element.</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	float</span>
+<span class="sd">		The pupil power (1/metres); 0 for an element with no aberrations, or</span>
+<span class="sd">		one whose power is 0 (a transparent plate).</span>
+<span class="sd">	"""</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"aberrations"</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+		<span class="k">return</span> <span class="mf">0.0</span>
+	<span class="n">power</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"pupil_power"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">power</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="n">power</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"focal_power"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+	<span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">power</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
+
+
 <span class="k">def</span><span class="w"> </span><span class="nf">_refuse_screen</span><span class="p">(</span><span class="n">element</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">	</span><span class="sd">"""Refuse an element whose wave action is not quadratic: its screen has no place in a Collins step.</span>
+<span class="w">	</span><span class="sd">"""Refuse an element whose wave action a Collins transfer cannot carry.</span>
+
+<span class="sd">	An aberrated element is walked (:meth:`CollinsTransfer._walk`), but a</span>
+<span class="sd">	supplied screen is a sampled array with no place on a Collins lattice,</span>
+<span class="sd">	and an aberrated element off the column's axis would need its aberration</span>
+<span class="sd">	evaluated about its own axis, which the walk does not do yet.</span>
 
 <span class="sd">	Parameters</span>
 <span class="sd">	----------</span>
@@ -201,19 +240,18 @@
 <span class="sd">	Raises</span>
 <span class="sd">	------</span>
 <span class="sd">	NotImplementedError</span>
-<span class="sd">		For an aberration screen, an element carrying aberrations, or one</span>
-<span class="sd">		carrying a supplied phase screen.</span>
+<span class="sd">		For an element carrying a supplied screen, or an aberrated element</span>
+<span class="sd">		with an alignment.</span>
 <span class="sd">	"""</span>
-	<span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">AberrationScreen</span>
-
 	<span class="n">name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"name"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="n">element</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
-	<span class="n">carries</span> <span class="o">=</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">AberrationScreen</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">bool</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"aberrations"</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
-			   <span class="ow">or</span> <span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"_has_screen"</span><span class="p">)</span> <span class="ow">and</span> <span class="n">element</span><span class="o">.</span><span class="n">_has_screen</span><span class="p">()))</span>
-	<span class="k">if</span> <span class="n">carries</span><span class="p">:</span>
+	<span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"_has_screen"</span><span class="p">)</span> <span class="ow">and</span> <span class="n">element</span><span class="o">.</span><span class="n">_has_screen</span><span class="p">():</span>
 		<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
-			<span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> carries a non-quadratic phase (aberrations or a screen), which a Collins step "</span>
-			<span class="s2">"cannot hold yet. Propagate it with mode='hybrid' or 'fixed', or suspend its aberrations "</span>
-			<span class="s2">"(apply_aberrations=False)."</span><span class="p">)</span>
+			<span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> carries a supplied screen, which a Collins transfer cannot sample. "</span>
+			<span class="s2">"Propagate it with mode='hybrid' or 'fixed'."</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">_aberration_power</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"alignment"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+			<span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> is aberrated and off the column's axis; a Collins transfer evaluates "</span>
+			<span class="s2">"aberrations about the column's axis only. Propagate it with mode='hybrid' or 'fixed'."</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_element_signature</span><span class="p">(</span><span class="n">element</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
@@ -227,13 +265,52 @@
 <span class="sd">	Returns</span>
 <span class="sd">	-------</span>
 <span class="sd">	tuple</span>
-<span class="sd">		The element's affine map (bytes), and for an aperture its radius,</span>
-<span class="sd">		transmission and alignment.</span>
+<span class="sd">		The element's affine map (bytes), its aberration coefficients, and</span>
+<span class="sd">		for an aperture its radius, transmission and alignment.</span>
 <span class="sd">	"""</span>
 	<span class="k">if</span> <span class="n">_is_aperture</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
 		<span class="k">return</span> <span class="p">(</span><span class="s2">"aperture"</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">radius</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"transmission"</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)),</span>
 				<span class="nb">repr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"alignment"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)),</span> <span class="n">element_affine_map</span><span class="p">(</span><span class="n">element</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">())</span>
-	<span class="k">return</span> <span class="p">(</span><span class="s2">"map"</span><span class="p">,</span> <span class="n">element_affine_map</span><span class="p">(</span><span class="n">element</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">())</span>
+	<span class="n">aberrations</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"aberrations"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+	<span class="n">coefficients</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">aberrations</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span> <span class="k">if</span> <span class="n">aberrations</span> <span class="k">else</span> <span class="s2">""</span>
+	<span class="k">return</span> <span class="p">(</span><span class="s2">"map"</span><span class="p">,</span> <span class="n">element_affine_map</span><span class="p">(</span><span class="n">element</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">(),</span> <span class="n">coefficients</span><span class="p">,</span> <span class="n">_aberration_power</span><span class="p">(</span><span class="n">element</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_slab</span><span class="p">(</span><span class="n">element</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""Return a thick element's slab: a shallow copy one ``2 * MEDIUM_SLICES``-th as long.</span>
+
+<span class="sd">	The scaled walker's slicing (``Element._propagate_wave_scaled``):</span>
+<span class="sd">	``MEDIUM_SLICES`` slices, each half a slab, a screen, half a slab.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	element : Element</span>
+<span class="sd">		A thick element (``length != 0``).</span>
+
+<span class="sd">	Returns</span>
+<span class="sd">	-------</span>
+<span class="sd">	Element</span>
+<span class="sd">		The slab, sharing everything but ``length``.</span>
+
+<span class="sd">	Raises</span>
+<span class="sd">	------</span>
+<span class="sd">	NotImplementedError</span>
+<span class="sd">		When the slabs' maps do not multiply back to the element's (an element</span>
+<span class="sd">		whose map is not a uniform medium), so slicing it would misplace it.</span>
+<span class="sd">	"""</span>
+	<span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">MEDIUM_SLICES</span>
+
+	<span class="n">slab</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">element</span><span class="p">)</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">element</span><span class="p">))</span>
+	<span class="n">slab</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">)</span>
+	<span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">slab</span><span class="p">,</span> <span class="s2">"length"</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">length</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">MEDIUM_SLICES</span><span class="p">))</span>
+	<span class="n">whole</span> <span class="o">=</span> <span class="n">element_affine_map</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+	<span class="n">product</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">matrix_power</span><span class="p">(</span><span class="n">element_affine_map</span><span class="p">(</span><span class="n">slab</span><span class="p">),</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">MEDIUM_SLICES</span><span class="p">)</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">product</span><span class="p">,</span> <span class="n">whole</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">1e-9</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-12</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">whole</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()))):</span>
+		<span class="n">name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"name"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="n">element</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
+		<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+			<span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> is aberrated and thick, but its body is not a uniform medium that can be "</span>
+			<span class="s2">"sliced. Propagate it with mode='hybrid' or 'fixed'."</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">slab</span>
 
 
 <div class="viewcode-block" id="CollinsTransfer">
@@ -244,9 +321,14 @@
 <span class="sd">	Contiguous linear elements (lenses, drifts, dipoles, quadrupoles and</span>
 <span class="sd">	any other element whose wave action is its ray map) are multiplied into</span>
 <span class="sd">	one affine map each; an aperture ends a run and is applied as a mask at</span>
-<span class="sd">	its entrance plane. An element carrying a non-quadratic phase (an</span>
-<span class="sd">	aberration screen, an aberrated lens) is refused: Collins steps hold no</span>
-<span class="sd">	screen yet (decision D2 open).</span>
+<span class="sd">	its entrance plane. An aberrated element (an aberrated lens, an</span>
+<span class="sd">	:class:`~pySEA.rayTEM.elements.AberrationScreen`) also ends a run and is</span>
+<span class="sd">	**walked** (decision D2, Eric 2026-11-09): a thin one is its aberration</span>
+<span class="sd">	screen and its map; a thick one is ``MEDIUM_SLICES`` slices of half a</span>
+<span class="sd">	slab, a ``1/MEDIUM_SLICES`` share of its aberration at the local ray</span>
+<span class="sd">	height, half a slab -- the scaled walker's slicing -- so where along the</span>
+<span class="sd">	column an aberration originates is kept. An element with a supplied</span>
+<span class="sd">	screen, or an aberrated one off the column's axis, is refused.</span>
 
 <span class="sd">	Each step keeps the :class:`~pySEA.rayTEM.waveoptics.CollinsPlan` it</span>
 <span class="sd">	last built, keyed by the input grid, so applying the transfer to many</span>
@@ -265,8 +347,9 @@
 <span class="sd">	elements : list of Element</span>
 <span class="sd">		The contracted elements, sources removed.</span>
 <span class="sd">	steps : list of tuple</span>
-<span class="sd">		``("map", affine, z_length)`` or ``("aperture", element, 0.0)``, in</span>
-<span class="sd">		beam order; ``affine`` is 5 x 5 on ``(x, xt, y, yt, 1)``.</span>
+<span class="sd">		``("map", affine, z_length)``, ``("aperture", element, 0.0)`` or</span>
+<span class="sd">		``("walk", element, z_length)``, in beam order; ``affine`` is 5 x 5</span>
+<span class="sd">		on ``(x, xt, y, yt, 1)``.</span>
 <span class="sd">	signature : tuple</span>
 <span class="sd">		Per-element :func:`_element_signature` at contraction.</span>
 
@@ -282,7 +365,9 @@
 <span class="sd">	Raises</span>
 <span class="sd">	------</span>
 <span class="sd">	NotImplementedError</span>
-<span class="sd">		From the constructor, for an element with a non-quadratic phase.</span>
+<span class="sd">		From the constructor, for an element with a supplied screen, an</span>
+<span class="sd">		aberrated element off axis, or a thick aberrated element that is not</span>
+<span class="sd">		a uniform medium.</span>
 
 <span class="sd">	See Also</span>
 <span class="sd">	--------</span>
@@ -313,6 +398,7 @@
 
 		<span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">elements</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">Source</span><span class="p">)]</span>
 		<span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_slabs</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
 		<span class="n">affine</span><span class="p">,</span> <span class="n">length</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="mf">0.0</span>
 		<span class="n">pending</span> <span class="o">=</span> <span class="kc">False</span>
 		<span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">:</span>
@@ -326,6 +412,14 @@
 					<span class="n">affine</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="n">element_affine_map</span><span class="p">(</span><span class="n">element</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">length</span><span class="p">),</span> <span class="kc">True</span>
 				<span class="k">continue</span>
 			<span class="n">_refuse_screen</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+			<span class="k">if</span> <span class="n">_aberration_power</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
+				<span class="k">if</span> <span class="n">pending</span><span class="p">:</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">"map"</span><span class="p">,</span> <span class="n">affine</span><span class="p">,</span> <span class="n">length</span><span class="p">))</span>
+					<span class="n">affine</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">,</span> <span class="kc">False</span>
+				<span class="n">thick</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"length"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">"walk"</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">thick</span><span class="p">))</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">_slabs</span><span class="p">[</span><span class="nb">id</span><span class="p">(</span><span class="n">element</span><span class="p">)]</span> <span class="o">=</span> <span class="n">_slab</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="k">if</span> <span class="n">thick</span> <span class="k">else</span> <span class="kc">None</span>
+				<span class="k">continue</span>
 			<span class="n">affine</span> <span class="o">=</span> <span class="n">element_affine_map</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="o">@</span> <span class="n">affine</span>
 			<span class="n">length</span> <span class="o">+=</span> <span class="nb">float</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"length"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">)</span>
 			<span class="n">pending</span> <span class="o">=</span> <span class="kc">True</span>
@@ -359,23 +453,26 @@
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
 <span class="sd">		numpy.ndarray</span>
-<span class="sd">			5 x 5, the product of the steps' maps (apertures pass rays).</span>
+<span class="sd">			5 x 5, the product of the steps' maps (apertures pass rays; a</span>
+<span class="sd">			walked element contributes its paraxial map, not its aberration).</span>
 <span class="sd">		"""</span>
 		<span class="n">total</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
-		<span class="k">for</span> <span class="n">kind</span><span class="p">,</span> <span class="n">affine</span><span class="p">,</span> <span class="n">_length</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">:</span>
+		<span class="k">for</span> <span class="n">kind</span><span class="p">,</span> <span class="n">item</span><span class="p">,</span> <span class="n">_length</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">:</span>
 			<span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"map"</span><span class="p">:</span>
-				<span class="n">total</span> <span class="o">=</span> <span class="n">affine</span> <span class="o">@</span> <span class="n">total</span>
+				<span class="n">total</span> <span class="o">=</span> <span class="n">item</span> <span class="o">@</span> <span class="n">total</span>
+			<span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"walk"</span><span class="p">:</span>
+				<span class="n">total</span> <span class="o">=</span> <span class="n">element_affine_map</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="o">@</span> <span class="n">total</span>
 		<span class="k">return</span> <span class="n">total</span></div>
 
 
-	<span class="k">def</span><span class="w"> </span><span class="nf">_plan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">lattice</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">curvature</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+	<span class="k">def</span><span class="w"> </span><span class="nf">_plan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">lattice</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">curvature</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
 			  <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">matrix</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CollinsPlan</span><span class="p">:</span>
 <span class="w">		</span><span class="sd">"""Return step ``index``'s plan for this input grid, reusing the last one when it matches.</span>
 
 <span class="sd">		Parameters</span>
 <span class="sd">		----------</span>
-<span class="sd">		index : int</span>
-<span class="sd">			The step.</span>
+<span class="sd">		index : int or tuple</span>
+<span class="sd">			The step, or ``(step, part)`` for one part of a walked element.</span>
 <span class="sd">		shape : tuple of int</span>
 <span class="sd">			Input shape.</span>
 <span class="sd">		lattice, curvature : numpy.ndarray</span>
@@ -422,7 +519,9 @@
 <span class="sd">		------</span>
 <span class="sd">		ValueError</span>
 <span class="sd">			From :class:`~pySEA.rayTEM.waveoptics.CollinsPlan`, for a step</span>
-<span class="sd">			the input grid cannot sample.</span>
+<span class="sd">			the input grid cannot sample, or from</span>
+<span class="sd">			``elements._check_screen_sampling``, for an aberration whose phase</span>
+<span class="sd">			steps more than pi between samples inside the beam.</span>
 <span class="sd">		"""</span>
 		<span class="n">wave</span> <span class="o">=</span> <span class="n">as_collins_wavefield</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span>
 		<span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">read_collins_wavefield</span><span class="p">(</span><span class="n">wave</span><span class="p">)</span>
@@ -432,17 +531,134 @@
 		<span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="p">(</span><span class="n">kind</span><span class="p">,</span> <span class="n">item</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">):</span>
 			<span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"aperture"</span><span class="p">:</span>
 				<span class="n">f</span> <span class="o">=</span> <span class="n">f</span> <span class="o">*</span> <span class="n">_aperture_transmission</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">x0</span><span class="p">)</span>
+			<span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">"walk"</span><span class="p">:</span>
+				<span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_walk</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">item</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">)</span>
+				<span class="n">z</span> <span class="o">+=</span> <span class="n">length</span>
 			<span class="k">else</span><span class="p">:</span>
-				<span class="n">plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_plan</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">item</span><span class="p">[:</span><span class="mi">4</span><span class="p">,</span> <span class="p">:</span><span class="mi">4</span><span class="p">])</span>
-				<span class="n">f</span> <span class="o">=</span> <span class="n">plan</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-				<span class="n">L</span><span class="p">,</span> <span class="n">Q</span> <span class="o">=</span> <span class="n">plan</span><span class="o">.</span><span class="n">lattice_out</span><span class="p">,</span> <span class="n">plan</span><span class="o">.</span><span class="n">curvature_out</span>
-				<span class="n">ray</span> <span class="o">=</span> <span class="n">item</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x0</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">t0</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x0</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">t0</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mf">1.0</span><span class="p">])</span>
-				<span class="n">x0</span><span class="p">,</span> <span class="n">t0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ray</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ray</span><span class="p">[</span><span class="mi">2</span><span class="p">]]),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ray</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">ray</span><span class="p">[</span><span class="mi">3</span><span class="p">]])</span>
+				<span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">item</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">)</span>
 				<span class="n">z</span> <span class="o">+=</span> <span class="n">length</span>
 			<span class="k">if</span> <span class="n">log</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 				<span class="n">log</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">make_collins_wavefield_signal</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">))</span>
 		<span class="k">return</span> <span class="n">make_collins_wavefield_signal</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span></div>
-</div>
+
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">affine</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">L</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Q</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+			  <span class="n">x0</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">t0</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Carry the field through one affine map: one Collins step, and the central ray with it.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		index : int or tuple</span>
+<span class="sd">			The plan's cache key (see :meth:`_plan`).</span>
+<span class="sd">		affine : numpy.ndarray</span>
+<span class="sd">			5 x 5 map on ``(x, xt, y, yt, 1)``.</span>
+<span class="sd">		f, L, Q : numpy.ndarray</span>
+<span class="sd">			Field samples, lattice and curvature.</span>
+<span class="sd">		x0, t0 : numpy.ndarray</span>
+<span class="sd">			Central ray position and angle.</span>
+<span class="sd">		wavelength : float</span>
+<span class="sd">			Wavelength (metres).</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		tuple</span>
+<span class="sd">			``(f, L, Q, x0, t0)`` after the map.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			From :class:`~pySEA.rayTEM.waveoptics.CollinsPlan`.</span>
+<span class="sd">		"""</span>
+		<span class="n">plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_plan</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">affine</span><span class="p">[:</span><span class="mi">4</span><span class="p">,</span> <span class="p">:</span><span class="mi">4</span><span class="p">])</span>
+		<span class="n">f</span> <span class="o">=</span> <span class="n">plan</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+		<span class="n">ray</span> <span class="o">=</span> <span class="n">affine</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x0</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">t0</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x0</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">t0</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mf">1.0</span><span class="p">])</span>
+		<span class="k">return</span> <span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">plan</span><span class="o">.</span><span class="n">lattice_out</span><span class="p">,</span> <span class="n">plan</span><span class="o">.</span><span class="n">curvature_out</span><span class="p">,</span>
+				<span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ray</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ray</span><span class="p">[</span><span class="mi">2</span><span class="p">]]),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ray</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">ray</span><span class="p">[</span><span class="mi">3</span><span class="p">]]))</span>
+
+	<span class="k">def</span><span class="w"> </span><span class="nf">_walk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">element</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">L</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Q</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+			  <span class="n">x0</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">t0</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">		</span><span class="sd">"""Carry the field through one aberrated element, applying its aberration where it acts.</span>
+
+<span class="sd">		A thin element: its aberration screen at its plane, then its map. A</span>
+<span class="sd">		thick one: ``MEDIUM_SLICES`` slices of half a slab (a Collins step),</span>
+<span class="sd">		``1/MEDIUM_SLICES`` of the aberration, half a slab -- the scaled</span>
+<span class="sd">		walker's distributed screens (``Element._propagate_wave_scaled``), so</span>
+<span class="sd">		each share acts at the local ray height and the rest of the body</span>
+<span class="sd">		focuses its kick. The aberration is</span>
+<span class="sd">		:meth:`~pySEA.rayTEM.aberrations.Aberrations.phase_at` the samples'</span>
+<span class="sd">		physical positions (lattice times index plus the central ray), against</span>
+<span class="sd">		the element's pupil power (:func:`_aberration_power`), C10 and C12</span>
+<span class="sd">		included as on the scaled path's thick lens.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		index : int</span>
+<span class="sd">			The step (its parts cache plans as ``(index, part)``).</span>
+<span class="sd">		element : Element</span>
+<span class="sd">			The aberrated element.</span>
+<span class="sd">		f, L, Q : numpy.ndarray</span>
+<span class="sd">			Field samples, lattice and curvature.</span>
+<span class="sd">		x0, t0 : numpy.ndarray</span>
+<span class="sd">			Central ray position and angle.</span>
+<span class="sd">		wavelength : float</span>
+<span class="sd">			Wavelength (metres).</span>
+
+<span class="sd">		Returns</span>
+<span class="sd">		-------</span>
+<span class="sd">		tuple</span>
+<span class="sd">			``(f, L, Q, x0, t0)`` after the element.</span>
+
+<span class="sd">		Raises</span>
+<span class="sd">		------</span>
+<span class="sd">		ValueError</span>
+<span class="sd">			From ``elements._check_screen_sampling`` (an aliased aberration)</span>
+<span class="sd">			or :class:`~pySEA.rayTEM.waveoptics.CollinsPlan`.</span>
+<span class="sd">		"""</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">MEDIUM_SLICES</span><span class="p">,</span> <span class="n">_check_screen_sampling</span>
+		<span class="kn">from</span><span class="w"> </span><span class="nn">.waveoptics</span><span class="w"> </span><span class="kn">import</span> <span class="n">_index_grid</span>
+
+		<span class="n">name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="s2">"name"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="n">element</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
+		<span class="n">power</span> <span class="o">=</span> <span class="n">_aberration_power</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+
+		<span class="k">def</span><span class="w"> </span><span class="nf">screen</span><span class="p">(</span><span class="n">f</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">L</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">x0</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">fraction</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">			</span><span class="sd">"""Apply ``fraction`` of the element's aberration at the samples' positions.</span>
+
+<span class="sd">			Parameters</span>
+<span class="sd">			----------</span>
+<span class="sd">			f, L : numpy.ndarray</span>
+<span class="sd">				Field samples and lattice.</span>
+<span class="sd">			x0 : numpy.ndarray</span>
+<span class="sd">				Central ray position.</span>
+<span class="sd">			fraction : float</span>
+<span class="sd">				The share of the aberration this plane carries.</span>
+
+<span class="sd">			Returns</span>
+<span class="sd">			-------</span>
+<span class="sd">			numpy.ndarray</span>
+<span class="sd">				The field with the screen applied.</span>
+
+<span class="sd">			Raises</span>
+<span class="sd">			------</span>
+<span class="sd">			ValueError</span>
+<span class="sd">				From ``_check_screen_sampling``.</span>
+<span class="sd">			"""</span>
+			<span class="n">UX</span><span class="p">,</span> <span class="n">UY</span> <span class="o">=</span> <span class="n">_index_grid</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+			<span class="n">X</span> <span class="o">=</span> <span class="n">L</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">UX</span> <span class="o">+</span> <span class="n">L</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">UY</span> <span class="o">+</span> <span class="n">x0</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+			<span class="n">Y</span> <span class="o">=</span> <span class="n">L</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">UX</span> <span class="o">+</span> <span class="n">L</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">UY</span> <span class="o">+</span> <span class="n">x0</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+			<span class="n">chi</span> <span class="o">=</span> <span class="n">fraction</span> <span class="o">*</span> <span class="n">element</span><span class="o">.</span><span class="n">aberrations</span><span class="o">.</span><span class="n">phase_at</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">,</span> <span class="n">power</span><span class="p">)</span>
+			<span class="n">_check_screen_sampling</span><span class="p">(</span><span class="n">chi</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="n">f</span><span class="p">)</span>
+			<span class="k">return</span> <span class="n">f</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">chi</span><span class="p">)</span>
+
+		<span class="n">slab</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slabs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">element</span><span class="p">))</span>
+		<span class="k">if</span> <span class="n">slab</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">f</span> <span class="o">=</span> <span class="n">screen</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">((</span><span class="n">index</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">element_affine_map</span><span class="p">(</span><span class="n">element</span><span class="p">),</span> <span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">)</span>
+		<span class="n">half</span> <span class="o">=</span> <span class="n">element_affine_map</span><span class="p">(</span><span class="n">slab</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">MEDIUM_SLICES</span><span class="p">):</span>
+			<span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">((</span><span class="n">index</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">k</span><span class="p">),</span> <span class="n">half</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">)</span>
+			<span class="n">f</span> <span class="o">=</span> <span class="n">screen</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">MEDIUM_SLICES</span><span class="p">)</span>
+			<span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">((</span><span class="n">index</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">half</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">wavelength</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">f</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">t0</span></div>
 
 
 
@@ -507,7 +723,8 @@
 <span class="sd">	Raises</span>
 <span class="sd">	------</span>
 <span class="sd">	NotImplementedError</span>
-<span class="sd">		For an element with a non-quadratic phase.</span>
+<span class="sd">		For an element with a supplied screen, an aberrated element off axis,</span>
+<span class="sd">		or a thick aberrated element that is not a uniform medium.</span>
 
 <span class="sd">	See Also</span>
 <span class="sd">	--------</span>

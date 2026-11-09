@@ -1487,8 +1487,8 @@
 <span class="sd">		apply_aberrations : bool, optional</span>
 <span class="sd">			``False`` suspends every element's aberrations for the run, so an</span>
 <span class="sd">			aberrated section propagates as its ideal counterpart. By default</span>
-<span class="sd">			True, which refuses an aberrated element (Collins steps hold no</span>
-<span class="sd">			screen yet).</span>
+<span class="sd">			True: each aberrated element ends a contracted run and is walked</span>
+<span class="sd">			(its aberration where it acts, distributed through a thick body).</span>
 
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
@@ -1500,7 +1500,7 @@
 <span class="sd">		UserWarning</span>
 <span class="sd">			If ``wave0`` is ``None`` and the first element is not a ``Source``.</span>
 <span class="sd">		NotImplementedError</span>
-<span class="sd">			For an element with a non-quadratic phase.</span>
+<span class="sd">			For an element with a supplied screen, or aberrated and off axis.</span>
 
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>
@@ -4211,7 +4211,7 @@
 <span class="sd">			If a named element is not in the column, or ``stop`` comes before</span>
 <span class="sd">			``start``.</span>
 <span class="sd">		NotImplementedError</span>
-<span class="sd">			For an element with a non-quadratic phase in the run.</span>
+<span class="sd">			For an element in the run with a supplied screen, or aberrated and off axis.</span>
 
 <span class="sd">		Examples</span>
 <span class="sd">		--------</span>
@@ -4257,7 +4257,8 @@
 <span class="sd">			Element names bounding the run, as :meth:`collins_transfer`.</span>
 <span class="sd">		apply_aberrations : bool, optional</span>
 <span class="sd">			``False`` suspends every element's aberrations for the run. By</span>
-<span class="sd">			default True, which refuses an aberrated element in the run.</span>
+<span class="sd">			default True: each aberrated element ends a contracted run and is</span>
+<span class="sd">			walked (:meth:`~pySEA.rayTEM.collins.CollinsTransfer._walk`).</span>
 
 <span class="sd">		Returns</span>
 <span class="sd">		-------</span>
@@ -4271,7 +4272,7 @@
 <span class="sd">		ValueError</span>
 <span class="sd">			From :meth:`collins_transfer`.</span>
 <span class="sd">		NotImplementedError</span>
-<span class="sd">			For an element with a non-quadratic phase in the run.</span>
+<span class="sd">			For an element in the run with a supplied screen, or aberrated and off axis.</span>
 
 <span class="sd">		Related</span>
 <span class="sd">		-------</span>

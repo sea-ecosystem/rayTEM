@@ -3137,9 +3137,11 @@
 <span class="sd">		Raises</span>
 <span class="sd">		------</span>
 <span class="sd">		NotImplementedError</span>
-<span class="sd">			If the element carries aberrations or a phase screen: a Collins</span>
-<span class="sd">			step holds only quadratic phases (use ``mode='hybrid'`` or</span>
-<span class="sd">			``'fixed'`` of :meth:`propagate_wave`).</span>
+<span class="sd">			If the element carries a supplied phase screen, or is aberrated</span>
+<span class="sd">			and off axis (use ``mode='hybrid'`` or ``'fixed'`` of</span>
+<span class="sd">			:meth:`propagate_wave`). An aberrated element is walked: its</span>
+<span class="sd">			aberration applied at its plane, or distributed through a thick</span>
+<span class="sd">			body (:meth:`collins.CollinsTransfer._walk`).</span>
 <span class="sd">		ValueError</span>
 <span class="sd">			If the input grid cannot sample the step.</span>
 
