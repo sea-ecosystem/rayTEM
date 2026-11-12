@@ -10,6 +10,7 @@ from .postprocessing import plot2D,findPlanes,zFromFractional,measureAtZ
 from .elements import Element,Source,Drift,Lens,Dipole,Quadrapole,Rays,columnByName,Aperture,convention,_propagate_method_name,suspended_aberrations,SealedAttributes,AberrationScreen,_as_aberrations
 from typing import Literal, Sequence
 from .seashells import SEASerializable, new_provenance
+from .axes import Axes
 
 #: CLSID class prefix + serial stamped on every :class:`Microscope` (sea-sand
 #: ``registries.db``: ``TWN`` = digital twin). A rayTEM column is a simulated
@@ -1486,12 +1487,21 @@ class Microscope(SealedAttributes, SEASerializable):
 			Name of the Section, by default ''
 		sections : list
 			ordered list of MicroscopeSection objects. each Sections "position" attribute is used to determine the position of the Section within the Microscope. sections=[Section1,Section2] will append Drifts to Sections appropriate to ensure spacing is correct.
+		axes : Axes, optional
+			The column's stated axes (:class:`pySEA.rayTEM.axes.Axes`): named 2x2 frames relative to the primary axis, by default the corrector alone. The rays are traced in the primary axis. See sea-pearl's scope-map schema, SM-7.
+
+		Attributes
+		----------
+		axes : Axes
+			As given. The operational microscope (sea-pearl) carries its own; the two should agree where both state an axis.
 		"""
 
 	def __init__(self, name:str='',
-				 sections:ArrayLike=None ) -> SEASerializable:
+				 sections:ArrayLike=None,
+				 axes:Axes|None=None ) -> SEASerializable:
 		self.name = name
 		self.sections = sections
+		self.axes = axes if axes is not None else Axes()	# the column's stated frames; the rays are traced in the primary one
 		self.Provenance = new_provenance(MICROSCOPE_CLSID)	# what this column IS, in sea-sand's vocabulary: a digital twin (Provenance.Self). None when sea_eco is absent.
 		self.rays = None ; self._planes = None
 		self.I = None ; self.R = None		# per-plane, per-ray intensity and cumulative rotation (parallel to self.rays)
@@ -4373,6 +4383,9 @@ class Microscope(SealedAttributes, SEASerializable):
 		for k in ("sections",):
 			jdict.pop(k,None)
 		identity = jdict.pop("Provenance",None)		# a sea_eco Provenance: written in sea_eco's own JSON form below, not through clean()
+		axes = jdict.pop("axes",None)
+		if axes is not None:
+			jdict["axes"] = axes.to_mapping()		# plain data; _load_legacy_microscope_json reads it back
 		for section in self.sections:
 			sdict = {"Section name":section.name,"position":section.position,
 					 "length":section.length,"Elements":[]} | section.__dict__
@@ -4535,6 +4548,8 @@ def _load_legacy_microscope_json(jdict:dict) -> "Microscope":
 	jdict.pop("Microscope name",None) ; jdict.pop("Sections",None) ; jdict.pop("sections",None)
 	allowed_kwargs = inspect.signature(Microscope).parameters.keys()
 	jdict = { k:v for k,v in jdict.items() if k in allowed_kwargs }
+	if isinstance(jdict.get("axes"),dict):
+		jdict["axes"] = Axes.from_mapping(jdict["axes"])	# written by Microscope.save; older files have none
 	return Microscope(sections = sections, **jdict)
 
 # sanity check: nextposition-thisposition should equal thislength. this function is used by tests and full builder to verify successful moves

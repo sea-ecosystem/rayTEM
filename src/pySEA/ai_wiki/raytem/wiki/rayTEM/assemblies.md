@@ -23,25 +23,25 @@
 |   `MicroscopeSection.validate_schema(self, strict=True)` | 197 |
 |   `MicroscopeSection.save(self, filename)` | 201 |
 | Microscope | 207 |
-|   `Microscope.__init__(self, name, sections)` | 211 |
-|   `Microscope.index(self, item)` | 215 |
-|   `Microscope.__getitem__` | 219 |
-|   `Microscope.insert(self, index, elementOrSection)` | 225 |
-|   `Microscope.adjust_element_length(self, element, newlength)` | 229 |
-|   `Microscope.named_positions` | 233 |
-|   `Microscope.propagate_ray(self, r0, z, verbose)` | 237 |
-|   `Microscope.collins_transfer(self, start=None, stop=None)` / `Microscope.propagate_wave_collins(self, wave0=None, start=None, stop=None, apply_aberrations=True)` | 241 |
-|   `Microscope.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 249 |
-|   `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)` | 260 |
-|   `Element.transfer_block(dz=None, axis='x')` — the shared seam | 262 |
-|   `Microscope.conjugate_planes(axis='x', method='frame', reference=None, x0=1e-6, theta0=1e-6)` | 284 |
-|   `Microscope.beam_waists(axis='x', sigma0=None)` | 315 |
-|   `Microscope.subdivided(zpts)` | 354 |
-|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 401 |
-|   Display Signals — `ray_diagram_signal`, `envelope_signal`, `wave_cross_section_signal` | 406 |
-|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 457 |
-|   `Microscope.validate_schema(self, strict=True)` | 461 |
-|   `Microscope.save(self, filename)` | 465 |
+|   `Microscope.__init__(self, name, sections)` | 213 |
+|   `Microscope.index(self, item)` | 217 |
+|   `Microscope.__getitem__` | 221 |
+|   `Microscope.insert(self, index, elementOrSection)` | 227 |
+|   `Microscope.adjust_element_length(self, element, newlength)` | 231 |
+|   `Microscope.named_positions` | 235 |
+|   `Microscope.propagate_ray(self, r0, z, verbose)` | 239 |
+|   `Microscope.collins_transfer(self, start=None, stop=None)` / `Microscope.propagate_wave_collins(self, wave0=None, start=None, stop=None, apply_aberrations=True)` | 243 |
+|   `Microscope.propagate_wave(self, wave0=None, mode='fixed', s_min=1e-3)` | 251 |
+|   `Microscope.wavefield_at(self, z, target_dx=None, target_shape=None)` | 262 |
+|   `Element.transfer_block(dz=None, axis='x')` — the shared seam | 264 |
+|   `Microscope.conjugate_planes(axis='x', method='frame', reference=None, x0=1e-6, theta0=1e-6)` | 286 |
+|   `Microscope.beam_waists(axis='x', sigma0=None)` | 317 |
+|   `Microscope.subdivided(zpts)` | 356 |
+|   `Microscope.propagate(self, *args, kind='ray', **kwargs)` | 403 |
+|   Display Signals — `ray_diagram_signal`, `envelope_signal`, `wave_cross_section_signal` | 408 |
+|   `Microscope.show(self, filename, title, ylims, zlims, regenerate, plt_ax)` | 459 |
+|   `Microscope.validate_schema(self, strict=True)` | 463 |
+|   `Microscope.save(self, filename)` | 467 |
 <!-- END AUTO-GENERATED TOC -->
 
 # assemblies.py
@@ -205,6 +205,8 @@ Saves to a `.pkl` file via `pickle`. For reproducible, human-readable storage us
 ---
 
 ## Microscope
+
+**Axes:** `Microscope(name, sections, axes=None)` carries `self.axes`, an `axes.Axes` (default: the corrector alone), deep-copied by `copy()` and slicing, saved by `to_sea` and by `save` (as `Axes.to_mapping()`; `_load_legacy_microscope_json` reads it back). See `axes.md`.
 
 A full microscope model composed of ordered `MicroscopeSection` objects. On construction, auto-inserts drift tails into sections to fill gaps between consecutive sections (analogous to what `MicroscopeSection.__init__` does for elements).
 

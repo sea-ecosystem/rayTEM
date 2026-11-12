@@ -144,6 +144,24 @@
     "doc": "Return the raw ndarray behind a sea_eco ``Signal`` (passthrough for arrays)."
   },
   {
+    "kind": "class",
+    "name": "Axes",
+    "qualname": "Axes",
+    "path": "src/pySEA/rayTEM/axes.py",
+    "source_lineno": 374,
+    "signature": "class Axes",
+    "doc": "The axes a scope has stated, and transforms between any two of them."
+  },
+  {
+    "kind": "class",
+    "name": "Axis",
+    "qualname": "Axis",
+    "path": "src/pySEA/rayTEM/axes.py",
+    "source_lineno": 103,
+    "signature": "class Axis",
+    "doc": "One named two-dimensional frame, stated relative to the primary axis."
+  },
+  {
     "kind": "function",
     "name": "axis_components",
     "qualname": "axis_components",
@@ -256,7 +274,7 @@
     "name": "check_lengths",
     "qualname": "check_lengths",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4541,
+    "source_lineno": 4556,
     "signature": "check_lengths(section)",
     "doc": ""
   },
@@ -904,7 +922,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4640,
+    "source_lineno": 4655,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -913,7 +931,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4472,
+    "source_lineno": 4485,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -1129,7 +1147,7 @@
     "name": "Microscope",
     "qualname": "Microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1480,
+    "source_lineno": 1481,
     "signature": "class Microscope",
     "doc": "Microscope class represents a whole microscope, and is comprised of multiple MicroscopeSections. propagation through a Microscope results in propagation through individual MicroscopeSections"
   },
@@ -1138,7 +1156,7 @@
     "name": "MicroscopeSection",
     "qualname": "MicroscopeSection",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 456,
+    "source_lineno": 457,
     "signature": "class MicroscopeSection",
     "doc": "MicroscopeSection class represents a portion of a microscope, and contains multiple Elements. propagation through a Section results in propagation through individual Elements."
   },
@@ -1534,7 +1552,7 @@
     "name": "repair",
     "qualname": "repair",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4555,
+    "source_lineno": 4570,
     "signature": "repair(section, combine_drifts)",
     "doc": "Close gaps and overlaps in a section's element list, in place."
   },
@@ -1597,7 +1615,7 @@
     "name": "roundjson",
     "qualname": "roundjson",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4454,
+    "source_lineno": 4467,
     "signature": "roundjson(jdict)",
     "doc": ""
   },
@@ -1900,6 +1918,15 @@
   },
   {
     "kind": "function",
+    "name": "test_a_fresh_axes_holds_the_corrector_alone",
+    "qualname": "test_a_fresh_axes_holds_the_corrector_alone",
+    "path": "src/pySEA/rayTEM/tests/test_axes.py",
+    "source_lineno": 128,
+    "signature": "test_a_fresh_axes_holds_the_corrector_alone()",
+    "doc": "Nothing is assumed: the primary is stated, every other axis has to be."
+  },
+  {
+    "kind": "function",
     "name": "test_a_gun_off_the_axis_sends_the_beam_along_its_own",
     "qualname": "test_a_gun_off_the_axis_sends_the_beam_along_its_own",
     "path": "src/pySEA/rayTEM/tests/test_element_alignment.py",
@@ -1933,6 +1960,15 @@
     "source_lineno": 419,
     "signature": "test_a_parseable_name_on_an_exempt_class_is_still_checked()",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_a_primary_that_is_not_the_identity_is_refused",
+    "qualname": "test_a_primary_that_is_not_the_identity_is_refused",
+    "path": "src/pySEA/rayTEM/tests/test_axes.py",
+    "source_lineno": 137,
+    "signature": "test_a_primary_that_is_not_the_identity_is_refused()",
+    "doc": "The primary is the reference; a turned primary would contradict every other statement."
   },
   {
     "kind": "function",
@@ -2014,6 +2050,15 @@
     "source_lineno": 201,
     "signature": "test_a_spectrometer_saved_as_S_is_read_as_E()",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_a_stack_transforms_row_by_row",
+    "qualname": "test_a_stack_transforms_row_by_row",
+    "path": "src/pySEA/rayTEM/tests/test_axes.py",
+    "source_lineno": 152,
+    "signature": "test_a_stack_transforms_row_by_row()",
+    "doc": "A stack of vectors is each vector transformed."
   },
   {
     "kind": "function",
@@ -3313,6 +3358,15 @@
   },
   {
     "kind": "function",
+    "name": "test_golden_case",
+    "qualname": "test_golden_case",
+    "path": "src/pySEA/rayTEM/tests/test_axes.py",
+    "source_lineno": 89,
+    "signature": "test_golden_case(case)",
+    "doc": "Every golden case of the scope-map schema's axes holds here."
+  },
+  {
+    "kind": "function",
     "name": "test_grid_scaling_and_normalization",
     "qualname": "test_grid_scaling_and_normalization",
     "path": "src/pySEA/rayTEM/tests/test_scaled_fresnel.py",
@@ -4303,6 +4357,15 @@
   },
   {
     "kind": "function",
+    "name": "test_the_primary_is_never_removed",
+    "qualname": "test_the_primary_is_never_removed",
+    "path": "src/pySEA/rayTEM/tests/test_axes.py",
+    "source_lineno": 143,
+    "signature": "test_the_primary_is_never_removed()",
+    "doc": "Withdrawing the reference would leave every matrix stated against nothing."
+  },
+  {
+    "kind": "function",
     "name": "test_the_ray_current_after_the_aperture_is_scaled_by_its_transmission",
     "qualname": "test_the_ray_current_after_the_aperture_is_scaled_by_its_transmission",
     "path": "src/pySEA/rayTEM/tests/test_aperture_transmission.py",
@@ -4327,6 +4390,33 @@
     "source_lineno": 95,
     "signature": "test_the_stacks_carry_the_columns_marks_bound_to_their_plane_axis()",
     "doc": "U and the fixed-grid stack carry overlays bound to their own z axis."
+  },
+  {
+    "kind": "function",
+    "name": "test_the_twin_axes_survive_a_sea_round_trip",
+    "qualname": "test_the_twin_axes_survive_a_sea_round_trip",
+    "path": "src/pySEA/rayTEM/tests/test_axes.py",
+    "source_lineno": 169,
+    "signature": "test_the_twin_axes_survive_a_sea_round_trip(tmp_path)",
+    "doc": "Matrices, components, descriptions and the primary come back as the classes that wrote them."
+  },
+  {
+    "kind": "function",
+    "name": "test_the_twin_axes_survive_the_flat_json_layout",
+    "qualname": "test_the_twin_axes_survive_the_flat_json_layout",
+    "path": "src/pySEA/rayTEM/tests/test_axes.py",
+    "source_lineno": 188,
+    "signature": "test_the_twin_axes_survive_the_flat_json_layout(tmp_path)",
+    "doc": "``Microscope.save`` writes the axes as plain data and ``load_microscope`` reads them."
+  },
+  {
+    "kind": "function",
+    "name": "test_the_twin_carries_axes",
+    "qualname": "test_the_twin_carries_axes",
+    "path": "src/pySEA/rayTEM/tests/test_axes.py",
+    "source_lineno": 159,
+    "signature": "test_the_twin_carries_axes()",
+    "doc": "A column starts with the corrector alone; a slice and a copy keep what it states."
   },
   {
     "kind": "function",

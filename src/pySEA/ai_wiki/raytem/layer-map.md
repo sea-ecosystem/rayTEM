@@ -7,6 +7,7 @@
 | `elements.py` | Element base class, concrete types (Source, Drift, Lens, Dipole, Quadrupole, Aperture), ray column convention, `columnByName`, `fix_mat_dims` | `seashells`, numpy |
 | `assemblies.py` | MicroscopeSection, Microscope; propagation, fitting, serialization, visualization | `elements`, `postprocessing`, `seashells`, numpy |
 | `seashells.py` | Conditional sea_eco import; provides `SEASerializable` that gracefully degrades | sea_eco (optional) |
+| `axes.py` | `Axis`/`Axes`: a scope's named 2x2 frames and transforms between them (`Microscope.axes`); same file as sea-pearl's `_axes_frames.py` | `seashells`, numpy |
 | `postprocessing.py` | Plot helpers (`plot2D`, etc.) | numpy, matplotlib |
 | `utilities.py` | Shared mathematical helpers | numpy |
 | `AS2.py` | `AS2querier` — HTTP client for Nion AS2 live control | requests |
@@ -76,7 +77,8 @@ framework propagation logic.
 
 ```
 microscopes/   →  elements, assemblies, AS2, utilities, postprocessing
-assemblies     →  elements, postprocessing, seashells
+assemblies     →  elements, postprocessing, seashells, axes
+axes           →  seashells, numpy
 elements       →  seashells, utilities (numpy only from external)
 AS2            →  (external: requests, numpy only)
 seashells      →  sea_eco (optional, guarded)

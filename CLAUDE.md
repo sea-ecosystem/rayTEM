@@ -307,6 +307,7 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 - `src/pySEA/rayTEM/aberrations.py` — Axial wave aberrations in Krivanek notation, and how to apply them.
 - `src/pySEA/rayTEM/AS2.py`
 - `src/pySEA/rayTEM/assemblies.py`
+- `src/pySEA/rayTEM/axes.py` — A scope's axes: named 2x2 frames, and transforms between any two of them.
 - `src/pySEA/rayTEM/collins.py` — Collins wave propagation: runs of linear elements contracted into one step each.
 - `src/pySEA/rayTEM/elements.py`
 - `src/pySEA/rayTEM/microscopes/basic_column.py` — Builder for the default generic TEM column (``basic_column.sea``).
@@ -325,6 +326,7 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 - `src/pySEA/rayTEM/schema.py` — Column naming schema for rayTEM microscopes.
 - `src/pySEA/rayTEM/seashells.py` — seashells serves as a wrapper around the sea_eco SEASerializable object, enabling easy integration with sea_eco.
 - `src/pySEA/rayTEM/tests/test_aperture_transmission.py` — An aperture's ``transmission``: current the traced rays do not sample.
+- `src/pySEA/rayTEM/tests/test_axes.py` — A scope's axes (``pySEA.rayTEM.axes``): the golden cases, the twin's own, and a round trip.
 - `src/pySEA/rayTEM/tests/test_collins_wave.py` — Collins wave propagation (``propagate_wave_collins``) and its contracted transfers.
 - `src/pySEA/rayTEM/tests/test_covariance_propagation.py` — Tests for covariance propagation, moment closure, and examples/08.
 - `src/pySEA/rayTEM/tests/test_display_signals.py` — Tests for the derived display Signals: ray diagram, beam envelope, wave cross-section.
@@ -352,6 +354,7 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 - **The scaled wave is one method**: thick bodies are quadratic-index segments crossed by the hybrid flatten → cross → rediverge policy (`propagate_quadratic_segment_hybrid`). Do not add a one-step Collins/ABCD transform for a lens body *inside the scaled wave* — rejected in `notes/eric/PLAN_2026-08-19_scaled-fresnel-wave.md`; Collins is its own mode (`propagate_wave_collins`, Eric 2026-11-06) and never replaces the walker; a failure at a crossover is a bug in the frame switch, fixed there with a test. Every stepping tolerance is **relative** to the lengths it compares: a 1 pm absolute floor in `segment_zero` once hid a focus on a half lens's exit face and hung the run (`docs/wave-optics-sampling.md`, "A focus on a body's exit face").
 - **Element → MicroscopeSection → Microscope hierarchy**: Rays propagate strictly bottom-up. Microscope never reaches inside an Element; MicroscopeSection never reaches inside a Microscope.
 - **seashells is the sea_eco seam**: All serialization *and* wavefield-Signal construction (`make_wavefield_signal`/`read_wavefield`) go through `seashells`, which gracefully degrades if sea_eco is absent. Do not import from sea_eco directly in framework code.
+- **Axes are the scope's stated frames**: `Microscope.axes` (`axes.Axes` of `Axis`: a name, two component names, a 2x2 matrix to the primary axis, the corrector by default). The rays are traced in the primary axis. `axes.py` is the same file as sea-pearl's `_axes_frames.py` but for the `# axes-base` import line -- edit both together; the contract is sea-pearl's scope-map schema SM-7.
 - **Wavelength**: `Source(voltage=<kV>)` sets `Source.wavelength` (via `utilities.relativistic_wavelength`) and fills the per-ray `E` column. Default `voltage=None` keeps `E=0` and no wavelength, so ray-only behavior is unchanged.
 
 ## High-risk areas
