@@ -1729,3 +1729,10 @@ Note: PLAN_2026-08-19_scaled-fresnel-wave.md was rewritten — the earlier pilot
 **Why:** `io.load` calls `obj.from_sea(file_path=..., mode=...)`; `seashells.SEASerializable.from_sea(filename)` refused both, so no rayTEM object could be loaded generically, and sea-pearl's same-named `Microscope` was being chosen instead.
 - [x] `from_sea(filename=None, *, file_path=None, mode="full")`, passing `mode` on to sea-eco
 **Outcome:** With sea-eco's same-name registry fix (branch `save-the-microscope`), `io.load` returns `pySEA.rayTEM.assemblies.Microscope` for a rayTEM file and sea-pearl's `Microscope` for a sea-pearl scope, in either import order. rayTEM suite: 330 passed; `test_every_element` and `test_rotated_quadrupole` fail identically on `dev`. See sea-pearl `notes/eric/TODO_ACTIVE_2026-10-28_save-the-microscope.md`.
+
+## 2026-11-13 — [Done] HTML docs built with the shared Astro site
+**Goal:** build this repo's HTML docs with `pysea-build-docs` (sea-ecosystem `docs-site/`) and merge that to `dev`.
+**Why:** Eric is moving the ecosystem's HTML docs from Sphinx to a shared Astro/Starlight site for customizability and natural cross-linking between our docs.
+- [x] `docs-astro/site.json` (+ README); build verified; merged to `dev`
+**Outcome:** 22 pages; every API object the Sphinx build documents is present, in the same order; no broken links. `.github/workflows/docs.yml` still rebuilds and commits the Sphinx HTML; untouched.
+**Note for Ondrej:** writing docs is unchanged (`docs/` + docstrings); the Sphinx setup is left in place. Board post: sea-ecosystem `notes/board/BOARD_OPEN_2026-11-13_eric-to-ondrej_docs-move-to-astro.md`.
