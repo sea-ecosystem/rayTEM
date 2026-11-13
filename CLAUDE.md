@@ -187,7 +187,18 @@ sea-eco's `pipeline-editor` and `nd-plotting`.
 
 ## Documentation structure and provenance
 
-Most ecosystem repositories expose these Sphinx sections in order:
+HTML docs are built with **`pysea-build-docs`**, the shared Astro/Starlight
+site in `sea-ecosystem/docs-site` (see its README). Pages are still written in
+`docs/` as MyST Markdown, RST and notebooks, and the API Reference is
+generated from the docstrings: `index.rst` and page toctrees set the
+navigation, and `api_reference.rst` (`automodule`) chooses the API modules. A
+repository keeps only `docs-astro/site.json` (plus optional `docs-astro/pages/`
+`.astro` guides); the output goes to `docs-astro/dist`, git-ignored. Sphinx is
+no longer the docs build. Existing Sphinx setups (`docs/conf.py`, `docs`
+extras, rayTEM's Sphinx workflow) remain for now; `pysea-build-docs` reads
+`autodoc_member_order` and `autodoc_typehints` from `conf.py`.
+
+Most ecosystem repositories expose these documentation sections in order:
 
 1. **Guides** — how a user applies the package to their data: succinct
    scenario workflows and minimal working examples; no architecture.
@@ -203,10 +214,10 @@ Most ecosystem repositories expose these Sphinx sections in order:
 
 The developer landing page and navigation display **"Into the sea-weeds"** and
 **"(For developers)"** on separate lines; verify the hard line break in built
-HTML. Sphinx pages are for people. Detailed contracts, invariants, failure
+HTML. Docs pages are for people. Detailed contracts, invariants, failure
 modes, test mappings, and **Provenance** (source entry points, contracts,
 tests, and the matching docs surfaces) live in the AI-wiki slice
-`ai_wiki/<pkg>/`, which is not rendered into Sphinx. Agents look symbols up in
+`ai_wiki/<pkg>/`, which is not rendered into the HTML docs. Agents look symbols up in
 its `*-index.json` thin lookup first, then the wiki page it points to. Keep
 pages succinct by cutting, never by splitting one concept across pages, and
 prefer figures and diagrams generated from code over prose. Document justified
@@ -223,14 +234,15 @@ puts Install and verification before the smallest useful workflow; substantive
 AI Tools content uses separate Install, MCP, Skills, and Subagents pages; and
 Into the sea-weeds opens with a concise Developer Overview linking to flat,
 deeper architecture, identity/storage, and integrations/extensions pages.
-Building the docs follows the overview and gives verified repository-specific
-dependency, API regeneration, clean strict HTML/PDF, example/notebook, output,
-and generated-artifact commands and policy.
+Building the docs follows the overview and gives the verified
+repository-specific dependency, `pysea-build-docs` HTML build (which
+regenerates the API Reference), example/notebook, output, and
+generated-artifact commands and policy. PDF output is not produced yet.
 
-Before completing a documentation task in a repository with an API Reference,
-run its canonical API generation command and `pysea-refresh-wiki` even when no
-generated diff is expected. Inspect and record the results; failed or
-unavailable regeneration leaves the task incomplete.
+Before completing a documentation task, run `pysea-build-docs` (it regenerates
+the API Reference and reports unconverted MyST and missing link targets) and
+`pysea-refresh-wiki`, even when no generated diff is expected. Inspect and
+record the results; a failed build or regeneration leaves the task incomplete.
 
 Repos that own or implement schemas render them in the **Schema** section and
 name each schema in one line in Into the sea-weeds; intents, fixtures, and
