@@ -68,8 +68,8 @@
 <li class="toctree-l2"><a class="reference internal" href="#scaled-fresnel-propagation-implemented-propagate-wave-mode-scaled-hybrid">Scaled Fresnel propagation (implemented): <code class="docutils literal notranslate"><span class="pre">propagate_wave(mode='scaled'|'hybrid')</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#both-conjugate-families-from-one-wave-run">Both conjugate families, from one wave run</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#mid-element-frame-switching">Mid-element frame switching</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#a-focus-on-a-body-s-exit-face-immersion-objectives">A focus on a body’s exit face (immersion objectives)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#design-decision-thick-lenses-stay-segments-not-one-step-integrals">Design decision: thick lenses stay segments, not one-step integrals</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#wave-exit-face-focus">A focus on a body’s exit face (immersion objectives)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#wave-thick-lens-decision">Design decision: thick lenses stay segments, not one-step integrals</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#other-remedies-roadmap">Other remedies (roadmap)</a></li>
@@ -560,8 +560,8 @@ it needs the engine to know what optics lie downstream of the flatten, which it
 cannot see from inside a free segment. 20 nm in 320 mm is 6 parts in 10⁸, so it
 is documented rather than chased.</p>
 </section>
-<section id="a-focus-on-a-body-s-exit-face-immersion-objectives">
-<span id="wave-exit-face-focus"></span><h3>A focus on a body’s exit face (immersion objectives)<a class="headerlink" href="#a-focus-on-a-body-s-exit-face-immersion-objectives" title="Link to this heading"></a></h3>
+<section id="wave-exit-face-focus">
+<span id="a-focus-on-a-body-s-exit-face-immersion-objectives"></span><h3>A focus on a body’s exit face (immersion objectives)<a class="headerlink" href="#wave-exit-face-focus" title="Link to this heading"></a></h3>
 <p>The hardest case for frame switching is not a crossing in the middle of a body
 but one <strong>on its exit face</strong>. It is also the physically normal case for a
 probe-forming objective: the specimen sits inside the lens field, and when the
@@ -605,8 +605,8 @@ problem:</p>
 first zero <code class="docutils literal notranslate"><span class="pre">0.61</span> <span class="pre">λ/α</span></code> with the absorber off and on, energy conservation, and
 that no step is singular.</p>
 </section>
-<section id="design-decision-thick-lenses-stay-segments-not-one-step-integrals">
-<span id="wave-thick-lens-decision"></span><h3>Design decision: thick lenses stay segments, not one-step integrals<a class="headerlink" href="#design-decision-thick-lenses-stay-segments-not-one-step-integrals" title="Link to this heading"></a></h3>
+<section id="wave-thick-lens-decision">
+<span id="design-decision-thick-lenses-stay-segments-not-one-step-integrals"></span><h3>Design decision: thick lenses stay segments, not one-step integrals<a class="headerlink" href="#wave-thick-lens-decision" title="Link to this heading"></a></h3>
 <p>When a crossing inside a body misbehaves, it is tempting to replace the body
 with a closed-form one-step transform. The Collins diffraction integral is
 <code class="docutils literal notranslate"><span class="pre">chirp</span> <span class="pre">·</span> <span class="pre">scaled</span> <span class="pre">FFT</span> <span class="pre">·</span> <span class="pre">chirp</span></code>, built from the body’s ABCD block; for a

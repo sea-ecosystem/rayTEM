@@ -1,0 +1,1041 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pySEA.rayTEM.axes &mdash; rayTEM 0.0.1beta documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=e02f3e7d"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            rayTEM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../propagation_modes.html">Propagation Modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../operating_the_column.html">Operating the Column</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../terminology.html">Terminology</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Example Scripts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Example Scripts</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">AI Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../ai_tools/install.html">AI Tools</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Into the SEA-weeds (For developers)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../dev_documentation.html">Into the SEA-weeds</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../wave-optics-sampling.html">Why full-column electron wave propagation breaks fixed-grid sampling</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_reference.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">rayTEM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">pySEA.rayTEM.axes</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for pySEA.rayTEM.axes</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""A scope's axes: named 2x2 frames, and transforms between any two of them.</span>
+
+<span class="sd">Extended summary</span>
+<span class="sd">----------------</span>
+<span class="sd">An instrument keeps several two-dimensional coordinate frames turned (and</span>
+<span class="sd">sometimes mirrored) relative to one another: an aberration corrector's, a</span>
+<span class="sd">camera's, a stage's, a projection system's, a scan's. An :class:`Axis` is one</span>
+<span class="sd">of them: a name, the names of its two components, and the 2x2 matrix that</span>
+<span class="sd">takes a vector given in its components to the **primary** axis's,</span>
+<span class="sd">``v_primary = M @ v_axis``. An :class:`Axes` is the set of them a scope has</span>
+<span class="sd">stated, and converts a vector from any one to any other.</span>
+
+<span class="sd">Nothing here is specific to electron microscopes or to any vendor: an axis is a</span>
+<span class="sd">frame and a matrix. Which axes a scope has, and their names, are the scope's</span>
+<span class="sd">own statement (sea-pearl's scope-map schema, SM-6 and SM-7).</span>
+
+<span class="sd">This file has two homes, the same but for the line marked ``# axes-base``:</span>
+<span class="sd">``pySEA.rayTEM.axes`` (the twin's) and ``pySEA.sea_pearl._axes_frames`` (the</span>
+<span class="sd">operational microscope's, used when rayTEM is not installed). A sea-pearl test</span>
+<span class="sd">fails when they differ anywhere else.</span>
+
+<span class="sd">Examples</span>
+<span class="sd">--------</span>
+<span class="sd">&gt;&gt;&gt; axes = Axes([Axis("corrector", ("ax", "ay")), Axis("camera", ("x", "y"), rotation=0.5)])</span>
+<span class="sd">&gt;&gt;&gt; [round(float(value), 6) for value in axes.transform([1.0, 0.0], "camera", "corrector")]</span>
+<span class="sd">[0.877583, 0.479426]</span>
+<span class="sd">&gt;&gt;&gt; axes["x"].name</span>
+<span class="sd">'camera'</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">Sequence</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">numpy.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ArrayLike</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pySEA.rayTEM.seashells</span><span class="w"> </span><span class="kn">import</span> <span class="n">SEASerializable</span>  <span class="c1"># axes-base</span>
+
+<span class="c1">#: The primary axis an :class:`Axes` starts with, and its components.</span>
+<span class="n">DEFAULT_PRIMARY</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"corrector"</span>
+<span class="c1">#: The components of :data:`DEFAULT_PRIMARY`.</span>
+<span class="n">DEFAULT_PRIMARY_COMPONENTS</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"ax"</span><span class="p">,</span> <span class="s2">"ay"</span><span class="p">)</span>
+<span class="c1">#: How close to the identity the primary axis's matrix must be, and to each</span>
+<span class="c1">#: other two statements of one axis must be to agree.</span>
+<span class="n">MATRIX_TOLERANCE</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-9</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_rotation_matrix</span><span class="p">(</span><span class="n">rotation</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">flipped</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return ``R(rotation) @ diag(1, -1 if flipped else 1)``.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    rotation : float</span>
+<span class="sd">        Radians, counter-clockwise.</span>
+<span class="sd">    flipped : bool</span>
+<span class="sd">        Whether the second component is negated (the other handedness).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        The 2x2 matrix.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    None</span>
+<span class="sd">    """</span>
+
+    <span class="n">c</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">rotation</span><span class="p">)),</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">rotation</span><span class="p">))</span>
+    <span class="n">flip</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span> <span class="k">if</span> <span class="n">flipped</span> <span class="k">else</span> <span class="mf">1.0</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">c</span><span class="p">,</span> <span class="o">-</span><span class="n">s</span> <span class="o">*</span> <span class="n">flip</span><span class="p">],</span> <span class="p">[</span><span class="n">s</span><span class="p">,</span> <span class="n">c</span> <span class="o">*</span> <span class="n">flip</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_as_matrix</span><span class="p">(</span><span class="n">matrix</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return a 2x2 float matrix, refusing anything else and anything singular.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    matrix : ArrayLike</span>
+<span class="sd">        The candidate.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        A float64 copy, shape ``(2, 2)``.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If it is not 2x2, not finite, or (numerically) singular.</span>
+<span class="sd">    """</span>
+
+    <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">value</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"An axis's matrix is a finite 2x2; got </span><span class="si">{</span><span class="n">value</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">!r}</span><span class="s2">."</span><span class="p">)</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">value</span> <span class="o">*</span> <span class="n">value</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">scale</span> <span class="o">==</span> <span class="mf">0.0</span> <span class="ow">or</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="n">value</span><span class="p">)))</span> <span class="o">&lt;=</span> <span class="mf">1e-12</span> <span class="o">*</span> <span class="n">scale</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"An axis's matrix must be invertible; </span><span class="si">{</span><span class="n">value</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">!r}</span><span class="s2"> is singular."</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">value</span>
+
+
+<div class="viewcode-block" id="Axis">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.axes.Axis">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Axis</span><span class="p">(</span><span class="n">SEASerializable</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""One named two-dimensional frame, stated relative to the primary axis.</span>
+
+<span class="sd">    Extended summary</span>
+<span class="sd">    ----------------</span>
+<span class="sd">    The matrix is the statement: it takes a vector given in this axis's two</span>
+<span class="sd">    components to the primary axis's, ``v_primary = matrix @ v_axis``. Its</span>
+<span class="sd">    :attr:`rotation` and :attr:`flipped` are read from it, so two axes compare</span>
+<span class="sd">    at a glance. Build one from a rotation and a flip (a rotated, possibly</span>
+<span class="sd">    mirrored, orthonormal frame) or from any invertible 2x2 (a frame with a</span>
+<span class="sd">    ``-1`` scale, or a skewed one).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    name : str, optional</span>
+<span class="sd">        The axis's name in its scope (``"corrector"``, ``"camera"`` ...).</span>
+<span class="sd">    components : Sequence[str], optional</span>
+<span class="sd">        Its two components' names, the halves a two-axis control in it uses</span>
+<span class="sd">        (``("ax", "ay")``); default ``("x", "y")``.</span>
+<span class="sd">    matrix : ArrayLike or None, optional</span>
+<span class="sd">        The 2x2 matrix to the primary axis. When given, ``rotation`` and</span>
+<span class="sd">        ``flipped`` must be left at their defaults.</span>
+<span class="sd">    rotation : float, optional</span>
+<span class="sd">        Radians from the primary axis's first component to this axis's,</span>
+<span class="sd">        counter-clockwise (default 0). Used when ``matrix`` is ``None``.</span>
+<span class="sd">    flipped : bool, optional</span>
+<span class="sd">        Whether this axis has the other handedness: its second component is</span>
+<span class="sd">        negated after the rotation (default ``False``).</span>
+<span class="sd">    description : str, optional</span>
+<span class="sd">        What the statement is and where it came from (an operating point, a</span>
+<span class="sd">        measurement).</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    name : str</span>
+<span class="sd">        As given.</span>
+<span class="sd">    description : str</span>
+<span class="sd">        As given.</span>
+<span class="sd">    components : tuple[str, str]</span>
+<span class="sd">        The two component names.</span>
+<span class="sd">    matrix : numpy.ndarray</span>
+<span class="sd">        A copy of the 2x2 matrix to the primary axis.</span>
+<span class="sd">    rotation : float</span>
+<span class="sd">        Radians in (-pi, pi]: where this axis's first component points in the</span>
+<span class="sd">        primary axis, ``atan2(matrix[1, 0], matrix[0, 0])``.</span>
+<span class="sd">    flipped : bool</span>
+<span class="sd">        ``det(matrix) &lt; 0``.</span>
+
+<span class="sd">    Methods</span>
+<span class="sd">    -------</span>
+<span class="sd">    to_primary(vector)</span>
+<span class="sd">        A vector (or a stack) in this axis, in the primary axis.</span>
+<span class="sd">    from_primary(vector)</span>
+<span class="sd">        A vector (or a stack) in the primary axis, in this one.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If the components are not two distinct non-empty names, the matrix is</span>
+<span class="sd">        not an invertible 2x2, or both a matrix and a rotation or flip are given.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    Axes : The set a scope states, and transforms between them.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    sea-eco stores the matrix and the components (as ``matrix`` and</span>
+<span class="sd">    ``components``); the rotation and the flip are derived and not stored.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; axis = Axis("stage", ("sx", "sy"), rotation=-1.0, flipped=True)</span>
+<span class="sd">    &gt;&gt;&gt; round(axis.rotation, 6), axis.flipped</span>
+<span class="sd">    (-1.0, True)</span>
+<span class="sd">    &gt;&gt;&gt; Axis("scan", ("u", "v"), matrix=[[-1.0, 0.0], [0.0, 1.0]]).flipped</span>
+<span class="sd">    True</span>
+<span class="sd">    """</span>
+
+    <span class="n">seaid_optional</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
+        <span class="n">components</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">),</span>
+        <span class="n">matrix</span><span class="p">:</span> <span class="n">ArrayLike</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">rotation</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">flipped</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Hold a name, two component names and a matrix.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name, components, matrix, rotation, flipped, description</span>
+<span class="sd">            See the class.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            See the class.</span>
+<span class="sd">        """</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">part</span><span class="p">)</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">components</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">parts</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">parts</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Axis </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">: components are two distinct names; got </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">components</span><span class="p">)</span><span class="si">!r}</span><span class="s2">."</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">matrix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">rotation</span><span class="p">)</span> <span class="o">!=</span> <span class="mf">0.0</span> <span class="ow">or</span> <span class="nb">bool</span><span class="p">(</span><span class="n">flipped</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Axis </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">: give a matrix, or a rotation and flip, not both."</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">description</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_components</span> <span class="o">=</span> <span class="n">parts</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_matrix</span> <span class="o">=</span> <span class="n">_as_matrix</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span> <span class="k">if</span> <span class="n">matrix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">_rotation_matrix</span><span class="p">(</span><span class="n">rotation</span><span class="p">,</span> <span class="nb">bool</span><span class="p">(</span><span class="n">flipped</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">components</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Return the two component names.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        tuple[str, str]</span>
+<span class="sd">            ``("ax", "ay")`` for the corrector.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        None</span>
+<span class="sd">        """</span>
+
+        <span class="n">first</span><span class="p">,</span> <span class="n">second</span> <span class="o">=</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">part</span><span class="p">)</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">first</span><span class="p">,</span> <span class="n">second</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return a copy of the 2x2 matrix to the primary axis.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        numpy.ndarray</span>
+<span class="sd">            ``M`` with ``v_primary = M @ v_axis``.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        None</span>
+<span class="sd">        """</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matrix</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">rotation</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return where this axis's first component points in the primary axis.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            Radians in (-pi, pi], counter-clockwise from the primary axis's</span>
+<span class="sd">            first component.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        None</span>
+<span class="sd">        """</span>
+
+        <span class="n">matrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matrix</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">atan2</span><span class="p">(</span><span class="n">matrix</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">flipped</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return whether this axis has the other handedness from the primary.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            ``det(matrix) &lt; 0``.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        None</span>
+<span class="sd">        """</span>
+
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">matrix</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Axis.to_primary">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.axes.Axis.to_primary">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_primary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vector</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return a vector given in this axis, in the primary axis.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        vector : ArrayLike</span>
+<span class="sd">            Two components, or a stack of shape ``(n, 2)``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        numpy.ndarray</span>
+<span class="sd">            The same shape, in the primary axis.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If the last dimension is not 2.</span>
+<span class="sd">        """</span>
+
+        <span class="k">return</span> <span class="n">_apply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">matrix</span><span class="p">,</span> <span class="n">vector</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Axis.from_primary">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.axes.Axis.from_primary">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_primary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vector</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return a vector given in the primary axis, in this axis.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        vector : ArrayLike</span>
+<span class="sd">            Two components, or a stack of shape ``(n, 2)``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        numpy.ndarray</span>
+<span class="sd">            The same shape, in this axis.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If the last dimension is not 2.</span>
+<span class="sd">        """</span>
+
+        <span class="k">return</span> <span class="n">_apply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">matrix</span><span class="p">),</span> <span class="n">vector</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return a short description.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            ``Axis('camera', x/y, rotation=0.5000, flipped=False)``.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        None</span>
+<span class="sd">        """</span>
+
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">"Axis(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">!r}</span><span class="s2">, </span><span class="si">{</span><span class="s1">'/'</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">)</span><span class="si">}</span><span class="s2">, "</span>
+                <span class="sa">f</span><span class="s2">"rotation=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">rotation</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, flipped=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">flipped</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_apply</span><span class="p">(</span><span class="n">matrix</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">vector</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Apply a 2x2 matrix to one vector or to each row of a stack.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    matrix : numpy.ndarray</span>
+<span class="sd">        The 2x2 matrix.</span>
+<span class="sd">    vector : ArrayLike</span>
+<span class="sd">        Shape ``(2,)`` or ``(n, 2)``.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        ``matrix @ vector``, row by row for a stack.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If the last dimension is not 2.</span>
+<span class="sd">    """</span>
+
+    <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">vector</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">ndim</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="ow">or</span> <span class="n">value</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"A vector here has two components (or is a stack of shape (n, 2)); got shape </span><span class="si">{</span><span class="n">value</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">value</span> <span class="o">@</span> <span class="n">matrix</span><span class="o">.</span><span class="n">T</span> <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span> <span class="k">else</span> <span class="n">matrix</span> <span class="o">@</span> <span class="n">value</span>
+
+
+<div class="viewcode-block" id="Axes">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.axes.Axes">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Axes</span><span class="p">(</span><span class="n">SEASerializable</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""The axes a scope has stated, and transforms between any two of them.</span>
+
+<span class="sd">    Extended summary</span>
+<span class="sd">    ----------------</span>
+<span class="sd">    Every axis is stated relative to the **primary** axis, whose own matrix is</span>
+<span class="sd">    the identity. An axis the scope has not stated is not assumed to be aligned</span>
+<span class="sd">    with anything: a transform through it raises. A fresh ``Axes`` holds only</span>
+<span class="sd">    the primary axis, ``corrector`` (components ``ax``/``ay``).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    axes : Sequence[Axis] or None, optional</span>
+<span class="sd">        The axes. ``None`` (default) holds the primary axis alone, which is</span>
+<span class="sd">        then ``corrector`` unless ``primary`` names another (then ``axes``</span>
+<span class="sd">        must state it).</span>
+<span class="sd">    primary : str, optional</span>
+<span class="sd">        The primary axis's name, default ``"corrector"``.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    primary : str</span>
+<span class="sd">        The primary axis's name.</span>
+<span class="sd">    names : tuple[str, ...]</span>
+<span class="sd">        The axes' names, in the order they were stated.</span>
+<span class="sd">    primary_axis : Axis</span>
+<span class="sd">        The primary axis.</span>
+
+<span class="sd">    Methods</span>
+<span class="sd">    -------</span>
+<span class="sd">    axis_of(key)</span>
+<span class="sd">        The axis a name, a component, a pair or a control path names, or ``None``.</span>
+<span class="sd">    add(axis)</span>
+<span class="sd">        State another axis.</span>
+<span class="sd">    remove(name)</span>
+<span class="sd">        Withdraw one (never the primary).</span>
+<span class="sd">    matrix(from_axis, to_axis)</span>
+<span class="sd">        The 2x2 matrix taking a vector in one axis to another.</span>
+<span class="sd">    transform(vector, from_axis, to_axis)</span>
+<span class="sd">        A vector (or a stack) in one axis, in another.</span>
+<span class="sd">    rotation_between(from_axis, to_axis)</span>
+<span class="sd">        Where ``to_axis``'s first component points, in ``from_axis``.</span>
+<span class="sd">    set_primary(name)</span>
+<span class="sd">        Make another axis the primary, re-expressing every matrix.</span>
+<span class="sd">    to_mapping()</span>
+<span class="sd">        The axes as plain data (JSON-safe).</span>
+<span class="sd">    from_mapping(mapping)</span>
+<span class="sd">        Build axes from that data (or from rotations and flips).</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If two axes share a name or a component pair, or the primary axis's</span>
+<span class="sd">        matrix is not the identity.</span>
+<span class="sd">    KeyError</span>
+<span class="sd">        If the primary axis is not among ``axes``.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    Axis : One of them.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Which axis may be the primary is a scope's rule, not this class's: the</span>
+<span class="sd">    scope-map schema (SM-7) refuses a scan or stage primary, because those</span>
+<span class="sd">    move with a setting or with every holder. This class only needs the</span>
+<span class="sd">    primary to be stated.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; axes = Axes()</span>
+<span class="sd">    &gt;&gt;&gt; axes.add(Axis("stage", ("sx", "sy"), rotation=1.0))</span>
+<span class="sd">    &gt;&gt;&gt; round(axes.rotation_between("corrector", "stage"), 6)</span>
+<span class="sd">    1.0</span>
+<span class="sd">    &gt;&gt;&gt; axes.set_primary("stage")</span>
+<span class="sd">    &gt;&gt;&gt; round(axes["corrector"].rotation, 6)</span>
+<span class="sd">    -1.0</span>
+<span class="sd">    """</span>
+
+    <span class="n">seaid_optional</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Axis</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">primary</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">DEFAULT_PRIMARY</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Hold the stated axes and the primary axis's name.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        axes, primary</span>
+<span class="sd">            See the class.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError, KeyError</span>
+<span class="sd">            See the class.</span>
+<span class="sd">        """</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">axes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">axes</span> <span class="o">=</span> <span class="p">[</span><span class="n">Axis</span><span class="p">(</span><span class="n">DEFAULT_PRIMARY</span><span class="p">,</span> <span class="n">DEFAULT_PRIMARY_COMPONENTS</span><span class="p">)]</span> <span class="k">if</span> <span class="n">primary</span> <span class="o">==</span> <span class="n">DEFAULT_PRIMARY</span> <span class="k">else</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">primary</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">primary</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_axes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Axis</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_new</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_axes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
+        <span class="n">primary_axis</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">primary_axis</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">primary_axis</span><span class="o">.</span><span class="n">matrix</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">atol</span><span class="o">=</span><span class="n">MATRIX_TOLERANCE</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">0.0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"The primary axis </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">primary</span><span class="si">!r}</span><span class="s2"> is the reference: its matrix is the identity, "</span>
+                             <span class="sa">f</span><span class="s2">"not </span><span class="si">{</span><span class="n">primary_axis</span><span class="o">.</span><span class="n">matrix</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">!r}</span><span class="s2">."</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_new</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axis</span><span class="p">:</span> <span class="n">Axis</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Refuse an axis whose name or component pair is already stated.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        axis : Axis</span>
+<span class="sd">            The candidate.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        TypeError</span>
+<span class="sd">            If it is not an :class:`Axis`.</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If its name or pair is taken.</span>
+<span class="sd">        """</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">Axis</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Axes holds Axis objects; got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">other</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_axes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">other</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"An axis named </span><span class="si">{</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> is already stated."</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">other</span><span class="o">.</span><span class="n">components</span> <span class="o">==</span> <span class="n">axis</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Components </span><span class="si">{</span><span class="s1">'/'</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">axis</span><span class="o">.</span><span class="n">components</span><span class="p">)</span><span class="si">}</span><span class="s2"> are already </span><span class="si">{</span><span class="n">other</span><span class="o">.</span><span class="n">name</span><span class="si">!r}</span><span class="s2">'s."</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">names</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Return the axes' names, in the order they were stated.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        tuple[str, ...]</span>
+<span class="sd">            Names.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        None</span>
+<span class="sd">        """</span>
+
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">axis</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_axes</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">primary_axis</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Axis</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return the primary axis.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Axis</span>
+<span class="sd">            The axis every matrix is given to.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        KeyError</span>
+<span class="sd">            If the primary axis is not stated.</span>
+<span class="sd">        """</span>
+
+        <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_axes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">axis</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">primary</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">axis</span>
+        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"The primary axis </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">primary</span><span class="si">!r}</span><span class="s2"> is not stated; the axes are </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">)</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">'none'</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Axes.axis_of">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.axes.Axes.axis_of">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">axis_of</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Axis</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return the axis a name, a component, a pair or a control path names.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        key : str or Sequence[str]</span>
+<span class="sd">            An axis name (``"camera"``), one component (``"x"``), a pair</span>
+<span class="sd">            (``("x", "y")``), or a control path whose last segment is a</span>
+<span class="sd">            component (``"P.P1.PL1.shift.y"``). A name is looked for first,</span>
+<span class="sd">            then a component, then a path's last segment.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Axis or None</span>
+<span class="sd">            The axis, or ``None`` when the key names none.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        None</span>
+<span class="sd">        """</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">pair</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">part</span><span class="p">)</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">key</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">next</span><span class="p">((</span><span class="n">axis</span> <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_axes</span> <span class="k">if</span> <span class="n">axis</span><span class="o">.</span><span class="n">components</span> <span class="o">==</span> <span class="n">pair</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_axes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">axis</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">key</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">axis</span>
+        <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">key</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">"."</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_axes</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">axis</span><span class="o">.</span><span class="n">components</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">axis</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="Axes.add">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.axes.Axes.add">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axis</span><span class="p">:</span> <span class="n">Axis</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""State another axis, relative to the primary.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        axis : Axis</span>
+<span class="sd">            The axis.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        TypeError, ValueError</span>
+<span class="sd">            If it is not an :class:`Axis`, or its name or pair is taken.</span>
+<span class="sd">        """</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_new</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_axes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Axes.remove">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.axes.Axes.remove">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Withdraw a stated axis.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name : str</span>
+<span class="sd">            Its name.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        KeyError</span>
+<span class="sd">            If no axis has the name.</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If it is the primary axis (make another the primary first).</span>
+<span class="sd">        """</span>
+
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">primary</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> is the primary axis; set another primary before removing it."</span><span class="p">)</span>
+        <span class="n">axis</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_axes</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Axes.matrix">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.axes.Axes.matrix">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">from_axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">to_axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return the 2x2 matrix taking a vector in one axis to another.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        from_axis, to_axis : str or Sequence[str]</span>
+<span class="sd">            Axes, named any way :meth:`axis_of` takes.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        numpy.ndarray</span>
+<span class="sd">            ``M_to^-1 @ M_from``.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        KeyError</span>
+<span class="sd">            If either names no stated axis.</span>
+<span class="sd">        """</span>
+
+        <span class="n">source</span><span class="p">,</span> <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="n">from_axis</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="n">to_axis</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">matrix</span><span class="p">,</span> <span class="n">source</span><span class="o">.</span><span class="n">matrix</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Axes.transform">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.axes.Axes.transform">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vector</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">from_axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">to_axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return a vector given in one axis, in another.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        vector : ArrayLike</span>
+<span class="sd">            Two components, or a stack of shape ``(n, 2)``.</span>
+<span class="sd">        from_axis, to_axis : str or Sequence[str]</span>
+<span class="sd">            Axes, named any way :meth:`axis_of` takes.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        numpy.ndarray</span>
+<span class="sd">            The same shape, in ``to_axis``.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        KeyError</span>
+<span class="sd">            If either names no stated axis.</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If the vector's last dimension is not 2.</span>
+<span class="sd">        """</span>
+
+        <span class="k">return</span> <span class="n">_apply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">from_axis</span><span class="p">,</span> <span class="n">to_axis</span><span class="p">),</span> <span class="n">vector</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Axes.rotation_between">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.axes.Axes.rotation_between">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">rotation_between</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">from_axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">to_axis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return where one axis's first component points, seen in another.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        from_axis : str or Sequence[str]</span>
+<span class="sd">            The axis the angle is measured in.</span>
+<span class="sd">        to_axis : str or Sequence[str]</span>
+<span class="sd">            The axis whose first component is measured.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            Radians in (-pi, pi], counter-clockwise.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        KeyError</span>
+<span class="sd">            If either names no stated axis.</span>
+<span class="sd">        """</span>
+
+        <span class="n">matrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">to_axis</span><span class="p">,</span> <span class="n">from_axis</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">atan2</span><span class="p">(</span><span class="n">matrix</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span></div>
+
+
+<div class="viewcode-block" id="Axes.set_primary">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.axes.Axes.set_primary">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_primary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Make another stated axis the primary, without moving any axis.</span>
+
+<span class="sd">        Every matrix is re-expressed relative to the new primary</span>
+<span class="sd">        (``M_i &lt;- M_new^-1 @ M_i``), so every transform between two axes is</span>
+<span class="sd">        unchanged.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name : str</span>
+<span class="sd">            The new primary axis, named any way :meth:`axis_of` takes.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        KeyError</span>
+<span class="sd">            If it names no stated axis.</span>
+<span class="sd">        """</span>
+
+        <span class="n">new</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="n">inverse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">new</span><span class="o">.</span><span class="n">matrix</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_axes</span><span class="p">:</span>
+            <span class="n">axis</span><span class="o">.</span><span class="n">_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">axis</span> <span class="ow">is</span> <span class="n">new</span> <span class="k">else</span> <span class="n">inverse</span> <span class="o">@</span> <span class="n">axis</span><span class="o">.</span><span class="n">matrix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">primary</span> <span class="o">=</span> <span class="n">new</span><span class="o">.</span><span class="n">name</span></div>
+
+
+<div class="viewcode-block" id="Axes.to_mapping">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.axes.Axes.to_mapping">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_mapping</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return the axes as plain, JSON-safe data.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            ``{"primary": name, "axes": [{"name", "components", "matrix",</span>
+<span class="sd">            "description"}, ...]}``, the form :meth:`from_mapping` reads.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        None</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        from_mapping : The reverse.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        A wire form for formats that are not sea-eco's (a flat JSON column).</span>
+<span class="sd">        A ``.sea`` file stores the objects themselves.</span>
+<span class="sd">        """</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"primary"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">primary</span><span class="p">,</span>
+            <span class="s2">"axes"</span><span class="p">:</span> <span class="p">[{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">axis</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">"components"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">axis</span><span class="o">.</span><span class="n">components</span><span class="p">),</span> <span class="s2">"matrix"</span><span class="p">:</span> <span class="n">axis</span><span class="o">.</span><span class="n">matrix</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+                      <span class="s2">"description"</span><span class="p">:</span> <span class="n">axis</span><span class="o">.</span><span class="n">description</span><span class="p">}</span> <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_axes</span><span class="p">],</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="Axes.from_mapping">
+<a class="viewcode-back" href="../../../api_reference.html#pySEA.rayTEM.axes.Axes.from_mapping">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_mapping</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">mapping</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"Axes"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Build axes from plain data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        mapping : dict</span>
+<span class="sd">            ``{"primary": name, "axes": [...]}``; each axis gives ``name``,</span>
+<span class="sd">            ``components`` and either ``matrix`` or ``rotation`` (and</span>
+<span class="sd">            ``flipped``), optionally ``description``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Axes</span>
+<span class="sd">            The axes.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError, KeyError</span>
+<span class="sd">            As :class:`Axes` and :class:`Axis` refuse.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; Axes.from_mapping({"primary": "corrector", "axes": [</span>
+<span class="sd">        ...     {"name": "corrector", "components": ["ax", "ay"]},</span>
+<span class="sd">        ...     {"name": "camera", "components": ["x", "y"], "rotation": 0.5}]}).names</span>
+<span class="sd">        ('corrector', 'camera')</span>
+<span class="sd">        """</span>
+
+        <span class="n">axes</span> <span class="o">=</span> <span class="p">[</span><span class="n">Axis</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">"name"</span><span class="p">],</span> <span class="n">item</span><span class="p">[</span><span class="s2">"components"</span><span class="p">],</span> <span class="n">matrix</span><span class="o">=</span><span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"matrix"</span><span class="p">),</span>
+                     <span class="n">rotation</span><span class="o">=</span><span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"rotation"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="n">flipped</span><span class="o">=</span><span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"flipped"</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                     <span class="n">description</span><span class="o">=</span><span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"description"</span><span class="p">,</span> <span class="s2">""</span><span class="p">))</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"axes"</span><span class="p">,</span> <span class="p">[])]</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">axes</span><span class="p">,</span> <span class="n">primary</span><span class="o">=</span><span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"primary"</span><span class="p">,</span> <span class="n">DEFAULT_PRIMARY</span><span class="p">))</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Axis</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return the axis a key names.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        key : str or Sequence[str]</span>
+<span class="sd">            Any key :meth:`axis_of` takes.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Axis</span>
+<span class="sd">            The axis.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        KeyError</span>
+<span class="sd">            If it names no stated axis; an axis is never assumed.</span>
+<span class="sd">        """</span>
+
+        <span class="n">axis</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">axis_of</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">axis</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No stated axis is </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">; the stated axes are </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">)</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">'none'</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">axis</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return whether a key names a stated axis.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        key : object</span>
+<span class="sd">            Any key :meth:`axis_of` takes.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            Whether :meth:`axis_of` finds one.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        None</span>
+<span class="sd">        """</span>
+
+        <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">))</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">axis_of</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Axis</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Iterate over the stated axes, in the order they were stated.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Iterator[Axis]</span>
+<span class="sd">            The axes.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        None</span>
+<span class="sd">        """</span>
+
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_axes</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return how many axes are stated.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        int</span>
+<span class="sd">            The count, the primary included.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        None</span>
+<span class="sd">        """</span>
+
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_axes</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return a short description.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            ``Axes(primary='corrector', corrector, camera)``.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        None</span>
+<span class="sd">        """</span>
+
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"Axes(primary=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">primary</span><span class="si">!r}</span><span class="s2">, </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">)</span><span class="si">}</span><span class="s2">)"</span></div>
+
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"Axis"</span><span class="p">,</span> <span class="s2">"Axes"</span><span class="p">,</span> <span class="s2">"DEFAULT_PRIMARY"</span><span class="p">,</span> <span class="s2">"DEFAULT_PRIMARY_COMPONENTS"</span><span class="p">,</span> <span class="s2">"MATRIX_TOLERANCE"</span><span class="p">]</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, rayTEM contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

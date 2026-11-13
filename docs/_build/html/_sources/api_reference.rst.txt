@@ -25,6 +25,11 @@ optics primitives, and the aberration model.
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: pySEA.rayTEM.axes
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 .. automodule:: pySEA.rayTEM.collins
    :members:
    :undoc-members:

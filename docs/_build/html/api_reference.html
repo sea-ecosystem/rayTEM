@@ -212,6 +212,7 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MICROSCOPE_CLSID"><code class="docutils literal notranslate"><span class="pre">MICROSCOPE_CLSID</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope"><code class="docutils literal notranslate"><span class="pre">Microscope</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.axes"><code class="docutils literal notranslate"><span class="pre">Microscope.axes</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.adjust_element_length"><code class="docutils literal notranslate"><span class="pre">Microscope.adjust_element_length()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.beam_current"><code class="docutils literal notranslate"><span class="pre">Microscope.beam_current</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.Microscope.beam_waists"><code class="docutils literal notranslate"><span class="pre">Microscope.beam_waists()</span></code></a></li>
@@ -362,6 +363,55 @@
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.waveoptics.shift_phase"><code class="docutils literal notranslate"><span class="pre">shift_phase()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.waveoptics.tilt_phase"><code class="docutils literal notranslate"><span class="pre">tilt_phase()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.waveoptics.transverse_coordinates"><code class="docutils literal notranslate"><span class="pre">transverse_coordinates()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#extended-summary">Extended summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes"><code class="docutils literal notranslate"><span class="pre">Axes</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes.primary"><code class="docutils literal notranslate"><span class="pre">Axes.primary</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes.names"><code class="docutils literal notranslate"><span class="pre">Axes.names</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes.primary_axis"><code class="docutils literal notranslate"><span class="pre">Axes.primary_axis</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes.axis_of"><code class="docutils literal notranslate"><span class="pre">Axes.axis_of()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes.add"><code class="docutils literal notranslate"><span class="pre">Axes.add()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes.remove"><code class="docutils literal notranslate"><span class="pre">Axes.remove()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes.matrix"><code class="docutils literal notranslate"><span class="pre">Axes.matrix()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes.transform"><code class="docutils literal notranslate"><span class="pre">Axes.transform()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes.rotation_between"><code class="docutils literal notranslate"><span class="pre">Axes.rotation_between()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes.set_primary"><code class="docutils literal notranslate"><span class="pre">Axes.set_primary()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes.to_mapping"><code class="docutils literal notranslate"><span class="pre">Axes.to_mapping()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes.from_mapping"><code class="docutils literal notranslate"><span class="pre">Axes.from_mapping()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id15"><code class="docutils literal notranslate"><span class="pre">Axes.add()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id16"><code class="docutils literal notranslate"><span class="pre">Axes.axis_of()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id17"><code class="docutils literal notranslate"><span class="pre">Axes.from_mapping()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id18"><code class="docutils literal notranslate"><span class="pre">Axes.matrix()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id19"><code class="docutils literal notranslate"><span class="pre">Axes.names</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id20"><code class="docutils literal notranslate"><span class="pre">Axes.primary_axis</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id21"><code class="docutils literal notranslate"><span class="pre">Axes.remove()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id22"><code class="docutils literal notranslate"><span class="pre">Axes.rotation_between()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes.seaid_optional"><code class="docutils literal notranslate"><span class="pre">Axes.seaid_optional</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id23"><code class="docutils literal notranslate"><span class="pre">Axes.set_primary()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id24"><code class="docutils literal notranslate"><span class="pre">Axes.to_mapping()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id25"><code class="docutils literal notranslate"><span class="pre">Axes.transform()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.axes.Axis"><code class="docutils literal notranslate"><span class="pre">Axis</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axis.name"><code class="docutils literal notranslate"><span class="pre">Axis.name</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axis.description"><code class="docutils literal notranslate"><span class="pre">Axis.description</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axis.components"><code class="docutils literal notranslate"><span class="pre">Axis.components</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axis.matrix"><code class="docutils literal notranslate"><span class="pre">Axis.matrix</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axis.rotation"><code class="docutils literal notranslate"><span class="pre">Axis.rotation</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axis.flipped"><code class="docutils literal notranslate"><span class="pre">Axis.flipped</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axis.to_primary"><code class="docutils literal notranslate"><span class="pre">Axis.to_primary()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axis.from_primary"><code class="docutils literal notranslate"><span class="pre">Axis.from_primary()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id27"><code class="docutils literal notranslate"><span class="pre">Axis.components</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id28"><code class="docutils literal notranslate"><span class="pre">Axis.flipped</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id29"><code class="docutils literal notranslate"><span class="pre">Axis.from_primary()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id30"><code class="docutils literal notranslate"><span class="pre">Axis.matrix</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id31"><code class="docutils literal notranslate"><span class="pre">Axis.rotation</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.axes.Axis.seaid_optional"><code class="docutils literal notranslate"><span class="pre">Axis.seaid_optional</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id32"><code class="docutils literal notranslate"><span class="pre">Axis.to_primary()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.axes.DEFAULT_PRIMARY"><code class="docutils literal notranslate"><span class="pre">DEFAULT_PRIMARY</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.axes.DEFAULT_PRIMARY_COMPONENTS"><code class="docutils literal notranslate"><span class="pre">DEFAULT_PRIMARY_COMPONENTS</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.axes.MATRIX_TOLERANCE"><code class="docutils literal notranslate"><span class="pre">MATRIX_TOLERANCE</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer.elements"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.elements</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer.steps"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.steps</span></code></a></li>
@@ -369,9 +419,9 @@
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer.is_current"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.is_current()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer.affine_map"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.affine_map()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer.apply"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.apply()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id14"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.affine_map()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id15"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.apply()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id16"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.is_current()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id33"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.affine_map()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id34"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.apply()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id35"><code class="docutils literal notranslate"><span class="pre">CollinsTransfer.is_current()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#pySEA.rayTEM.collins.contract_collins"><code class="docutils literal notranslate"><span class="pre">contract_collins()</span></code></a></li>
@@ -3403,7 +3453,7 @@ class base; instance identity lives in the ID’s date/time/random fields.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.Microscope">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.assemblies.</span></span><span class="sig-name descname"><span class="pre">Microscope</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sections</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#Microscope"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.assemblies.</span></span><span class="sig-name descname"><span class="pre">Microscope</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sections</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes" title="pySEA.rayTEM.axes.Axes"><span class="pre">Axes</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#Microscope"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes" title="pySEA.rayTEM.elements.SealedAttributes"><code class="xref py py-class docutils literal notranslate"><span class="pre">SealedAttributes</span></code></a>, <a class="reference internal" href="#pySEA.rayTEM.seashells.SEASerializable" title="pySEA.rayTEM.seashells.SEASerializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">SEASerializable</span></code></a></p>
 <p>Microscope class represents a whole microscope, and is comprised of multiple MicroscopeSections. propagation through a Microscope results in propagation through individual MicroscopeSections</p>
 <dl class="field-list simple">
@@ -3411,9 +3461,21 @@ class base; instance identity lives in the ID’s date/time/random fields.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>name</strong> (<em>str</em><em>, </em><em>optional</em>) – Name of the Section, by default ‘’</p></li>
 <li><p><strong>sections</strong> (<em>list</em>) – ordered list of MicroscopeSection objects. each Sections “position” attribute is used to determine the position of the Section within the Microscope. sections=[Section1,Section2] will append Drifts to Sections appropriate to ensure spacing is correct.</p></li>
+<li><p><strong>axes</strong> (<a class="reference internal" href="#pySEA.rayTEM.axes.Axes" title="pySEA.rayTEM.axes.Axes"><em>Axes</em></a><em>, </em><em>optional</em>) – The column’s stated axes (<a class="reference internal" href="#pySEA.rayTEM.axes.Axes" title="pySEA.rayTEM.axes.Axes"><code class="xref py py-class docutils literal notranslate"><span class="pre">pySEA.rayTEM.axes.Axes</span></code></a>): named 2x2 frames relative to the primary axis, by default the corrector alone. The rays are traced in the primary axis. See sea-pearl’s scope-map schema, SM-7.</p></li>
 </ul>
 </dd>
 </dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.Microscope.axes">
+<span class="sig-name descname"><span class="pre">axes</span></span><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope.axes" title="Link to this definition"></a></dt>
+<dd><p>As given. The operational microscope (sea-pearl) carries its own; the two should agree where both state an axis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#pySEA.rayTEM.axes.Axes" title="pySEA.rayTEM.axes.Axes">Axes</a></p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.Microscope.adjust_element_length">
 <span class="sig-name descname"><span class="pre">adjust_element_length</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">element</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newlength</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/assemblies.html#Microscope.adjust_element_length"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.assemblies.Microscope.adjust_element_length" title="Link to this definition"></a></dt>
@@ -3535,7 +3597,7 @@ default at the last element.</p></li>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>The contracted transfer; keep it and rebuild it when
-<a class="reference internal" href="#id16" title="pySEA.rayTEM.collins.CollinsTransfer.is_current"><code class="xref py py-meth docutils literal notranslate"><span class="pre">is_current()</span></code></a> is False.</p>
+<a class="reference internal" href="#id35" title="pySEA.rayTEM.collins.CollinsTransfer.is_current"><code class="xref py py-meth docutils literal notranslate"><span class="pre">is_current()</span></code></a> is False.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#pySEA.rayTEM.collins.CollinsTransfer" title="pySEA.rayTEM.collins.CollinsTransfer">collins.CollinsTransfer</a></p>
@@ -7989,6 +8051,724 @@ origin at index <code class="docutils literal notranslate"><span class="pre">(ny
 </dl>
 </dd></dl>
 
+<p id="module-pySEA.rayTEM.axes">A scope’s axes: named 2x2 frames, and transforms between any two of them.</p>
+<section id="extended-summary">
+<h2>Extended summary<a class="headerlink" href="#extended-summary" title="Link to this heading"></a></h2>
+<p>An instrument keeps several two-dimensional coordinate frames turned (and
+sometimes mirrored) relative to one another: an aberration corrector’s, a
+camera’s, a stage’s, a projection system’s, a scan’s. An <a class="reference internal" href="#pySEA.rayTEM.axes.Axis" title="pySEA.rayTEM.axes.Axis"><code class="xref py py-class docutils literal notranslate"><span class="pre">Axis</span></code></a> is one
+of them: a name, the names of its two components, and the 2x2 matrix that
+takes a vector given in its components to the <strong>primary</strong> axis’s,
+<code class="docutils literal notranslate"><span class="pre">v_primary</span> <span class="pre">=</span> <span class="pre">M</span> <span class="pre">&#64;</span> <span class="pre">v_axis</span></code>. An <a class="reference internal" href="#pySEA.rayTEM.axes.Axes" title="pySEA.rayTEM.axes.Axes"><code class="xref py py-class docutils literal notranslate"><span class="pre">Axes</span></code></a> is the set of them a scope has
+stated, and converts a vector from any one to any other.</p>
+<p>Nothing here is specific to electron microscopes or to any vendor: an axis is a
+frame and a matrix. Which axes a scope has, and their names, are the scope’s
+own statement (sea-pearl’s scope-map schema, SM-6 and SM-7).</p>
+<p>This file has two homes, the same but for the line marked <code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">axes-base</span></code>:
+<code class="docutils literal notranslate"><span class="pre">pySEA.rayTEM.axes</span></code> (the twin’s) and <code class="docutils literal notranslate"><span class="pre">pySEA.sea_pearl._axes_frames</span></code> (the
+operational microscope’s, used when rayTEM is not installed). A sea-pearl test
+fails when they differ anywhere else.</p>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">axes</span> <span class="o">=</span> <span class="n">Axes</span><span class="p">([</span><span class="n">Axis</span><span class="p">(</span><span class="s2">"corrector"</span><span class="p">,</span> <span class="p">(</span><span class="s2">"ax"</span><span class="p">,</span> <span class="s2">"ay"</span><span class="p">)),</span> <span class="n">Axis</span><span class="p">(</span><span class="s2">"camera"</span><span class="p">,</span> <span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">),</span> <span class="n">rotation</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">[</span><span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="mi">6</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">axes</span><span class="o">.</span><span class="n">transform</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="s2">"camera"</span><span class="p">,</span> <span class="s2">"corrector"</span><span class="p">)]</span>
+<span class="go">[0.877583, 0.479426]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">axes</span><span class="p">[</span><span class="s2">"x"</span><span class="p">]</span><span class="o">.</span><span class="n">name</span>
+<span class="go">'camera'</span>
+</pre></div>
+</div>
+</section>
+<dl class="py class">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axes">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.axes.</span></span><span class="sig-name descname"><span class="pre">Axes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#pySEA.rayTEM.axes.Axis" title="pySEA.rayTEM.axes.Axis"><span class="pre">Axis</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">primary</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'corrector'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.axes.Axes" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pySEA.rayTEM.seashells.SEASerializable" title="pySEA.rayTEM.seashells.SEASerializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">SEASerializable</span></code></a></p>
+<p>The axes a scope has stated, and transforms between any two of them.</p>
+<section id="id14">
+<h2>Extended summary<a class="headerlink" href="#id14" title="Link to this heading"></a></h2>
+<p>Every axis is stated relative to the <strong>primary</strong> axis, whose own matrix is
+the identity. An axis the scope has not stated is not assumed to be aligned
+with anything: a transform through it raises. A fresh <code class="docutils literal notranslate"><span class="pre">Axes</span></code> holds only
+the primary axis, <code class="docutils literal notranslate"><span class="pre">corrector</span></code> (components <code class="docutils literal notranslate"><span class="pre">ax</span></code>/<code class="docutils literal notranslate"><span class="pre">ay</span></code>).</p>
+<dl class="field-list simple">
+<dt class="field-odd">param axes<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The axes. <code class="docutils literal notranslate"><span class="pre">None</span></code> (default) holds the primary axis alone, which is
+then <code class="docutils literal notranslate"><span class="pre">corrector</span></code> unless <code class="docutils literal notranslate"><span class="pre">primary</span></code> names another (then <code class="docutils literal notranslate"><span class="pre">axes</span></code>
+must state it).</p>
+</dd>
+<dt class="field-even">type axes<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sequence[Axis] or None, optional</p>
+</dd>
+<dt class="field-odd">param primary<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The primary axis’s name, default <code class="docutils literal notranslate"><span class="pre">&quot;corrector&quot;</span></code>.</p>
+</dd>
+<dt class="field-even">type primary<span class="colon">:</span></dt>
+<dd class="field-even"><p>str, optional</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axes.primary">
+<span class="sig-name descname"><span class="pre">primary</span></span><a class="headerlink" href="#pySEA.rayTEM.axes.Axes.primary" title="Link to this definition"></a></dt>
+<dd><p>The primary axis’s name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axes.names">
+<span class="sig-name descname"><span class="pre">names</span></span><a class="headerlink" href="#pySEA.rayTEM.axes.Axes.names" title="Link to this definition"></a></dt>
+<dd><p>The axes’ names, in the order they were stated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[str, …]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axes.primary_axis">
+<span class="sig-name descname"><span class="pre">primary_axis</span></span><a class="headerlink" href="#pySEA.rayTEM.axes.Axes.primary_axis" title="Link to this definition"></a></dt>
+<dd><p>The primary axis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#pySEA.rayTEM.axes.Axis" title="pySEA.rayTEM.axes.Axis">Axis</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axes.axis_of">
+<span class="sig-name descname"><span class="pre">axis_of</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.axis_of"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.axes.Axes.axis_of" title="Link to this definition"></a></dt>
+<dd><p>The axis a name, a component, a pair or a control path names, or <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axes.add">
+<span class="sig-name descname"><span class="pre">add</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">axis</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.add"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.axes.Axes.add" title="Link to this definition"></a></dt>
+<dd><p>State another axis.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axes.remove">
+<span class="sig-name descname"><span class="pre">remove</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.remove"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.axes.Axes.remove" title="Link to this definition"></a></dt>
+<dd><p>Withdraw one (never the primary).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axes.matrix">
+<span class="sig-name descname"><span class="pre">matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">from_axis</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_axis</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.axes.Axes.matrix" title="Link to this definition"></a></dt>
+<dd><p>The 2x2 matrix taking a vector in one axis to another.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axes.transform">
+<span class="sig-name descname"><span class="pre">transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vector</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">from_axis</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_axis</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.axes.Axes.transform" title="Link to this definition"></a></dt>
+<dd><p>A vector (or a stack) in one axis, in another.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axes.rotation_between">
+<span class="sig-name descname"><span class="pre">rotation_between</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">from_axis</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_axis</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.rotation_between"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.axes.Axes.rotation_between" title="Link to this definition"></a></dt>
+<dd><p>Where <code class="docutils literal notranslate"><span class="pre">to_axis</span></code>’s first component points, in <code class="docutils literal notranslate"><span class="pre">from_axis</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axes.set_primary">
+<span class="sig-name descname"><span class="pre">set_primary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.set_primary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.axes.Axes.set_primary" title="Link to this definition"></a></dt>
+<dd><p>Make another axis the primary, re-expressing every matrix.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axes.to_mapping">
+<span class="sig-name descname"><span class="pre">to_mapping</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.to_mapping"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.axes.Axes.to_mapping" title="Link to this definition"></a></dt>
+<dd><p>The axes as plain data (JSON-safe).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axes.from_mapping">
+<span class="sig-name descname"><span class="pre">from_mapping</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mapping</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.from_mapping"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.axes.Axes.from_mapping" title="Link to this definition"></a></dt>
+<dd><p>Build axes from that data (or from rotations and flips).</p>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">raises ValueError<span class="colon">:</span></dt>
+<dd class="field-odd"><p>If two axes share a name or a component pair, or the primary axis’s
+    matrix is not the identity.</p>
+</dd>
+<dt class="field-even">raises KeyError<span class="colon">:</span></dt>
+<dd class="field-even"><p>If the primary axis is not among <code class="docutils literal notranslate"><span class="pre">axes</span></code>.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pySEA.rayTEM.axes.Axis" title="pySEA.rayTEM.axes.Axis"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Axis</span></code></a></dt><dd><p>One of them.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Notes</p>
+<p>Which axis may be the primary is a scope’s rule, not this class’s: the
+scope-map schema (SM-7) refuses a scan or stage primary, because those
+move with a setting or with every holder. This class only needs the
+primary to be stated.</p>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">axes</span> <span class="o">=</span> <span class="n">Axes</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">axes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Axis</span><span class="p">(</span><span class="s2">"stage"</span><span class="p">,</span> <span class="p">(</span><span class="s2">"sx"</span><span class="p">,</span> <span class="s2">"sy"</span><span class="p">),</span> <span class="n">rotation</span><span class="o">=</span><span class="mf">1.0</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">axes</span><span class="o">.</span><span class="n">rotation_between</span><span class="p">(</span><span class="s2">"corrector"</span><span class="p">,</span> <span class="s2">"stage"</span><span class="p">),</span> <span class="mi">6</span><span class="p">)</span>
+<span class="go">1.0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">axes</span><span class="o">.</span><span class="n">set_primary</span><span class="p">(</span><span class="s2">"stage"</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">axes</span><span class="p">[</span><span class="s2">"corrector"</span><span class="p">]</span><span class="o">.</span><span class="n">rotation</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+<span class="go">-1.0</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="id15">
+<span class="sig-name descname"><span class="pre">add</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pySEA.rayTEM.axes.Axis" title="pySEA.rayTEM.axes.Axis"><span class="pre">Axis</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.add"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id15" title="Link to this definition"></a></dt>
+<dd><p>State another axis, relative to the primary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>axis</strong> (<a class="reference internal" href="#pySEA.rayTEM.axes.Axis" title="pySEA.rayTEM.axes.Axis"><em>Axis</em></a>) – The axis.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None">None</a></p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>TypeError</strong><strong>, </strong><strong>ValueError</strong> – If it is not an <a class="reference internal" href="#pySEA.rayTEM.axes.Axis" title="pySEA.rayTEM.axes.Axis"><code class="xref py py-class docutils literal notranslate"><span class="pre">Axis</span></code></a>, or its name or pair is taken.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id16">
+<span class="sig-name descname"><span class="pre">axis_of</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pySEA.rayTEM.axes.Axis" title="pySEA.rayTEM.axes.Axis"><span class="pre">Axis</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.axis_of"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id16" title="Link to this definition"></a></dt>
+<dd><p>Return the axis a name, a component, a pair or a control path names.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>key</strong> (<em>str</em><em> or </em><em>Sequence</em><em>[</em><em>str</em><em>]</em>) – An axis name (<code class="docutils literal notranslate"><span class="pre">&quot;camera&quot;</span></code>), one component (<code class="docutils literal notranslate"><span class="pre">&quot;x&quot;</span></code>), a pair
+(<code class="docutils literal notranslate"><span class="pre">(&quot;x&quot;,</span> <span class="pre">&quot;y&quot;)</span></code>), or a control path whose last segment is a
+component (<code class="docutils literal notranslate"><span class="pre">&quot;P.P1.PL1.shift.y&quot;</span></code>). A name is looked for first,
+then a component, then a path’s last segment.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The axis, or <code class="docutils literal notranslate"><span class="pre">None</span></code> when the key names none.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#pySEA.rayTEM.axes.Axis" title="pySEA.rayTEM.axes.Axis">Axis</a> or <a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None">None</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id17">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">from_mapping</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mapping</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pySEA.rayTEM.axes.Axes" title="pySEA.rayTEM.axes.Axes"><span class="pre">Axes</span></a></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.from_mapping"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id17" title="Link to this definition"></a></dt>
+<dd><p>Build axes from plain data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mapping</strong> (<em>dict</em>) – <code class="docutils literal notranslate"><span class="pre">{&quot;primary&quot;:</span> <span class="pre">name,</span> <span class="pre">&quot;axes&quot;:</span> <span class="pre">[...]}</span></code>; each axis gives <code class="docutils literal notranslate"><span class="pre">name</span></code>,
+<code class="docutils literal notranslate"><span class="pre">components</span></code> and either <code class="docutils literal notranslate"><span class="pre">matrix</span></code> or <code class="docutils literal notranslate"><span class="pre">rotation</span></code> (and
+<code class="docutils literal notranslate"><span class="pre">flipped</span></code>), optionally <code class="docutils literal notranslate"><span class="pre">description</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The axes.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#pySEA.rayTEM.axes.Axes" title="pySEA.rayTEM.axes.Axes">Axes</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong><strong>, </strong><strong>KeyError</strong> – As <a class="reference internal" href="#pySEA.rayTEM.axes.Axes" title="pySEA.rayTEM.axes.Axes"><code class="xref py py-class docutils literal notranslate"><span class="pre">Axes</span></code></a> and <a class="reference internal" href="#pySEA.rayTEM.axes.Axis" title="pySEA.rayTEM.axes.Axis"><code class="xref py py-class docutils literal notranslate"><span class="pre">Axis</span></code></a> refuse.</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Axes</span><span class="o">.</span><span class="n">from_mapping</span><span class="p">({</span><span class="s2">"primary"</span><span class="p">:</span> <span class="s2">"corrector"</span><span class="p">,</span> <span class="s2">"axes"</span><span class="p">:</span> <span class="p">[</span>
+<span class="gp">... </span>    <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"corrector"</span><span class="p">,</span> <span class="s2">"components"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"ax"</span><span class="p">,</span> <span class="s2">"ay"</span><span class="p">]},</span>
+<span class="gp">... </span>    <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"camera"</span><span class="p">,</span> <span class="s2">"components"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"x"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">],</span> <span class="s2">"rotation"</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">}]})</span><span class="o">.</span><span class="n">names</span>
+<span class="go">('corrector', 'camera')</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id18">
+<span class="sig-name descname"><span class="pre">matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">from_axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id18" title="Link to this definition"></a></dt>
+<dd><p>Return the 2x2 matrix taking a vector in one axis to another.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>from_axis</strong> (<em>str</em><em> or </em><em>Sequence</em><em>[</em><em>str</em><em>]</em>) – Axes, named any way <a class="reference internal" href="#id16" title="pySEA.rayTEM.axes.Axes.axis_of"><code class="xref py py-meth docutils literal notranslate"><span class="pre">axis_of()</span></code></a> takes.</p></li>
+<li><p><strong>to_axis</strong> (<em>str</em><em> or </em><em>Sequence</em><em>[</em><em>str</em><em>]</em>) – Axes, named any way <a class="reference internal" href="#id16" title="pySEA.rayTEM.axes.Axes.axis_of"><code class="xref py py-meth docutils literal notranslate"><span class="pre">axis_of()</span></code></a> takes.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">M_to^-1</span> <span class="pre">&#64;</span> <span class="pre">M_from</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>KeyError</strong> – If either names no stated axis.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="id19">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">names</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#id19" title="Link to this definition"></a></dt>
+<dd><p>Return the axes’ names, in the order they were stated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Names.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple[str, …]</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="id20">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">primary_axis</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#pySEA.rayTEM.axes.Axis" title="pySEA.rayTEM.axes.Axis"><span class="pre">Axis</span></a></span><a class="headerlink" href="#id20" title="Link to this definition"></a></dt>
+<dd><p>Return the primary axis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The axis every matrix is given to.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pySEA.rayTEM.axes.Axis" title="pySEA.rayTEM.axes.Axis">Axis</a></p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – If the primary axis is not stated.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id21">
+<span class="sig-name descname"><span class="pre">remove</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.remove"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id21" title="Link to this definition"></a></dt>
+<dd><p>Withdraw a stated axis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<em>str</em>) – Its name.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None">None</a></p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>KeyError</strong> – If no axis has the name.</p></li>
+<li><p><strong>ValueError</strong> – If it is the primary axis (make another the primary first).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id22">
+<span class="sig-name descname"><span class="pre">rotation_between</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">from_axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.rotation_between"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id22" title="Link to this definition"></a></dt>
+<dd><p>Return where one axis’s first component points, seen in another.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>from_axis</strong> (<em>str</em><em> or </em><em>Sequence</em><em>[</em><em>str</em><em>]</em>) – The axis the angle is measured in.</p></li>
+<li><p><strong>to_axis</strong> (<em>str</em><em> or </em><em>Sequence</em><em>[</em><em>str</em><em>]</em>) – The axis whose first component is measured.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Radians in (-pi, pi], counter-clockwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>KeyError</strong> – If either names no stated axis.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axes.seaid_optional">
+<span class="sig-name descname"><span class="pre">seaid_optional</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></span><a class="headerlink" href="#pySEA.rayTEM.axes.Axes.seaid_optional" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id23">
+<span class="sig-name descname"><span class="pre">set_primary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.set_primary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id23" title="Link to this definition"></a></dt>
+<dd><p>Make another stated axis the primary, without moving any axis.</p>
+<p>Every matrix is re-expressed relative to the new primary
+(<code class="docutils literal notranslate"><span class="pre">M_i</span> <span class="pre">&lt;-</span> <span class="pre">M_new^-1</span> <span class="pre">&#64;</span> <span class="pre">M_i</span></code>), so every transform between two axes is
+unchanged.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<em>str</em>) – The new primary axis, named any way <a class="reference internal" href="#id16" title="pySEA.rayTEM.axes.Axes.axis_of"><code class="xref py py-meth docutils literal notranslate"><span class="pre">axis_of()</span></code></a> takes.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None">None</a></p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – If it names no stated axis.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id24">
+<span class="sig-name descname"><span class="pre">to_mapping</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.to_mapping"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id24" title="Link to this definition"></a></dt>
+<dd><p>Return the axes as plain, JSON-safe data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">{&quot;primary&quot;:</span> <span class="pre">name,</span> <span class="pre">&quot;axes&quot;:</span> <span class="pre">[{&quot;name&quot;,</span> <span class="pre">&quot;components&quot;,</span> <span class="pre">&quot;matrix&quot;,</span>
+<span class="pre">&quot;description&quot;},</span> <span class="pre">...]}</span></code>, the form <a class="reference internal" href="#id17" title="pySEA.rayTEM.axes.Axes.from_mapping"><code class="xref py py-meth docutils literal notranslate"><span class="pre">from_mapping()</span></code></a> reads.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#id17" title="pySEA.rayTEM.axes.Axes.from_mapping"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_mapping</span></code></a></dt><dd><p>The reverse.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Notes</p>
+<p>A wire form for formats that are not sea-eco’s (a flat JSON column).
+A <code class="docutils literal notranslate"><span class="pre">.sea</span></code> file stores the objects themselves.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id25">
+<span class="sig-name descname"><span class="pre">transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">from_axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_axis</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axes.transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id25" title="Link to this definition"></a></dt>
+<dd><p>Return a vector given in one axis, in another.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vector</strong> (<em>ArrayLike</em>) – Two components, or a stack of shape <code class="docutils literal notranslate"><span class="pre">(n,</span> <span class="pre">2)</span></code>.</p></li>
+<li><p><strong>from_axis</strong> (<em>str</em><em> or </em><em>Sequence</em><em>[</em><em>str</em><em>]</em>) – Axes, named any way <a class="reference internal" href="#id16" title="pySEA.rayTEM.axes.Axes.axis_of"><code class="xref py py-meth docutils literal notranslate"><span class="pre">axis_of()</span></code></a> takes.</p></li>
+<li><p><strong>to_axis</strong> (<em>str</em><em> or </em><em>Sequence</em><em>[</em><em>str</em><em>]</em>) – Axes, named any way <a class="reference internal" href="#id16" title="pySEA.rayTEM.axes.Axes.axis_of"><code class="xref py py-meth docutils literal notranslate"><span class="pre">axis_of()</span></code></a> takes.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The same shape, in <code class="docutils literal notranslate"><span class="pre">to_axis</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>KeyError</strong> – If either names no stated axis.</p></li>
+<li><p><strong>ValueError</strong> – If the vector’s last dimension is not 2.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axis">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.axes.</span></span><span class="sig-name descname"><span class="pre">Axis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">('x',</span> <span class="pre">'y')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">matrix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rotation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flipped</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.axes.Axis" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pySEA.rayTEM.seashells.SEASerializable" title="pySEA.rayTEM.seashells.SEASerializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">SEASerializable</span></code></a></p>
+<p>One named two-dimensional frame, stated relative to the primary axis.</p>
+<section id="id26">
+<h2>Extended summary<a class="headerlink" href="#id26" title="Link to this heading"></a></h2>
+<p>The matrix is the statement: it takes a vector given in this axis’s two
+components to the primary axis’s, <code class="docutils literal notranslate"><span class="pre">v_primary</span> <span class="pre">=</span> <span class="pre">matrix</span> <span class="pre">&#64;</span> <span class="pre">v_axis</span></code>. Its
+<a class="reference internal" href="#id31" title="pySEA.rayTEM.axes.Axis.rotation"><code class="xref py py-attr docutils literal notranslate"><span class="pre">rotation</span></code></a> and <a class="reference internal" href="#id28" title="pySEA.rayTEM.axes.Axis.flipped"><code class="xref py py-attr docutils literal notranslate"><span class="pre">flipped</span></code></a> are read from it, so two axes compare
+at a glance. Build one from a rotation and a flip (a rotated, possibly
+mirrored, orthonormal frame) or from any invertible 2x2 (a frame with a
+<code class="docutils literal notranslate"><span class="pre">-1</span></code> scale, or a skewed one).</p>
+<dl class="field-list simple">
+<dt class="field-odd">param name<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The axis’s name in its scope (<code class="docutils literal notranslate"><span class="pre">&quot;corrector&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;camera&quot;</span></code> …).</p>
+</dd>
+<dt class="field-even">type name<span class="colon">:</span></dt>
+<dd class="field-even"><p>str, optional</p>
+</dd>
+<dt class="field-odd">param components<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Its two components’ names, the halves a two-axis control in it uses
+(<code class="docutils literal notranslate"><span class="pre">(&quot;ax&quot;,</span> <span class="pre">&quot;ay&quot;)</span></code>); default <code class="docutils literal notranslate"><span class="pre">(&quot;x&quot;,</span> <span class="pre">&quot;y&quot;)</span></code>.</p>
+</dd>
+<dt class="field-even">type components<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sequence[str], optional</p>
+</dd>
+<dt class="field-odd">param matrix<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The 2x2 matrix to the primary axis. When given, <code class="docutils literal notranslate"><span class="pre">rotation</span></code> and
+<code class="docutils literal notranslate"><span class="pre">flipped</span></code> must be left at their defaults.</p>
+</dd>
+<dt class="field-even">type matrix<span class="colon">:</span></dt>
+<dd class="field-even"><p>ArrayLike or None, optional</p>
+</dd>
+<dt class="field-odd">param rotation<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Radians from the primary axis’s first component to this axis’s,
+counter-clockwise (default 0). Used when <code class="docutils literal notranslate"><span class="pre">matrix</span></code> is <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+<dt class="field-even">type rotation<span class="colon">:</span></dt>
+<dd class="field-even"><p>float, optional</p>
+</dd>
+<dt class="field-odd">param flipped<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Whether this axis has the other handedness: its second component is
+negated after the rotation (default <code class="docutils literal notranslate"><span class="pre">False</span></code>).</p>
+</dd>
+<dt class="field-even">type flipped<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool, optional</p>
+</dd>
+<dt class="field-odd">param description<span class="colon">:</span></dt>
+<dd class="field-odd"><p>What the statement is and where it came from (an operating point, a
+measurement).</p>
+</dd>
+<dt class="field-even">type description<span class="colon">:</span></dt>
+<dd class="field-even"><p>str, optional</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axis.name">
+<span class="sig-name descname"><span class="pre">name</span></span><a class="headerlink" href="#pySEA.rayTEM.axes.Axis.name" title="Link to this definition"></a></dt>
+<dd><p>As given.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axis.description">
+<span class="sig-name descname"><span class="pre">description</span></span><a class="headerlink" href="#pySEA.rayTEM.axes.Axis.description" title="Link to this definition"></a></dt>
+<dd><p>As given.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axis.components">
+<span class="sig-name descname"><span class="pre">components</span></span><a class="headerlink" href="#pySEA.rayTEM.axes.Axis.components" title="Link to this definition"></a></dt>
+<dd><p>The two component names.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[str, str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axis.matrix">
+<span class="sig-name descname"><span class="pre">matrix</span></span><a class="headerlink" href="#pySEA.rayTEM.axes.Axis.matrix" title="Link to this definition"></a></dt>
+<dd><p>A copy of the 2x2 matrix to the primary axis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axis.rotation">
+<span class="sig-name descname"><span class="pre">rotation</span></span><a class="headerlink" href="#pySEA.rayTEM.axes.Axis.rotation" title="Link to this definition"></a></dt>
+<dd><p>Radians in (-pi, pi]: where this axis’s first component points in the
+primary axis, <code class="docutils literal notranslate"><span class="pre">atan2(matrix[1,</span> <span class="pre">0],</span> <span class="pre">matrix[0,</span> <span class="pre">0])</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axis.flipped">
+<span class="sig-name descname"><span class="pre">flipped</span></span><a class="headerlink" href="#pySEA.rayTEM.axes.Axis.flipped" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">det(matrix)</span> <span class="pre">&lt;</span> <span class="pre">0</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axis.to_primary">
+<span class="sig-name descname"><span class="pre">to_primary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vector</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axis.to_primary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.axes.Axis.to_primary" title="Link to this definition"></a></dt>
+<dd><p>A vector (or a stack) in this axis, in the primary axis.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axis.from_primary">
+<span class="sig-name descname"><span class="pre">from_primary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vector</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axis.from_primary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pySEA.rayTEM.axes.Axis.from_primary" title="Link to this definition"></a></dt>
+<dd><p>A vector (or a stack) in the primary axis, in this one.</p>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">raises ValueError<span class="colon">:</span></dt>
+<dd class="field-odd"><p>If the components are not two distinct non-empty names, the matrix is
+    not an invertible 2x2, or both a matrix and a rotation or flip are given.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pySEA.rayTEM.axes.Axes" title="pySEA.rayTEM.axes.Axes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Axes</span></code></a></dt><dd><p>The set a scope states, and transforms between them.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Notes</p>
+<p>sea-eco stores the matrix and the components (as <code class="docutils literal notranslate"><span class="pre">matrix</span></code> and
+<code class="docutils literal notranslate"><span class="pre">components</span></code>); the rotation and the flip are derived and not stored.</p>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">axis</span> <span class="o">=</span> <span class="n">Axis</span><span class="p">(</span><span class="s2">"stage"</span><span class="p">,</span> <span class="p">(</span><span class="s2">"sx"</span><span class="p">,</span> <span class="s2">"sy"</span><span class="p">),</span> <span class="n">rotation</span><span class="o">=-</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">flipped</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">axis</span><span class="o">.</span><span class="n">rotation</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="n">axis</span><span class="o">.</span><span class="n">flipped</span>
+<span class="go">(-1.0, True)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Axis</span><span class="p">(</span><span class="s2">"scan"</span><span class="p">,</span> <span class="p">(</span><span class="s2">"u"</span><span class="p">,</span> <span class="s2">"v"</span><span class="p">),</span> <span class="n">matrix</span><span class="o">=</span><span class="p">[[</span><span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]])</span><span class="o">.</span><span class="n">flipped</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<dl class="py property">
+<dt class="sig sig-object py" id="id27">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">components</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#id27" title="Link to this definition"></a></dt>
+<dd><p>Return the two component names.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">(&quot;ax&quot;,</span> <span class="pre">&quot;ay&quot;)</span></code> for the corrector.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple[str, str]</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="id28">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">flipped</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><a class="headerlink" href="#id28" title="Link to this definition"></a></dt>
+<dd><p>Return whether this axis has the other handedness from the primary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">det(matrix)</span> <span class="pre">&lt;</span> <span class="pre">0</span></code>.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id29">
+<span class="sig-name descname"><span class="pre">from_primary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axis.from_primary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id29" title="Link to this definition"></a></dt>
+<dd><p>Return a vector given in the primary axis, in this axis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>vector</strong> (<em>ArrayLike</em>) – Two components, or a stack of shape <code class="docutils literal notranslate"><span class="pre">(n,</span> <span class="pre">2)</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The same shape, in this axis.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If the last dimension is not 2.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="id30">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">matrix</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></span><a class="headerlink" href="#id30" title="Link to this definition"></a></dt>
+<dd><p>Return a copy of the 2x2 matrix to the primary axis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">M</span></code> with <code class="docutils literal notranslate"><span class="pre">v_primary</span> <span class="pre">=</span> <span class="pre">M</span> <span class="pre">&#64;</span> <span class="pre">v_axis</span></code>.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>numpy.ndarray</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="id31">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">rotation</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></span><a class="headerlink" href="#id31" title="Link to this definition"></a></dt>
+<dd><p>Return where this axis’s first component points in the primary axis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Radians in (-pi, pi], counter-clockwise from the primary axis’s
+first component.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>float</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>None</strong> – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.Axis.seaid_optional">
+<span class="sig-name descname"><span class="pre">seaid_optional</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></span><a class="headerlink" href="#pySEA.rayTEM.axes.Axis.seaid_optional" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id32">
+<span class="sig-name descname"><span class="pre">to_primary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vector</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/axes.html#Axis.to_primary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id32" title="Link to this definition"></a></dt>
+<dd><p>Return a vector given in this axis, in the primary axis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>vector</strong> (<em>ArrayLike</em>) – Two components, or a stack of shape <code class="docutils literal notranslate"><span class="pre">(n,</span> <span class="pre">2)</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The same shape, in the primary axis.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If the last dimension is not 2.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.DEFAULT_PRIMARY">
+<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.axes.</span></span><span class="sig-name descname"><span class="pre">DEFAULT_PRIMARY</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'corrector'</span></span><a class="headerlink" href="#pySEA.rayTEM.axes.DEFAULT_PRIMARY" title="Link to this definition"></a></dt>
+<dd><p>The primary axis an <a class="reference internal" href="#pySEA.rayTEM.axes.Axes" title="pySEA.rayTEM.axes.Axes"><code class="xref py py-class docutils literal notranslate"><span class="pre">Axes</span></code></a> starts with, and its components.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.DEFAULT_PRIMARY_COMPONENTS">
+<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.axes.</span></span><span class="sig-name descname"><span class="pre">DEFAULT_PRIMARY_COMPONENTS</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">('ax',</span> <span class="pre">'ay')</span></span><a class="headerlink" href="#pySEA.rayTEM.axes.DEFAULT_PRIMARY_COMPONENTS" title="Link to this definition"></a></dt>
+<dd><p>The components of <a class="reference internal" href="#pySEA.rayTEM.axes.DEFAULT_PRIMARY" title="pySEA.rayTEM.axes.DEFAULT_PRIMARY"><code class="xref py py-data docutils literal notranslate"><span class="pre">DEFAULT_PRIMARY</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="pySEA.rayTEM.axes.MATRIX_TOLERANCE">
+<span class="sig-prename descclassname"><span class="pre">pySEA.rayTEM.axes.</span></span><span class="sig-name descname"><span class="pre">MATRIX_TOLERANCE</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1e-09</span></span><a class="headerlink" href="#pySEA.rayTEM.axes.MATRIX_TOLERANCE" title="Link to this definition"></a></dt>
+<dd><p>How close to the identity the primary axis’s matrix must be, and to each
+other two statements of one axis must be to agree.</p>
+</dd></dl>
+
 <p id="module-pySEA.rayTEM.collins">Collins wave propagation: runs of linear elements contracted into one step each.</p>
 <p>A run of elements with no aperture and no non-quadratic screen inside it is a
 linear paraxial system: its ray map is the product of the elements’
@@ -8043,7 +8823,7 @@ screen, or an aberrated one off the column’s axis, is refused.</p>
 last built, keyed by the input grid, so applying the transfer to many
 waves on one grid (an emulator’s frames) recomputes no kernel.
 Contracting itself costs a product of small matrices: rebuild the
-transfer whenever <a class="reference internal" href="#id16" title="pySEA.rayTEM.collins.CollinsTransfer.is_current"><code class="xref py py-meth docutils literal notranslate"><span class="pre">is_current()</span></code></a> says an element changed.</p>
+transfer whenever <a class="reference internal" href="#id35" title="pySEA.rayTEM.collins.CollinsTransfer.is_current"><code class="xref py py-meth docutils literal notranslate"><span class="pre">is_current()</span></code></a> says an element changed.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>elements</strong> (<em>Sequence</em><em>[</em><a class="reference internal" href="#pySEA.rayTEM.elements.Element" title="pySEA.rayTEM.elements.Element"><em>Element</em></a><em>]</em>) – The elements, in beam order. A <a class="reference internal" href="#pySEA.rayTEM.elements.Source" title="pySEA.rayTEM.elements.Source"><code class="xref py py-class docutils literal notranslate"><span class="pre">Source</span></code></a>
@@ -8125,8 +8905,8 @@ on <code class="docutils literal notranslate"><span class="pre">(x,</span> <span
 </pre></div>
 </div>
 <dl class="py method">
-<dt class="sig sig-object py" id="id14">
-<span class="sig-name descname"><span class="pre">affine_map</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#CollinsTransfer.affine_map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id14" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="id33">
+<span class="sig-name descname"><span class="pre">affine_map</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#CollinsTransfer.affine_map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id33" title="Link to this definition"></a></dt>
 <dd><p>Return the whole transfer’s ray map on <code class="docutils literal notranslate"><span class="pre">(x,</span> <span class="pre">xt,</span> <span class="pre">y,</span> <span class="pre">yt,</span> <span class="pre">1)</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -8140,8 +8920,8 @@ walked element contributes its paraxial map, not its aberration).</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="id15">
-<span class="sig-name descname"><span class="pre">apply</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">signal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#CollinsTransfer.apply"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id15" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="id34">
+<span class="sig-name descname"><span class="pre">apply</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">signal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#pySEA.rayTEM.elements.SealedAttributes.None" title="pySEA.rayTEM.elements.SealedAttributes.None"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#CollinsTransfer.apply"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id34" title="Link to this definition"></a></dt>
 <dd><p>Carry a wave through the transfer.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -8168,8 +8948,8 @@ resampling.</p></li>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="id16">
-<span class="sig-name descname"><span class="pre">is_current</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#CollinsTransfer.is_current"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id16" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="id35">
+<span class="sig-name descname"><span class="pre">is_current</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/pySEA/rayTEM/collins.html#CollinsTransfer.is_current"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id35" title="Link to this definition"></a></dt>
 <dd><p>Say whether every element still has the settings it was contracted with.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
