@@ -1,0 +1,9 @@
+{
+  "title": "rayTEM",
+  "description": "Ray-tracing and wave-optics simulation of TEM columns.",
+  "repository": "sea-ecosystem/rayTEM",
+  "editBranch": "dev",
+  "docs": "docs",
+  "package": "pySEA.rayTEM",
+  "distribution": "raytem"
+}
