@@ -245,6 +245,8 @@ reference.
 - **Prefer simplicity** — write the minimum code that solves the problem. No unrequested features, single-use abstractions, or unrequested configurability. If a more complex solution is warranted, flag it and offer to implement, add to TODO, or skip.
 - **Make surgical changes** — touch only what the task requires. Do not refactor unrelated code. Mention unrelated issues rather than fixing them silently. Match existing project style.
 - **Work from verifiable goals** — convert tasks into concrete success criteria before implementing. For multi-step tasks, name each step and its verification.
+- **Reuse and compose before creating** — before writing a function, node or pipeline, search for one that already does the step: sea-eco's node registry (`pipeline.node_registry`), factory pipelines (`pipeline.factories`), `calculators`, and the sibling packages (sea-pearl, rayTEM, ...). Extend or compose what exists. A node does one operation: a step that measures returns the value, and the step that uses it takes it through an input port; alternative ways of getting the same value are a choice (sea-eco pipeline-editor PIPE-17, PIPE-19). Design from the processing outward, not from a GUI gesture inward.
+- **Processing lives in the pySEA packages** — every scientific computation (a measurement, calibration, transform, fit, unit conversion) is a function and a node or pipeline in the package that owns that science: sea-eco by default, sea-pearl for instrument steps. Applications (Poseidon, PoseiTEM) hold only the GUI that runs them. When a GUI needs a computation that does not exist, add it to the owning package first, so a script can do the same.
 
 > Full guidelines with examples: `sea-ecosystem/docs/dev/agent-coding-guidelines.md`
 
