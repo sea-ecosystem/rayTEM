@@ -2,10 +2,11 @@
 
 Newest entries at top.
 
-## 2026-11-15 — [Under Construction] kV settings and section presets
+## 2026-11-15 — [Done] kV settings and section presets
 **Goal:** see sea-pearl `notes/eric/TODO_ACTIVE_2026-11-15_kv-settings.md` (branch `kv-settings` in sea-pearl, Poseidon, rayTEM).
 **Why:** Eric wants kV-aware settings: one kV setting `.sea` (calibrations, axes, section tables whose named rows are presets), picked by live EHT.
-- [ ] this repo's part (Poseidon: preset menu + kV setting viewer; rayTEM: `save_as_setting`/`save_as_calibration` write the kV setting, old JSON still loads)
+- [x] `save_as_setting`/`save_as_calibration(..., kv_setting=path)` also write the kV setting `.sea`; `load_setting`/`load_calibration(..., kv_setting=path)` read it; JSON unchanged
+**Outcome:** 00b8d2d. Both settings round-trip tests pass; every rayTEM settings JSON on this PC (examples, MACSTEM) imports (sea-pearl test). Not merged.
 
 ## 2026-11-09 — [Done] Collins runs break at aberrated elements, which are walked through
 **Goal:** a Collins transfer carries aberrated lenses and plates by walking them in slices (as the scaled walker does), the runs between still contracted.
