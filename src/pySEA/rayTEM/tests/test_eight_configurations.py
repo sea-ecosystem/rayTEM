@@ -180,6 +180,33 @@ def test_state_survives_the_settings_round_trip(solved_high, tmp_path, monkeypat
 		assert np.isclose(fresh[n].strength, k, rtol=1e-9)
 
 
+def test_state_survives_a_kv_setting_round_trip_and_old_json_still_loads(solved_high, tmp_path, monkeypatch):
+	# the same setting also written into a kV setting .sea (sea-pearl's kv_settings): read back
+	# from either it or the JSON, the strengths are the same; a JSON written before still loads
+	pytest.importorskip("pySEA.sea_pearl.kv_settings")
+	from pySEA.sea_pearl.kv_settings import KvSetting
+	monkeypatch.chdir(tmp_path)
+	scope = _configured(solved_high)
+	keys = {n: "strength" for n in solved_high["strengths"]}
+	sea = tmp_path / "settings" / "basic_200kV.sea"
+	scope.save_as_setting("high-convergent-image", keys, kv_setting=sea)
+	scope.save_as_setting("high-convergent-image", keys, kv_setting=sea)	# twice: both keep an old/ copy
+	assert (tmp_path / "settings" / "old" / "high-convergent-image-v0.001.json").is_file()
+	assert (tmp_path / "settings" / "old" / "basic_200kV-v0.001.sea").is_file()
+	stored = KvSetting.load(sea).find_row("high-convergent-image")
+	assert stored["sea_id"] and stored["sections"]
+	for source in (None, sea):
+		fresh = ex.load_base()
+		fresh.load_setting("high-convergent-image", kv_setting=source)
+		for n, k in solved_high["strengths"].items():
+			assert np.isclose(fresh[n].strength, k, rtol=1e-9)
+	scope.save_as_calibration("lenses", {n: "strength" for n in list(solved_high["strengths"])[:2]}, kv_setting=sea)
+	fresh = ex.load_base()
+	fresh.load_calibration("lenses", kv_setting=sea)
+	for n in list(solved_high["strengths"])[:2]:
+		assert np.isclose(fresh[n].strength, solved_high["strengths"][n], rtol=1e-9)
+
+
 def test_conjugate_planes_agree_across_methods(solved_high):
 	# rays vs accumulated matrix: the same planes, to interpolation accuracy
 	# (the ray method draws straight lines between logged planes, so a plane
