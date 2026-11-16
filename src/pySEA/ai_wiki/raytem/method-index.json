@@ -6534,7 +6534,7 @@
     "signature": "test_section_level_aberrations()",
     "doc": "Aberrations declared on a section act, suspend, and round-trip.",
     "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 559,
+    "source_lineno": 560,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -6546,7 +6546,7 @@
     "signature": "test_aberration_screen_element()",
     "doc": "A stand-alone AberrationScreen kicks rays and is transparent when idle.",
     "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 584,
+    "source_lineno": 585,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -6558,7 +6558,7 @@
     "signature": "test_microscope_index_raises()",
     "doc": "Microscope.index raises KeyError for unknown names instead of returning None.",
     "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 608,
+    "source_lineno": 609,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -6570,7 +6570,7 @@
     "signature": "test_thick_lens_efl_vs_bfd_split()",
     "doc": "The three focal quantities and their matrix definitions.",
     "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 618,
+    "source_lineno": 619,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -6582,7 +6582,7 @@
     "signature": "test_strong_lens_virtual_bfp_vs_internal_crossover()",
     "doc": "Past KL = pi/2 the BFD goes virtual; the real crossover is in-body.",
     "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 668,
+    "source_lineno": 669,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -6594,7 +6594,7 @@
     "signature": "test_focal_properties_round_trip()",
     "doc": "A thin lens defined by focal_length keeps all three focal numbers",
     "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 690,
+    "source_lineno": 691,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -6606,7 +6606,7 @@
     "signature": "test_aperture_current_types()",
     "doc": "",
     "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 708,
+    "source_lineno": 709,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -6618,7 +6618,7 @@
     "signature": "test_aperture_masks_rays()",
     "doc": "An aperture is a true mask: blocked rays carry I = 0 onward,",
     "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 727,
+    "source_lineno": 728,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -6630,7 +6630,7 @@
     "signature": "test_covariance_aberration_closure()",
     "doc": "Aberrations enter the moments mode analytically (Gaussian closure).",
     "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 817,
+    "source_lineno": 818,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -6642,7 +6642,7 @@
     "signature": "test_frame_focal_surface()",
     "doc": "focal_surface(method='frame'): the aberrated surface in closed form.",
     "source_path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 865,
+    "source_lineno": 866,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_elements_sections_microscopes.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null

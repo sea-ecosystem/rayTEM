@@ -2191,7 +2191,7 @@
     "name": "test_aberration_screen_element",
     "qualname": "test_aberration_screen_element",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 584,
+    "source_lineno": 585,
     "signature": "test_aberration_screen_element()",
     "doc": "A stand-alone AberrationScreen kicks rays and is transparent when idle."
   },
@@ -2326,7 +2326,7 @@
     "name": "test_aperture_current_types",
     "qualname": "test_aperture_current_types",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 708,
+    "source_lineno": 709,
     "signature": "test_aperture_current_types()",
     "doc": ""
   },
@@ -2353,7 +2353,7 @@
     "name": "test_aperture_masks_rays",
     "qualname": "test_aperture_masks_rays",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 727,
+    "source_lineno": 728,
     "signature": "test_aperture_masks_rays()",
     "doc": "An aperture is a true mask: blocked rays carry I = 0 onward,"
   },
@@ -2758,7 +2758,7 @@
     "name": "test_covariance_aberration_closure",
     "qualname": "test_covariance_aberration_closure",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 817,
+    "source_lineno": 818,
     "signature": "test_covariance_aberration_closure()",
     "doc": "Aberrations enter the moments mode analytically (Gaussian closure)."
   },
@@ -3199,7 +3199,7 @@
     "name": "test_focal_properties_round_trip",
     "qualname": "test_focal_properties_round_trip",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 690,
+    "source_lineno": 691,
     "signature": "test_focal_properties_round_trip()",
     "doc": "A thin lens defined by focal_length keeps all three focal numbers"
   },
@@ -3253,7 +3253,7 @@
     "name": "test_frame_focal_surface",
     "qualname": "test_frame_focal_surface",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 865,
+    "source_lineno": 866,
     "signature": "test_frame_focal_surface()",
     "doc": "focal_surface(method='frame'): the aberrated surface in closed form."
   },
@@ -3541,7 +3541,7 @@
     "name": "test_microscope_index_raises",
     "qualname": "test_microscope_index_raises",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 608,
+    "source_lineno": 609,
     "signature": "test_microscope_index_raises()",
     "doc": "Microscope.index raises KeyError for unknown names instead of returning None."
   },
@@ -4072,7 +4072,7 @@
     "name": "test_section_level_aberrations",
     "qualname": "test_section_level_aberrations",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 559,
+    "source_lineno": 560,
     "signature": "test_section_level_aberrations()",
     "doc": "Aberrations declared on a section act, suspend, and round-trip."
   },
@@ -4243,7 +4243,7 @@
     "name": "test_strong_lens_virtual_bfp_vs_internal_crossover",
     "qualname": "test_strong_lens_virtual_bfp_vs_internal_crossover",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 668,
+    "source_lineno": 669,
     "signature": "test_strong_lens_virtual_bfp_vs_internal_crossover()",
     "doc": "Past KL = pi/2 the BFD goes virtual; the real crossover is in-body."
   },
@@ -4468,7 +4468,7 @@
     "name": "test_thick_lens_efl_vs_bfd_split",
     "qualname": "test_thick_lens_efl_vs_bfd_split",
     "path": "src/pySEA/rayTEM/tests/test_elements_sections_microscopes.py",
-    "source_lineno": 618,
+    "source_lineno": 619,
     "signature": "test_thick_lens_efl_vs_bfd_split()",
     "doc": "The three focal quantities and their matrix definitions."
   },
