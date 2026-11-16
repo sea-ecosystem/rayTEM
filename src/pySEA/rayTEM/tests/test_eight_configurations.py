@@ -180,30 +180,34 @@ def test_state_survives_the_settings_round_trip(solved_high, tmp_path, monkeypat
 		assert np.isclose(fresh[n].strength, k, rtol=1e-9)
 
 
-def test_state_survives_a_kv_setting_round_trip_and_old_json_still_loads(solved_high, tmp_path, monkeypatch):
-	# the same setting also written into a kV setting .sea (sea-pearl's kv_settings): read back
-	# from either it or the JSON, the strengths are the same; a JSON written before still loads
-	pytest.importorskip("pySEA.sea_pearl.kv_settings")
-	from pySEA.sea_pearl.kv_settings import KvSetting
+def test_state_survives_a_setting_round_trip_and_old_json_still_loads(solved_high, tmp_path, monkeypatch):
+	# the same setting also written as a Setting .sea (sea-pearl's settings): read back from either it or the
+	# JSON, the strengths are the same; saved twice, both keep the old one (old/ and archive/)
+	pytest.importorskip("pySEA.sea_pearl.settings")
+	from pySEA.sea_pearl.settings import Setting
 	monkeypatch.chdir(tmp_path)
 	scope = _configured(solved_high)
 	keys = {n: "strength" for n in solved_high["strengths"]}
-	sea = tmp_path / "settings" / "basic_200kV.sea"
-	scope.save_as_setting("high-convergent-image", keys, kv_setting=sea)
-	scope.save_as_setting("high-convergent-image", keys, kv_setting=sea)	# twice: both keep an old/ copy
+	sea = tmp_path / "settings" / "high-convergent-image.sea"
+	scope.save_as_setting("high-convergent-image", keys, setting=sea)
+	scope.save_as_setting("high-convergent-image", keys, setting=sea)
 	assert (tmp_path / "settings" / "old" / "high-convergent-image-v0.001.json").is_file()
-	assert (tmp_path / "settings" / "old" / "basic_200kV-v0.001.sea").is_file()
-	stored = KvSetting.load(sea).find_row("high-convergent-image")
-	assert stored["sea_id"] and stored["sections"]
+	assert len(list((tmp_path / "settings" / "archive").glob("*.sea"))) == 1
+	stored = Setting.load(sea)
+	assert stored.name == "high-convergent-image" and stored.model["values"]
 	for source in (None, sea):
 		fresh = ex.load_base()
-		fresh.load_setting("high-convergent-image", kv_setting=source)
+		fresh.load_setting("high-convergent-image", setting=source)
 		for n, k in solved_high["strengths"].items():
 			assert np.isclose(fresh[n].strength, k, rtol=1e-9)
-	scope.save_as_calibration("lenses", {n: "strength" for n in list(solved_high["strengths"])[:2]}, kv_setting=sea)
+	# into a master that holds settings
+	master = tmp_path / "settings" / "basic_200kV.sea"
+	two = list(solved_high["strengths"])[:2]
+	scope.save_as_calibration("lenses", {n: "strength" for n in two}, setting=master)
+	assert Setting.load(master).find("lenses") is not None
 	fresh = ex.load_base()
-	fresh.load_calibration("lenses", kv_setting=sea)
-	for n in list(solved_high["strengths"])[:2]:
+	fresh.load_calibration("lenses", setting=master)
+	for n in two:
 		assert np.isclose(fresh[n].strength, solved_high["strengths"][n], rtol=1e-9)
 
 

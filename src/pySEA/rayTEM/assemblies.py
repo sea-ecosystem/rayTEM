@@ -4417,17 +4417,17 @@ class Microscope(SealedAttributes, SEASerializable):
 		return Microscope(**dic)
 
 	# json file containing selected lens strengths. currently not limited to where they are in the column, so be careful of mixed condenser/projector settings
-	# kv_setting: optionally also write it into a kV setting .sea (sea-pearl's kv_settings), as a named row of
-	# section (from the element names when None). The JSON is written as before.
-	def save_as_setting(self,setting_name,keys,kv_setting=None,section=None):
-		self.save_subset(setting_name,keys,kind="setting",kv_setting=kv_setting,section=section)
+	# setting: optionally also write it as a Setting .sea (sea-pearl's settings): the file itself when it is this
+	# setting (or new), else a setting held by it (a master). The JSON is written as before.
+	def save_as_setting(self,setting_name,keys,setting=None):
+		self.save_subset(setting_name,keys,kind="setting",setting=setting)
 
 	# json file containing selected lens calibrations, but also conceivably things like element positions and lengths.
-	def save_as_calibration(self,calibration_name,keys,kv_setting=None):
-		self.save_subset(calibration_name,keys,kind="calibration",kv_setting=kv_setting)
+	def save_as_calibration(self,calibration_name,keys,setting=None):
+		self.save_subset(calibration_name,keys,kind="calibration",setting=setting)
 
 	# save a subset of element attributes, pass a dicts of: { elementName:[attribute1,attribute2] or elementName:attribute }
-	def save_subset(self,name,keys,kind,kv_setting=None,section=None):
+	def save_subset(self,name,keys,kind,setting=None):
 		import json
 		# always record kind ("setting" or "calibration"), name, version, timestamp
 		jdict = {"kind":kind, "name":name, "version":0.001,
@@ -4453,27 +4453,33 @@ class Microscope(SealedAttributes, SEASerializable):
 		os.makedirs(kind+"s",exist_ok=True)
 		with open(fout, 'w') as f:
 			json.dump(jdict, f,indent=4)
-		# and into the kV setting .sea, which keeps its own old/ versions the same way
-		if kv_setting is not None:
-			from pySEA.sea_pearl.kv_settings import KvSetting
-			setting = KvSetting.open(kv_setting)
-			setting.import_raytem_json(jdict,section=section)
-			setting.save(kv_setting)
+		# and as a Setting .sea, whose replaced versions go to archive/<SEA ID>.sea beside it
+		if setting is not None:
+			from pySEA.sea_pearl.settings import Setting
+			target = Setting.open(setting,name=name)
+			new = Setting.from_raytem_json(jdict,kv=target.kv)
+			if target.name == name and not target.settings:
+				new.Provenance = target.Provenance
+				new.save(setting)
+			else:
+				target.put(new)
+				target.save(setting)
 
-	# kv_setting: read it from a kV setting .sea (a row named setting_name) instead of settings/<name>.json
-	def load_setting(self,setting_name,kv_setting=None):
-		self.load_subset(setting_name,kind="setting",kv_setting=kv_setting)
+	# setting: read it from a Setting .sea (the setting named setting_name, or one it holds) instead of settings/<name>.json
+	def load_setting(self,setting_name,setting=None):
+		self.load_subset(setting_name,kind="setting",setting=setting)
 
-	def load_calibration(self,calibration_name,kv_setting=None):
-		self.load_subset(calibration_name,kind="calibration",kv_setting=kv_setting)
+	def load_calibration(self,calibration_name,setting=None):
+		self.load_subset(calibration_name,kind="calibration",setting=setting)
 
-	def load_subset(self,name,kind,kv_setting=None):
+	def load_subset(self,name,kind,setting=None):
 		import json
-		if kv_setting is not None:
-			from pySEA.sea_pearl.kv_settings import KvSetting
-			setting = KvSetting.load(kv_setting)
-			settings = setting.raytem_settings(name) if kind=="setting" else setting.model_calibrations[name]
-			self.update_with_settings(settings)
+		if setting is not None:
+			from pySEA.sea_pearl.settings import Setting
+			found = Setting.load(setting).find(name)
+			if found is None:
+				raise KeyError("No setting "+repr(name)+" in "+str(setting))
+			self.update_with_settings(found.raytem_settings("values" if kind=="setting" else "calibrations"))
 			return
 		jdict = json.loads("".join(open(kind+"s/"+name+".json").readlines()))
 		settings = { k:d for k,d in jdict.items() if k not in ["name","kind","version","timestamp"] }
