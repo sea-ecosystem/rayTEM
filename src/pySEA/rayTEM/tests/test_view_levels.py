@@ -3,7 +3,7 @@
 import pytest
 
 from pySEA.rayTEM.assemblies import Microscope, MicroscopeSection
-from pySEA.rayTEM.elements import Aperture, Dipole, Drift, Lens, Quadrapole, Source
+from pySEA.rayTEM.elements import Aperture, Dipole, Drift, Lens, Prism, Quadrapole, Source
 from pySEA.rayTEM.schema import check_view_level, default_view_level, view_level_of
 from pySEA.rayTEM.seashells import sea_available
 
@@ -35,8 +35,10 @@ def test_defaults_follow_the_type_code():
 	assert levels["CD1a"] == 7
 	assert levels["CQ1"] == 7
 	assert levels["Drift"] == 10            # an unnamed layout drift
-	assert levels["sample"] == 3            # a named plane is no drift volume
+	assert levels["sample"] == 1            # a named plane is no drift volume: it shows with its section
+	assert levels["Source"] == 1
 	assert default_view_level(Drift(name="PV1", length=0.1)) == 10
+	assert default_view_level(Prism(name="EP1")) == 3
 
 
 def test_a_set_level_overrides_the_default():

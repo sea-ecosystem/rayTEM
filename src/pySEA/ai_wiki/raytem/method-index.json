@@ -4458,7 +4458,7 @@
     "signature": "check_view_level(value, name)",
     "doc": "Return a view level as an int, or ``None`` for \"the default\".",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 677,
+    "source_lineno": 680,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -4470,7 +4470,7 @@
     "signature": "default_view_level(obj)",
     "doc": "Return the view level the schema gives an object that sets none.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 714,
+    "source_lineno": 717,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -4482,7 +4482,7 @@
     "signature": "view_level_of(obj)",
     "doc": "Return the view level an object shows at: its own, or the default.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 755,
+    "source_lineno": 758,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
     "wiki_lineno": null,
     "wiki_method_lineno": null
@@ -4494,7 +4494,7 @@
     "signature": "validate_element_name(name, section, element, path)",
     "doc": "Check one element name against the schema.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 790,
+    "source_lineno": 793,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
     "wiki_lineno": 135,
     "wiki_method_lineno": null
@@ -4506,7 +4506,7 @@
     "signature": "validate_section(section, code, strict, prefix)",
     "doc": "Validate one microscope section against the schema.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 967,
+    "source_lineno": 970,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
     "wiki_lineno": 140,
     "wiki_method_lineno": null
@@ -4518,7 +4518,7 @@
     "signature": "validate_microscope(scope, strict)",
     "doc": "Validate a whole microscope against the column naming schema.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 1063,
+    "source_lineno": 1066,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
     "wiki_lineno": 153,
     "wiki_method_lineno": null
@@ -4530,7 +4530,7 @@
     "signature": "migrate_legacy_section(section)",
     "doc": "Rename a section saved under a retired code, as it is read.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 1108,
+    "source_lineno": 1111,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
     "wiki_lineno": 93,
     "wiki_method_lineno": null
@@ -4542,7 +4542,7 @@
     "signature": "register_section(code, name, aliases)",
     "doc": "Add a section code to the vocabulary.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 1145,
+    "source_lineno": 1148,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
     "wiki_lineno": 162,
     "wiki_method_lineno": null
@@ -4554,7 +4554,7 @@
     "signature": "register_element_type(code, description, classes, required)",
     "doc": "Add an element type code to the vocabulary.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 1186,
+    "source_lineno": 1189,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
     "wiki_lineno": 172,
     "wiki_method_lineno": null
@@ -4566,7 +4566,7 @@
     "signature": "describe_schema()",
     "doc": "Return a printable summary of the current vocabulary.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 1226,
+    "source_lineno": 1229,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
     "wiki_lineno": 177,
     "wiki_method_lineno": null
@@ -4578,7 +4578,7 @@
     "signature": "get_schema_vocabulary()",
     "doc": "Return the current vocabulary as plain JSON-serialisable data.",
     "source_path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 1264,
+    "source_lineno": 1267,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/schema.md",
     "wiki_lineno": 183,
     "wiki_method_lineno": null
@@ -8800,11 +8800,11 @@
     "method": "test_defaults_follow_the_type_code",
     "kind": "method",
     "signature": "test_defaults_follow_the_type_code()",
-    "doc": "Eric (2026-11-17): the microscope 0, sections 1, round lenses 3, multipoles 7, everything 10.",
+    "doc": "Eric (2026-11-17): the microscope 0, sections and apertures 1, round lenses 3, multipoles 7, everything 10.",
     "source_path": "src/pySEA/rayTEM/tests/test_view_levels.py",
     "source_lineno": 26,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_view_levels.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 20,
     "wiki_method_lineno": null
   },
   {
@@ -8814,9 +8814,9 @@
     "signature": "test_a_set_level_overrides_the_default()",
     "doc": "``view_level`` set by hand wins, for elements and sections alike.",
     "source_path": "src/pySEA/rayTEM/tests/test_view_levels.py",
-    "source_lineno": 42,
+    "source_lineno": 44,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_view_levels.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 25,
     "wiki_method_lineno": null
   },
   {
@@ -8826,9 +8826,9 @@
     "signature": "test_a_level_outside_0_to_10_is_refused(value)",
     "doc": "A level is a whole number 0..10 or None; anything else is an error, not a guess.",
     "source_path": "src/pySEA/rayTEM/tests/test_view_levels.py",
-    "source_lineno": 52,
+    "source_lineno": 54,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_view_levels.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 30,
     "wiki_method_lineno": null
   },
   {
@@ -8838,9 +8838,9 @@
     "signature": "test_a_set_level_survives_a_sea_round_trip_and_an_unset_one_is_not_stored(tmp_path)",
     "doc": "The level is saved with the column; the default is not written at all.",
     "source_path": "src/pySEA/rayTEM/tests/test_view_levels.py",
-    "source_lineno": 62,
+    "source_lineno": 64,
     "wiki_path": "src/pySEA/ai_wiki/raytem/wiki/rayTEM/tests/test_view_levels.md",
-    "wiki_lineno": null,
+    "wiki_lineno": 35,
     "wiki_method_lineno": null
   },
   {

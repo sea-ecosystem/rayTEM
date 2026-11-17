@@ -653,25 +653,27 @@ ELEMENT_TYPE_VIEW_LEVELS: dict[str, int] = {
 	"D": 7,
 	"Q": 7,
 	"S": 7,
-	"P": 7,
+	"P": 3,
 	"V": 10,
 }
 """Element type code mapped to the view level an element of it shows at.
 
 A view shows what is at its level or lower (Eric, 2026-11-17): 0 the
 microscope, 1 its sections and their apertures (fundamental to basic
-operation, Eric 2026-11-17), 3 the round lenses, 7 the multipoles, 10
-everything, the drift volumes among it. An element's own
+operation, Eric 2026-11-17), 3 the round lenses and prisms (a prism is the
+spectrometer's main optic), 7 the multipoles, 10 everything, the drift
+volumes among it. An element's own
 ``view_level`` overrides its type's.
 """
 
 SECTION_VIEW_LEVEL: int = 1
 """The view level a section shows at when it sets none."""
 
-UNTYPED_VIEW_LEVEL: int = 3
-"""The view level of an element no type code covers (``sample``, a source).
+UNTYPED_VIEW_LEVEL: int = 1
+"""The view level of an element no type code covers (``sample``, a source, a detector plane).
 
-Named planes orient the column, so they show with the round lenses.
+Named planes orient the column -- where the beam starts, the sample, where it is
+detected -- so they show with their section (Eric, 2026-11-17).
 """
 
 
