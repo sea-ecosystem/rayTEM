@@ -2,10 +2,11 @@
 
 Newest entries at top.
 
-## 2026-11-17 — [Under Construction] View levels on elements and sections
-**Goal:** see sea-pearl `notes/eric/TODO_ACTIVE_2026-11-17_microscope-view-levels.md` (branch `claude/microscope-view-levels-wv2dhh` in sea-pearl, rayTEM, Poseidon).
+## 2026-11-17 — [Done] View levels on elements and sections
+**Goal:** see sea-pearl `notes/eric/TODO_DONE_2026-11-17_microscope-view-levels.md` (branch `claude/microscope-view-levels-wv2dhh` in sea-pearl, rayTEM, Poseidon).
 **Why:** a column view filtered by expertise needs each element and section to say how expert it is; here, `view_level` and its defaults from the type code.
-- [ ] `Element.view_level`, `MicroscopeSection.view_level`, `schema.view_level_of`; tests; wiki
+- [x] `Element.view_level`, `MicroscopeSection.view_level`, `schema.view_level_of`; tests; wiki
+**Outcome:** `Element.view_level` / `MicroscopeSection.view_level` and `schema.view_level_of` (commit 19ec861); `tests/test_view_levels.py` green; the 7 failures in the full suite are pre-existing (JSON `payload` key against the current sea-eco).
 
 ## 2026-11-15 — [Done] kV settings and section presets
 **Goal:** see sea-pearl `notes/eric/TODO_ACTIVE_2026-11-15_kv-settings.md` (branch `kv-settings` in sea-pearl, Poseidon, rayTEM).
