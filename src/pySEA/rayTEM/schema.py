@@ -138,6 +138,13 @@ __all__ = [
 	"validate_element_name",
 	"validate_section",
 	"validate_microscope",
+	"VIEW_LEVELS",
+	"ELEMENT_TYPE_VIEW_LEVELS",
+	"SECTION_VIEW_LEVEL",
+	"UNTYPED_VIEW_LEVEL",
+	"check_view_level",
+	"default_view_level",
+	"view_level_of",
 	"describe_schema",
 	"get_schema_vocabulary",
 	"migrate_legacy_section",
@@ -635,6 +642,149 @@ def is_schema_typed(element: object) -> bool:
 	"""
 
 	return bool(set(_mro_names(element)).intersection(_TYPED_CLASSES))
+
+
+#: The levels a view can be at: 0 shows the microscope alone, 10 everything.
+VIEW_LEVELS: tuple[int, ...] = tuple(range(11))
+
+ELEMENT_TYPE_VIEW_LEVELS: dict[str, int] = {
+	"L": 3,
+	"A": 3,
+	"D": 7,
+	"Q": 7,
+	"S": 7,
+	"P": 7,
+	"V": 10,
+}
+"""Element type code mapped to the view level an element of it shows at.
+
+A view shows what is at its level or lower (Eric, 2026-11-17): 0 the
+microscope, 1 its sections, 3 the round lenses (and the apertures), 7 the
+multipoles, 10 everything, the drift volumes among it. An element's own
+``view_level`` overrides its type's.
+"""
+
+SECTION_VIEW_LEVEL: int = 1
+"""The view level a section shows at when it sets none."""
+
+UNTYPED_VIEW_LEVEL: int = 3
+"""The view level of an element no type code covers (``sample``, a source).
+
+Named planes orient the column, so they show with the round lenses.
+"""
+
+
+def check_view_level(value: object, name: str = "") -> "int | None":
+	"""Return a view level as an int, or ``None`` for "the default".
+
+	Parameters
+	----------
+	value : object
+		The level: ``None``, or a whole number 0..10.
+	name : str, optional
+		What carries it, for the message.
+
+	Returns
+	-------
+	int or None
+		The level.
+
+	Raises
+	------
+	ValueError
+		If ``value`` is not ``None`` or a whole number in :data:`VIEW_LEVELS`.
+
+	Examples
+	--------
+	>>> check_view_level(None) is None, check_view_level(7.0)
+	(True, 7)
+	"""
+
+	if value is None:
+		return None
+	try:
+		number = float(value)  # type: ignore[arg-type]
+	except (TypeError, ValueError):
+		number = float("nan")
+	if isinstance(value, bool) or not number.is_integer() or int(number) not in VIEW_LEVELS:
+		raise ValueError(f"{name or 'view_level'}: a view level is a whole number 0 to 10 or None; got {value!r}.")
+	return int(number)
+
+
+def default_view_level(obj: object) -> int:
+	"""Return the view level the schema gives an object that sets none.
+
+	Parameters
+	----------
+	obj : object
+		A rayTEM ``Microscope``, ``MicroscopeSection`` or element (or a
+		subclass, sea-pearl's models included).
+
+	Returns
+	-------
+	int
+		0 for a microscope, :data:`SECTION_VIEW_LEVEL` for a section; for an
+		element, its type code's (:data:`ELEMENT_TYPE_VIEW_LEVELS`), read from
+		its name and else from its class, and :data:`UNTYPED_VIEW_LEVEL` for
+		an element of no type.
+
+	Examples
+	--------
+	>>> from pySEA.rayTEM.elements import Dipole, Element
+	>>> default_view_level(Dipole(name="CD1a")), default_view_level(Element(name="sample"))
+	(7, 3)
+	"""
+
+	names = set(_mro_names(obj))
+	if "MicroscopeSection" in names:
+		return SECTION_VIEW_LEVEL
+	if "Microscope" in names:
+		return 0
+	name = getattr(obj, "name", None)
+	parsed = parse_element_name(name)
+	codes = (parsed.type,) if parsed is not None else element_type_codes_for(obj)
+	if parsed is None and name and codes == ("V",):
+		# A named drift that is no drift volume is a plane (``sample``, ``VOA``).
+		return UNTYPED_VIEW_LEVEL
+	for code in codes:
+		if code in ELEMENT_TYPE_VIEW_LEVELS:
+			return ELEMENT_TYPE_VIEW_LEVELS[code]
+	return UNTYPED_VIEW_LEVEL
+
+
+def view_level_of(obj: object) -> int:
+	"""Return the view level an object shows at: its own, or the default.
+
+	Parameters
+	----------
+	obj : object
+		A microscope, section or element.
+
+	Returns
+	-------
+	int
+		``obj.view_level`` when set, else :func:`default_view_level`. The
+		parent's level is not applied: a view that shows an element also
+		needs its section shown, which the caller decides.
+
+	Raises
+	------
+	ValueError
+		If ``obj.view_level`` is not ``None`` or a whole number 0..10.
+
+	Examples
+	--------
+	>>> from pySEA.rayTEM.elements import Lens
+	>>> lens = Lens(name="CL1")
+	>>> view_level_of(lens)
+	3
+	>>> lens.view_level = 1
+	>>> view_level_of(lens)
+	1
+	"""
+
+	own = check_view_level(getattr(obj, "view_level", None), str(getattr(obj, "name", "") or ""))
+	return default_view_level(obj) if own is None else own
 
 
 def validate_element_name(

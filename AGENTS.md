@@ -353,6 +353,7 @@ If `wiki_method_lineno` is non-null, use it instead for a tighter read.
 - `src/pySEA/rayTEM/tests/test_scaled_wave_physical_plane.py` — Tests for seashells.scaled_wave_physical_plane: ψ of one stored scaled plane.
 - `src/pySEA/rayTEM/tests/test_schema.py`
 - `src/pySEA/rayTEM/tests/test_source_voltage.py`
+- `src/pySEA/rayTEM/tests/test_view_levels.py` — View levels (``schema.view_level_of``): how expert a view must be to show an object.
 - `src/pySEA/rayTEM/tests/test_wave_and_envelope.py`
 - `src/pySEA/rayTEM/utilities.py`
 - `src/pySEA/rayTEM/waveoptics.py` — Paraxial scalar wave-optics primitives for rayTEM.

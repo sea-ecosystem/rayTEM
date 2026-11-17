@@ -13,7 +13,7 @@
     "name": "AberrationScreen",
     "qualname": "AberrationScreen",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3903,
+    "source_lineno": 3910,
     "signature": "class AberrationScreen",
     "doc": "A zero-thickness pure aberration plate."
   },
@@ -76,7 +76,7 @@
     "name": "Aperture",
     "qualname": "Aperture",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3511,
+    "source_lineno": 3518,
     "signature": "class Aperture",
     "doc": "Aperture element class. An aperture MASKS the beam: rays outside the"
   },
@@ -247,7 +247,7 @@
     "name": "canonical_element_name",
     "qualname": "canonical_element_name",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 515,
+    "source_lineno": 522,
     "signature": "canonical_element_name(section, type, index, axis)",
     "doc": "Build a schema-conforming element name."
   },
@@ -274,9 +274,18 @@
     "name": "check_lengths",
     "qualname": "check_lengths",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4556,
+    "source_lineno": 4584,
     "signature": "check_lengths(section)",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "check_view_level",
+    "qualname": "check_view_level",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 677,
+    "signature": "check_view_level(value, name)",
+    "doc": "Return a view level as an int, or ``None`` for \"the default\"."
   },
   {
     "kind": "function",
@@ -415,10 +424,19 @@
   },
   {
     "kind": "function",
+    "name": "default_view_level",
+    "qualname": "default_view_level",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 714,
+    "signature": "default_view_level(obj)",
+    "doc": "Return the view level the schema gives an object that sets none."
+  },
+  {
+    "kind": "function",
     "name": "describe_schema",
     "qualname": "describe_schema",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 1076,
+    "source_lineno": 1226,
     "signature": "describe_schema()",
     "doc": "Return a printable summary of the current vocabulary."
   },
@@ -436,7 +454,7 @@
     "name": "Dipole",
     "qualname": "Dipole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4554,
+    "source_lineno": 4561,
     "signature": "class Dipole",
     "doc": ""
   },
@@ -463,7 +481,7 @@
     "name": "Drift",
     "qualname": "Drift",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3827,
+    "source_lineno": 3834,
     "signature": "class Drift",
     "doc": "Drift element class for free-space propagation."
   },
@@ -553,7 +571,7 @@
     "name": "element_type_codes_for",
     "qualname": "element_type_codes_for",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 593,
+    "source_lineno": 600,
     "signature": "element_type_codes_for(element)",
     "doc": "Return the type codes an element's class may legitimately carry."
   },
@@ -562,7 +580,7 @@
     "name": "ElementName",
     "qualname": "ElementName",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 280,
+    "source_lineno": 287,
     "signature": "class ElementName",
     "doc": "A parsed schema-conforming element name."
   },
@@ -751,7 +769,7 @@
     "name": "get_schema_vocabulary",
     "qualname": "get_schema_vocabulary",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 1114,
+    "source_lineno": 1264,
     "signature": "get_schema_vocabulary()",
     "doc": "Return the current vocabulary as plain JSON-serialisable data."
   },
@@ -769,7 +787,7 @@
     "name": "Gun",
     "qualname": "Gun",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 3459,
+    "source_lineno": 3466,
     "signature": "class Gun",
     "doc": "A Source by its microscope name."
   },
@@ -814,7 +832,7 @@
     "name": "is_schema_typed",
     "qualname": "is_schema_typed",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 622,
+    "source_lineno": 629,
     "signature": "is_schema_typed(element)",
     "doc": "Whether an element's class is subject to the name pattern."
   },
@@ -868,7 +886,7 @@
     "name": "Lens",
     "qualname": "Lens",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4775,
+    "source_lineno": 4782,
     "signature": "class Lens",
     "doc": "Lens element class for round lenses / symmetric focusing. https://en.wikipedia.org/wiki/Ray_transfer_matrix_analysis#Thin_lens_example or Brown1983 page 105"
   },
@@ -922,7 +940,7 @@
     "name": "load_microscope",
     "qualname": "load_microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4655,
+    "source_lineno": 4683,
     "signature": "load_microscope(filename)",
     "doc": "Load a microscope from ``.sea`` or ``.json``."
   },
@@ -931,7 +949,7 @@
     "name": "load_section",
     "qualname": "load_section",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4485,
+    "source_lineno": 4513,
     "signature": "load_section(filename)",
     "doc": ""
   },
@@ -1147,7 +1165,7 @@
     "name": "Microscope",
     "qualname": "Microscope",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 1481,
+    "source_lineno": 1488,
     "signature": "class Microscope",
     "doc": "Microscope class represents a whole microscope, and is comprised of multiple MicroscopeSections. propagation through a Microscope results in propagation through individual MicroscopeSections"
   },
@@ -1165,7 +1183,7 @@
     "name": "migrate_legacy_section",
     "qualname": "migrate_legacy_section",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 958,
+    "source_lineno": 1108,
     "signature": "migrate_legacy_section(section)",
     "doc": "Rename a section saved under a retired code, as it is read."
   },
@@ -1255,7 +1273,7 @@
     "name": "parse_element_name",
     "qualname": "parse_element_name",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 479,
+    "source_lineno": 486,
     "signature": "parse_element_name(name)",
     "doc": "Parse an element name into its schema parts."
   },
@@ -1327,7 +1345,7 @@
     "name": "Prism",
     "qualname": "Prism",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 5413,
+    "source_lineno": 5420,
     "signature": "class Prism",
     "doc": ""
   },
@@ -1426,7 +1444,7 @@
     "name": "Quadrapole",
     "qualname": "Quadrapole",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 4090,
+    "source_lineno": 4097,
     "signature": "class Quadrapole",
     "doc": ""
   },
@@ -1525,7 +1543,7 @@
     "name": "register_element_type",
     "qualname": "register_element_type",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 1036,
+    "source_lineno": 1186,
     "signature": "register_element_type(code, description, classes, required)",
     "doc": "Add an element type code to the vocabulary."
   },
@@ -1534,7 +1552,7 @@
     "name": "register_section",
     "qualname": "register_section",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 995,
+    "source_lineno": 1145,
     "signature": "register_section(code, name, aliases)",
     "doc": "Add a section code to the vocabulary."
   },
@@ -1552,7 +1570,7 @@
     "name": "repair",
     "qualname": "repair",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4570,
+    "source_lineno": 4598,
     "signature": "repair(section, combine_drifts)",
     "doc": "Close gaps and overlaps in a section's element list, in place."
   },
@@ -1615,7 +1633,7 @@
     "name": "roundjson",
     "qualname": "roundjson",
     "path": "src/pySEA/rayTEM/assemblies.py",
-    "source_lineno": 4467,
+    "source_lineno": 4495,
     "signature": "roundjson(jdict)",
     "doc": ""
   },
@@ -1678,7 +1696,7 @@
     "name": "SchemaError",
     "qualname": "SchemaError",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 326,
+    "source_lineno": 333,
     "signature": "class SchemaError",
     "doc": "Raised by a strict validation that found at least one error."
   },
@@ -1687,7 +1705,7 @@
     "name": "SchemaIssue",
     "qualname": "SchemaIssue",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 302,
+    "source_lineno": 309,
     "signature": "class SchemaIssue",
     "doc": "A single schema finding."
   },
@@ -1696,7 +1714,7 @@
     "name": "SchemaReport",
     "qualname": "SchemaReport",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 330,
+    "source_lineno": 337,
     "signature": "class SchemaReport",
     "doc": "Result of validating a section or microscope against the schema."
   },
@@ -1732,7 +1750,7 @@
     "name": "section_code",
     "qualname": "section_code",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 450,
+    "source_lineno": 457,
     "signature": "section_code(name)",
     "doc": "Resolve a section name to its schema code."
   },
@@ -1822,7 +1840,7 @@
     "name": "Source",
     "qualname": "Source",
     "path": "src/pySEA/rayTEM/elements.py",
-    "source_lineno": 2999,
+    "source_lineno": 3006,
     "signature": "class Source",
     "doc": "Source element class. Source element can be put in a MicroscopeSection and then propagating \"through\" the section will mean the starting rays r0 are generated by the Source (instead of requiring the user pass in starting rays)"
   },
@@ -1936,6 +1954,15 @@
   },
   {
     "kind": "function",
+    "name": "test_a_level_outside_0_to_10_is_refused",
+    "qualname": "test_a_level_outside_0_to_10_is_refused",
+    "path": "src/pySEA/rayTEM/tests/test_view_levels.py",
+    "source_lineno": 52,
+    "signature": "test_a_level_outside_0_to_10_is_refused(value)",
+    "doc": "A level is a whole number 0..10 or None; anything else is an error, not a guess."
+  },
+  {
+    "kind": "function",
     "name": "test_a_mistyped_clsid_is_normalized_rather_than_refused",
     "qualname": "test_a_mistyped_clsid_is_normalized_rather_than_refused",
     "path": "src/pySEA/rayTEM/tests/test_microscope_identity.py",
@@ -2032,6 +2059,24 @@
     "source_lineno": 2416,
     "signature": "test_a_screen_may_be_complex_carrying_amplitude_and_phase_together()",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_a_set_level_overrides_the_default",
+    "qualname": "test_a_set_level_overrides_the_default",
+    "path": "src/pySEA/rayTEM/tests/test_view_levels.py",
+    "source_lineno": 42,
+    "signature": "test_a_set_level_overrides_the_default()",
+    "doc": "``view_level`` set by hand wins, for elements and sections alike."
+  },
+  {
+    "kind": "function",
+    "name": "test_a_set_level_survives_a_sea_round_trip_and_an_unset_one_is_not_stored",
+    "qualname": "test_a_set_level_survives_a_sea_round_trip_and_an_unset_one_is_not_stored",
+    "path": "src/pySEA/rayTEM/tests/test_view_levels.py",
+    "source_lineno": 62,
+    "signature": "test_a_set_level_survives_a_sea_round_trip_and_an_unset_one_is_not_stored(tmp_path)",
+    "doc": "The level is saved with the column; the default is not written at all."
   },
   {
     "kind": "function",
@@ -2686,7 +2731,7 @@
     "name": "test_conjugate_planes_agree_across_methods",
     "qualname": "test_conjugate_planes_agree_across_methods",
     "path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
-    "source_lineno": 183,
+    "source_lineno": 214,
     "signature": "test_conjugate_planes_agree_across_methods(solved_high)",
     "doc": ""
   },
@@ -2851,6 +2896,15 @@
     "source_lineno": 632,
     "signature": "test_crossovers(microscope, states, noplot)",
     "doc": ""
+  },
+  {
+    "kind": "function",
+    "name": "test_defaults_follow_the_type_code",
+    "qualname": "test_defaults_follow_the_type_code",
+    "path": "src/pySEA/rayTEM/tests/test_view_levels.py",
+    "source_lineno": 26,
+    "signature": "test_defaults_follow_the_type_code()",
+    "doc": "Eric (2026-11-17): the microscope 0, sections 1, round lenses 3, multipoles 7, everything 10."
   },
   {
     "kind": "function",
@@ -4222,6 +4276,15 @@
   },
   {
     "kind": "function",
+    "name": "test_state_survives_a_setting_round_trip_and_old_json_still_loads",
+    "qualname": "test_state_survives_a_setting_round_trip_and_old_json_still_loads",
+    "path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
+    "source_lineno": 183,
+    "signature": "test_state_survives_a_setting_round_trip_and_old_json_still_loads(solved_high, tmp_path, monkeypatch)",
+    "doc": ""
+  },
+  {
+    "kind": "function",
     "name": "test_state_survives_the_settings_round_trip",
     "qualname": "test_state_survives_the_settings_round_trip",
     "path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
@@ -4648,7 +4711,7 @@
     "name": "test_wave_crossovers_land_on_the_matrix_diffraction_planes",
     "qualname": "test_wave_crossovers_land_on_the_matrix_diffraction_planes",
     "path": "src/pySEA/rayTEM/tests/test_eight_configurations.py",
-    "source_lineno": 211,
+    "source_lineno": 242,
     "signature": "test_wave_crossovers_land_on_the_matrix_diffraction_planes(solved_high)",
     "doc": ""
   },
@@ -4828,7 +4891,7 @@
     "name": "validate_element_name",
     "qualname": "validate_element_name",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 640,
+    "source_lineno": 790,
     "signature": "validate_element_name(name, section, element, path)",
     "doc": "Check one element name against the schema."
   },
@@ -4837,7 +4900,7 @@
     "name": "validate_microscope",
     "qualname": "validate_microscope",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 913,
+    "source_lineno": 1063,
     "signature": "validate_microscope(scope, strict)",
     "doc": "Validate a whole microscope against the column naming schema."
   },
@@ -4846,9 +4909,18 @@
     "name": "validate_section",
     "qualname": "validate_section",
     "path": "src/pySEA/rayTEM/schema.py",
-    "source_lineno": 817,
+    "source_lineno": 967,
     "signature": "validate_section(section, code, strict, prefix)",
     "doc": "Validate one microscope section against the schema."
+  },
+  {
+    "kind": "function",
+    "name": "view_level_of",
+    "qualname": "view_level_of",
+    "path": "src/pySEA/rayTEM/schema.py",
+    "source_lineno": 755,
+    "signature": "view_level_of(obj)",
+    "doc": "Return the view level an object shows at: its own, or the default."
   },
   {
     "kind": "class",

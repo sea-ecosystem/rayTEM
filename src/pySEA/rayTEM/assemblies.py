@@ -476,6 +476,13 @@ class MicroscopeSection(SealedAttributes, SEASerializable):
 			their neighboring gaps. Pass True for the old tidying behavior.
 		"""
 
+	#: How expert a view must be to show this section, 0 (the simplest) to 10
+	#: (everything): a view shows what is at its level or lower. A DISPLAY
+	#: setting -- nothing in propagation reads it. None (the default) is the
+	#: schema's default, 1 for a section (:func:`schema.view_level_of`), and
+	#: is not stored, so files written before it existed read unchanged.
+	view_level = None
+
 	def __init__(self, name:str='',
 				 elements:ArrayLike=None, # list of Elements, or list of dicts
 				 position:float=0., ignoreLensThickness=False,

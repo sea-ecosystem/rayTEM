@@ -925,6 +925,13 @@ class Element(SealedAttributes, SEASerializable):
 	#: Read by elements resolving a scalar ``focal_power``; a Quadrapole
 	#: states ``focal_powers`` per axis and is not chromatic yet.
 	chromatic_aberration = 0.0
+	#: How expert a view must be to show this element, 0 (the simplest) to 10
+	#: (everything): a view shows what is at its level or lower (Eric,
+	#: 2026-11-17). A DISPLAY setting -- nothing in propagation reads it. None
+	#: (the default) takes the default of the element's type code, a round
+	#: lens 3 and a dipole 7 (:func:`schema.view_level_of`), and is not stored,
+	#: so files written before it existed read unchanged.
+	view_level = None
 
 	def __init__(self, name:str='', kind:str=None,
 				 aberrations=None, screen=None ) -> SEASerializable:
