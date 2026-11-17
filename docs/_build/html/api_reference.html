@@ -123,6 +123,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.tilt_y"><code class="docutils literal notranslate"><span class="pre">Element.tilt_y</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.transfer_block"><code class="docutils literal notranslate"><span class="pre">Element.transfer_block()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.transfer_matrix"><code class="docutils literal notranslate"><span class="pre">Element.transfer_matrix()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.view_level"><code class="docutils literal notranslate"><span class="pre">Element.view_level</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.elements.Element.zone_power_shift"><code class="docutils literal notranslate"><span class="pre">Element.zone_power_shift()</span></code></a></li>
 </ul>
 </li>
@@ -279,6 +280,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.show"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.show()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.tabulate"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.tabulate()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.validate_schema"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.validate_schema()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.view_level"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.view_level</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#pySEA.rayTEM.assemblies.MicroscopeSection.wobble"><code class="docutils literal notranslate"><span class="pre">MicroscopeSection.wobble()</span></code></a></li>
 </ul>
 </li>
@@ -2119,6 +2121,17 @@ on the base class).</p>
 </dl>
 <p><a class="reference internal" href="#pySEA.rayTEM.elements.Element.propagate_ray" title="pySEA.rayTEM.elements.Element.propagate_ray"><code class="xref py py-obj docutils literal notranslate"><span class="pre">propagate_ray</span></code></a>, <a class="reference internal" href="#pySEA.rayTEM.elements.Element.propagate_moments" title="pySEA.rayTEM.elements.Element.propagate_moments"><code class="xref py py-obj docutils literal notranslate"><span class="pre">propagate_moments</span></code></a></p>
 </div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.elements.Element.view_level">
+<span class="sig-name descname"><span class="pre">view_level</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#pySEA.rayTEM.elements.Element.view_level" title="Link to this definition"></a></dt>
+<dd><p>How expert a view must be to show this element, 0 (the simplest) to 10
+(everything): a view shows what is at its level or lower (Eric,
+2026-11-17). A DISPLAY setting – nothing in propagation reads it. None
+(the default) takes the default of the element’s type code, a round
+lens 3 and a dipole 7 (<code class="xref py py-func docutils literal notranslate"><span class="pre">schema.view_level_of()</span></code>), and is not stored,
+so files written before it existed read unchanged.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -5393,6 +5406,16 @@ reports silently, by default True.</p>
 </dd>
 </dl>
 </div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pySEA.rayTEM.assemblies.MicroscopeSection.view_level">
+<span class="sig-name descname"><span class="pre">view_level</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#pySEA.rayTEM.assemblies.MicroscopeSection.view_level" title="Link to this definition"></a></dt>
+<dd><p>How expert a view must be to show this section, 0 (the simplest) to 10
+(everything): a view shows what is at its level or lower. A DISPLAY
+setting – nothing in propagation reads it. None (the default) is the
+schema’s default, 1 for a section (<code class="xref py py-func docutils literal notranslate"><span class="pre">schema.view_level_of()</span></code>), and
+is not stored, so files written before it existed read unchanged.</p>
 </dd></dl>
 
 <dl class="py method">

@@ -1066,6 +1066,13 @@
 	<span class="c1">#: Read by elements resolving a scalar ``focal_power``; a Quadrapole</span>
 	<span class="c1">#: states ``focal_powers`` per axis and is not chromatic yet.</span>
 	<span class="n">chromatic_aberration</span> <span class="o">=</span> <span class="mf">0.0</span>
+	<span class="c1">#: How expert a view must be to show this element, 0 (the simplest) to 10</span>
+	<span class="c1">#: (everything): a view shows what is at its level or lower (Eric,</span>
+	<span class="c1">#: 2026-11-17). A DISPLAY setting -- nothing in propagation reads it. None</span>
+	<span class="c1">#: (the default) takes the default of the element's type code, a round</span>
+	<span class="c1">#: lens 3 and a dipole 7 (:func:`schema.view_level_of`), and is not stored,</span>
+	<span class="c1">#: so files written before it existed read unchanged.</span>
+	<span class="n">view_level</span> <span class="o">=</span> <span class="kc">None</span>
 
 	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
 				 <span class="n">aberrations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">screen</span><span class="o">=</span><span class="kc">None</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEASerializable</span><span class="p">:</span>

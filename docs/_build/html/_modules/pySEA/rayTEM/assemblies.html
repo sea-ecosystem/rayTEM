@@ -569,6 +569,13 @@
 <span class="sd">			their neighboring gaps. Pass True for the old tidying behavior.</span>
 <span class="sd">		"""</span>
 
+	<span class="c1">#: How expert a view must be to show this section, 0 (the simplest) to 10</span>
+	<span class="c1">#: (everything): a view shows what is at its level or lower. A DISPLAY</span>
+	<span class="c1">#: setting -- nothing in propagation reads it. None (the default) is the</span>
+	<span class="c1">#: schema's default, 1 for a section (:func:`schema.view_level_of`), and</span>
+	<span class="c1">#: is not stored, so files written before it existed read unchanged.</span>
+	<span class="n">view_level</span> <span class="o">=</span> <span class="kc">None</span>
+
 	<span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span>
 				 <span class="n">elements</span><span class="p">:</span><span class="n">ArrayLike</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="c1"># list of Elements, or list of dicts</span>
 				 <span class="n">position</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">ignoreLensThickness</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
