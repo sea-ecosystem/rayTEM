@@ -735,7 +735,7 @@ def default_view_level(obj: object) -> int:
 	--------
 	>>> from pySEA.rayTEM.elements import Dipole, Element
 	>>> default_view_level(Dipole(name="CD1a")), default_view_level(Element(name="sample"))
-	(7, 3)
+	(7, 1)
 	"""
 
 	names = set(_mro_names(obj))
