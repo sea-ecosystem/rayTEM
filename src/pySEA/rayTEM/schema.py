@@ -649,7 +649,7 @@ VIEW_LEVELS: tuple[int, ...] = tuple(range(11))
 
 ELEMENT_TYPE_VIEW_LEVELS: dict[str, int] = {
 	"L": 3,
-	"A": 3,
+	"A": 1,
 	"D": 7,
 	"Q": 7,
 	"S": 7,
@@ -659,8 +659,9 @@ ELEMENT_TYPE_VIEW_LEVELS: dict[str, int] = {
 """Element type code mapped to the view level an element of it shows at.
 
 A view shows what is at its level or lower (Eric, 2026-11-17): 0 the
-microscope, 1 its sections, 3 the round lenses (and the apertures), 7 the
-multipoles, 10 everything, the drift volumes among it. An element's own
+microscope, 1 its sections and their apertures (fundamental to basic
+operation, Eric 2026-11-17), 3 the round lenses, 7 the multipoles, 10
+everything, the drift volumes among it. An element's own
 ``view_level`` overrides its type's.
 """
 

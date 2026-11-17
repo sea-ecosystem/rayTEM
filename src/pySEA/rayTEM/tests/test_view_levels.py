@@ -24,14 +24,14 @@ def _column() -> Microscope:
 
 
 def test_defaults_follow_the_type_code():
-	"""Eric (2026-11-17): the microscope 0, sections 1, round lenses 3, multipoles 7, everything 10."""
+	"""Eric (2026-11-17): the microscope 0, sections and apertures 1, round lenses 3, multipoles 7, everything 10."""
 	column = _column()
 	section = column.sections[0]
 	assert view_level_of(column) == 0
 	assert view_level_of(section) == 1
 	levels = {element.name or type(element).__name__: view_level_of(element) for element in section.elements}
 	assert levels["CL1"] == 3
-	assert levels["CA1"] == 3
+	assert levels["CA1"] == 1
 	assert levels["CD1a"] == 7
 	assert levels["CQ1"] == 7
 	assert levels["Drift"] == 10            # an unnamed layout drift

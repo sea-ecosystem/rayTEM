@@ -122,7 +122,7 @@ How expert a view must be to show an object, 0 (the microscope alone) to 10
 files read unchanged. Nothing in propagation reads them.
 
 Defaults: a `Microscope` 0, a section 1 (`SECTION_VIEW_LEVEL`), an element by its
-type code (`ELEMENT_TYPE_VIEW_LEVELS`: `L`/`A` 3, `D`/`Q`/`S`/`P` 7, `V` 10), read
+type code (`ELEMENT_TYPE_VIEW_LEVELS`: `A` 1 -- apertures show with their section --, `L` 3, `D`/`Q`/`S`/`P` 7, `V` 10), read
 from the name first and else the class. A named `Drift` that is no `V` volume is a
 plane (`sample`, `VOA`) and takes `UNTYPED_VIEW_LEVEL` (3), as do `Source` and
 plain `Element`s; an unnamed layout drift is 10. `view_level_of` does not apply
